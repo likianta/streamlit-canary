@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "streamlit-canary"
+version = "0.1.0a1"
+description = ""
+authors = ["likianta <likianta@foxmail.com>"]
+# readme = "README.md"
+packages = [{ include = "streamlit_canary" }]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+# argsense = "^0.5.0"
+# lk-logger = { version = "^6.0.0a16", source = "likianta-host" }
+lk-utils = { version = "^3.0.2a7", source = "likianta-host" }
+streamlit = { version = "^1.39.0", python = "!=3.9.7" }
+
+# ---
+
+numpy = { version = "^2.1.2", python = ">=3.10,<4.0" }  # <- streamlit
+
+[[tool.poetry.source]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
+priority = "primary"
+
+[[tool.poetry.source]]
+name = "likianta-host"
+url = "http://likianta.pro:2131/"
+priority = "supplemental"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
