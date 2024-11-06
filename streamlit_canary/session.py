@@ -5,17 +5,17 @@ from inspect import currentframe
 from functools import wraps
 
 
-def init(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs) -> dict:
-        if func.__qualname__ not in st.session_state:
-            print('init session', func.__qualname__, func, ':vp')
-            st.session_state[func.__qualname__] = func(*args, **kwargs)
-        return st.session_state[func.__qualname__]
-    return wrapper
+# def init(func):
+#     @wraps(func)
+#     def wrapper(*args, **kwargs) -> dict:
+#         if func.__qualname__ not in st.session_state:
+#             print('init session', func.__qualname__, func, ':vp')
+#             st.session_state[func.__qualname__] = func(*args, **kwargs)
+#         return st.session_state[func.__qualname__]
+#     return wrapper
 
 
-def get(
+def init(
     fallback: t.Callable[[], dict] = None,
     version: t.Union[int, str] = None
 ) -> dict:
@@ -33,6 +33,9 @@ def get(
             st.session_state[module_name] = fallback()
             st.session_state[module_name]['__version'] = version
     return st.session_state[module_name]
+
+
+get = init
 
 
 class SessionHost:
