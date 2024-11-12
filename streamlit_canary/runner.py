@@ -10,8 +10,8 @@ from .flow import post_events
 
 
 def run(target: t.Callable[[], t.Any], port: int = 3001) -> None:
-    if os.getenv('STREAMLIT_SWIFT_RUNNING', '0') == '0':
-        os.environ['STREAMLIT_SWIFT_RUNNING'] = '1'
+    if os.getenv('STREAMLIT_CANARY_RUNNING', '0') == '0':
+        os.environ['STREAMLIT_CANARY_RUNNING'] = '1'
         caller_frame = currentframe().f_back
         caller_file = fs.normpath(caller_frame.f_globals.get('__file__'))
         _check_package_definition_in_source(caller_file)

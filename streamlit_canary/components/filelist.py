@@ -58,7 +58,6 @@ def filelist(
             if top10:
                 files = files[:10]
             if multiple_selection:
-                # -- A
                 out = []
                 for index, (name, path) in enumerate(files, 1):
                     if st.checkbox(
@@ -69,17 +68,6 @@ def filelist(
                         key=f'{uid}:checkbox:{name}'
                     ):
                         out.append(path)
-                # -- B
-                # selected_indexes = st.multiselect(
-                #     'Select file(s)',
-                #     range(len(files)),
-                #     format_func=lambda i: files[i][0],
-                #     key=f'{uid}:select_files'
-                # )
-                # out = [
-                #     files[i][1]
-                #     for i in selected_indexes
-                # ]
             else:
                 selected_index = st.radio(
                     'Select a file',
