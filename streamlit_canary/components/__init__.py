@@ -2,7 +2,7 @@ from ._typing import AnyComponent
 from ._typing import AnyContainer
 from .button import long_button
 from .column import columns
-from .file_picker import pick_file
+from .filelist import filelist
 from .input import anynum_input
 from .input import hex_input
 from .radio import radio_idx

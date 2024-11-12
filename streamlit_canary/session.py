@@ -1,6 +1,7 @@
 import typing as t
 from collections import defaultdict
 from inspect import currentframe
+from types import FrameType
 
 import streamlit as st
 
@@ -26,6 +27,17 @@ def init(
             st.session_state[module_name] = fallback()
             st.session_state[module_name]['__session_data_version'] = version
     return st.session_state[module_name]
+
+
+def get_last_frame(fback_level: int = 1) -> FrameType:
+    frame = currentframe().f_back
+    for _ in range(fback_level):
+        frame = frame.f_back
+    return frame
+
+
+def get_last_frame_id(fback_level: int = 1) -> str:
+    return get_last_frame(fback_level + 1).f_globals['__name__']
 
 
 # DELETE
