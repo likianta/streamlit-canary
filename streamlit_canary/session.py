@@ -1,18 +1,8 @@
-import streamlit as st
 import typing as t
 from collections import defaultdict
 from inspect import currentframe
-from functools import wraps
 
-
-# def init(func):
-#     @wraps(func)
-#     def wrapper(*args, **kwargs) -> dict:
-#         if func.__qualname__ not in st.session_state:
-#             print('init session', func.__qualname__, func, ':vp')
-#             st.session_state[func.__qualname__] = func(*args, **kwargs)
-#         return st.session_state[func.__qualname__]
-#     return wrapper
+import streamlit as st
 
 
 def init(
@@ -22,22 +12,23 @@ def init(
     last_frame = currentframe().f_back
     module_name = last_frame.f_globals['__name__']
     if module_name in st.session_state:
-        if st.session_state[module_name].get('__version') != version:
+        if (
+            st.session_state[module_name]
+                .get('__session_data_version') != version
+        ):
             print('re-init session', module_name, version)
             st.session_state[module_name] = fallback()
-            st.session_state[module_name]['__version'] = version
+            st.session_state[module_name]['__session_data_version'] = version
     else:
         if fallback is None:
-            st.session_state[module_name] = {'__version': version}
+            st.session_state[module_name] = {'__session_data_version': version}
         else:
             st.session_state[module_name] = fallback()
-            st.session_state[module_name]['__version'] = version
+            st.session_state[module_name]['__session_data_version'] = version
     return st.session_state[module_name]
 
 
-get = init
-
-
+# DELETE
 class SessionHost:
     def __init__(self) -> None:
         self._sessions = defaultdict(dict)  # {frame_name: dict, ...}
