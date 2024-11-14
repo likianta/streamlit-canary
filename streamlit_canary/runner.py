@@ -1,42 +1,33 @@
 import os
 import sys
 import typing as t
-from inspect import currentframe
 
 from lk_utils import fs
 from lk_utils import run_cmd_args
-
-from .flow import post_events
-
-
-def run(target: t.Callable[[], t.Any], port: int = 3001) -> None:
-    if os.getenv('STREAMLIT_CANARY_RUNNING', '0') == '0':
-        os.environ['STREAMLIT_CANARY_RUNNING'] = '1'
-        caller_frame = currentframe().f_back
-        caller_file = fs.normpath(caller_frame.f_globals.get('__file__'))
-        _check_package_definition_in_source(caller_file)
-        assert port != 3000, 'port 3000 is reserved by streamlit'
-        
-        run_cmd_args(
-            (sys.executable, '-m', 'streamlit', 'run', caller_file),
-            ('--browser.gatherUsageStats', 'false'),
-            ('--global.developmentMode', 'false'),
-            ('--runner.magicEnabled', 'false'),
-            ('--server.headless', 'true'),
-            ('--server.port', port),
-            verbose=True,
-            blocking=True,
-            force_term_color=True,
-            cwd=_get_entrance(
-                fs.parent(caller_file),
-                caller_frame.f_globals['__package__']
-            ),
-        )
-    else:
-        target()
-        post_events.execute()
+from lk_utils.subproc import Popen
 
 
+def run(
+    target: str, port: int = 3001, subthread: bool = False
+) -> t.Union[str, Popen]:
+    return run_cmd_args(
+        (sys.executable, '-m', 'streamlit', 'run', target),
+        ('--browser.gatherUsageStats', 'false'),
+        ('--global.developmentMode', 'false'),
+        ('--runner.magicEnabled', 'false'),
+        ('--server.headless', 'true'),
+        ('--server.port', port),
+        verbose=True,
+        blocking=not subthread,
+        force_term_color=True,
+        # cwd=_get_entrance(
+        #     fs.parent(caller_file),
+        #     caller_frame.f_globals['__package__']
+        # ),
+    )
+
+
+# DELETE
 def _check_package_definition_in_source(source_file: str) -> None:
     """
     if source has imported relative module, it must have defined `__package__` -

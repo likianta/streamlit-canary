@@ -30,7 +30,7 @@ def filelist(
         _state['tree_cache'][dir] = {}
     
     with st.expander(title, expanded=True):
-        cols = st.columns(2)
+        cols = st.columns((2, 1))
         with cols[0]:
             top10 = st.checkbox(
                 'Show top 10 files',
@@ -40,13 +40,13 @@ def filelist(
         with cols[1]:
             sort_by = st.radio(
                 'Sort by',
-                ('Sort by name', 'by time'),
+                ('name :small_red_triangle:', 'time :small_red_triangle_down:'),
                 index=1,
                 horizontal=True,
                 key=f'{uid}:sort_by',
                 label_visibility='collapsed'
             )
-            sort_by = sort_by.split()[-1]
+            sort_by = sort_by[:4]
         
         if (suffix, sort_by) not in _state['tree_cache'][dir]:
             _state['tree_cache'][dir][(suffix, sort_by)] = tuple(
