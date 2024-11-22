@@ -7,11 +7,7 @@ from lk_utils.textwrap import dedent
 from .button import long_button
 from .. import session
 
-_state = session.init(
-    lambda: {
-        'tree_cache': {}
-    }
-)
+_state = session.init(lambda: {'tree_cache': {}})
 
 
 # TODO: fragment, with callback param.
@@ -25,6 +21,8 @@ def filelist(
     explicit_confirm: bool = False,
     show_index_to_files: bool = True,
 ) -> list:
+    # _state = session.init(lambda: {'tree_cache': {}})
+    
     uid = '{}:__filelist'.format(session.get_last_frame_id())
     if dir not in _state['tree_cache']:
         _state['tree_cache'][dir] = {}
@@ -32,7 +30,7 @@ def filelist(
     with st.expander(title, expanded=True):
         cols = st.columns((2, 1))
         with cols[0]:
-            top10 = st.checkbox(
+            top10 = st.toggle(
                 'Show top 10 files',
                 True,
                 key=f'{uid}:top10'
