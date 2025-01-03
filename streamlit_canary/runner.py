@@ -1,4 +1,5 @@
 import os
+import shlex
 import sys
 import typing as t
 
@@ -11,12 +12,15 @@ def run(
     target: str, port: int = 3001, subthread: bool = False
 ) -> t.Union[str, Popen]:
     return run_cmd_args(
-        (sys.executable, '-m', 'streamlit', 'run', target),
+        (sys.executable, '-m', 'streamlit', 'run'),
         ('--browser.gatherUsageStats', 'false'),
         ('--global.developmentMode', 'false'),
         ('--runner.magicEnabled', 'false'),
         ('--server.headless', 'true'),
         ('--server.port', port),
+        shlex.split(target),
+        #   'xxx.py'              -> ['xxx.py']
+        #   'xxx.py -- arg1 arg2' -> ['xxx.py', '--', 'arg1', 'arg2']
         verbose=True,
         blocking=not subthread,
         force_term_color=True,
