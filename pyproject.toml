@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "streamlit-canary"
-version = "0.1.0a11"
+version = "0.1.0a14"
 description = ""
 authors = ["likianta <likianta@foxmail.com>"]
 # readme = "README.md"
@@ -10,7 +10,7 @@ packages = [{ include = "streamlit_canary" }]
 python = "^3.8"
 # argsense = "^0.5.0"
 # lk-logger = { version = "^6.0.0a16", source = "likianta-host" }
-lk-utils = { version = "^3.0.2a7", source = "likianta-host" }
+lk-utils = { version = "^3.1.2a5", source = "likianta-host" }
 streamlit = { version = "^1.40.0", python = "!=3.9.7" }
 
 [tool.poetry.group.dev.dependencies]

@@ -20,7 +20,7 @@ def filelist(
     multiple_selection: bool = False,
     explicit_confirm: bool = False,
     show_index_to_files: bool = True,
-) -> list:
+) -> t.Union[t.Optional[str], t.List[str]]:
     # _state = session.init(lambda: {'tree_cache': {}})
     
     uid = '{}:__filelist'.format(session.get_last_frame_id())
@@ -108,14 +108,17 @@ def filelist(
                     key=f'{uid}:apply',
                     disabled=not out,
                 ):
-                    return out
+                    return (
+                        out if multiple_selection else
+                        out[0] if out else None
+                    )
                 else:
-                    return []
+                    return [] if multiple_selection else None
         else:
             if long_button('Refresh', key=f'{uid}:refresh2'):
                 _state['tree_cache'].pop(dir)
                 st.rerun()
-            return out
+            return out if multiple_selection else out[0] if out else None
 
 
 def _init_tree(dir: str, suffix: t.Optional[str], sort_by: str = 'time'):
