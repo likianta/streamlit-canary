@@ -1,5 +1,4 @@
 import os
-import shlex
 import sys
 import typing as t
 
@@ -9,8 +8,17 @@ from lk_utils.subproc import Popen
 
 
 def run(
-    target: str, port: int = 3001, subthread: bool = False
+    target: t.Union[str, t.Tuple[str, ...], t.List[str]],
+    port: int = 3001,
+    subthread: bool = False,
+    **kwargs
 ) -> t.Union[str, Popen]:
+    """
+    params:
+        target: a script path or something like `[path, '--', *args]`.
+    """
+    if not isinstance(target, str):
+        assert target[1] == '--'
     return run_cmd_args(
         (sys.executable, '-m', 'streamlit', 'run'),
         ('--browser.gatherUsageStats', 'false'),
@@ -18,9 +26,7 @@ def run(
         ('--runner.magicEnabled', 'false'),
         ('--server.headless', 'true'),
         ('--server.port', port),
-        shlex.split(target),
-        #   'xxx.py'              -> ['xxx.py']
-        #   'xxx.py -- arg1 arg2' -> ['xxx.py', '--', 'arg1', 'arg2']
+        target,
         verbose=True,
         blocking=not subthread,
         force_term_color=True,
@@ -28,6 +34,7 @@ def run(
         #     fs.parent(caller_file),
         #     caller_frame.f_globals['__package__']
         # ),
+        **kwargs,
     )
 
 
