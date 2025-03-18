@@ -5,6 +5,7 @@ from lk_utils import fs
 from lk_utils.textwrap import dedent
 
 from .button import long_button
+from .text import hint
 from .. import session
 
 _state = session.init(lambda: {'tree_cache': {}})
@@ -20,6 +21,7 @@ def filelist(
     multiple_selection: bool = False,
     explicit_confirm: bool = False,
     show_index_to_files: bool = True,
+    show_sort_by: bool = True,
 ) -> t.Union[t.Optional[str], t.List[str]]:
     # _state = session.init(lambda: {'tree_cache': {}})
     
@@ -28,7 +30,7 @@ def filelist(
         _state['tree_cache'][dir] = {}
     
     with st.expander(title, expanded=True):
-        cols = st.columns((2, 1))
+        cols = st.columns(2)
         with cols[0]:
             top10 = st.toggle(
                 'Show top 10 files',
@@ -36,16 +38,22 @@ def filelist(
                 key=f'{uid}:top10'
             )
         with cols[1]:
-            sort_by = st.radio(
-                'Sort by',
-                ('name :small_red_triangle:', 'time :small_red_triangle_down:'),
-                index=1,
-                horizontal=True,
-                key=f'{uid}:sort_by',
-                label_visibility='collapsed'
-            )
-            sort_by = sort_by[:4]
-        
+            if show_sort_by:
+                sort_by = st.radio(
+                    'Sort by',
+                    (
+                        'name :small_red_triangle:',
+                        'time :small_red_triangle_down:'
+                    ),
+                    index=1,
+                    horizontal=True,
+                    key=f'{uid}:sort_by',
+                    label_visibility='collapsed'
+                )
+                sort_by = sort_by[:4]
+            else:
+                sort_by = 'time'
+            
         if (suffix, sort_by) not in _state['tree_cache'][dir]:
             _state['tree_cache'][dir][(suffix, sort_by)] = tuple(
                 _init_tree(dir, suffix, sort_by)
@@ -81,12 +89,14 @@ def filelist(
                 )
                 out = [files[selected_index][1]]
         else:
-            st.write(dedent(
+            hint(dedent(
                 '''
-                No files found in the directory! Please check your path and
-                suffix, or click "Refresh" button to reload the list.
+                No files found in the directory!
                 
-                Your directory is:
+                Please check your path and suffix, or click "Refresh" button to
+                reload the list.
+                
+                Current directory is:
                 
                 ```
                 {}
