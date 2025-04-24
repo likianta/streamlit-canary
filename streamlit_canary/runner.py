@@ -2,6 +2,7 @@ import os
 import sys
 import typing as t
 
+import pyapp_window
 from lk_utils import fs
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
@@ -11,15 +12,23 @@ def run(
     target: t.Union[str, t.Tuple[str, ...], t.List[str]],
     port: int = 3001,
     subthread: bool = False,
+    show_window: bool = False,
     **kwargs
-) -> t.Union[str, Popen]:
+) -> t.Optional[t.Union[str, Popen]]:
     """
     params:
         target: a script path or something like `[path, '--', *args]`.
+        show_window: if true, will open a native window.
+            if this argument is set to true, `subthread` will be ignored.
+            window options (by `kwargs`): title, size, pos.
     """
     if not isinstance(target, str):
         assert target[1] == '--'
-    return run_cmd_args(
+    if show_window:
+        title = kwargs.pop('title', 'Streamlit Canary App')
+        size = kwargs.pop('size', (1200, 900))
+        pos = kwargs.pop('pos', 'center')
+    proc = run_cmd_args(
         (sys.executable, '-m', 'streamlit', 'run'),
         ('--browser.gatherUsageStats', 'false'),
         ('--global.developmentMode', 'false'),
@@ -28,7 +37,7 @@ def run(
         ('--server.port', port),
         target,
         verbose=True,
-        blocking=not subthread,
+        blocking=False if show_window else not subthread,
         force_term_color=True,
         # cwd=_get_entrance(
         #     fs.parent(caller_file),
@@ -36,6 +45,11 @@ def run(
         # ),
         **kwargs,
     )
+    if show_window:
+        # noinspection PyUnboundLocalVariable
+        pyapp_window.open_window(title=title, port=port, size=size, pos=pos)
+    else:
+        return proc
 
 
 # DELETE
