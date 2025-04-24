@@ -9,10 +9,11 @@ from lk_utils.subproc import Popen
 
 
 def run(
-    target: t.Union[str, t.Tuple[str, ...], t.List[str]],
+    target: str,
     port: int = 3001,
     subthread: bool = False,
     show_window: bool = False,
+    extra_args: t.Sequence[str] = (),
     **kwargs
 ) -> t.Optional[t.Union[str, Popen]]:
     """
@@ -20,10 +21,16 @@ def run(
         target: a script path or something like `[path, '--', *args]`.
         show_window: if true, will open a native window.
             if this argument is set to true, `subthread` will be ignored.
-            window options (by `kwargs`): title, size, pos.
+        **kwargs:
+            popen options:
+                cwd: str
+                env: dict
+                shell: bool
+            if show_window is true, the following are also available:
+                title: str
+                size: str | tuple[int | str, int | str]
+                pos: str | tuple[int | str, int | str]
     """
-    if not isinstance(target, str):
-        assert target[1] == '--'
     if show_window:
         title = kwargs.pop('title', 'Streamlit Canary App')
         size = kwargs.pop('size', (1200, 900))
@@ -36,6 +43,7 @@ def run(
         ('--server.headless', 'true'),
         ('--server.port', port),
         target,
+        ('--', *extra_args) if extra_args else (),
         verbose=True,
         blocking=False if show_window else not subthread,
         force_term_color=True,

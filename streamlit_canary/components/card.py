@@ -8,8 +8,8 @@ bordered_container = partial(st.container, border=True)
 
 
 @contextmanager
-def card(label: str = None) -> t.ContextManager:
+def card(title: str = None) -> t.Iterator:
     with st.container(border=True):
-        if label:
-            st.write(':blue[**{}**]'.format(label))
+        if title:
+            st.write(':blue[**{}**]'.format(title))
         yield
