@@ -2,7 +2,9 @@ import os
 import sys
 import typing as t
 
+import psutil
 import pyapp_window
+import streamlit as st
 from lk_utils import fs
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
@@ -27,14 +29,17 @@ def run(
                 env: dict
                 shell: bool
             if show_window is true, the following are also available:
-                title: str
-                size: str | tuple[int | str, int | str]
+                icon: str
                 pos: str | tuple[int | str, int | str]
+                size: str | tuple[int | str, int | str]
+                title: str
     """
     if show_window:
         title = kwargs.pop('title', 'Streamlit Canary App')
+        icon = kwargs.pop('icon', None)
         size = kwargs.pop('size', (1200, 900))
         pos = kwargs.pop('pos', 'center')
+        os.environ['SC_WINDOW_PID_FOR_PORT_{}'.format(port)] = str(os.getpid())
     proc = run_cmd_args(
         (sys.executable, '-m', 'streamlit', 'run'),
         ('--browser.gatherUsageStats', 'false'),
@@ -55,9 +60,54 @@ def run(
     )
     if show_window:
         # noinspection PyUnboundLocalVariable
-        pyapp_window.open_window(title=title, port=port, size=size, pos=pos)
+        pyapp_window.open_window(
+            title=title, icon=icon, port=port, size=size, pos=pos
+        )
     else:
         return proc
+
+
+# TODO: rename to "kill_current_app"?
+def kill(port: int = None) -> None:
+    """ kill current app. if window is shown, also close the window. """
+    if port is None:
+        port = st.get_option('server.port')
+    
+    app_pid = os.getpid()
+    if x := os.getenv('SC_WINDOW_PID_FOR_PORT_{}'.format(port)):
+        win_pid = int(x)
+    else:
+        win_pid = None
+    
+    def kill_window_process(pid: int) -> None:
+        parent = psutil.Process(pid)
+        for child in parent.children(recursive=True):
+            if child.pid == app_pid:
+                continue
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+        try:
+            parent.kill()
+        except psutil.NoSuchProcess:
+            pass
+    
+    def kill_app_process(pid: int) -> None:
+        parent = psutil.Process(pid)
+        for child in parent.children(recursive=True):
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+        try:
+            parent.kill()
+        except psutil.NoSuchProcess:
+            pass
+    
+    if win_pid:
+        kill_window_process(win_pid)
+    kill_app_process(app_pid)
 
 
 # DELETE
