@@ -2,39 +2,30 @@ import typing as t
 import streamlit as st
 
 
-def radio_idx(
+def radio(
     label: str,
-    options: t.Tuple[str, ...],
+    options: t.Union[t.Dict[t.Any, str], t.Iterable[t.Tuple[t.Any, str]]],
     index: int = 0,
     horizontal: bool = True,
-) -> int:
-    options = dict(enumerate(options))
-    # FIXME: can keys be int type?
-    return st.radio(
+    **kwargs
+) -> t.Union[int, str]:
+    frozen = tuple(options)
+    indexes = tuple(range(len(frozen)))
+    keys = (
+        frozen if isinstance(options, dict) else
+        tuple(x if isinstance(x, str) else x[0] for x in frozen)
+    )
+    values = (
+        tuple(options.values()) if isinstance(options, dict) else
+        tuple(x if isinstance(x, str) else x[1] for x in frozen)
+    )
+    
+    idx = st.radio(
         label,
-        options.keys(),
-        format_func=lambda x: options[x],
+        indexes,
+        format_func=lambda i: values[i],
         horizontal=horizontal,
         index=index,
-    )
-
-
-def radio_key(
-    label: str,
-    options: t.Dict[str, str],
-    index: t.Union[str, int] = None,
-    horizontal: bool = True,
-    **kwargs
-) -> str:
-    keys = tuple(options.keys())
-    return st.radio(
-        label,
-        options.keys(),
-        format_func=lambda x: options[x],
-        horizontal=horizontal,
-        index=(
-            index if isinstance(index, int) else
-            keys.index(index) if index else 0
-        ),
         **kwargs
     )
+    return keys[idx]
