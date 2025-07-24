@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "streamlit-canary"
-version = "0.1.0b4"
+version = "0.1.0b13"
 description = "LK-flavored Streamlit enhancements."
 homepage = "https://github.com/likianta/streamlit-canary"
 authors = ["Likianta <likianta@foxmail.com>"]
@@ -9,17 +9,16 @@ packages = [{ include = "streamlit_canary" }]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-argsense = { version = "^1.0.0a1", source = "likianta" }
-lk-utils = { version = "^3.3.0a7", source = "likianta" }
+argsense = { version = "^1.0.1b2", source = "likianta" }
+# lk-logger = { version = "^6.0.0a16", source = "likianta" }
+lk-utils = { version = "^3.3.0a17", source = "likianta" }
+# lk-utils = { version = "^3.3.0a7", source = "likianta" }
 psutil = "^7.0.0"
 pyapp-window = { version = "^2.2.0b4", source = "likianta" }
 streamlit = [
     { version = "^1.40.0", python = ">=3.8,<3.10,!=3.9.7" },
-    { version = "^1.44.0", python = ">=3.10,<4.0" },
+    { version = "^1.45.0", python = ">=3.10,<4.0" },
 ]
-
-# cffi = "^1.17.1"  # <- pyapp-window
-# lk-logger = { version = "^6.0.0a16", source = "likianta" }
 
 [[tool.poetry.source]]
 name = "tsinghua"
@@ -28,7 +27,7 @@ priority = "primary"
 
 [[tool.poetry.source]]
 name = "likianta"
-url = "http://47.102.108.149:2131/"
+url = "http://localhost:2131/"
 priority = "supplemental"
 
 [build-system]

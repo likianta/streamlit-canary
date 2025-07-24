@@ -32,17 +32,17 @@ reference = "tsinghua"
 
 [[package]]
 name = "argsense"
-version = "1.0.0a1"
+version = "1.0.1b2"
 description = "New command line interface based on Rich library."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "argsense-1.0.0a1-py3-none-any.whl", hash = "sha256:521eb953e8db9478d94ce9eaa37c1ae693e5354c63f3df4b6ab6d8416fd7fb23"},
+    {file = "argsense-1.0.1b2-py3-none-any.whl", hash = "sha256:723a61a6a7f253e48070498d72b2ea9dc95b25b06255c9362b63e8eca6b3465b"},
 ]
 
 [package.dependencies]
-lk-logger = ">=6.0.4,<7.0.0"
+lk-logger = ">=6.0.6,<7.0.0"
 rich = ">=13.9.0,<14.0.0"
 
 [package.extras]
@@ -50,7 +50,7 @@ gui = ["pysimplegui"]
 
 [package.source]
 type = "legacy"
-url = "http://47.102.108.149:2131"
+url = "http://localhost:2131"
 reference = "likianta"
 
 [[package]]
@@ -722,13 +722,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "lk-logger"
-version = "6.0.5"
+version = "6.0.6"
 description = "Python print with source map and varnames."
 optional = false
 python-versions = ">=3.8,<4.0"
 groups = ["main"]
 files = [
-    {file = "lk_logger-6.0.5-py3-none-any.whl", hash = "sha256:dac3432477ae4d58046c758d8cf4d4eedb0c75135a6d9b878728e7e5701e0326"},
+    {file = "lk_logger-6.0.6-py3-none-any.whl", hash = "sha256:b3ff112cd8acae488b02f3657ba573733c7871fab28846df29953513de25bae0"},
 ]
 
 [package.dependencies]
@@ -744,31 +744,31 @@ reference = "tsinghua"
 
 [[package]]
 name = "lk-utils"
-version = "3.3.0a7"
+version = "3.3.0a17"
 description = "LK Utils is a set of utility wrappers made for data processing."
 optional = false
-python-versions = ">=3.8,<4.0"
+python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "lk_utils-3.3.0a7-py3-none-any.whl", hash = "sha256:5fbe2366a5098eead670036722297a8e50ea078ef2bf50418db5c7d8bb554ea9"},
+    {file = "lk_utils-3.3.0a17-py3-none-any.whl", hash = "sha256:99757ec3df5174bd3166dd00156d2170c41df5000b5c78f95f5d930872101f1a"},
 ]
 
 [package.dependencies]
-argsense = ">=0.7.2"
-lk-logger = ">=6.0.5,<7.0.0"
+argsense = ">=1.0.0,<2.0.0"
+lk-logger = ">=6.0.6,<7.0.0"
 psutil = ">=6.0.0"
 pyyaml = ">=6.0.0,<7.0.0"
-rich = ">=13.9.0,<14.0.0"
+rich = ">=13.9.0"
 typing-extensions = ">=4.0.0,<5.0.0"
 
 [package.extras]
-all = ["ipython (<9.0.0) ; python_version >= \"3.8\" and python_version < \"3.11\"", "ipython (>=9.0.0,<10.0.0) ; python_version >= \"3.11\" and python_version < \"4.0\"", "xlrd (==1.2.0)", "xlsxwriter (>=3.2.0,<4.0.0)"]
-dbg = ["ipython (<9.0.0) ; python_version >= \"3.8\" and python_version < \"3.11\"", "ipython (>=9.0.0,<10.0.0) ; python_version >= \"3.11\" and python_version < \"4.0\""]
-exl = ["xlrd (==1.2.0)", "xlsxwriter (>=3.2.0,<4.0.0)"]
+all = ["ipython", "toml", "xlrd", "xlsxwriter"]
+dbg = ["ipython"]
+exl = ["xlrd", "xlsxwriter"]
 
 [package.source]
 type = "legacy"
-url = "http://47.102.108.149:2131"
+url = "http://localhost:2131"
 reference = "likianta"
 
 [[package]]
@@ -1429,7 +1429,7 @@ webui2 = {version = ">=2.5.4,<3.0.0", markers = "sys_platform != \"win32\""}
 
 [package.source]
 type = "legacy"
-url = "http://47.102.108.149:2131"
+url = "http://localhost:2131"
 reference = "likianta"
 
 [[package]]
@@ -2150,7 +2150,7 @@ description = "A faster way to build and share data apps"
 optional = false
 python-versions = ">=3.9, !=3.9.7"
 groups = ["main"]
-markers = "python_full_version != \"3.9.7\" and python_version >= \"3.9\" and (sys_platform != \"linux\" or python_version >= \"3.10\")"
+markers = "python_full_version != \"3.9.7\" and python_version == \"3.9\" and sys_platform != \"linux\""
 files = [
     {file = "streamlit-1.44.1-py3-none-any.whl", hash = "sha256:9fe355f58b11f4eb71e74f115ce1f38c4c9eaff2733e6bcffb510ac1298a5990"},
     {file = "streamlit-1.44.1.tar.gz", hash = "sha256:c6914ed6d5b76870b461510476806db370f36425ae0e6654d227c988288198d3"},
@@ -2173,6 +2173,47 @@ requests = ">=2.27,<3"
 tenacity = ">=8.1.0,<10"
 toml = ">=0.10.1,<2"
 tornado = ">=6.0.3,<7"
+typing-extensions = ">=4.4.0,<5"
+watchdog = {version = ">=2.1.5,<7", markers = "platform_system != \"Darwin\""}
+
+[package.extras]
+snowflake = ["snowflake-connector-python (>=3.3.0) ; python_version < \"3.12\"", "snowflake-snowpark-python[modin] (>=1.17.0) ; python_version < \"3.12\""]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
+name = "streamlit"
+version = "1.47.0"
+description = "A faster way to build and share data apps"
+optional = false
+python-versions = ">=3.9, !=3.9.7"
+groups = ["main"]
+markers = "python_version >= \"3.10\""
+files = [
+    {file = "streamlit-1.47.0-py3-none-any.whl", hash = "sha256:c10dbfdf832c3fb8e5b62c7a5d1eaaae460dcf332a3a1623f7a072a6303100ee"},
+    {file = "streamlit-1.47.0.tar.gz", hash = "sha256:b4ff3b8fa01de1e1dc572930b420897f0870ed2ae44e23a815999b62c0778c30"},
+]
+
+[package.dependencies]
+altair = ">=4.0,<6"
+blinker = ">=1.5.0,<2"
+cachetools = ">=4.0,<7"
+click = ">=7.0,<9"
+gitpython = ">=3.0.7,<3.1.19 || >3.1.19,<4"
+numpy = ">=1.23,<3"
+packaging = ">=20,<26"
+pandas = ">=1.4.0,<3"
+pillow = ">=7.1.0,<12"
+protobuf = ">=3.20,<7"
+pyarrow = ">=7.0"
+pydeck = ">=0.8.0b4,<1"
+requests = ">=2.27,<3"
+tenacity = ">=8.1.0,<10"
+toml = ">=0.10.1,<2"
+tornado = ">=6.0.3,<6.5.0 || >6.5.0,<7"
 typing-extensions = ">=4.4.0,<5"
 watchdog = {version = ">=2.1.5,<7", markers = "platform_system != \"Darwin\""}
 
@@ -2800,4 +2841,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.8"
-content-hash = "b030f39119dde99c7c3b0b6b4d1c2338c1718f15fca50a5241efff62f5538a83"
+content-hash = "461e1860849cf266622454a0e44209e76ebd65ade797792b151dfd66dff45fcb"
