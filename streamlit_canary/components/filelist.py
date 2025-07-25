@@ -1,4 +1,6 @@
 import typing as t
+from inspect import currentframe
+from types import FrameType
 
 import streamlit as st
 from lk_utils import fs
@@ -8,7 +10,7 @@ from .button import long_button
 from .text import hint
 from .. import session
 
-_state = session.init(lambda: {'tree_cache': {}})
+_state = session.get_state(callback=lambda: {'tree_cache': {}})
 
 
 # TODO: fragment, with callback param.
@@ -25,7 +27,7 @@ def filelist(
 ) -> t.Union[t.Optional[str], t.List[str]]:
     # _state = session.init(lambda: {'tree_cache': {}})
     
-    uid = '{}:__filelist'.format(session.get_last_frame_id())
+    uid = '{}:__filelist'.format(_get_last_frame_id())
     if dir not in _state['tree_cache']:
         _state['tree_cache'][dir] = {}
     
@@ -129,6 +131,17 @@ def filelist(
                 _state['tree_cache'].pop(dir)
                 st.rerun()
             return out if multiple_selection else out[0] if out else None
+
+
+def _get_last_frame(fback_level: int = 1) -> FrameType:
+    frame = currentframe().f_back
+    for _ in range(fback_level):
+        frame = frame.f_back
+    return frame
+
+
+def _get_last_frame_id(fback_level: int = 1) -> str:
+    return _get_last_frame(fback_level + 1).f_globals['__name__']
 
 
 def _init_tree(dir: str, suffix: t.Optional[str], sort_by: str = 'time'):

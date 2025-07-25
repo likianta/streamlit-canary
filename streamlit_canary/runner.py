@@ -20,7 +20,7 @@ def run(
 ) -> t.Optional[t.Union[str, Popen]]:
     """
     params:
-        target: a script path or something like `[path, '--', *args]`.
+        target: a script path.
         show_window: if true, will open a native window.
             if this argument is set to true, `subthread` will be ignored.
         **kwargs:
@@ -68,7 +68,7 @@ def run(
 
 
 # TODO: rename to "kill_current_app"?
-def kill(port: int = None) -> None:
+def kill(port: int = None, except_pids: t.Sequence[int] = ()) -> None:
     """ kill current app. if window is shown, also close the window. """
     if port is None:
         port = st.get_option('server.port')
@@ -78,11 +78,13 @@ def kill(port: int = None) -> None:
         win_pid = int(x)
     else:
         win_pid = None
+    if except_pids:
+        assert app_pid not in except_pids and win_pid not in except_pids
     
     def kill_window_process(pid: int) -> None:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):
-            if child.pid == app_pid:
+            if child.pid == app_pid or child.pid in except_pids:
                 continue
             try:
                 child.kill()
@@ -96,6 +98,8 @@ def kill(port: int = None) -> None:
     def kill_app_process(pid: int) -> None:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):
+            if child.pid in except_pids:
+                continue
             try:
                 child.kill()
             except psutil.NoSuchProcess:
