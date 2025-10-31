@@ -7,5 +7,6 @@ from .column import columns
 from .filelist import filelist
 from .input import anynum_input
 from .input import hex_input
+from .input import path_input
 from .radio import radio
 from .text import hint
