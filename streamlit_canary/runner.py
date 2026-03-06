@@ -23,6 +23,11 @@ def run(
         target: a script path.
         show_window: if true, will open a native window.
             if this argument is set to true, `subthread` will be ignored.
+        window_options:
+            title: str
+            icon: str
+            pos: str | tuple[int | str, int | str]
+            size: str | tuple[int | str, int | str]
         **kwargs:
             popen options:
                 cwd: str
@@ -34,12 +39,21 @@ def run(
                 size: str | tuple[int | str, int | str]
                 title: str
     """
+    popen_options = {}
+    for k in ('cwd', 'env', 'shell'):
+        if k in kwargs:
+            popen_options[k] = kwargs[k]
+    window_options = {}
     if show_window:
-        title = kwargs.pop('title', 'Streamlit Canary App')
-        icon = kwargs.pop('icon', None)
-        size = kwargs.pop('size', (1200, 900))
-        pos = kwargs.pop('pos', 'center')
+        window_options.update({
+            'title': kwargs.get('title', 'Streamlit Canary App'),
+            'icon' : kwargs.get('icon', None),
+            'pos'  : kwargs.get('pos', 'center'),
+            'size' : kwargs.get('size', (1200, 900)),
+        })
         os.environ['SC_WINDOW_PID_FOR_PORT_{}'.format(port)] = str(os.getpid())
+    del kwargs
+    
     proc = run_cmd_args(
         (sys.executable, '-m', 'streamlit', 'run'),
         ('--browser.gatherUsageStats', 'false'),
@@ -52,17 +66,10 @@ def run(
         verbose=True,
         blocking=False if show_window else not subthread,
         force_term_color=True,
-        # cwd=_get_entrance(
-        #     fs.parent(caller_file),
-        #     caller_frame.f_globals['__package__']
-        # ),
-        **kwargs,
+        **popen_options,
     )
     if show_window:
-        # noinspection PyUnboundLocalVariable
-        pyapp_window.open_window(
-            title=title, icon=icon, port=port, size=size, pos=pos
-        )
+        pyapp_window.open_window(port=port, **window_options)
     else:
         return proc
 
