@@ -4,7 +4,11 @@ import streamlit as st
 
 def radio(
     label: str,
-    options: t.Union[t.Dict[t.Any, str], t.Iterable[t.Tuple[t.Any, str]]],
+    options: t.Union[
+        t.Dict[t.Any, str],
+        t.Iterable[str],
+        t.Iterable[t.Tuple[t.Any, str]],
+    ],
     index: int = 0,
     horizontal: bool = True,
     **kwargs

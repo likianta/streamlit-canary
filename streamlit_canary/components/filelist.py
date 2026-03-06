@@ -4,13 +4,11 @@ from types import FrameType
 
 import streamlit as st
 from lk_utils import fs
-from lk_utils.textwrap import dedent
 
 from .button import long_button
-from .text import hint
 from .. import session
 
-_state = session.get_state(callback=lambda: {'tree_cache': {}})
+_state = session.init_state(default=lambda: {'tree_cache': {}})
 
 
 # TODO: fragment, with callback param.
@@ -91,20 +89,14 @@ def filelist(
                 )
                 out = [files[selected_index][1]]
         else:
-            hint(dedent(
-                '''
-                No files found in the directory!
-                
-                Please check your path and suffix, or click "Refresh" button to
-                reload the list.
-                
-                Current directory is:
-                
-                ```
-                {}
-                ```
-                '''.format(fs.abspath(dir))
-            ))
+            st.markdown(
+                ':red[No files found in the directory.]',
+                help=(
+                    'If you find it is a problem, please check your path and '
+                    'file extension. Then cilck "Refresh" button to reload the '
+                    'list. (Current directory: `{}`)'.format(fs.abspath(dir))
+                )
+            )
             out = []
         
         if explicit_confirm:
