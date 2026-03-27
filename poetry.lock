@@ -425,7 +425,7 @@ description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 groups = ["main"]
-markers = "platform_system == \"Windows\" and python_full_version != \"3.9.7\""
+markers = "python_full_version != \"3.9.7\" and platform_system == \"Windows\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
@@ -741,14 +741,14 @@ reference = "tsinghua"
 
 [[package]]
 name = "lk-utils"
-version = "3.5.0"
+version = "3.5.1"
 description = "LK Utils is a set of utility wrappers made for data processing."
 optional = false
 python-versions = ">=3.8"
 groups = ["main", "dev"]
-markers = "python_version >= \"3.10\""
+markers = "python_version >= \"3.10\" and python_version < \"3.12\""
 files = [
-    {file = "lk_utils-3.5.0-py3-none-any.whl", hash = "sha256:8c85056baf3ec0e5a1b569767d93af2dca34301cb13fa3a2dc8bd53a30dc9282"},
+    {file = "lk_utils-3.5.1-py3-none-any.whl", hash = "sha256:8319a66b709cc3521c2d3b61bb7f633787068a214137937754f48214d3abf0ed"},
 ]
 
 [package.dependencies]
@@ -774,14 +774,14 @@ reference = "likianta"
 
 [[package]]
 name = "lk-utils"
-version = "3.5.0"
+version = "3.5.1"
 description = "LK Utils is a set of utility wrappers made for data processing."
 optional = false
 python-versions = ">=3.8"
 groups = ["main", "dev"]
 markers = "python_full_version == \"3.9.7\""
 files = [
-    {file = "lk_utils-3.5.0-py3-none-any.whl", hash = "sha256:8c85056baf3ec0e5a1b569767d93af2dca34301cb13fa3a2dc8bd53a30dc9282"},
+    {file = "lk_utils-3.5.1-py3-none-any.whl", hash = "sha256:8319a66b709cc3521c2d3b61bb7f633787068a214137937754f48214d3abf0ed"},
 ]
 
 [package.dependencies]
@@ -804,6 +804,39 @@ zip = ["py7zr ; python_version >= \"3.10\""]
 type = "legacy"
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
+
+[[package]]
+name = "lk-utils"
+version = "3.5.2a1"
+description = "LK Utils is a set of utility wrappers made for data processing."
+optional = false
+python-versions = ">=3.8"
+groups = ["main", "dev"]
+markers = "python_version >= \"3.12\""
+files = [
+    {file = "lk_utils-3.5.2a1-py3-none-any.whl", hash = "sha256:4908623fbf2c2867c791645378b05251906653a8b6ba8c44f720f966f10efc3e"},
+]
+
+[package.dependencies]
+argsense = ">=1.1.0,<2.0.0"
+lk-logger = ">=6.0.7,<7.0.0"
+psutil = ">=6.0.0"
+pyyaml = ">=6.0.0,<7.0.0"
+rich = ">=14.0.0,<15.0.0"
+typing-extensions = ">=4.0.0,<5.0.0"
+
+[package.extras]
+all = ["ipython", "py7zr ; python_version >= \"3.10\"", "toml ; python_version < \"3.11\"", "xlrd (==1.2.0)", "xlsxwriter"]
+dbg = ["ipython"]
+exl = ["xlrd (==1.2.0)", "xlsxwriter"]
+io = ["toml ; python_version < \"3.11\"", "xlrd (==1.2.0)", "xlsxwriter"]
+tml = ["toml"]
+zip = ["py7zr ; python_version >= \"3.10\""]
+
+[package.source]
+type = "legacy"
+url = "http://localhost:2191"
+reference = "likianta"
 
 [[package]]
 name = "markdown-it-py"
@@ -1583,9 +1616,9 @@ files = [
 
 [package.dependencies]
 numpy = [
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
     {version = ">=1.22.4", markers = "python_version < \"3.11\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
-    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -3537,7 +3570,7 @@ description = "Filesystem events monitoring"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "platform_system != \"Darwin\" and python_full_version != \"3.9.7\" and python_version >= \"3.9\""
+markers = "python_full_version != \"3.9.7\" and python_version >= \"3.9\" and platform_system != \"Darwin\""
 files = [
     {file = "watchdog-6.0.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:d1cdb490583ebd691c012b3d6dae011000fe42edb7a82ece80965b42abd61f26"},
     {file = "watchdog-6.0.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:bc64ab3bdb6a04d69d4023b29422170b74681784ffb9463ed4870cf2f3e66112"},
@@ -3625,4 +3658,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.8"
-content-hash = "a41c55c144bfa0833e9d67e6e4acb9ab7fed8bc883fe44718a1ea98bea6dcd83"
+content-hash = "757a9ba714eebcc1e9c9cdfae388fd53e88f3a7972ddfc7ed3fa2d9d08c8008d"

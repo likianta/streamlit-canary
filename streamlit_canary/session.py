@@ -1,65 +1,87 @@
 import streamlit as st
 import typing as t
-from collections import defaultdict
 from inspect import currentframe
 from threading import current_thread
 
-_invalid_session_states = defaultdict(dict)
+_ClassType = t.TypeVar('_ClassType', bound=type)
+_plain_state = {}
 
 
 def init_state(
-    default: t.Union[dict, t.Callable[[], dict]] = None,
+    default: t.Union[_ClassType, t.Callable[[], dict], dict] = None,
+    #   explain the annotation:
+    #   https://chatgpt.com/share/69c63662-8c98-8324-8817-b81394dd7a5b
     version: int = 0
-) -> dict:
+) -> t.Union[dict, _ClassType]:
     """
     usage:
-        style 1:
-            import streamlit_canary as sc
-            if not (state := sc.session.get_state(version=...)):
-                state.update({...})
-        style 2:
-            # good for IDE's autocomplete
-            import streamlit_canary as sc
-            if not (x := sc.session.get_state(version=...)):
-                x.update(state := {...})
-            else:
-                state = x
+        # -- a
+        @init_state()
+        class State:
+            name: str
+            code: int
+            flag: bool = False
+            __version__ = 0
+        
+        # -- b1
+        state = init_state(
+            lambda: {
+                'name': '',
+                'code': 0,
+                'flag': False,
+            }
+        )
+        
+        # -- b2
+        if not (state := init_state(version=...)):
+            state.update({
+                'name': '',
+                'code': 0,
+                'flag': False,
+            })
+        
+        # -- c
+        state = init_state({
+            'name': '',
+            'code': 0,
+            'flag': False,
+        })
     """
+    if _is_running_in_streamlit():
+        session_state = st.session_state
+    else:
+        session_state = _plain_state
     last_frame = currentframe().f_back
     module_name = last_frame.f_globals['__name__']
-    if _is_running_in_streamlit():
-        module_version = '{}:version'.format(module_name)
-        if module_version in st.session_state:
-            if st.session_state[module_version] != version:
-                print('rebuild session data', module_name, version)
-                st.session_state[module_name] = (
-                    {} if default is None else
-                    default if isinstance(default, dict) else
-                    default()  # noqa
-                )
-                st.session_state[module_version] = version
-        else:
-            # print('init session data', module_name, version)
-            st.session_state[module_name] = (
+    module_version_key = '{}:version'.format(module_name)
+    if isinstance(default, type):
+        version = getattr(default, '__version__', version)
+        _init_class_attrs(default)
+    if module_version_key in session_state:
+        if session_state[module_version_key] != version:
+            print('rebuild session data', module_name, version)
+            session_state[module_name] = (
                 {} if default is None else
-                default if isinstance(default, dict) else
+                default if isinstance(default, (dict, type)) else
                 default()  # noqa
             )
-            st.session_state[module_version] = version
-        return st.session_state[module_name]
+            session_state[module_version_key] = version
     else:
-        return _invalid_session_states[module_name]
+        # print('init session data', module_name, version)
+        session_state[module_name] = (
+            {} if default is None else
+            default if isinstance(default, (dict, type)) else
+            default()  # noqa
+        )
+        session_state[module_version_key] = version
+    return session_state[module_name]
 
 
-# def get_last_frame(fback_level: int = 1) -> FrameType:
-#     frame = currentframe().f_back
-#     for _ in range(fback_level):
-#         frame = frame.f_back
-#     return frame
-#
-#
-# def get_last_frame_id(fback_level: int = 1) -> str:
-#     return get_last_frame(fback_level + 1).f_globals['__name__']
+def _init_class_attrs(cls: type):
+    current_fields = frozenset(cls.__dict__.keys())
+    for name, type_ in cls.__annotations__.items():
+        if name not in current_fields:
+            setattr(cls, name, type_())
 
 
 def _is_running_in_streamlit() -> bool:

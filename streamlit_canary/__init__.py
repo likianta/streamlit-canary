@@ -12,4 +12,4 @@ from .session import init_state as get_state
 from .session import shared_data
 # from .wrapper import *
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
