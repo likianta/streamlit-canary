@@ -1,4 +1,9 @@
 
+### 0.2.1 (wip)
+
+- Support class-based states.
+- Add simple file/folder opener.
+
 ### 0.2.0 (2026-03-06)
 
 - Refactor `sc.session`.
