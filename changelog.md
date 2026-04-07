@@ -1,5 +1,6 @@
+# Changelog
 
-### 0.2.1 (wip)
+### 0.2.1 (2026-04-07)
 
 - Support class-based states.
 - Add simple file/folder opener.

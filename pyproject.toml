@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-canary"
-version = "0.2.1b0"
+version = "0.2.1"
 description = "LK-flavored Streamlit components."
 license = "MIT"
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
