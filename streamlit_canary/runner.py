@@ -17,7 +17,7 @@ def run(
     show_window: bool = False,
     extra_args: t.Sequence[str] = (),
     **kwargs
-) -> t.Optional[t.Union[str, Popen]]:
+) -> t.Tuple[t.Optional[Popen], t.Optional[Popen]]:
     """
     params:
         target: a script path.
@@ -38,6 +38,8 @@ def run(
                 pos: str | tuple[int | str, int | str]
                 size: str | tuple[int | str, int | str]
                 title: str
+    returns:
+        (streamlit_process, window_process)
     """
     popen_options = {}
     for k in ('cwd', 'env', 'shell'):
@@ -54,24 +56,30 @@ def run(
         os.environ['SC_WINDOW_PID_FOR_PORT_{}'.format(port)] = str(os.getpid())
     del kwargs
     
-    proc = run_cmd_args(
-        (sys.executable, '-m', 'streamlit', 'run'),
-        ('--browser.gatherUsageStats', 'false'),
-        ('--global.developmentMode', 'false'),
-        ('--runner.magicEnabled', 'false'),
-        ('--server.headless', 'true'),
-        ('--server.port', port),
-        target,
-        ('--', *extra_args) if extra_args else (),
-        verbose=True,
-        blocking=False if show_window else not subthread,
-        force_term_color=True,
-        **popen_options,
+    proc_st = t.cast(
+        t.Optional[Popen],
+        run_cmd_args(
+            (sys.executable, '-m', 'streamlit', 'run'),
+            ('--browser.gatherUsageStats', 'false'),
+            ('--global.developmentMode', 'false'),
+            ('--runner.magicEnabled', 'false'),
+            ('--server.headless', 'true'),
+            ('--server.port', port),
+            target,
+            ('--', *extra_args) if extra_args else (),
+            verbose=True,
+            blocking=False if show_window else not subthread,
+            force_term_color=True,
+            **popen_options,
+        )
     )
     if show_window:
-        pyapp_window.open_window(port=port, **window_options)
+        proc_win = pyapp_window.open_window(
+            port=port, blocking=not subthread, **window_options
+        )
+        return proc_st, proc_win
     else:
-        return proc
+        return proc_st, None
 
 
 # TODO: rename to "kill_current_app"?
