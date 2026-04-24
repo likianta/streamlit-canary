@@ -87,6 +87,7 @@ def _dialog() -> None:
             if st.button(
                 'Confirm',
                 type='primary',
+                disabled=not x,
                 key=keygen('confirm'),
                 on_click=partial(State.query_params.callback, x),
             ):
@@ -184,7 +185,9 @@ def _single_select(parent: str, node_type: T.NodeType = 'file') -> T.Result:
         format_func=lambda x: x[1],
         # key=State.keygen('single_select', node_type, str(nodes)),
     )
-    return '{}/{}'.format(parent, selected[0])
+    if selected:
+        return '{}/{}'.format(parent, selected[0])
+    return ''
 
 
 def _subdir_navigation(parent: str) -> str:
@@ -251,22 +254,17 @@ def _subdir_navigation(parent: str) -> str:
         result = (
             target_dirname is None
             and parent
-            or '{}/{}'.format(parent, target_dirname)
+            or '{}/{}'.format(parent.rstrip('/'), target_dirname)
         )
 
         def change_dir(dirpath: str, relocate_subdir_name: str = '') -> None:
             # print(dirpath, relocate_subdir_name)
             if State.parent_to_dirnames.get(dirpath) is None:
                 _index_new_directory(dirpath)
-            State.tree_select_index_0 = sorted(State.parent_to_dirnames).index(
-                dirpath
-            )
             if relocate_subdir_name:
                 State.tree_select_index_1 = State.parent_to_dirnames[
                     dirpath
                 ].index(relocate_subdir_name)
-            else:
-                State.tree_select_index_1 = 0
             st.rerun(scope='fragment')
 
         if do_back:
@@ -293,3 +291,4 @@ def _index_new_directory(dirpath: str, focus: bool = True) -> None:
         State.tree_select_index_0 = sorted(State.parent_to_dirnames).index(
             dirpath
         )
+    State.tree_select_index_1 = 0

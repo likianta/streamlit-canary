@@ -4,7 +4,7 @@ example:
     book = openpyxl.load_workbook('test.xlsx')
     with progress('Processing sheets...', len(book.sheets)) as prog:
         for sheet in book.sheets:
-            prog.update(sheet.name)
+            prog.update(sheet.title)
             ...
 """
 import streamlit as st
@@ -17,7 +17,7 @@ def progress(
     label: str = 'Working...',
     total: int = 0,
     auto_close: bool = True,
-) -> tp.Generator['_Progress']:
+) -> tp.Generator['_Progress', None, None]:
     prog = _Progress(label, total)
     yield prog
     if auto_close:
