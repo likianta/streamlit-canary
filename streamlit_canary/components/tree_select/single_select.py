@@ -134,7 +134,7 @@ def _single_select(parent: str, node_type: T.NodeType = 'file') -> T.Result:
         else:
             node_names = (
                 *State.parent_to_filenames[parent],
-                *State.parent_to_dirnames[parent]  # type: ignore
+                *State.parent_to_dirnames[parent],  # type: ignore
             )
         if State.query_params.filter:
             node_names = tuple(
@@ -170,7 +170,9 @@ def _subdir_navigation(parent: str):
     row3 = st.container(horizontal=True)
 
     with row3:
-        do_back = st.button(':material/arrow_back:', help='Back')
+        do_back = st.button(
+            ':material/arrow_back:', help='Back', disabled=parent.endswith(':/')
+        )
         do_enter = st.button(':material/arrow_forward:', help='Enter')
         do_refresh = st.button(':material/refresh:', help='Refresh tree')
         do_new_folder = st.button(
@@ -240,6 +242,8 @@ def _subdir_navigation(parent: str):
 
         if do_back:
             a, b = parent.rsplit('/', 1)
+            if a[-1] == ':':
+                a += '/'
             change_dir(a, relocate_subdir_name=b)
         elif do_enter and result != parent:
             change_dir(result)
