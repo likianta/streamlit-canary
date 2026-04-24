@@ -1,22 +1,46 @@
+"""
+example:
+    import openpyxl
+    book = openpyxl.load_workbook('test.xlsx')
+    with progress('Processing sheets...', len(book.sheets)) as prog:
+        for sheet in book.sheets:
+            prog.update(sheet.name)
+            ...
+"""
 import streamlit as st
-from collections import namedtuple
+import typing as tp
+from contextlib import contextmanager
 
-ProgressItem = namedtuple('ProgressItem', 'data label')
 
-
+@contextmanager
 def progress(
-    iterable,
     label: str = 'Working...',
+    total: int = 0,
     auto_close: bool = True,
-):
-    prog = st.progress(0, label)
-    total = len(iterable)
-    for i, x in enumerate(iterable, 1):
-        if isinstance(x, ProgressItem):
-            prog.progress(i / total, '[{}/{}] {}'.format(i, total, x.label))
-            yield x.data
-        else:
-            prog.progress(i / total, '{:.2%}'.format(i / total))
-            yield x
+) -> tp.Generator['_Progress']:
+    prog = _Progress(label, total)
+    yield prog
     if auto_close:
-        prog.empty()
+        prog.close()
+
+
+class _Progress:
+    def __init__(self, label: str, total: int = 0):
+        self.index = 0
+        self._prog = st.progress(0, label)
+    
+    def update(self, text: str = ''):
+        self.index += 1
+        if text:
+            self._prog.progress(
+                self.index / self.total,
+                '[{}/{}] {}'.format(self.index, self.total, text),
+            )
+        else:
+            self._prog.progress(
+                self.index / self.total,
+                '{:.2%}'.format(self.index / self.total),
+            )
+    
+    def close(self):
+        self._prog.empty()

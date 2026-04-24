@@ -7,7 +7,6 @@ from .filelist import filelist
 from .input import anynum_input
 from .input import hex_input
 from .input import path_input
-from .progress import ProgressItem
 from .progress import progress
 from .radio import radio
 from .row import row
