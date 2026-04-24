@@ -57,7 +57,9 @@ no-sections = true
 "__init__.py" = ["F401", "F403"]
 
 [tool.ty.rules]
+call-non-callable = "ignore"
 invalid-type-form = "ignore"
+not-iterable = "ignore"
 unresolved-attribute = "ignore"
 
 # ---

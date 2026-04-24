@@ -100,7 +100,7 @@ def _current_location() -> str:
         sorted(State.parent_to_dirnames.keys()),
         accept_new_options=True,
         index=State.tree_select_index_0,
-        key=State.keygen(  # type: ignore
+        key=State.keygen(
             'currdir_location',
             str(sorted(State.parent_to_dirnames.keys())),
             str(State.tree_select_index_0),
@@ -121,26 +121,49 @@ def _current_location() -> str:
 
 
 def _single_select(parent: str, node_type: T.NodeType = 'file') -> T.Result:
-    node_names: tp.Sequence[str]
+    nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
     if node_type == 'folder':
-        node_names = tp.cast(tp.List[str], State.parent_to_dirnames[parent])
+        nodes = tuple(
+            (x, x.replace('__', '\\_\\_'))
+            for x in State.parent_to_dirnames[parent]
+        )
     else:
-        if parent not in State.parent_to_filenames:
+        if parent not in State.parent_to_filenames:  # DELETE?
             State.parent_to_filenames[parent] = tuple(
                 fs.find_file_names(parent)
             )
         if node_type == 'file':
-            node_names = State.parent_to_filenames[parent]
+            nodes = tuple(
+                (x, x.replace('__', '\\_\\_'))
+                for x in State.parent_to_filenames[parent]
+            )
         else:
-            node_names = (
-                *State.parent_to_filenames[parent],
-                *State.parent_to_dirnames[parent],  # type: ignore
+            nodes = (
+                *(
+                    (
+                        x,
+                        ':material/folder: {}/'.format(
+                            x.replace('__', '\\_\\_')
+                        ),
+                    )
+                    for x in State.parent_to_dirnames[parent]
+                ),
+                *(
+                    (
+                        x,
+                        ':material/description: {}'.format(
+                            x.replace('__', '\\_\\_')
+                        ),
+                    )
+                    for x in State.parent_to_filenames[parent]
+                ),
             )
         if State.query_params.filter:
-            node_names = tuple(
-                name
-                for name in node_names
+            nodes = tuple(
+                (name, label)
+                for name, label in nodes
                 if name.endswith(State.query_params.filter)
+                or label.endswith('/')
             )
 
     # st.markdown(parent)
@@ -157,12 +180,14 @@ def _single_select(parent: str, node_type: T.NodeType = 'file') -> T.Result:
             and 'file or folder'
             or 'one {}'.format(node_type)
         ),
-        node_names,
+        nodes,
+        format_func=lambda x: x[1],
+        # key=State.keygen('single_select', node_type, str(nodes)),
     )
-    return '{}/{}'.format(parent, selected)
+    return '{}/{}'.format(parent, selected[0])
 
 
-def _subdir_navigation(parent: str):
+def _subdir_navigation(parent: str) -> str:
     sub_dirnames = tp.cast(tp.List[str], State.parent_to_dirnames[parent])
 
     row1 = st.container(height='stretch')
@@ -250,6 +275,8 @@ def _subdir_navigation(parent: str):
         # else:
         #     a, b = result.rsplit('/', 1)
         #     st.markdown('You selected: **{}/:blue[{}]**'.format(a, b))
+
+    return result
 
 
 def _do_nothing():

@@ -1,13 +1,12 @@
 import streamlit as st
 import streamlit_canary as sc
-from functools import partial
 from lk_utils import fs
 
 
 @sc.init_state
 class State:
     result = None
-    __version__ = 1
+    __version__ = 2
 
 
 def main():
@@ -16,6 +15,7 @@ def main():
         sc.single_select_dialog(
             start_directory=fs.abspath('streamlit_canary'),
             filter='.py',
+            node_type='both',
             callback=_set_result
         )
     # if st.button('Refresh result'):
