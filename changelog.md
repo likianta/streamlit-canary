@@ -1,9 +1,15 @@
 # Changelog
 
+### 0.3.0 (wip)
+
+- Add Streamlit-based tree select.
+- Use `__revision__` instead of `__version__` to mark state soured.
+- Return streamlit process and window process for `sc.run(..., subthread=True)`.
+
 ### 0.2.1 (2026-04-07)
 
 - Support class-based states.
-- Add simple file/folder opener.
+- Start file/folder.
 
 ### 0.2.0 (2026-03-06)
 

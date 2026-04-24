@@ -1,35 +1,36 @@
 [project]
 name = "streamlit-canary"
-version = "0.2.1"
+version = "0.3.0a8"
 description = "LK-flavored Streamlit components."
 license = "MIT"
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
 # readme = "README.md"
 packages = [{ include = "streamlit_canary" }]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dynamic = ["dependencies"]
 
 [project.urls]
 homepage = "https://github.com/likianta/streamlit-canary"
 
 [tool.poetry.dependencies]
-python = "^3.8"
-argsense = "^1.1.0"
-lk-utils = [
-    { version = "^3.5.2", source = "likianta", python = ">=3.10,<4.0" },
-    { version = ">=3.3.0,<3.5.0", python = ">=3.8,<3.10,!=3.9.7" },
-]
+python = "^3.9"
+argsense = "^1.1.1"
+# lk-utils = [
+#     { version = "^3.5.2", source = "likianta", python = ">=3.10,<4.0" },
+#     { version = ">=3.3.0,<3.5.0", python = ">=3.9,<3.10,!=3.9.7" },
+# ]
+lk-utils = "^3.5.2"
 psutil = "^7.0.0"
-pyapp-window = "^2.2.0"
+pyapp-window = "^2.2.1"
 streamlit = [
     { version = "^1.55.0", python = ">=3.10,<4.0" },
-    { version = "^1.40.0", python = ">=3.8,<3.10,!=3.9.7" },
+    { version = ">=1.40.0,<1.50.0", python = ">=3.9,<3.10,!=3.9.7" },
 ]
 
 [tool.poetry.group.dev.dependencies]
-argsense = { version = "^1.1.1a0", source = "likianta" }
-lk-utils = { version = "^3.5.2", source = "likianta", python = "^3.12" }
-pyapp-window = { version = "^2.2.0", source = "likianta" }
+argsense = { version = "^1.1.1", source = "likianta" }
+lk-utils = { version = "^3.6.0a13", source = "likianta", python = "^3.12" }
+pyapp-window = { version = "^2.2.1", source = "likianta" }
 
 [[tool.poetry.source]]
 name = "tsinghua"
@@ -40,6 +41,26 @@ priority = "primary"
 name = "likianta"
 url = "http://localhost:2191/"
 priority = "supplemental"
+
+# --- ruff configurations
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint.isort]
+no-sections = true
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+
+[tool.ty.rules]
+invalid-type-form = "ignore"
+unresolved-attribute = "ignore"
+
+# ---
 
 [build-system]
 requires = ["poetry-core"]
