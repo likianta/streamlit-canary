@@ -54,7 +54,7 @@ def single_select_dialog(
         dialog_options['width'] = 'medium'
     st.dialog(**dialog_options)(_dialog)()
 
-    return State.result
+    return State.result  # FIXME
 
 
 def _dialog() -> None:
@@ -255,8 +255,12 @@ def _subdir_navigation(parent: str) -> str:
         )
 
         def change_dir(dirpath: str, relocate_subdir_name: str = '') -> None:
+            # print(dirpath, relocate_subdir_name)
             if State.parent_to_dirnames.get(dirpath) is None:
                 _index_new_directory(dirpath)
+            State.tree_select_index_0 = sorted(State.parent_to_dirnames).index(
+                dirpath
+            )
             if relocate_subdir_name:
                 State.tree_select_index_1 = State.parent_to_dirnames[
                     dirpath
