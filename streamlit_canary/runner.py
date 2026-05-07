@@ -35,6 +35,7 @@ def run(
                 shell: bool
             if show_window is true, the following are also available:
                 icon: str
+                oversize_scheme: Literal['aspect_ratio', 'crop', 'keep']
                 pos: str | tuple[int | str, int | str]
                 size: str | tuple[int | str, int | str]
                 title: str
@@ -49,9 +50,10 @@ def run(
     if show_window:
         window_options.update({
             'title': kwargs.get('title', 'Streamlit Canary App'),
-            'icon' : kwargs.get('icon', None),
-            'pos'  : kwargs.get('pos', 'center'),
-            'size' : kwargs.get('size', (1200, 900)),
+            'icon': kwargs.get('icon', None),
+            'oversize_scheme': kwargs.get('oversize_scheme', 'crop'),
+            'pos': kwargs.get('pos', 'center'),
+            'size': kwargs.get('size', (1200, 900)),
         })
         os.environ['SC_WINDOW_PID_FOR_PORT_{}'.format(port)] = str(os.getpid())
     del kwargs
