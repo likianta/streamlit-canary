@@ -19,15 +19,15 @@ def progress(
     label: str = 'Working...',
     total: int = 0,
     auto_close: bool = True,
-) -> tp.Generator['_Progress', None, None]:
-    prog = _Progress(label, total)
+) -> tp.Generator['Progress', None, None]:
+    prog = Progress(label, total)
     yield prog
     if auto_close:
         sleep(0.5)
         prog.close()
 
 
-class _Progress:
+class Progress:
     def __init__(self, label: str, total: int = 0):
         self._prog = st.progress(0, label)
         self.total = total
