@@ -13,6 +13,8 @@ from .radio import radio
 from .row import row
 from .toggle import toggled_button
 from .tree_select import ask_files
+from .tree_select import ask_folder
 from .tree_select import ask_folders
-from .tree_select import single_select_dialog
 from .tree_select import tree_select
+from .tree_select import tree_select_dialog
+from .tree_select import tree_select_with_input

@@ -1,9 +1,10 @@
 import os
-import streamlit as st
 import typing as tp
-from collections import namedtuple
 from functools import partial
+
+import streamlit as st
 from lk_utils import fs
+
 from ...duplicate_key_resolver import UniqueKeyGenerator
 from ...session import init_state
 
@@ -13,59 +14,47 @@ class T:
     NodeType = tp.Literal[
         'file', 'folder', 'both', 'both_but_file', 'both_but_folder'
     ]
-    QueryParams = namedtuple(
-        'QueryParams', ('start_directory', 'filter', 'node_type', 'callback')
-    )
 
 
 @init_state
 class State:
-    keygen: tp.Optional[UniqueKeyGenerator] = None
     parent_to_dirnames: tp.Dict[str, tp.Optional[tp.List[str]]] = {
         d.replace('\\', '/'): None for d in os.listdrives()
     }
     parent_to_filenames: tp.Dict[str, tp.Sequence[str]] = {}
-    query_params: tp.Optional[T.QueryParams] = None
     temp_new_folder_name: str = ''
     # temp_holding_dialog_opened: bool = False
     tree_select_index_0: int = 0
     tree_select_index_1: int = 0
     tree_select_index_2: int = 0  # TODO
-    __version__ = 4
+    __version__ = 6
 
 
-def single_select_dialog(
-    start_directory: str,
+def tree_select(
+    start_directory: str = '',
     filter: T.Filter = None,
-    node_type: T.NodeType = 'file',
-    callback: tp.Optional[tp.Callable[[str], None]] = None,
+    *,
+    height: int = 600,
     key: str = '',
-    **dialog_options,
-):
-    if callback is None:
-        print(
-            'to get single select result, you must set `callback` parameter.',
-            ':pv6',
-        )
+    multiselect: bool = False,
+    node_type: T.NodeType = 'file',
+    show_confirm_button: bool = True,
+    _callback: tp.Optional[tp.Callable[[str], None]] = None,
+    _keygen: tp.Optional[UniqueKeyGenerator] = None,
+) -> tp.Optional[str]:
+    """
+    this component is usually used inside a dialog/container/expander layout.
+    """
+    if start_directory:
+        assert fs.isdir(start_directory)
+        start_directory = fs.abspath(start_directory)
+    else:
+        start_directory = fs.normpath(os.getcwd())
 
-    State.query_params = T.QueryParams(
-        start_directory, filter, node_type, callback or _do_nothing
+    keygen = _keygen or UniqueKeyGenerator(
+        key or '_:tree_select:{}:{}'.format(start_directory, node_type)
     )
-    State.keygen = UniqueKeyGenerator(
-        key or '_:tree_select:single:{}:{}'.format(start_directory, node_type)
-    )
 
-    if 'title' not in dialog_options:
-        dialog_options['title'] = 'Tree select'
-    if 'width' not in dialog_options:
-        dialog_options['width'] = 'medium'
-    st.dialog(**dialog_options)(_dialog)()
-
-
-def _dialog() -> None:
-    assert State.query_params
-
-    start_directory = State.query_params.start_directory
     if start_directory not in State.parent_to_dirnames:
         parts = start_directory.split('/')
         temp_str = parts[0]
@@ -76,58 +65,75 @@ def _dialog() -> None:
             State.parent_to_dirnames.keys()
         ).index(start_directory)
 
-    currdir = _current_location()
+    currdir = _current_location(keygen)
 
-    cols = st.columns((4, 6))
+    cols = st.columns((3.5, 6.5))
     with cols[0]:
-        with st.container(height=600):
-            _subdir_navigation(currdir)
+        with st.container(height=height):
+            selected_subdir = _subdir_navigation(currdir)
     with cols[1]:
-        with st.container(height=600):
+        with st.container(height=height):
             place1 = st.container(height='stretch')
             place2 = st.container(horizontal=True, vertical_alignment='bottom')
 
             with place2:
                 place2_1 = st.empty()
-                if State.query_params.node_type == 'both':
+                if node_type == 'both':
                     st.space(size='stretch')
-                    node_type = st.segmented_control(
-                        'View mode',
-                        options=('both_but_file', 'both_but_folder', 'both'),
-                        default='both',
-                        format_func=lambda x: (
-                            'File'
-                            if x == 'both_but_file'
-                            else 'Folder'
-                            if x == 'both_but_folder'
-                            else 'Both'
+                    node_type = tp.cast(
+                        T.NodeType,
+                        st.segmented_control(
+                            'View mode',
+                            options=(
+                                'both_but_file',
+                                'both_but_folder',
+                                'both',
+                            ),
+                            default='both',
+                            format_func=lambda x: (
+                                'File'
+                                if x == 'both_but_file'
+                                else 'Folder'
+                                if x == 'both_but_folder'
+                                else 'Both'
+                            ),
+                            key=keygen('node_type_switch'),
                         ),
-                        key=State.keygen('node_type_switch'),
                     )
-                else:
-                    node_type = State.query_params.node_type
 
             with place1:
-                x = _single_select(currdir, node_type)
-                # print('you select', x, ':v')
+                result = _single_select(selected_subdir, node_type, filter)
+                # np.show('you select', result, ':v')
 
-            if place2_1.button(
-                'Confirm',
-                type='primary',
-                disabled=not x,
-                key=State.keygen('confirm'),
-                on_click=partial(State.query_params.callback, x),
-            ):
-                st.rerun()  # to close the dialog
+            if _callback:
+                assert show_confirm_button
+                if place2_1.button(
+                    'Confirm',
+                    type='primary',
+                    disabled=not result,
+                    key=keygen('confirm_with_callback'),
+                    width='stretch',
+                    on_click=partial(_callback, result),
+                ):
+                    st.rerun()
+            else:
+                if not show_confirm_button or place2_1.button(
+                    'Confirm',
+                    type='primary',
+                    disabled=not result,
+                    key=keygen('confirm'),
+                    width='stretch',
+                ):
+                    return result
 
 
-def _current_location() -> str:
+def _current_location(keygen: UniqueKeyGenerator) -> str:
     x = st.selectbox(
         'Current location',
         sorted(State.parent_to_dirnames.keys()),
         accept_new_options=True,
         index=State.tree_select_index_0,
-        key=State.keygen(
+        key=keygen(
             'currdir_location',
             str(sorted(State.parent_to_dirnames.keys())),
             str(State.tree_select_index_0),
@@ -147,7 +153,18 @@ def _current_location() -> str:
     return currdir
 
 
-def _single_select(parent: str, node_type: T.NodeType = 'file') -> str:
+def _index_new_directory(dirpath: str, focus: bool = True) -> None:
+    State.parent_to_dirnames[dirpath] = fs.find_dir_names(dirpath)
+    if focus:
+        State.tree_select_index_0 = sorted(State.parent_to_dirnames).index(
+            dirpath
+        )
+    State.tree_select_index_1 = 0
+
+
+def _single_select(
+    parent: str, node_type: T.NodeType = 'file', filter: T.Filter = None
+) -> str:
     nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
     if node_type == 'folder':
         nodes = tuple(
@@ -187,12 +204,11 @@ def _single_select(parent: str, node_type: T.NodeType = 'file') -> str:
                     for x in State.parent_to_filenames[parent]
                 )
 
-        if State.query_params.filter:
+        if filter:
             nodes = tuple(
                 (name, label)
                 for name, label in nodes
-                if name.endswith(State.query_params.filter)
-                or label.endswith('/')
+                if name.endswith(filter) or label.endswith('/')
             )
 
     # st.markdown(parent)
@@ -229,7 +245,7 @@ def _subdir_navigation(parent: str) -> str:
         do_back = st.button(
             ':material/arrow_back:', help='Back', disabled=parent.endswith(':/')
         )
-        do_enter = st.button(':material/arrow_forward:', help='Enter')
+        do_enter = st.button(':material/arrow_forward:', help='Forward')
         do_refresh = st.button(':material/refresh:', help='Refresh tree')
         do_new_folder = st.button(
             ':material/create_new_folder:', help='Create new folder'
@@ -286,7 +302,7 @@ def _subdir_navigation(parent: str) -> str:
         )
 
         def change_dir(dirpath: str, relocate_subdir_name: str = '') -> None:
-            # print(dirpath, relocate_subdir_name)
+            # np.show('change_dir', dirpath, relocate_subdir_name)
             if State.parent_to_dirnames.get(dirpath) is None:
                 _index_new_directory(dirpath)
             if relocate_subdir_name:
@@ -307,16 +323,3 @@ def _subdir_navigation(parent: str) -> str:
         #     st.markdown('You selected: **{}/:blue[{}]**'.format(a, b))
 
     return result
-
-
-def _do_nothing():
-    pass
-
-
-def _index_new_directory(dirpath: str, focus: bool = True) -> None:
-    State.parent_to_dirnames[dirpath] = fs.find_dir_names(dirpath)
-    if focus:
-        State.tree_select_index_0 = sorted(State.parent_to_dirnames).index(
-            dirpath
-        )
-    State.tree_select_index_1 = 0

@@ -1,13 +1,6 @@
-from .interface import ask_files
-from .interface import ask_folders
-from .interface import tree_select
-from .multiple_iselect import multiselect_dialog
-from .single_select import single_select_dialog
-
-__all__ = [
-    'ask_files',
-    'ask_folders',
-    'multiselect_dialog',
-    'single_select_dialog',
-    'tree_select',
-]
+from .tree_select import tree_select
+from .wrappers import ask_files
+from .wrappers import ask_folder
+from .wrappers import ask_folders
+from .wrappers import tree_select_dialog
+from .wrappers import tree_select_with_input

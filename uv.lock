@@ -222,8 +222,8 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
-    { name = "pycparser", version = "2.23", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and implementation_name != 'PyPy'" },
-    { name = "pycparser", version = "3.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and implementation_name != 'PyPy'" },
+    { name = "pycparser", version = "2.23", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and implementation_name != 'PyPy' and sys_platform != 'linux'" },
+    { name = "pycparser", version = "3.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and implementation_name != 'PyPy' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -436,7 +436,7 @@ resolution-markers = [
     "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "cffi", marker = "python_full_version < '3.10'" },
+    { name = "cffi", marker = "python_full_version < '3.10' and sys_platform != 'linux'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/18/24/c12faf3f61614b3131b5c98d3bf0d376b49c7feaa73edca559aeb2aee080/clr_loader-0.2.10.tar.gz", hash = "sha256:81f114afbc5005bafc5efe5af1341d400e22137e275b042a8979f3feb9fc9446", size = 83605, upload-time = "2026-01-03T23:13:06.984Z" }
 wheels = [
@@ -454,7 +454,7 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform == 'win32'",
 ]
 dependencies = [
-    { name = "cffi", marker = "python_full_version >= '3.10'" },
+    { name = "cffi", marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e4/46/7eea92b6aa2d68af78e049cbecec5f757f1aad44ecdecdc16bbad7eead51/clr_loader-0.3.1.tar.gz", hash = "sha256:2e073e9aaf49d1ae2f56ecba27987ad5fb68be4bcd9dd34a5bed8f0e4e128366", size = 86805, upload-time = "2026-04-18T17:49:44.287Z" }
 wheels = [
@@ -475,7 +475,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version >= '3.10' and python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version == '3.10.*'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -2109,7 +2109,7 @@ resolution-markers = [
     "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' in sys_platform",
 ]
 dependencies = [
-    { name = "pycairo", version = "1.28.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version < '3.10' and 'freebsd' in sys_platform) or (python_full_version < '3.10' and sys_platform == 'linux')" },
+    { name = "pycairo", version = "1.28.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' in sys_platform" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d3/a5/68f883df1d8442e3b267cb92105a4b2f0de819bd64ac9981c2d680d3f49f/pygobject-3.54.5.tar.gz", hash = "sha256:b6656f6348f5245606cf15ea48c384c7f05156c75ead206c1b246c80a22fb585", size = 1274658, upload-time = "2025-10-18T13:45:03.121Z" }
 
@@ -2130,7 +2130,7 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform",
 ]
 dependencies = [
-    { name = "pycairo", version = "1.29.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform == 'linux') or (python_full_version >= '3.10' and sys_platform != 'win32' and 'freebsd' in sys_platform) or (python_full_version >= '3.15' and sys_platform == 'win32' and 'freebsd' in sys_platform)" },
+    { name = "pycairo", version = "1.29.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform)" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/da/61/978c5fbca34f10a90df362502fbb5a005637909e7b5a0e9212349ea9d010/pygobject-3.56.3.tar.gz", hash = "sha256:12760e4a0e3d04b6eb95e06f7a27e362c826d567ea613373a92c003b6c70d2d6", size = 1411853, upload-time = "2026-05-08T20:46:39.904Z" }
 
@@ -2164,7 +2164,7 @@ resolution-markers = [
     "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "clr-loader", version = "0.2.10", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10'" },
+    { name = "clr-loader", version = "0.2.10", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/9a/d6/1afd75edd932306ae9bd2c2d961d603dc2b52fcec51b04afea464f1f6646/pythonnet-3.0.5.tar.gz", hash = "sha256:48e43ca463941b3608b32b4e236db92d8d40db4c58a75ace902985f76dac21cf", size = 239212, upload-time = "2024-12-13T08:30:44.393Z" }
 wheels = [
@@ -2182,7 +2182,7 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform == 'win32'",
 ]
 dependencies = [
-    { name = "clr-loader", version = "0.3.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10'" },
+    { name = "clr-loader", version = "0.3.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/05/57/da1992e44663b71365c6e842c8d7fa453d4ec45fb99a68cfee5b7e944d3c/pythonnet-3.1.0.tar.gz", hash = "sha256:7b34c382905d10a371509ffafd64cae0416305c28817738a9cd138336f4e9991", size = 250599, upload-time = "2026-05-23T20:30:21.578Z" }
 wheels = [
@@ -2204,11 +2204,9 @@ name = "pywebview"
 version = "6.2.1"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
-    { name = "bottle", marker = "python_full_version < '3.10' or python_full_version >= '3.15' or sys_platform != 'win32'" },
-    { name = "proxy-tools", marker = "python_full_version < '3.10' or python_full_version >= '3.15' or sys_platform != 'win32'" },
-    { name = "pythonnet", version = "3.0.5", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform == 'win32'" },
-    { name = "pythonnet", version = "3.1.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.15' and sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.10' or python_full_version >= '3.15' or sys_platform != 'win32'" },
+    { name = "bottle", marker = "sys_platform == 'linux'" },
+    { name = "proxy-tools", marker = "sys_platform == 'linux'" },
+    { name = "typing-extensions", marker = "sys_platform == 'linux'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/59/4a/05307135dafba67778669d194bd1a3822a7685ec9ee8a6d7e70856c1a551/pywebview-6.2.1.tar.gz", hash = "sha256:71b7136752e40824655304d938efb62014218d1a90bd8e87e1cbdb1ce9c466af", size = 513126, upload-time = "2026-04-15T09:02:16.595Z" }
 wheels = [
@@ -3057,6 +3055,7 @@ source = { editable = "." }
 dependencies = [
     { name = "argsense" },
     { name = "lk-utils" },
+    { name = "neoprint" },
     { name = "psutil" },
     { name = "pyapp-window" },
     { name = "streamlit", version = "1.49.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10'" },
@@ -3067,6 +3066,7 @@ dependencies = [
 requires-dist = [
     { name = "argsense", specifier = ">=1.2.0a6", index = "http://localhost:2191/" },
     { name = "lk-utils", specifier = ">=3.6.0b14", index = "http://localhost:2191/" },
+    { name = "neoprint", specifier = ">=0.1.0a33" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pyapp-window", specifier = ">=2.2.3a0", index = "http://localhost:2191/" },
     { name = "streamlit", marker = "python_full_version == '3.9.*'", specifier = ">=1.40.0,<1.50.0" },
@@ -3139,7 +3139,7 @@ resolution-markers = [
 dependencies = [
     { name = "toga-android", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform == 'android'" },
     { name = "toga-cocoa", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform == 'darwin'" },
-    { name = "toga-gtk", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version < '3.10' and 'freebsd' in sys_platform) or (python_full_version < '3.10' and sys_platform == 'linux')" },
+    { name = "toga-gtk", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' in sys_platform" },
     { name = "toga-ios", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform == 'ios'" },
     { name = "toga-web", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform == 'emscripten'" },
     { name = "toga-winforms", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform == 'win32'" },
@@ -3174,10 +3174,10 @@ resolution-markers = [
 dependencies = [
     { name = "toga-android", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform == 'android'" },
     { name = "toga-cocoa", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform == 'darwin'" },
-    { name = "toga-gtk", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and 'freebsd' in sys_platform) or (python_full_version >= '3.10' and sys_platform == 'linux')" },
+    { name = "toga-gtk", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32' and 'freebsd' in sys_platform) or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform)" },
     { name = "toga-ios", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform == 'ios'" },
     { name = "toga-web", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform == 'emscripten'" },
-    { name = "toga-winforms", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform == 'win32'" },
+    { name = "toga-winforms", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/53/13/ae42db1a71bedebfd69437ccf7668ff1d8f9c7f89cb180c3c2de20d5d177/toga-0.5.4.tar.gz", hash = "sha256:493600d89809630666a14fad08ecabd0a4c1d7e2089c8c6eade83649a22e0b08", size = 3935, upload-time = "2026-05-06T06:12:12.824Z" }
 wheels = [
@@ -3215,7 +3215,7 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform == 'emscripten') or (python_full_version >= '3.10' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/2a/51/cb382c75273721b6ced02f994f89c59bc888d94bf3d888fa792b3f97f471/toga_android-0.5.4.tar.gz", hash = "sha256:597c50727ffe12e0f3957c6ca028f2ac3410d222b3645be6347c614702ecbee7", size = 81184, upload-time = "2026-05-06T06:12:11.389Z" }
 wheels = [
@@ -3255,9 +3255,9 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "fonttools", version = "4.63.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
-    { name = "rubicon-objc", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
-    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "fonttools", version = "4.63.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform == 'emscripten') or (python_full_version >= '3.10' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "rubicon-objc", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform == 'emscripten') or (python_full_version >= '3.10' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform == 'emscripten') or (python_full_version >= '3.10' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e4/be/8bb98bf59e78aecff09fa66a2f6acd445e447bf932201f4cb502e6139c16/toga_cocoa-0.5.4.tar.gz", hash = "sha256:ec768958844f42ebd0e7652444d9b8bccf2050c78f8958b515cb8f48ba12cb55", size = 480935, upload-time = "2026-05-06T06:12:07.32Z" }
 wheels = [
@@ -3273,7 +3273,7 @@ resolution-markers = [
     "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "travertino", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10'" },
+    { name = "travertino", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/bd/69/a138aeec6ea432506a620d7efafc6beef8c2204f4ab2b7aa11848e6930f5/toga_core-0.5.2.tar.gz", hash = "sha256:bdd3760146b74c8d315cb901392c2b645ab3e5d4cd90114f3e36e0e7dad3d6d1", size = 1020525, upload-time = "2025-07-10T07:27:28.818Z" }
 wheels = [
@@ -3303,7 +3303,7 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "travertino", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10'" },
+    { name = "travertino", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/70/2e/33d063e3b7b4820246a72639b3557b750b8af2ff828d5746e24ce7807353/toga_core-0.5.4.tar.gz", hash = "sha256:6137b1b62a80d7a4d0a2897c7dcc92b1e179c7431f0cf8b869787b458377079a", size = 1059781, upload-time = "2026-05-06T06:12:18.389Z" }
 wheels = [
@@ -3318,9 +3318,9 @@ resolution-markers = [
     "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' in sys_platform",
 ]
 dependencies = [
-    { name = "pycairo", version = "1.28.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version < '3.10' and 'freebsd' in sys_platform) or (python_full_version < '3.10' and sys_platform == 'linux')" },
-    { name = "pygobject", version = "3.54.5", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version < '3.10' and 'freebsd' in sys_platform) or (python_full_version < '3.10' and sys_platform == 'linux')" },
-    { name = "toga-core", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version < '3.10' and 'freebsd' in sys_platform) or (python_full_version < '3.10' and sys_platform == 'linux')" },
+    { name = "pycairo", version = "1.28.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' in sys_platform" },
+    { name = "pygobject", version = "3.54.5", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' in sys_platform" },
+    { name = "toga-core", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux' and 'freebsd' in sys_platform" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/1d/f8/6230cb3371472bc109f1c2d681a06d20f2d640bb9d5d07e1151461dd8286/toga_gtk-0.5.2.tar.gz", hash = "sha256:9212db774dd5f47820d2242bb09c9f44e12e87e3db49ccb967016c6bb311139b", size = 75816, upload-time = "2025-07-10T07:27:51.989Z" }
 wheels = [
@@ -3344,10 +3344,10 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform",
 ]
 dependencies = [
-    { name = "packaging", version = "26.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform == 'linux') or (python_full_version >= '3.10' and sys_platform != 'win32' and 'freebsd' in sys_platform) or (python_full_version >= '3.15' and sys_platform == 'win32' and 'freebsd' in sys_platform)" },
-    { name = "pycairo", version = "1.29.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform == 'linux') or (python_full_version >= '3.10' and sys_platform != 'win32' and 'freebsd' in sys_platform) or (python_full_version >= '3.15' and sys_platform == 'win32' and 'freebsd' in sys_platform)" },
-    { name = "pygobject", version = "3.56.3", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform == 'linux') or (python_full_version >= '3.10' and sys_platform != 'win32' and 'freebsd' in sys_platform) or (python_full_version >= '3.15' and sys_platform == 'win32' and 'freebsd' in sys_platform)" },
-    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform == 'linux') or (python_full_version >= '3.10' and sys_platform != 'win32' and 'freebsd' in sys_platform) or (python_full_version >= '3.15' and sys_platform == 'win32' and 'freebsd' in sys_platform)" },
+    { name = "packaging", version = "26.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform)" },
+    { name = "pycairo", version = "1.29.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform)" },
+    { name = "pygobject", version = "3.56.3", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform)" },
+    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' in sys_platform)" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/42/58/7fa8a4abb1432feeaa6dcfc9d0131bc109d902edee5d141b072a8d1c8ac8/toga_gtk-0.5.4.tar.gz", hash = "sha256:42135a1c3df4b961a1d2cc8383801a92d3bacbcccf7a933864d5cb0df935734a", size = 87467, upload-time = "2026-05-06T06:12:08.541Z" }
 wheels = [
@@ -3387,9 +3387,9 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "fonttools", version = "4.63.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
-    { name = "rubicon-objc", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
-    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "fonttools", version = "4.63.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform == 'emscripten') or (python_full_version >= '3.10' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "rubicon-objc", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform == 'emscripten') or (python_full_version >= '3.10' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform == 'emscripten') or (python_full_version >= '3.10' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/7e/63/a4742a315d57869cd133c45bfd2aba99f3630b122a0f66763c4720ca117a/toga_ios-0.5.4.tar.gz", hash = "sha256:a6daa021ef33b7f72adee2c5a65be56def8bf58c7fb3bf2bb74a03bc91219fb4", size = 447746, upload-time = "2026-05-06T06:12:07.781Z" }
 wheels = [
@@ -3427,7 +3427,7 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform != 'linux' and sys_platform != 'win32' and 'freebsd' not in sys_platform",
 ]
 dependencies = [
-    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.15' and sys_platform == 'win32') or (python_full_version >= '3.10' and sys_platform != 'linux' and sys_platform != 'win32')" },
+    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "(python_full_version >= '3.10' and python_full_version < '3.12' and sys_platform != 'linux' and sys_platform != 'win32') or (python_full_version >= '3.10' and sys_platform == 'emscripten')" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/3c/18/06f7be9c5a7e54c9a350ceab8fe4f5e019d90818c9ba8b5bfb75c404bd86/toga_web-0.5.4.tar.gz", hash = "sha256:df2a516f6ac15378f800e5d469cc89163f46461db16f2e111cd455f603fe2697", size = 22617, upload-time = "2026-05-06T06:12:16.385Z" }
 wheels = [
@@ -3463,9 +3463,9 @@ resolution-markers = [
     "python_full_version == '3.10.*' and sys_platform == 'win32'",
 ]
 dependencies = [
-    { name = "pillow", version = "12.2.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform != 'linux'" },
-    { name = "pythonnet", version = "3.1.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform != 'linux'" },
-    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and sys_platform != 'linux'" },
+    { name = "pillow", version = "12.2.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32'" },
+    { name = "pythonnet", version = "3.1.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32'" },
+    { name = "toga-core", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/66/df/5c378ef6c538dcbcbad0369ead290d302afb004bf403e262fe6c0ab50485/toga_winforms-0.5.4.tar.gz", hash = "sha256:7a4177335f69b480b5b536f29600d6600c3a877b9411aae93c6fb4da5be8abd7", size = 446658, upload-time = "2026-05-06T06:12:11.158Z" }
 wheels = [
