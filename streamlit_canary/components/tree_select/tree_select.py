@@ -26,7 +26,7 @@ class State:
     # temp_holding_dialog_opened: bool = False
     tree_select_index_0: int = 0
     tree_select_index_1: int = 0
-    tree_select_index_2: int = 0  # TODO
+    tree_select_index_2: int = 0
     __version__ = 6
 
 
@@ -102,7 +102,8 @@ def tree_select(
                     )
 
             with place1:
-                result = _single_select(selected_subdir, node_type, filter)
+                # TODO: refresh tree selection
+                result, _ = _single_select(selected_subdir, node_type, filter)
                 # np.show('you select', result, ':v')
 
             if _callback:
@@ -160,11 +161,12 @@ def _index_new_directory(dirpath: str, focus: bool = True) -> None:
             dirpath
         )
     State.tree_select_index_1 = 0
+    State.tree_select_index_2 = 0
 
 
 def _single_select(
     parent: str, node_type: T.NodeType = 'file', filter: T.Filter = None
-) -> str:
+) -> tp.Tuple[str, tp.Optional[tp.Callable[[], None]]]:
     nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
     if node_type == 'folder':
         nodes = tuple(
@@ -230,8 +232,14 @@ def _single_select(
         # key=State.keygen('single_select', node_type, str(nodes)),
     )
     if selected:
-        return '{}/{}'.format(parent, selected[0])
-    return ''
+
+        def _refresh_selection(index: int) -> None:
+            State.tree_select_index_2 = index
+
+        return '{}/{}'.format(parent, selected[0]), partial(
+            _refresh_selection, nodes.index(selected[0])
+        )
+    return '', None
 
 
 def _subdir_navigation(parent: str) -> str:
@@ -279,26 +287,32 @@ def _subdir_navigation(parent: str) -> str:
                     ':red[Failed to create new folder: duplicate name!]',
                     duration='long',
                 )
-                State.tree_select_index_1 = sub_dirnames.index(new_folder_name)
+                State.tree_select_index_1 = (
+                    sub_dirnames.index(new_folder_name) + 1
+                )
             else:
                 fs.make_dir('{}/{}'.format(parent, new_folder_name))
                 st.toast(':green[Folder "{}" created.]'.format(new_folder_name))
                 sub_dirnames.append(new_folder_name)
                 sub_dirnames.sort()
-                State.tree_select_index_1 = sub_dirnames.index(new_folder_name)
+                State.tree_select_index_1 = (
+                    sub_dirnames.index(new_folder_name) + 1
+                )
                 st.rerun()
 
     with row1:
         target_dirname = st.radio(
             'Navigate to subfolder',
-            sub_dirnames,
+            ['..'] + sub_dirnames,
             index=State.tree_select_index_1,
-            format_func=lambda x: x + '/',
+            format_func=lambda x: (
+                ':gray(This folder)' if x == '..' else x + '/'
+            ),
         )
         result = (
-            target_dirname is None
-            and parent
-            or '{}/{}'.format(parent.rstrip('/'), target_dirname)
+            parent
+            if target_dirname is None or target_dirname == '..'
+            else '{}/{}'.format(parent.rstrip('/'), target_dirname)
         )
 
         def change_dir(dirpath: str, relocate_subdir_name: str = '') -> None:
@@ -306,9 +320,12 @@ def _subdir_navigation(parent: str) -> str:
             if State.parent_to_dirnames.get(dirpath) is None:
                 _index_new_directory(dirpath)
             if relocate_subdir_name:
-                State.tree_select_index_1 = State.parent_to_dirnames[
-                    dirpath
-                ].index(relocate_subdir_name)
+                State.tree_select_index_1 = (
+                    State.parent_to_dirnames[dirpath].index(
+                        relocate_subdir_name
+                    )
+                    + 1
+                )
             st.rerun(scope='fragment')
 
         if do_back:
