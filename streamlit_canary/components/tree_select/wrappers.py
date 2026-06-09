@@ -96,6 +96,7 @@ def tree_select_with_input(
     label: str,
     initial_path: str = '',
     *,
+    browse_button_width: tp.Optional[int] = None,
     # callback: tp.Optional[tp.Callable[[str], None]] = None,
     key: str = '',
     multiselect: bool = False,
@@ -181,7 +182,11 @@ def tree_select_with_input(
         )
         if _extra_widgets:
             _extra_widgets()
-        if st.button('Browse', key=keygen('user_browse')):
+        if st.button(
+            'Browse',
+            key=keygen('user_browse'),
+            width=browse_button_width or 'content',
+        ):
             if multiselect:
                 raise NotImplementedError
             else:

@@ -9,17 +9,16 @@ example:
             ...
 """
 
-import streamlit as st
 import typing as tp
 from contextlib import contextmanager
 from time import sleep
 
+import streamlit as st
+
 
 @contextmanager
 def progress(
-    label: str = 'Working...',
-    total: int = 0,
-    auto_close: bool = True,
+    label: str = 'Working...', total: int = 0, auto_close: bool = True
 ) -> tp.Generator['Progress', None, None]:
     with Progress(label, total, auto_close) as prog:
         yield prog

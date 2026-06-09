@@ -1,10 +1,9 @@
 import os
-import sys
-import typing as t
-
 import psutil
 import pyapp_window
 import streamlit as st
+import sys
+import typing as t
 from lk_utils import fs
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
@@ -16,7 +15,7 @@ def run(
     subthread: bool = False,
     show_window: bool = False,
     extra_args: t.Sequence[str] = (),
-    **kwargs
+    **kwargs,
 ) -> t.Tuple[t.Optional[Popen], t.Optional[Popen]]:
     """
     params:
@@ -48,16 +47,18 @@ def run(
             popen_options[k] = kwargs[k]
     window_options = {}
     if show_window:
-        window_options.update({
-            'title': kwargs.get('title', 'Streamlit Canary App'),
-            'icon': kwargs.get('icon', None),
-            'oversize_scheme': kwargs.get('oversize_scheme', 'crop'),
-            'pos': kwargs.get('pos', 'center'),
-            'size': kwargs.get('size', (1200, 900)),
-        })
+        window_options.update(
+            {
+                'title': kwargs.get('title', 'Streamlit Canary App'),
+                'icon': kwargs.get('icon', None),
+                'oversize_scheme': kwargs.get('oversize_scheme', 'crop'),
+                'pos': kwargs.get('pos', 'center'),
+                'size': kwargs.get('size', (1200, 900)),
+            }
+        )
         os.environ['SC_WINDOW_PID_FOR_PORT_{}'.format(port)] = str(os.getpid())
     del kwargs
-    
+
     proc_st = t.cast(
         t.Optional[Popen],
         run_cmd_args(
@@ -73,7 +74,7 @@ def run(
             blocking=False if show_window else not subthread,
             force_term_color=True,
             **popen_options,
-        )
+        ),
     )
     if show_window:
         proc_win = pyapp_window.open_window(
@@ -85,11 +86,13 @@ def run(
 
 
 # TODO: rename to "kill_current_app"?
-def kill(port: int = None, except_pids: t.Sequence[int] = ()) -> None:
-    """ kill current app. if window is shown, also close the window. """
+def kill(
+    port: t.Optional[int] = None, except_pids: t.Sequence[int] = ()
+) -> None:
+    """kill current app. if window is shown, also close the window."""
     if port is None:
         port = st.get_option('server.port')
-    
+
     app_pid = os.getpid()
     if x := os.getenv('SC_WINDOW_PID_FOR_PORT_{}'.format(port)):
         win_pid = int(x)
@@ -97,7 +100,7 @@ def kill(port: int = None, except_pids: t.Sequence[int] = ()) -> None:
         win_pid = None
     if except_pids:
         assert app_pid not in except_pids and win_pid not in except_pids
-    
+
     def kill_window_process(pid: int) -> None:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):
@@ -111,7 +114,7 @@ def kill(port: int = None, except_pids: t.Sequence[int] = ()) -> None:
             parent.kill()
         except psutil.NoSuchProcess:
             pass
-    
+
     def kill_app_process(pid: int) -> None:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):
@@ -125,7 +128,7 @@ def kill(port: int = None, except_pids: t.Sequence[int] = ()) -> None:
             parent.kill()
         except psutil.NoSuchProcess:
             pass
-    
+
     if win_pid:
         kill_window_process(win_pid)
     kill_app_process(app_pid)
@@ -141,9 +144,9 @@ def _check_package_definition_in_source(source_file: str) -> None:
     temp = []
     for i, line in enumerate(source_code.splitlines()):
         line = line.lstrip()
-        if line.startswith((
-            'if __name__ == "__main__"', "if __name__ == '__main__'"
-        )):
+        if line.startswith(
+            ('if __name__ == "__main__"', "if __name__ == '__main__'")
+        ):
             temp.append(line)
         if line.startswith(('from .', 'import .')):
             assert any(x.startswith('__package__ = ') for x in temp), (temp, i)
@@ -157,4 +160,4 @@ def _get_entrance(caller_dir: str, package_info: str) -> str:
         return x
     else:
         assert caller_dir.endswith(x := package_info.replace('.', '/'))
-        return caller_dir[:-len(x)]
+        return caller_dir[: -len(x)]

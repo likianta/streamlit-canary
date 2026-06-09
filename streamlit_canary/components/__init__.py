@@ -2,6 +2,7 @@ from ._typing import AnyComponent
 from ._typing import AnyContainer
 from .button import long_button
 from .card import card
+from .column import column
 from .column import columns
 from .filelist import filelist
 from .input import anynum_input

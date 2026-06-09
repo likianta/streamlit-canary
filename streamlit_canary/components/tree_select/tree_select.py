@@ -103,7 +103,7 @@ def tree_select(
 
             with place1:
                 # TODO: refresh tree selection
-                result, _ = _single_select(selected_subdir, node_type, filter)
+                result = _single_select(selected_subdir, node_type, filter)
                 # np.show('you select', result, ':v')
 
             if _callback:
@@ -166,7 +166,7 @@ def _index_new_directory(dirpath: str, focus: bool = True) -> None:
 
 def _single_select(
     parent: str, node_type: T.NodeType = 'file', filter: T.Filter = None
-) -> tp.Tuple[str, tp.Optional[tp.Callable[[], None]]]:
+) -> str:
     nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
     if node_type == 'folder':
         nodes = tuple(
@@ -231,15 +231,20 @@ def _single_select(
         format_func=lambda x: x[1],
         # key=State.keygen('single_select', node_type, str(nodes)),
     )
+
+    # if selected:
+
+    #     def _refresh_selection(index: int) -> None:
+    #         State.tree_select_index_2 = index
+
+    #     return '{}/{}'.format(parent, selected[0]), partial(
+    #         _refresh_selection, nodes.index(selected[0])
+    #     )
+    # return '', None
+
     if selected:
-
-        def _refresh_selection(index: int) -> None:
-            State.tree_select_index_2 = index
-
-        return '{}/{}'.format(parent, selected[0]), partial(
-            _refresh_selection, nodes.index(selected[0])
-        )
-    return '', None
+        return '{}/{}'.format(parent, selected[0])
+    return ''
 
 
 def _subdir_navigation(parent: str) -> str:

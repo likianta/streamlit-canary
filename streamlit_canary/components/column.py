@@ -4,6 +4,8 @@ import streamlit as st
 
 from ._typing import AnyContainer
 
+column = st.container
+
 
 def columns(count: t.Union[int, t.Tuple[int, ...]], **kwargs) -> '_Columns':
     return _Columns(count, **kwargs)
