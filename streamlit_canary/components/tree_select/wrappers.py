@@ -1,11 +1,13 @@
 import os
 import typing as tp
 from collections import defaultdict
+from collections import deque
 from collections import namedtuple
+from functools import partial
 
-import neoprint as np
 import streamlit as st
 from lk_utils import fs
+from neoprint import print
 
 from .tree_select import T as T0
 from .tree_select import tree_select
@@ -17,14 +19,22 @@ class T(T0):
     QueryParams = namedtuple(
         'QueryParams', ('start_directory', 'filter', 'node_type', 'callback')
     )
+    TreeInputCustomization = tp.TypedDict(
+        'TreeInputCustomization',
+        {
+            'browse_button_width': tp.Literal['content', 'stretch'],
+            'recent_button_width': tp.Literal['content', 'stretch'],
+        },
+        total=False,
+    )
 
 
 @init_state
 class State:
-    contexts: tp.Dict[str, tp.Any] = defaultdict(dict)
     keygen: tp.Optional[UniqueKeyGenerator] = None
     query_params: tp.Optional[T.QueryParams] = None
-    __version__ = 3
+    user_states: tp.Dict[str, tp.Any] = defaultdict(dict)
+    __version__ = 4
 
 
 def tree_select_dialog(
@@ -82,11 +92,13 @@ def tree_select_dialog(
     def popup_dialog():
         tree_select(
             filter=State.query_params.filter,
+            key=State.keygen('tree_select'),
             node_type=node_type,
             show_confirm_button=True,
             start_directory=State.query_params.start_directory,
             _callback=State.query_params.callback,
             _keygen=State.keygen,
+            _scoped=True,
         )
 
     popup_dialog()
@@ -96,19 +108,21 @@ def tree_select_with_input(
     label: str,
     initial_path: str = '',
     *,
-    browse_button_width: tp.Optional[int] = None,
     # callback: tp.Optional[tp.Callable[[str], None]] = None,
+    custom: tp.Optional[T.TreeInputCustomization] = None,
+    # custom_browse_button: tp.Optional[tp.Callable] = None,
+    # custom_recent_button: tp.Optional[tp.Callable] = None,
     key: str = '',
     multiselect: bool = False,
     node_type: T.NodeType = 'file',
-    _extra_widgets: tp.Optional[tp.Callable[[], None]] = None,
+    show_recent: bool = False,
     **kwargs,
 ) -> tp.Optional[str]:
-    np.show(':vi', 'tree_select_with_input')
+    print(':vi', 'tree_select_with_input')
     # if callback is None:
-    #     np.show(':pv6', 'callback is required to enable browsing feature')
+    #     print(':pv6', 'callback is required to enable browsing feature')
 
-    ctx = State.contexts[key or 'tree_select:{}'.format(label)]
+    ctx = State.user_states[key or 'tree_select:{}'.format(label)]
     if not ctx:
         # init context
         if initial_path:
@@ -121,6 +135,7 @@ def tree_select_with_input(
                 'keygen': UniqueKeyGenerator(
                     key or '_:tree_select:{}:{}'.format(label, initial_path)
                 ),
+                'recent': deque(maxlen=20),
                 'result': '',  # DELETE?
                 'start_directory': initial_path
                 if fs.isdir(initial_path)
@@ -130,8 +145,8 @@ def tree_select_with_input(
     keygen = ctx['keygen']
 
     def _internal_update_user_input(value: str) -> None:
-        np.show(':v', 'user selects a path from dialog', value)
         ctx['result'] = value
+        _update_recent_list(value)
         ctx['initial_path'] = value
         ctx['start_directory'] = value if fs.isdir(value) else fs.parent(value)
         ctx['keygen'] = UniqueKeyGenerator(
@@ -140,8 +155,8 @@ def tree_select_with_input(
         # st.session_state[keygen('user_input')] = value
         # callback(value)
 
-    def _external_update_user_input() -> None:
-        value = st.session_state[keygen('user_input')]
+    def _external_update_user_input(key: str) -> None:
+        value = st.session_state[key]
         if value:
             path = fs.abspath(value)
             if node_type in ('file', 'both_but_file'):
@@ -150,15 +165,18 @@ def tree_select_with_input(
                     ctx['start_directory'] = path
                 else:
                     ctx['result'] = path
+                    _update_recent_list(path)
                     ctx['start_directory'] = fs.parent(path)
             elif node_type in ('folder', 'both_but_folder'):
                 if fs.isdir(path):
                     ctx['result'] = path
+                    _update_recent_list(path)
                     ctx['start_directory'] = path
                 else:
                     raise Exception('Path should be folder!')
             else:  # both
                 ctx['result'] = path
+                _update_recent_list(path)
                 ctx['start_directory'] = (
                     path if fs.isdir(path) else fs.parent(path)
                 )
@@ -173,19 +191,38 @@ def tree_select_with_input(
         #     callback(ctx['result'])
         #     ctx['result'] = ''
 
+    def _update_recent_list(new_value: str) -> None:
+        if show_recent:
+            if new_value in ctx['recent']:
+                if new_value == ctx['recent'][0]:
+                    return
+                ctx['recent'].remove(new_value)
+            ctx['recent'].appendleft(new_value)
+
     with st.container(horizontal=True, vertical_alignment='bottom'):
         st.text_input(
             label,
             ctx['initial_path'],
-            on_change=_external_update_user_input,
+            on_change=partial(
+                _external_update_user_input, keygen('user_input')
+            ),
             key=keygen('user_input'),
         )
-        if _extra_widgets:
-            _extra_widgets()
+        if show_recent:
+            st.menu_button(
+                'Recent',
+                options=ctx['recent'] or (None,),
+                disabled=not ctx['recent'],
+                key=keygen('user_recent'),
+                on_click=lambda: _internal_update_user_input(
+                    st.session_state[keygen('user_recent')]
+                ),
+                width=custom.get('recent_button_width', 'content'),
+            )
         if st.button(
             'Browse',
             key=keygen('user_browse'),
-            width=browse_button_width or 'content',
+            width=custom.get('browse_button_width', 'content'),
         ):
             if multiselect:
                 raise NotImplementedError

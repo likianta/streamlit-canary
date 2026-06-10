@@ -6,6 +6,7 @@ from .components import *
 from .compositor import Compositor
 from .event_loop import event_loop
 from .flow import post_events
+from .keygen import generate_keygen
 from .opener import open_file
 from .opener import open_folder
 from .page import pages

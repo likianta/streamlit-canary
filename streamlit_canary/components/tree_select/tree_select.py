@@ -47,6 +47,7 @@ def tree_select(
     show_confirm_button: bool = True,
     _callback: tp.Optional[tp.Callable[[str], None]] = None,
     _keygen: tp.Optional[UniqueKeyGenerator] = None,
+    _scoped: bool = False,
 ) -> tp.Optional[str]:
     """
     this component is usually used inside a dialog/container/expander layout.
@@ -75,6 +76,7 @@ def tree_select(
                 d.replace('\\', '/'): None for d in os.listdrives()
             },
             'parent_to_filenames': {},
+            'scoped': _scoped,
             'start_directory': start_directory,
             'temp_new_folder_name': '',
             'tree_select_index_0': 0,
@@ -185,7 +187,7 @@ def _change_dir(
             state['parent_to_dirnames'][dirpath].index(relocate_subdir_name) + 1
         )
 
-    st.rerun()
+    st.rerun(scope='fragment' if state['scoped'] else 'app')
 
 
 def _current_location(state: dict, keygen: UniqueKeyGenerator) -> str:
@@ -309,7 +311,6 @@ def _single_select(
                 if name.endswith(filter) or label.endswith('/')
             )
 
-    # st.markdown(parent)
     # st.info('Current path: **{}**'.format(parent))
     with exp:
         st.info('**{}**'.format(parent.replace('__', '\\_\\_')))
@@ -324,16 +325,6 @@ def _single_select(
         format_func=lambda x: x[1],
         # key=State.keygen('single_select', node_type, str(nodes)),
     )
-
-    # if selected:
-
-    #     def _refresh_selection(index: int) -> None:
-    #         State.tree_select_index_2 = index
-
-    #     return '{}/{}'.format(parent, selected[0]), partial(
-    #         _refresh_selection, nodes.index(selected[0])
-    #     )
-    # return '', None
 
     if selected:
         return '{}/{}'.format(parent, selected[0])
@@ -396,7 +387,7 @@ def _subdir_navigation(state: dict, parent: str) -> str:
                 state['tree_select_index_1'] = (
                     sub_dirnames.index(new_folder_name) + 1
                 )
-                st.rerun()
+                st.rerun(scope='fragment' if state['scoped'] else 'app')
 
     with row1:
         # print(parent, len(sub_dirnames), state['tree_select_index_1'], ':v')
