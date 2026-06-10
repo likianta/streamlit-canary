@@ -4,8 +4,10 @@ from functools import partial
 
 import streamlit as st
 from lk_utils import fs
+from neoprint import print
 
-from ...duplicate_key_resolver import UniqueKeyGenerator
+from ...keygen import UniqueKeyGenerator
+from ...keygen import generate_unique_key
 from ...session import init_state
 
 
@@ -16,18 +18,21 @@ class T:
     ]
 
 
-@init_state
-class State:
-    parent_to_dirnames: tp.Dict[str, tp.Optional[tp.List[str]]] = {
-        d.replace('\\', '/'): None for d in os.listdrives()
-    }
-    parent_to_filenames: tp.Dict[str, tp.Sequence[str]] = {}
-    temp_new_folder_name: str = ''
-    # temp_holding_dialog_opened: bool = False
-    tree_select_index_0: int = 0
-    tree_select_index_1: int = 0
-    tree_select_index_2: int = 0
-    __version__ = 6
+# @init_state
+# class State:
+#     parent_to_dirnames: tp.Dict[str, tp.Optional[tp.List[str]]] = {
+#         d.replace('\\', '/'): None for d in os.listdrives()
+#     }
+#     parent_to_filenames: tp.Dict[str, tp.Sequence[str]] = {}
+#     temp_new_folder_name: str = ''
+#     # temp_holding_dialog_opened: bool = False
+#     tree_select_index_0: int = 0
+#     tree_select_index_1: int = 0
+#     tree_select_index_2: int = 0
+#     __version__ = 6
+
+
+_states = init_state(version=7)
 
 
 def tree_select(
@@ -38,39 +43,63 @@ def tree_select(
     key: str = '',
     multiselect: bool = False,
     node_type: T.NodeType = 'file',
+    preview_subfolders: bool = True,
     show_confirm_button: bool = True,
     _callback: tp.Optional[tp.Callable[[str], None]] = None,
     _keygen: tp.Optional[UniqueKeyGenerator] = None,
 ) -> tp.Optional[str]:
     """
     this component is usually used inside a dialog/container/expander layout.
+    see also `./wrappers.py`.
+
+    params:
+        preview_subfolders:
+            when user selects a folder in the left panel, whether to list its
+            subfolders in the right panel.
+            when user clicks the subfolder, it will be entered.
+            this option is only applicable when `node_type` is `file`.
     """
-    if start_directory:
-        assert fs.isdir(start_directory)
-        start_directory = fs.abspath(start_directory)
-    else:
-        start_directory = fs.normpath(os.getcwd())
 
-    keygen = _keygen or UniqueKeyGenerator(
-        key or '_:tree_select:{}:{}'.format(start_directory, node_type)
-    )
+    if not key:
+        key = generate_unique_key()
+    if key not in _states:
+        if start_directory:
+            assert fs.isdir(start_directory)
+            start_directory = fs.abspath(start_directory)
+        else:
+            start_directory = fs.normpath(os.getcwd())
 
-    if start_directory not in State.parent_to_dirnames:
+        _states[key] = {
+            'keygen': _keygen or UniqueKeyGenerator(key),
+            'parent_to_dirnames': {
+                d.replace('\\', '/'): None for d in os.listdrives()
+            },
+            'parent_to_filenames': {},
+            'start_directory': start_directory,
+            'temp_new_folder_name': '',
+            'tree_select_index_0': 0,
+            'tree_select_index_1': 0,
+            'tree_select_index_2': 0,
+        }
+
         parts = start_directory.split('/')
         temp_str = parts[0]
         for p in parts[1:]:
             temp_str += '/' + p
-            State.parent_to_dirnames[temp_str] = None
-        State.tree_select_index_0 = sorted(
-            State.parent_to_dirnames.keys()
+            _states[key]['parent_to_dirnames'][temp_str] = None
+        _states[key]['tree_select_index_0'] = sorted(
+            _states[key]['parent_to_dirnames'].keys()
         ).index(start_directory)
 
-    currdir = _current_location(keygen)
+    state = _states[key]
+    keygen = state['keygen']
+
+    currdir = _current_location(state, keygen)
 
     cols = st.columns((3.5, 6.5))
     with cols[0]:
         with st.container(height=height):
-            selected_subdir = _subdir_navigation(currdir)
+            selected_subdir = _subdir_navigation(state, currdir)
     with cols[1]:
         with st.container(height=height):
             place1 = st.container(height='stretch')
@@ -102,8 +131,16 @@ def tree_select(
                     )
 
             with place1:
-                # TODO: refresh tree selection
-                result = _single_select(selected_subdir, node_type, filter)
+                result = _single_select(
+                    state,
+                    selected_subdir or currdir,
+                    keygen,
+                    node_type,
+                    filter,
+                    preview_subfolders=preview_subfolders
+                    if selected_subdir
+                    else False,
+                )
                 # np.show('you select', result, ':v')
 
             if _callback:
@@ -128,60 +165,119 @@ def tree_select(
                     return result
 
 
-def _current_location(keygen: UniqueKeyGenerator) -> str:
+def _change_dir(
+    state: dict, dirpath: str, relocate_subdir_name: str = ''
+) -> None:
+    print('change dir', dirpath, relocate_subdir_name)
+
+    if state['parent_to_dirnames'].get(dirpath) is None:
+        _index_new_directory(state, dirpath)
+
+    state['start_directory'] = dirpath
+    state['tree_select_index_0'] = sorted(state['parent_to_dirnames']).index(
+        dirpath
+    )
+    state['tree_select_index_1'] = 0
+    state['tree_select_index_2'] = 0
+
+    if relocate_subdir_name:
+        state['tree_select_index_1'] = (
+            state['parent_to_dirnames'][dirpath].index(relocate_subdir_name) + 1
+        )
+
+    st.rerun()
+
+
+def _current_location(state: dict, keygen: UniqueKeyGenerator) -> str:
     x = st.selectbox(
         'Current location',
-        sorted(State.parent_to_dirnames.keys()),
+        sorted(state['parent_to_dirnames'].keys()),
         accept_new_options=True,
-        index=State.tree_select_index_0,
+        index=state['tree_select_index_0'],
         key=keygen(
             'currdir_location',
-            str(sorted(State.parent_to_dirnames.keys())),
-            str(State.tree_select_index_0),
+            state['start_directory'],
+            str(state['tree_select_index_0']),
         ),
     )
-    if x in State.parent_to_dirnames:
+    # print(
+    #     'current location',
+    #     x,
+    #     state['start_directory'],
+    #     state['tree_select_index_0'],
+    #     ':lv',
+    # )
+    if x in state['parent_to_dirnames']:
         currdir = x
-        if State.parent_to_dirnames[currdir] is None:
-            _index_new_directory(currdir, focus=False)
+        if state['parent_to_dirnames'][currdir] is None:
+            _index_new_directory(state, currdir)
     else:  # user enters a new path
         assert fs.exist(x)
         if fs.isdir(x):
             currdir = fs.abspath(x)
         else:
             currdir = fs.abspath(fs.parent(x))
-        _index_new_directory(currdir)
+        # _index_new_directory(state, currdir)
+        _change_dir(state, currdir)
     return currdir
 
 
-def _index_new_directory(dirpath: str, focus: bool = True) -> None:
-    State.parent_to_dirnames[dirpath] = fs.find_dir_names(dirpath)
-    if focus:
-        State.tree_select_index_0 = sorted(State.parent_to_dirnames).index(
-            dirpath
-        )
-    State.tree_select_index_1 = 0
-    State.tree_select_index_2 = 0
+def _index_new_directory(state: dict, dirpath: str) -> None:
+    state['parent_to_dirnames'][dirpath] = fs.find_dir_names(dirpath)
+    state['tree_select_index_1'] = 0  # DELETE?
+    state['tree_select_index_2'] = 0  # DELETE?
 
 
 def _single_select(
-    parent: str, node_type: T.NodeType = 'file', filter: T.Filter = None
+    state: dict,
+    parent: str,
+    keygen: UniqueKeyGenerator,
+    node_type: T.NodeType = 'file',
+    filter: T.Filter = None,
+    preview_subfolders: bool = False,
 ) -> str:
+    # print(
+    #     parent,
+    #     preview_subfolders,
+    #     state['parent_to_filenames'].get(parent),
+    #     ':vl',
+    # )
+    exp = st.expander('Current absolute path')
+
     nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
     if node_type == 'folder':
         nodes = tuple(
             (x, x.replace('__', '\\_\\_'))
-            for x in State.parent_to_dirnames[parent]
+            for x in state['parent_to_dirnames'][parent]
         )
     else:
-        if parent not in State.parent_to_filenames:  # DELETE?
-            State.parent_to_filenames[parent] = tuple(
+        if parent not in state['parent_to_filenames']:  # DELETE?
+            state['parent_to_filenames'][parent] = tuple(
                 fs.find_file_names(parent)
             )
         if node_type == 'file':
+            if preview_subfolders:
+                if parent not in state['parent_to_dirnames']:
+                    _index_new_directory(state, parent)
+                if xlist := state['parent_to_dirnames'][parent]:
+                    with st.container(border=True):
+                        if x := st.radio(
+                            'Subfolders',
+                            [''] + xlist,
+                            format_func=lambda x: (
+                                ':gray[(Single click to enter the subfolder)]'
+                                if x == ''
+                                else ':material/folder: {}'.format(
+                                    x.replace('__', '\\_\\_')
+                                )
+                            ),
+                            label_visibility='collapsed',
+                            key=keygen('subfolders', parent, str(len(xlist))),
+                        ):
+                            _change_dir(state, parent + '/' + x)
             nodes = tuple(
                 (x, x.replace('__', '\\_\\_'))
-                for x in State.parent_to_filenames[parent]
+                for x in state['parent_to_filenames'][parent]
             )
         else:  # 'both', 'both_but_file', 'both_but_folder'
             nodes = ()
@@ -193,7 +289,7 @@ def _single_select(
                             x.replace('__', '\\_\\_')
                         ),
                     )
-                    for x in State.parent_to_dirnames[parent]
+                    for x in state['parent_to_dirnames'][parent]
                 )
             if node_type == 'both' or node_type == 'both_but_file':
                 nodes += tuple(
@@ -203,7 +299,7 @@ def _single_select(
                             x.replace('__', '\\_\\_')
                         ),
                     )
-                    for x in State.parent_to_filenames[parent]
+                    for x in state['parent_to_filenames'][parent]
                 )
 
         if filter:
@@ -214,12 +310,9 @@ def _single_select(
             )
 
     # st.markdown(parent)
-    st.info('Current path: **{}**'.format(parent))
-
-    # st.markdown('**Select {}s from the list**'.format(node_type))
-    # return [
-    #     '{}/{}'.format(parent, name) for name in node_names if st.checkbox(name)
-    # ]
+    # st.info('Current path: **{}**'.format(parent))
+    with exp:
+        st.info('**{}**'.format(parent.replace('__', '\\_\\_')))
 
     selected = st.radio(
         'Select {}'.format(
@@ -247,8 +340,8 @@ def _single_select(
     return ''
 
 
-def _subdir_navigation(parent: str) -> str:
-    sub_dirnames = tp.cast(tp.List[str], State.parent_to_dirnames[parent])
+def _subdir_navigation(state: dict, parent: str) -> str:
+    sub_dirnames = tp.cast(tp.List[str], state['parent_to_dirnames'][parent])
 
     row1 = st.container(height='stretch')
     row2 = st.empty()
@@ -271,7 +364,7 @@ def _subdir_navigation(parent: str) -> str:
         if do_new_folder:
 
             def _sync_new_folder_name() -> None:
-                State.temp_new_folder_name = st.session_state[
+                state['temp_new_folder_name'] = st.session_state[
                     'new_folder_input'
                 ]
 
@@ -283,8 +376,8 @@ def _subdir_navigation(parent: str) -> str:
                     on_change=_sync_new_folder_name,
                 )
         else:
-            new_folder_name = State.temp_new_folder_name
-            State.temp_new_folder_name = ''
+            new_folder_name = state['temp_new_folder_name']
+            state['temp_new_folder_name'] = ''
 
         if new_folder_name:
             if new_folder_name in sub_dirnames:
@@ -292,7 +385,7 @@ def _subdir_navigation(parent: str) -> str:
                     ':red[Failed to create new folder: duplicate name!]',
                     duration='long',
                 )
-                State.tree_select_index_1 = (
+                state['tree_select_index_1'] = (
                     sub_dirnames.index(new_folder_name) + 1
                 )
             else:
@@ -300,46 +393,38 @@ def _subdir_navigation(parent: str) -> str:
                 st.toast(':green[Folder "{}" created.]'.format(new_folder_name))
                 sub_dirnames.append(new_folder_name)
                 sub_dirnames.sort()
-                State.tree_select_index_1 = (
+                state['tree_select_index_1'] = (
                     sub_dirnames.index(new_folder_name) + 1
                 )
                 st.rerun()
 
     with row1:
+        # print(parent, len(sub_dirnames), state['tree_select_index_1'], ':v')
         target_dirname = st.radio(
             'Navigate to subfolder',
             ['..'] + sub_dirnames,
-            index=State.tree_select_index_1,
+            index=state['tree_select_index_1'],
             format_func=lambda x: (
-                ':gray(This folder)' if x == '..' else x + '/'
+                ':gray[(This folder)]' if x == '..' else x + '/'
+            ),
+            key=state['keygen'](
+                'subdir_navigation', parent, str(state['tree_select_index_1'])
             ),
         )
         result = (
-            parent
+            ''
             if target_dirname is None or target_dirname == '..'
             else '{}/{}'.format(parent.rstrip('/'), target_dirname)
         )
 
-        def change_dir(dirpath: str, relocate_subdir_name: str = '') -> None:
-            # np.show('change_dir', dirpath, relocate_subdir_name)
-            if State.parent_to_dirnames.get(dirpath) is None:
-                _index_new_directory(dirpath)
-            if relocate_subdir_name:
-                State.tree_select_index_1 = (
-                    State.parent_to_dirnames[dirpath].index(
-                        relocate_subdir_name
-                    )
-                    + 1
-                )
-            st.rerun(scope='fragment')
-
         if do_back:
+            # print('do_back', parent, ':v')
             a, b = parent.rsplit('/', 1)
             if a[-1] == ':':
                 a += '/'
-            change_dir(a, relocate_subdir_name=b)
-        elif do_enter and result != parent:
-            change_dir(result)
+            _change_dir(state, a, relocate_subdir_name=b)
+        elif do_enter and result:
+            _change_dir(state, result)
         # else:
         #     a, b = result.rsplit('/', 1)
         #     st.markdown('You selected: **{}/:blue[{}]**'.format(a, b))

@@ -9,7 +9,7 @@ from lk_utils import fs
 
 from .tree_select import T as T0
 from .tree_select import tree_select
-from ...duplicate_key_resolver import UniqueKeyGenerator
+from ...keygen import UniqueKeyGenerator
 from ...session import init_state
 
 

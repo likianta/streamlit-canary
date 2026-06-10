@@ -1,4 +1,5 @@
 # from . import components
+from . import keygen
 from . import opener
 from . import session
 from .components import *
