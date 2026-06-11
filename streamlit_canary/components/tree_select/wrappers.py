@@ -23,6 +23,14 @@ class T(T0):
         'TreeInputCustomization',
         {
             'browse_button_width': tp.Literal['content', 'stretch'],
+            'place0': tp.Callable[[], None],
+            'place1': tp.Callable[[], None],
+            'place2': tp.Callable[[], None],
+            'place3': tp.Callable[[], None],
+            #   place 0, 1, 2, 3:
+            #       ? [ text_input   ] ? [ recent_button ] ? [ browse_button ] ?
+            #       0                  1                   2                   3
+            #   usually place1 and place3 are recommended to use.
             'recent_button_width': tp.Literal['content', 'stretch'],
         },
         total=False,
@@ -200,6 +208,8 @@ def tree_select_with_input(
             ctx['recent'].appendleft(new_value)
 
     with st.container(horizontal=True, vertical_alignment='bottom'):
+        if custom and custom.get('place0'):
+            custom['place0']()
         st.text_input(
             label,
             ctx['initial_path'],
@@ -208,6 +218,8 @@ def tree_select_with_input(
             ),
             key=keygen('user_input'),
         )
+        if custom and custom.get('place1'):
+            custom['place1']()
         if show_recent:
             st.menu_button(
                 'Recent',
@@ -217,12 +229,18 @@ def tree_select_with_input(
                 on_click=lambda: _internal_update_user_input(
                     st.session_state[keygen('user_recent')]
                 ),
-                width=custom.get('recent_button_width', 'content'),
+                width=custom
+                and custom.get('recent_button_width', 'content')
+                or 'content',
             )
+        if custom and custom.get('place2'):
+            custom['place2']()
         if st.button(
             'Browse',
             key=keygen('user_browse'),
-            width=custom.get('browse_button_width', 'content'),
+            width=custom
+            and custom.get('browse_button_width', 'content')
+            or 'content',
         ):
             if multiselect:
                 raise NotImplementedError
@@ -234,6 +252,8 @@ def tree_select_with_input(
                     _keygen=keygen,
                     **kwargs,
                 )
+        if custom and custom.get('place3'):
+            custom['place3']()
     return ctx['result']
 
 
