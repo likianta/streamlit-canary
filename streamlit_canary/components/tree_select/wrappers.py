@@ -7,7 +7,7 @@ from functools import partial
 
 import streamlit as st
 from lk_utils import fs
-from neoprint import print
+from neoprint import print  # noqa
 
 from .tree_select import T as T0
 from .tree_select import tree_select
@@ -116,20 +116,13 @@ def tree_select_with_input(
     label: str,
     initial_path: str = '',
     *,
-    # callback: tp.Optional[tp.Callable[[str], None]] = None,
     custom: tp.Optional[T.TreeInputCustomization] = None,
-    # custom_browse_button: tp.Optional[tp.Callable] = None,
-    # custom_recent_button: tp.Optional[tp.Callable] = None,
     key: str = '',
     multiselect: bool = False,
     node_type: T.NodeType = 'file',
     show_recent: bool = False,
     **kwargs,
 ) -> tp.Optional[str]:
-    print(':vi', 'tree_select_with_input')
-    # if callback is None:
-    #     print(':pv6', 'callback is required to enable browsing feature')
-
     ctx = State.user_states[key or 'tree_select:{}'.format(label)]
     if not ctx:
         # init context
@@ -144,7 +137,10 @@ def tree_select_with_input(
                     key or '_:tree_select:{}:{}'.format(label, initial_path)
                 ),
                 'recent': deque(maxlen=20),
-                'result': '',  # DELETE?
+                # TODO
+                'result': initial_path
+                if node_type == 'file' and fs.isfile(initial_path)
+                else '',
                 'start_directory': initial_path
                 if fs.isdir(initial_path)
                 else fs.parent(initial_path),
@@ -262,6 +258,7 @@ def _do_nothing(_) -> None:
 
 
 # ------------------------------------------------------------------------------
+# DELETE?
 
 
 def ask_files(title='Select files', start_directory: str = '', **kwargs):
