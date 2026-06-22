@@ -23,15 +23,16 @@ class T(T0):
         'TreeInputCustomization',
         {
             'browse_button_width': tp.Literal['content', 'stretch'],
-            'place0': tp.Callable[[], None],
-            'place1': tp.Callable[[], None],
-            'place2': tp.Callable[[], None],
-            'place3': tp.Callable[[], None],
+            'place0': tp.Callable,
+            'place1': tp.Callable,
+            'place2': tp.Callable,
+            'place3': tp.Callable,
             #   place 0, 1, 2, 3:
             #       ? [ text_input   ] ? [ recent_button ] ? [ browse_button ] ?
             #       0                  1                   2                   3
             #   usually place1 and place3 are recommended to use.
             'recent_button_width': tp.Literal['content', 'stretch'],
+            'tree_panel_height': int,
         },
         total=False,
     )
@@ -50,6 +51,7 @@ def tree_select_dialog(
     filter: T.Filter = None,
     *,
     callback: tp.Callable[[str], None],  # required
+    height: int = 500,
     key: str = '',
     multiselect: bool = False,
     node_type: T.NodeType = 'file',
@@ -100,6 +102,7 @@ def tree_select_dialog(
     def popup_dialog():
         tree_select(
             filter=State.query_params.filter,
+            height=height,
             key=State.keygen('tree_select'),
             node_type=node_type,
             show_confirm_button=True,
@@ -205,7 +208,7 @@ def tree_select_with_input(
 
     with st.container(horizontal=True, vertical_alignment='bottom'):
         if custom and custom.get('place0'):
-            custom['place0']()
+            custom['place0'](_state=ctx)
         st.text_input(
             label,
             ctx['initial_path'],
@@ -215,7 +218,7 @@ def tree_select_with_input(
             key=keygen('user_input'),
         )
         if custom and custom.get('place1'):
-            custom['place1']()
+            custom['place1'](_state=ctx)
         if show_recent:
             st.menu_button(
                 'Recent',
@@ -230,7 +233,7 @@ def tree_select_with_input(
                 or 'content',
             )
         if custom and custom.get('place2'):
-            custom['place2']()
+            custom['place2'](_state=ctx)
         if st.button(
             'Browse',
             key=keygen('user_browse'),
@@ -241,15 +244,22 @@ def tree_select_with_input(
             if multiselect:
                 raise NotImplementedError
             else:
+                if custom and custom.get('tree_panel_height'):
+                    height = custom['tree_panel_height']
+                elif kwargs.get('height'):
+                    height = kwargs.pop('height')
+                else:
+                    height = 500
                 return tree_select_dialog(
                     callback=_internal_update_user_input,
+                    height=height,
                     node_type=node_type,
                     start_directory=ctx['start_directory'],
                     _keygen=keygen,
                     **kwargs,
                 )
         if custom and custom.get('place3'):
-            custom['place3']()
+            custom['place3'](_state=ctx)
     return ctx['result']
 
 

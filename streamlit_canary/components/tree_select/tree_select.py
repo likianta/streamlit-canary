@@ -39,7 +39,7 @@ def tree_select(
     start_directory: str = '',
     filter: T.Filter = None,
     *,
-    height: int = 600,
+    height: int = 500,
     key: str = '',
     multiselect: bool = False,
     node_type: T.NodeType = 'file',
