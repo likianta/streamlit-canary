@@ -1,9 +1,10 @@
 import os
+import sys
+import typing as t
+
 import psutil
 import pyapp_window
 import streamlit as st
-import sys
-import typing as t
 from lk_utils import fs
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
@@ -12,10 +13,16 @@ from lk_utils.subproc import Popen
 def run(
     target: str,
     port: int = 3001,
-    subthread: bool = False,
-    show_window: bool = False,
+    *,
     extra_args: t.Sequence[str] = (),
-    **kwargs,
+    show_error_details_on_ui: bool = True,
+    show_window: bool = False,
+    subthread: bool = False,
+    title: t.Optional[str] = None,
+    window_icon: t.Optional[str] = None,
+    window_pos: pyapp_window.opener.T.AnyPos = 'center',
+    window_size: pyapp_window.opener.T.AnySize = (1200, 900),
+    window_title: str = 'Streamlit Canary Application',  # backward compatibility
 ) -> t.Tuple[t.Optional[Popen], t.Optional[Popen]]:
     """
     params:
@@ -41,29 +48,32 @@ def run(
     returns:
         (streamlit_process, window_process)
     """
-    popen_options = {}
-    for k in ('cwd', 'env', 'shell'):
-        if k in kwargs:
-            popen_options[k] = kwargs[k]
+    # popen_options = {}
+    # for k in ('cwd', 'env', 'shell'):
+    #     if k in kwargs:
+    #         popen_options[k] = kwargs[k]
     window_options = {}
     if show_window:
         window_options.update(
             {
-                'title': kwargs.get('title', 'Streamlit Canary App'),
-                'icon': kwargs.get('icon', None),
-                'oversize_scheme': kwargs.get('oversize_scheme', 'crop'),
-                'pos': kwargs.get('pos', 'center'),
-                'size': kwargs.get('size', (1200, 900)),
+                'title': title or window_title,
+                'icon': window_icon,
+                'oversize_scheme': 'crop',
+                'pos': window_pos,
+                'size': window_size,
             }
         )
-        os.environ['SC_WINDOW_PID_FOR_PORT_{}'.format(port)] = str(os.getpid())
-    del kwargs
+        os.environ['SC_WINDOW_PID_AT_PORT_{}'.format(port)] = str(os.getpid())
 
     proc_st = t.cast(
         t.Optional[Popen],
         run_cmd_args(
             (sys.executable, '-m', 'streamlit', 'run'),
             ('--browser.gatherUsageStats', 'false'),
+            (
+                '--client.showErrorDetails',
+                'full' if show_error_details_on_ui else 'type',
+            ),
             ('--global.developmentMode', 'false'),
             ('--runner.magicEnabled', 'false'),
             ('--server.headless', 'true'),
@@ -73,7 +83,7 @@ def run(
             verbose=True,
             blocking=False if show_window else not subthread,
             force_term_color=True,
-            **popen_options,
+            # **popen_options,
         ),
     )
     if show_window:
@@ -94,7 +104,7 @@ def kill(
         port = st.get_option('server.port')
 
     app_pid = os.getpid()
-    if x := os.getenv('SC_WINDOW_PID_FOR_PORT_{}'.format(port)):
+    if x := os.getenv('SC_WINDOW_PID_AT_PORT_{}'.format(port)):
         win_pid = int(x)
     else:
         win_pid = None
