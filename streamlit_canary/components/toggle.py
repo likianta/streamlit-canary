@@ -9,7 +9,7 @@ class State:
     button_states: tp.Dict[str, bool] = {}
 
 
-def toggled_button(label: str, value: bool = False, **kwargs) -> bool:
+def toggle_button(label: str, value: bool = False, **kwargs) -> bool:
     if label not in State.button_states:
         State.button_states[label] = value
     curr_value = State.button_states[label]

@@ -12,7 +12,7 @@ from .progress import Progress
 from .progress import progress
 from .radio import radio
 from .row import row
-from .toggle import toggled_button
+from .toggle import toggle_button
 from .tree_select import ask_files
 from .tree_select import ask_folder
 from .tree_select import ask_folders
