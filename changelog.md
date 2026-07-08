@@ -1,9 +1,8 @@
 # Changelog
 
-### 0.3.0 (wip)
+### 0.3.0 (2026-07-08)
 
-- Add Streamlit-based tree select.
-- Use `__revision__` instead of `__version__` to mark state soured.
+- Add Streamlit-based custom tree select.
 - Refactor `sc.progress`.
 - Return streamlit process and window process for `sc.run(..., subthread=True)`.
 

@@ -1825,7 +1825,7 @@ wheels = [
 
 [[package]]
 name = "pyapp-window"
-version = "2.2.3a0"
+version = "2.2.3"
 source = { registry = "http://localhost:2191/" }
 dependencies = [
     { name = "argsense" },
@@ -1834,12 +1834,12 @@ dependencies = [
     { name = "pythonnet", version = "3.1.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform == 'win32'" },
     { name = "pywebview", marker = "python_full_version < '3.15' and sys_platform == 'linux'" },
     { name = "requests", version = "2.32.5", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10'" },
-    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '4'" },
+    { name = "requests", version = "2.34.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10'" },
     { name = "toga", version = "0.5.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10' and sys_platform != 'linux'" },
     { name = "toga", version = "0.5.4", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10' and python_full_version < '3.15' and sys_platform != 'linux'" },
 ]
 wheels = [
-    { url = "http://localhost:2191/pyapp-window/pyapp_window-2.2.3a0-py3-none-any.whl" },
+    { url = "http://localhost:2191/pyapp-window/pyapp_window-2.2.3-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -3050,7 +3050,7 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.3.0b6"
+version = "0.3.0b7"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3065,10 +3065,10 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "argsense", specifier = ">=1.1.2", index = "http://localhost:2191/" },
-    { name = "lk-utils", specifier = ">=3.7.0a6", index = "http://localhost:2191/" },
+    { name = "lk-utils", specifier = ">=3.6.1", index = "http://localhost:2191/" },
     { name = "neoprint", specifier = ">=0.1.6", index = "http://localhost:2191/" },
     { name = "psutil", specifier = ">=7.0.0" },
-    { name = "pyapp-window", specifier = ">=2.2.3a0", index = "http://localhost:2191/" },
+    { name = "pyapp-window", specifier = ">=2.2.3", index = "http://localhost:2191/" },
     { name = "streamlit", marker = "python_full_version == '3.9.*'", specifier = ">=1.40.0,<1.50.0" },
     { name = "streamlit", marker = "python_full_version >= '3.10'", specifier = ">=1.58.0" },
 ]
