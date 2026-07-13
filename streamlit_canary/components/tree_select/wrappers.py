@@ -7,7 +7,6 @@ from functools import partial
 
 import streamlit as st
 from lk_utils import fs
-from neoprint import print  # noqa
 
 from .tree_select import T as T0
 from .tree_select import tree_select
@@ -133,6 +132,18 @@ def tree_select_with_input(
             initial_path = fs.abspath(initial_path)
         else:
             initial_path = fs.normpath(os.getcwd())
+
+        if node_type == 'file':
+            if fs.isfile(initial_path):
+                result = initial_path
+            else:
+                result = ''
+        else:  # 'folder'
+            if fs.isdir(initial_path):
+                result = initial_path
+            else:
+                result = fs.parent(initial_path)
+
         ctx.update(
             {
                 'initial_path': initial_path,
@@ -141,15 +152,15 @@ def tree_select_with_input(
                 ),
                 'recent': deque(maxlen=20),
                 # TODO
-                'result': initial_path
-                if node_type == 'file' and fs.isfile(initial_path)
-                else '',
+                'result': result,
                 'start_directory': initial_path
                 if fs.isdir(initial_path)
                 else fs.parent(initial_path),
             }
         )
     keygen = ctx['keygen']
+
+    # --------------------------------------------------------------------------
 
     def _internal_update_user_input(value: str) -> None:
         ctx['result'] = value
@@ -265,25 +276,3 @@ def tree_select_with_input(
 
 def _do_nothing(_) -> None:
     pass
-
-
-# ------------------------------------------------------------------------------
-# DELETE?
-
-
-def ask_files(title='Select files', start_directory: str = '', **kwargs):
-    return tree_select(
-        title, start_directory, multiselect=True, node_type='file', **kwargs
-    )
-
-
-def ask_folder(title='Select folder', start_directory: str = '', **kwargs):
-    return tree_select(
-        start_directory=start_directory, node_type='folder', **kwargs
-    )
-
-
-def ask_folders(title='Select folders', start_directory: str = '', **kwargs):
-    return tree_select(
-        title, start_directory, multiselect=True, node_type='folder', **kwargs
-    )

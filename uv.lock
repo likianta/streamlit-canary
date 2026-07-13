@@ -1724,6 +1724,19 @@ wheels = [
 ]
 
 [[package]]
+name = "plotly"
+version = "6.9.0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "narwhals", version = "2.22.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10'" },
+    { name = "packaging", version = "26.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10'" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/96/07/795c79dbce40c39bece88e69d049babbd23ffa95b5d117f248db8ea03abb/plotly-6.9.0.tar.gz", hash = "sha256:967ad33e8c704fed051800d11d985eb206a9c795c14206b30a6f463ed9c67d0d", size = 6919903, upload-time = "2026-07-09T14:55:59.982Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/24/18/d8544811ab076f876c4892b3714f5b0dad335e1dc33aef826df431b8325d/plotly-6.9.0-py3-none-any.whl", hash = "sha256:36bebe2f1bb13884774fe61689c329071446f6ce4a8927fb1f0d6fb24f581236", size = 9909646, upload-time = "2026-07-09T14:55:55.421Z" },
+]
+
+[[package]]
 name = "protobuf"
 version = "6.33.6"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
@@ -3050,7 +3063,7 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.3.0b7"
+version = "0.3.1a0"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3060,6 +3073,11 @@ dependencies = [
     { name = "pyapp-window" },
     { name = "streamlit", version = "1.49.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.10'" },
     { name = "streamlit", version = "1.58.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10'" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "streamlit-extras", marker = "python_full_version >= '3.10'" },
 ]
 
 [package.metadata]
@@ -3074,7 +3092,20 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = []
+dev = [{ name = "streamlit-extras", marker = "python_full_version >= '3.10'", specifier = ">=1.6.0" }]
+
+[[package]]
+name = "streamlit-extras"
+version = "1.6.0"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
+dependencies = [
+    { name = "plotly", marker = "python_full_version >= '3.10'" },
+    { name = "streamlit", version = "1.58.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.10'" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/52/e2/34510d0639ee4e321c7e92205c990a15957b46aadaab56eef3bc59e15d23/streamlit_extras-1.6.0.tar.gz", hash = "sha256:d75bfabd2be35f1fba6bce3935d1c446cfcfbe03123478df1b5ba4a02a7c49c0", size = 408284, upload-time = "2026-05-15T15:33:22.666Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/85/6a/3cf1af290973094d8104c5ced9e5e5913c90852492419774286550d6c7bc/streamlit_extras-1.6.0-py3-none-any.whl", hash = "sha256:99c38dad3cd07d088da809c97f3e35cd65f97c983480c3115c724f0324fc8eee", size = 1042438, upload-time = "2026-05-15T15:33:24.18Z" },
+]
 
 [[package]]
 name = "tenacity"

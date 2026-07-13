@@ -1,3 +1,9 @@
+# fmt: off
+if 1:
+    import neoprint as np
+    np.setup()
+# fmt: on
+
 # from . import components
 from . import keygen
 from . import opener
@@ -18,4 +24,4 @@ from .session import init_state
 from .session import init_state as get_state
 from .session import shared_data
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
