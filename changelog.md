@@ -3,6 +3,7 @@
 ### 0.3.1 (wip)
 
 - Fix selecting folder item in tree select.
+- Polish tree select interface.
 - Void container to help organize fluent layout.
 
 ### 0.3.0 (2026-07-08)

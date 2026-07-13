@@ -113,43 +113,58 @@ def tree_select(
                 detailed_list = column(height='stretch')
                 with row('bottom'):  # bottom bar
                     confirm_button_place = st.empty()
+                    # st.space(size='stretch')
                     if node_type == 'both':
-                        st.space(size='stretch')
-                        other_place = st.empty()
+                        node_type = tp.cast(
+                            T.NodeType,
+                            st.segmented_control(
+                                'View mode',
+                                options=(
+                                    'both_but_file',
+                                    'both_but_folder',
+                                    'both',
+                                ),
+                                default='both',
+                                format_func=lambda x: (
+                                    'File'
+                                    if x == 'both_but_file'
+                                    else 'Folder'
+                                    if x == 'both_but_folder'
+                                    else 'Both'
+                                ),
+                                key=keygen('node_type_switch'),
+                            ),
+                        )
                     else:
-                        other_place = None
+                        with st.popover(':material/location_on:'):
+                            st.write('Current location:')
+                            st.info(
+                                '**{}**'.format(
+                                    (selected_subdir or currdir).replace(
+                                        '__', '\\_\\_'
+                                    )
+                                )
+                            )
 
     # --------------------------------------------------------------------------
 
-    if node_type == 'both':
-        assert other_place
-        with other_place:
-            node_type = tp.cast(
-                T.NodeType,
-                st.segmented_control(
-                    'View mode',
-                    options=('both_but_file', 'both_but_folder', 'both'),
-                    default='both',
-                    format_func=lambda x: (
-                        'File'
-                        if x == 'both_but_file'
-                        else 'Folder'
-                        if x == 'both_but_folder'
-                        else 'Both'
-                    ),
-                    key=keygen('node_type_switch'),
-                ),
-            )
-
     with detailed_list:
-        result = _single_select_detailed_item(
-            state,
-            selected_subdir or currdir,
-            keygen,
-            node_type,
-            filter,
-            preview_subfolders=preview_subfolders if selected_subdir else False,
-        )
+        if node_type == 'file':
+            result = _single_select_file_item(
+                state,
+                selected_subdir or currdir,
+                keygen,
+                filter,
+                preview_subfolders=preview_subfolders
+                if selected_subdir
+                else False,
+            )
+        elif node_type == 'folder':
+            result = _single_select_folder_item(
+                state, selected_subdir or currdir, auto_jump=True
+            )
+        else:
+            raise NotImplementedError
         # print('you select', result, ':vn')
 
     if _callback:
@@ -239,118 +254,78 @@ def _index_new_directory(state: dict, dirpath: str) -> None:
     state['tree_select_index_2'] = 0  # DELETE?
 
 
-def _single_select_detailed_item(
+def _single_select_file_item(
     state: dict,
     parent: str,
     keygen: UniqueKeyGenerator,
-    node_type: T.NodeType = 'file',
     filter: T.Filter = None,
     preview_subfolders: bool = False,
 ) -> str:
-    # print(
-    #     parent,
-    #     preview_subfolders,
-    #     state['parent_to_dirnames'].get(parent),
-    #     state['parent_to_filenames'].get(parent),
-    #     ':vln',
-    # )
+    if parent not in state['parent_to_filenames']:  # DELETE?
+        state['parent_to_filenames'][parent] = tuple(fs.find_file_names(parent))
 
-    with void_column():
-        abspath_view = st.expander('Current absolute path')
-        if node_type == 'file' and preview_subfolders:
-            subfolders_quick_view = column(border=True)
-        else:
-            subfolders_quick_view = None
-        final_radio_place = st.empty()
-
-    # --------------------------------------------------------------------------
+    if preview_subfolders:
+        if parent not in state['parent_to_dirnames']:
+            _index_new_directory(state, parent)
+        if xlist := state['parent_to_dirnames'][parent]:
+            with column(border=True):
+                if x := st.radio(
+                    'Subfolders',
+                    [''] + xlist,
+                    format_func=lambda x: (
+                        ':gray[(Single click to enter the subfolder)]'
+                        if x == ''
+                        else ':material/folder: {}'.format(
+                            x.replace('__', '\\_\\_')
+                        )
+                    ),
+                    label_visibility='collapsed',
+                    key=keygen('subfolders', parent, str(len(xlist))),
+                ):
+                    _change_dir(state, parent + '/' + x)
 
     nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
-    if node_type == 'folder':
-        if parent not in state['parent_to_dirnames']:
-            state['parent_to_dirnames'][parent] = fs.find_dir_names(parent)
-            state['tree_select_index_2'] = 0
-        nodes = tuple(
+    nodes = tuple(
+        (
             (x, x.replace('__', '\\_\\_'))
-            for x in state['parent_to_dirnames'][parent]
+            for x in state['parent_to_filenames'][parent]
+            if (x.endswith(filter) if filter else True)
         )
-    else:
-        if parent not in state['parent_to_filenames']:  # DELETE?
-            state['parent_to_filenames'][parent] = tuple(
-                fs.find_file_names(parent)
-            )
-        if node_type == 'file':
-            if preview_subfolders:
-                if parent not in state['parent_to_dirnames']:
-                    _index_new_directory(state, parent)
-                if xlist := state['parent_to_dirnames'][parent]:
-                    assert subfolders_quick_view is not None
-                    with subfolders_quick_view:
-                        if x := st.radio(
-                            'Subfolders',
-                            [''] + xlist,
-                            format_func=lambda x: (
-                                ':gray[(Single click to enter the subfolder)]'
-                                if x == ''
-                                else ':material/folder: {}'.format(
-                                    x.replace('__', '\\_\\_')
-                                )
-                            ),
-                            label_visibility='collapsed',
-                            key=keygen('subfolders', parent, str(len(xlist))),
-                        ):
-                            _change_dir(state, parent + '/' + x)
-            nodes = tuple(
-                (x, x.replace('__', '\\_\\_'))
-                for x in state['parent_to_filenames'][parent]
-            )
-        else:  # 'both', 'both_but_file', 'both_but_folder'
-            nodes = ()
-            if node_type == 'both' or node_type == 'both_but_folder':
-                nodes += tuple(
-                    (
-                        x,
-                        ':material/folder: {}/'.format(
-                            x.replace('__', '\\_\\_')
-                        ),
-                    )
-                    for x in state['parent_to_dirnames'][parent]
-                )
-            if node_type == 'both' or node_type == 'both_but_file':
-                nodes += tuple(
-                    (
-                        x,
-                        ':material/description: {}'.format(
-                            x.replace('__', '\\_\\_')
-                        ),
-                    )
-                    for x in state['parent_to_filenames'][parent]
-                )
+    )
 
-        if filter:
-            nodes = tuple(
-                (name, label)
-                for name, label in nodes
-                if name.endswith(filter) or label.endswith('/')
-            )
-
-    # st.info('Current path: **{}**'.format(parent))
-    with abspath_view:
-        st.info('**{}**'.format(parent.replace('__', '\\_\\_')))
-
-    with final_radio_place:
-        # note: `nodes` may be empty, thus `selected` may be None.
-        selected = st.radio(
-            'Select {}'.format(
-                node_type == 'both'
-                and 'file or folder'
-                or 'one {}'.format(node_type)
-            ),
-            nodes,
-            format_func=lambda x: x[1],
-            # key=State.keygen('single_select', node_type, str(nodes)),
-        )
+    # note: `nodes` may be empty, thus `selected` may be None.
+    selected = st.radio(
+        'Select one file',
+        nodes,
+        format_func=lambda x: x[1],
+        # key=State.keygen('single_select', node_type, str(nodes)),
+    )
     return '{}/{}'.format(parent, selected[0]) if selected else ''
+
+
+def _single_select_folder_item(
+    state: dict, parent: str, auto_jump: bool = False
+) -> str:
+    if parent not in state['parent_to_dirnames']:
+        state['parent_to_dirnames'][parent] = fs.find_dir_names(parent)
+        state['tree_select_index_2'] = 0
+
+    nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
+    nodes = (
+        ('.', ':gray[This folder ({})]'.format(fs.basename(parent))),
+    ) + tuple(
+        (x, x.replace('__', '\\_\\_'))
+        for x in state['parent_to_dirnames'][parent]
+    )
+
+    selected = st.radio('Select one folder', nodes, format_func=lambda x: x[1])
+    if selected[0] == '.':
+        out = parent
+    else:
+        out = parent + '/' + selected[0]
+        if auto_jump:
+            _change_dir(state, out)
+    return out
 
 
 def _subdir_navigation(state: dict, parent: str) -> str:
@@ -415,10 +390,12 @@ def _subdir_navigation(state: dict, parent: str) -> str:
         # print(parent, len(sub_dirnames), state['tree_select_index_1'], ':v')
         target_dirname = st.radio(
             'Navigate to subfolder',
-            ['..'] + sub_dirnames,
+            ['.'] + sub_dirnames,
             index=state['tree_select_index_1'],
             format_func=lambda x: (
-                ':gray[(This folder)]' if x == '..' else x + '/'
+                ':gray[This folder ({})]'.format(fs.basename(parent))
+                if x == '.'
+                else x + '/'
             ),
             key=state['keygen'](
                 'subdir_navigation', parent, str(state['tree_select_index_1'])
@@ -426,7 +403,7 @@ def _subdir_navigation(state: dict, parent: str) -> str:
         )
         result = (
             ''
-            if target_dirname is None or target_dirname == '..'
+            if target_dirname is None or target_dirname == '.'
             else '{}/{}'.format(parent.rstrip('/'), target_dirname)
         )
 
