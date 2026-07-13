@@ -4,8 +4,10 @@ from functools import partial
 
 import streamlit as st
 from lk_utils import fs
-from neoprint import print
 
+from ..column import column
+from ..column import columns
+from ..row import row
 from ...keygen import UniqueKeyGenerator
 from ...keygen import generate_unique_key
 from ...session import init_state
@@ -93,78 +95,82 @@ def tree_select(
             _states[key]['parent_to_dirnames'].keys()
         ).index(start_directory)
 
+    # --------------------------------------------------------------------------
+
     state = _states[key]
     keygen = state['keygen']
 
     currdir = _current_location(state, keygen)
 
-    cols = st.columns((3.5, 6.5))
-    with cols[0]:
-        with st.container(height=height):
-            selected_subdir = _subdir_navigation(state, currdir)
-    with cols[1]:
-        with st.container(height=height):
-            place1 = st.container(height='stretch')
-            place2 = st.container(horizontal=True, vertical_alignment='bottom')
+    # overall layout with ordered flow
+    with columns((3.5, 6.5)) as cols:
+        with cols[0]:
+            with column(height=height):
+                selected_subdir = _subdir_navigation(state, currdir)
+        with cols[1]:
+            with column(height=height):
+                detailed_list = column(height='stretch')
+                with row('bottom'):  # bottom bar
+                    confirm_button_place = st.empty()
+                    if node_type == 'both':
+                        st.space(size='stretch')
+                        other_place = st.empty()
+                    else:
+                        other_place = None
 
-            with place2:
-                place2_1 = st.empty()
-                if node_type == 'both':
-                    st.space(size='stretch')
-                    node_type = tp.cast(
-                        T.NodeType,
-                        st.segmented_control(
-                            'View mode',
-                            options=(
-                                'both_but_file',
-                                'both_but_folder',
-                                'both',
-                            ),
-                            default='both',
-                            format_func=lambda x: (
-                                'File'
-                                if x == 'both_but_file'
-                                else 'Folder'
-                                if x == 'both_but_folder'
-                                else 'Both'
-                            ),
-                            key=keygen('node_type_switch'),
-                        ),
-                    )
+    if node_type == 'both':
+        assert other_place
+        with other_place:
+            node_type = tp.cast(
+                T.NodeType,
+                st.segmented_control(
+                    'View mode',
+                    options=('both_but_file', 'both_but_folder', 'both'),
+                    default='both',
+                    format_func=lambda x: (
+                        'File'
+                        if x == 'both_but_file'
+                        else 'Folder'
+                        if x == 'both_but_folder'
+                        else 'Both'
+                    ),
+                    key=keygen('node_type_switch'),
+                ),
+            )
 
-            with place1:
-                result = _single_select(
-                    state,
-                    selected_subdir or currdir,
-                    keygen,
-                    node_type,
-                    filter,
-                    preview_subfolders=preview_subfolders
-                    if selected_subdir
-                    else False,
-                )
-                # np.show('you select', result, ':v')
+    with detailed_list:
+        result = _single_select(
+            state,
+            selected_subdir or currdir,
+            keygen,
+            node_type,
+            filter,
+            preview_subfolders=preview_subfolders if selected_subdir else False,
+        )
+        # print('you select', result, ':vn')
 
-            if _callback:
-                assert show_confirm_button
-                if place2_1.button(
-                    'Confirm',
-                    type='primary',
-                    disabled=not result,
-                    key=keygen('confirm_with_callback'),
-                    width='stretch',
-                    on_click=partial(_callback, result),
-                ):
-                    st.rerun()
-            else:
-                if not show_confirm_button or place2_1.button(
-                    'Confirm',
-                    type='primary',
-                    disabled=not result,
-                    key=keygen('confirm'),
-                    width='stretch',
-                ):
-                    return result
+    if _callback:
+        assert show_confirm_button
+        with confirm_button_place:
+            if st.button(
+                'Confirm',
+                type='primary',
+                disabled=not result,
+                key=keygen('confirm_with_callback'),
+                width='stretch',
+                on_click=partial(_callback, result),
+            ):
+                st.rerun()
+    else:
+        with confirm_button_place:
+            if not show_confirm_button or st.button(
+                'Confirm',
+                type='primary',
+                disabled=not result,
+                key=keygen('confirm'),
+                width='stretch',
+            ):
+                return result
 
 
 def _change_dir(
