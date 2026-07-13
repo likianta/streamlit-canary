@@ -33,7 +33,7 @@ def columns(
 @contextmanager
 def void_container():
     """
-    just sustain a `with` statement to help organizing fluent layout.
+    just sustain a `with` statement to help organize fluent layout.
     """
     yield
 

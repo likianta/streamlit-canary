@@ -1,5 +1,10 @@
 # Changelog
 
+### 0.3.1 (wip)
+
+- Fix selecting folder item in tree select.
+- Void container to help organize fluent layout.
+
 ### 0.3.0 (2026-07-08)
 
 - Add Streamlit-based custom tree select.

@@ -5,9 +5,10 @@ from functools import partial
 import streamlit as st
 from lk_utils import fs
 
-from ..column import column
-from ..column import columns
-from ..row import row
+from ..container import column
+from ..container import columns
+from ..container import row
+from ..container import void_column
 from ...keygen import UniqueKeyGenerator
 from ...keygen import generate_unique_key
 from ...session import init_state
@@ -96,13 +97,13 @@ def tree_select(
         ).index(start_directory)
 
     # --------------------------------------------------------------------------
+    # overall layout with ordered flow
 
     state = _states[key]
     keygen = state['keygen']
 
     currdir = _current_location(state, keygen)
 
-    # overall layout with ordered flow
     with columns((3.5, 6.5)) as cols:
         with cols[0]:
             with column(height=height):
@@ -117,6 +118,8 @@ def tree_select(
                         other_place = st.empty()
                     else:
                         other_place = None
+
+    # --------------------------------------------------------------------------
 
     if node_type == 'both':
         assert other_place
@@ -139,7 +142,7 @@ def tree_select(
             )
 
     with detailed_list:
-        result = _single_select(
+        result = _single_select_detailed_item(
             state,
             selected_subdir or currdir,
             keygen,
@@ -236,7 +239,7 @@ def _index_new_directory(state: dict, dirpath: str) -> None:
     state['tree_select_index_2'] = 0  # DELETE?
 
 
-def _single_select(
+def _single_select_detailed_item(
     state: dict,
     parent: str,
     keygen: UniqueKeyGenerator,
@@ -247,13 +250,26 @@ def _single_select(
     # print(
     #     parent,
     #     preview_subfolders,
+    #     state['parent_to_dirnames'].get(parent),
     #     state['parent_to_filenames'].get(parent),
-    #     ':vl',
+    #     ':vln',
     # )
-    exp = st.expander('Current absolute path')
+
+    with void_column():
+        abspath_view = st.expander('Current absolute path')
+        if node_type == 'file' and preview_subfolders:
+            subfolders_quick_view = column(border=True)
+        else:
+            subfolders_quick_view = None
+        final_radio_place = st.empty()
+
+    # --------------------------------------------------------------------------
 
     nodes: tp.Sequence[tp.Tuple[str, str]]  # Sequence[Tuple[name, label]]
     if node_type == 'folder':
+        if parent not in state['parent_to_dirnames']:
+            state['parent_to_dirnames'][parent] = fs.find_dir_names(parent)
+            state['tree_select_index_2'] = 0
         nodes = tuple(
             (x, x.replace('__', '\\_\\_'))
             for x in state['parent_to_dirnames'][parent]
@@ -268,7 +284,8 @@ def _single_select(
                 if parent not in state['parent_to_dirnames']:
                     _index_new_directory(state, parent)
                 if xlist := state['parent_to_dirnames'][parent]:
-                    with st.container(border=True):
+                    assert subfolders_quick_view is not None
+                    with subfolders_quick_view:
                         if x := st.radio(
                             'Subfolders',
                             [''] + xlist,
@@ -318,23 +335,22 @@ def _single_select(
             )
 
     # st.info('Current path: **{}**'.format(parent))
-    with exp:
+    with abspath_view:
         st.info('**{}**'.format(parent.replace('__', '\\_\\_')))
 
-    selected = st.radio(
-        'Select {}'.format(
-            node_type == 'both'
-            and 'file or folder'
-            or 'one {}'.format(node_type)
-        ),
-        nodes,
-        format_func=lambda x: x[1],
-        # key=State.keygen('single_select', node_type, str(nodes)),
-    )
-
-    if selected:
-        return '{}/{}'.format(parent, selected[0])
-    return ''
+    with final_radio_place:
+        # note: `nodes` may be empty, thus `selected` may be None.
+        selected = st.radio(
+            'Select {}'.format(
+                node_type == 'both'
+                and 'file or folder'
+                or 'one {}'.format(node_type)
+            ),
+            nodes,
+            format_func=lambda x: x[1],
+            # key=State.keygen('single_select', node_type, str(nodes)),
+        )
+    return '{}/{}'.format(parent, selected[0]) if selected else ''
 
 
 def _subdir_navigation(state: dict, parent: str) -> str:
