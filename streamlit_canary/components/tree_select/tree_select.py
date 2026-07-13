@@ -8,7 +8,6 @@ from lk_utils import fs
 from ..container import column
 from ..container import columns
 from ..container import row
-from ..container import void_column
 from ...keygen import UniqueKeyGenerator
 from ...keygen import generate_unique_key
 from ...session import init_state
@@ -161,7 +160,7 @@ def tree_select(
             )
         elif node_type == 'folder':
             result = _single_select_folder_item(
-                state, selected_subdir or currdir, auto_jump=True
+                state, selected_subdir or currdir, keygen, auto_jump=True
             )
         else:
             raise NotImplementedError
@@ -298,13 +297,18 @@ def _single_select_file_item(
         'Select one file',
         nodes,
         format_func=lambda x: x[1],
-        # key=State.keygen('single_select', node_type, str(nodes)),
+        key=keygen(
+            'single_select_file', parent, str(state['tree_select_index_2'])
+        ),
     )
     return '{}/{}'.format(parent, selected[0]) if selected else ''
 
 
 def _single_select_folder_item(
-    state: dict, parent: str, auto_jump: bool = False
+    state: dict,
+    parent: str,
+    keygen: UniqueKeyGenerator,
+    auto_jump: bool = False,
 ) -> str:
     if parent not in state['parent_to_dirnames']:
         state['parent_to_dirnames'][parent] = fs.find_dir_names(parent)
@@ -318,7 +322,16 @@ def _single_select_folder_item(
         for x in state['parent_to_dirnames'][parent]
     )
 
-    selected = st.radio('Select one folder', nodes, format_func=lambda x: x[1])
+    selected = st.radio(
+        'Select one folder',
+        nodes,
+        format_func=lambda x: x[1],
+        index=state['tree_select_index_2'],
+        key=keygen(
+            'single_select_folder', parent, str(state['tree_select_index_2'])
+        ),
+    )
+
     if selected[0] == '.':
         out = parent
     else:
