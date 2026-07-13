@@ -15,9 +15,7 @@ from ...session import init_state
 
 class T:
     Filter = tp.Optional[tp.Union[str, tp.Tuple[str, ...]]]
-    NodeType = tp.Literal[
-        'file', 'folder', 'both', 'both_but_file', 'both_but_folder'
-    ]
+    NodeType = tp.Literal['file', 'folder', 'both']
 
 
 # @init_state

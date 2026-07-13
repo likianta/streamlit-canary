@@ -83,11 +83,7 @@ def tree_select_dialog(
             if node_type == 'file'
             else 'folder'
             if node_type == 'folder'
-            else 'file or folder'
-            if node_type == 'both'
-            else 'file'
-            if node_type == 'both_but_file'
-            else 'folder',
+            else 'file or folder',  # 'both'
             '(s)'
             if multiselect and node_type == 'both'
             else 's'
@@ -180,7 +176,7 @@ def tree_select_with_input(
         value = st.session_state[key]
         if value:
             path = fs.abspath(value)
-            if node_type in ('file', 'both_but_file'):
+            if node_type == 'file':
                 if fs.isdir(path):
                     ctx['result'] = ''
                     ctx['start_directory'] = path
@@ -188,7 +184,7 @@ def tree_select_with_input(
                     ctx['result'] = path
                     _update_recent_list(path)
                     ctx['start_directory'] = fs.parent(path)
-            elif node_type in ('folder', 'both_but_folder'):
+            elif node_type == 'folder':
                 if fs.isdir(path):
                     ctx['result'] = path
                     _update_recent_list(path)
