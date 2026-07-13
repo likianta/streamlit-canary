@@ -125,7 +125,9 @@ def tree_select_with_input(
     show_recent: bool = False,
     **kwargs,
 ) -> tp.Optional[str]:
-    ctx = State.user_states[key or 'tree_select:{}'.format(label)]
+    ctx = State.user_states[
+        key or '_:tree_select:states:context:{}:{}'.format(label, initial_path)
+    ]
     if not ctx:
         # init context
         if initial_path:
@@ -148,7 +150,8 @@ def tree_select_with_input(
             {
                 'initial_path': initial_path,
                 'keygen': UniqueKeyGenerator(
-                    key or '_:tree_select:{}:{}'.format(label, initial_path)
+                    key
+                    or '_:tree_select:keygen:{}:{}'.format(label, initial_path)
                 ),
                 'recent': deque(maxlen=20),
                 # TODO

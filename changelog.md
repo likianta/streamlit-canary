@@ -1,6 +1,6 @@
 # Changelog
 
-### 0.3.1 (wip)
+### 0.3.1 (2026-07-13)
 
 - Fix selecting folder item in tree select.
 - Polish tree select interface.
