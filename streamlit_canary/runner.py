@@ -1,6 +1,6 @@
 import os
 import sys
-import typing as t
+import typing as tp
 
 import psutil
 import pyapp_window
@@ -14,37 +14,24 @@ def run(
     target: str,
     port: int = 3001,
     *,
-    extra_args: t.Sequence[str] = (),
+    extra_args: tp.Sequence[str] = (),
     show_error_details_on_ui: bool = True,
     show_window: bool = False,
-    subthread: bool = False,
-    title: t.Optional[str] = None,
-    window_icon: t.Optional[str] = None,
+    # subthread: bool = False,
+    window_icon: tp.Optional[str] = None,
     window_pos: pyapp_window.opener.T.AnyPos = 'center',
     window_size: pyapp_window.opener.T.AnySize = (1200, 900),
-    window_title: str = 'Streamlit Canary Application',  # backward compatibility
-) -> t.Tuple[t.Optional[Popen], t.Optional[Popen]]:
+    window_title: tp.Optional[str] = None,
+    # -- alias
+    blocking: bool = True,
+    icon: tp.Optional[str] = None,
+    title: tp.Optional[str] = None,
+) -> tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]:
     """
     params:
         target: a script path.
         show_window: if true, will open a native window.
             if this argument is set to true, `subthread` will be ignored.
-        window_options:
-            title: str
-            icon: str
-            pos: str | tuple[int | str, int | str]
-            size: str | tuple[int | str, int | str]
-        **kwargs:
-            popen options:
-                cwd: str
-                env: dict
-                shell: bool
-            if show_window is true, the following are also available:
-                icon: str
-                oversize_scheme: Literal['aspect_ratio', 'crop', 'keep']
-                pos: str | tuple[int | str, int | str]
-                size: str | tuple[int | str, int | str]
-                title: str
     returns:
         (streamlit_process, window_process)
     """
@@ -56,8 +43,10 @@ def run(
     if show_window:
         window_options.update(
             {
-                'title': title or window_title,
-                'icon': window_icon,
+                'title': window_title
+                or title
+                or 'Streamlit Canary Application',
+                'icon': window_icon or icon,
                 'oversize_scheme': 'crop',
                 'pos': window_pos,
                 'size': window_size,
@@ -65,8 +54,8 @@ def run(
         )
         os.environ['SC_WINDOW_PID_AT_PORT_{}'.format(port)] = str(os.getpid())
 
-    proc_st = t.cast(
-        t.Optional[Popen],
+    proc_st = tp.cast(
+        tp.Optional[Popen],
         run_cmd_args(
             (sys.executable, '-m', 'streamlit', 'run'),
             ('--browser.gatherUsageStats', 'false'),
@@ -81,14 +70,14 @@ def run(
             target,
             ('--', *extra_args) if extra_args else (),
             verbose=True,
-            blocking=False if show_window else not subthread,
+            blocking=False if show_window else blocking,
             force_term_color=True,
             # **popen_options,
         ),
     )
     if show_window:
         proc_win = pyapp_window.open_window(
-            port=port, blocking=not subthread, **window_options
+            port=port, blocking=blocking, **window_options
         )
         return proc_st, proc_win
     else:
@@ -97,7 +86,7 @@ def run(
 
 # TODO: rename to "kill_current_app"?
 def kill(
-    port: t.Optional[int] = None, except_pids: t.Sequence[int] = ()
+    port: tp.Optional[int] = None, except_pids: tp.Sequence[int] = ()
 ) -> None:
     """kill current app. if window is shown, also close the window."""
     if port is None:

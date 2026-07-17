@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.3.2 (wip)
+
+...
+
 ### 0.3.1 (2026-07-13)
 
 - Fix selecting folder item in tree select.
