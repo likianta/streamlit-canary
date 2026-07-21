@@ -5,12 +5,11 @@
 """
 
 # fmt: off
-if 1:
-    import neoprint as np
-    np.setup()
+if 1: import neoprint as _np; _np.setup()  # noqa
 # fmt: on
 
 # from . import components
+from . import components_v2 as v2
 from . import keygen
 from . import opener
 from . import session
@@ -30,4 +29,4 @@ from .session import init_state
 from .session import init_state as get_state
 from .session import shared_data
 
-__version__ = '0.3.2'
+__version__ = '0.4.0'
