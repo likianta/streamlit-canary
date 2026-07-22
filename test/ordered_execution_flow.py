@@ -1,26 +1,29 @@
-import streamlit as st
-import streamlit_canary as sc
+
 from neoprint import print
 
+import streamlit_canary as sc
 
-@sc.init_state
+
+@sc.init_state_v2
 class State:
     link_format = '![](.images/{ymdhns}.png)'
-    __version__ = 1
+    __version__ = 8
 
 
 def main():
     print(State.link_format, ':i')
     with sc.row():
-        sc.v2.text_input('Input', State.link_format)
-        sc.v2.selectbox(
+        sc.v2.TextInput('Input', State.link_format)
+        sc.v2.SelectBox(
             'Link format',
             (
                 '![](.images/{ymdhns}.png)',
                 '![](./.images/{ymdhns}.png)',
                 '![](.images/{filename_hash}-{hns}.png)',
             ),
-        ).bind(State, 'link_format')
+            # bind=tp.cast(SessionDataV2, State.link_format),
+            bind=State.link_format,
+        )
 
 
 if __name__ == '__main__':

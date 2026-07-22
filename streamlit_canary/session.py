@@ -1,4 +1,5 @@
 import typing as tp
+from functools import partial
 from inspect import currentframe
 from threading import current_thread
 from types import FrameType
@@ -8,6 +9,16 @@ from lk_utils import textwrap as tw
 
 _ClassType = tp.TypeVar('_ClassType', bound=type)
 _plain_state = {}
+
+
+def is_session_init(version: int = 0) -> tp.Literal[False]:
+    if _is_running_in_streamlit():
+        last_frame: FrameType = currentframe().f_back
+        module_path = last_frame.f_globals['__file__']
+        version_key = '{}:version'.format(module_path)
+        return st.session_state.get(version_key) == version
+    else:
+        return True
 
 
 def init_state(
@@ -155,10 +166,11 @@ def init_shared_data(version: int = 0):
 
 
 class SessionStateV2:
-    def __init__(self, origin_class: _ClassType) -> None:
+    def __init__(self, version: int, origin_class: _ClassType) -> None:
         origin_fields = origin_class.__dict__
         annotations = origin_class.__annotations__
         self.fields = {}
+        self._version = version
         for key, val in origin_fields.items():
             if not key.startswith('__'):
                 self.fields[key] = {'initial_value': val, 'current_value': val}
@@ -169,6 +181,41 @@ class SessionStateV2:
                     'initial_value': value,
                     'current_value': value,
                 }
+
+    def __getattr__(self, key: str) -> tp.Any:
+        if key.startswith('__'):
+            return super().__getattribute__(key)
+        elif key in ('fields', '_set_field'):
+            return super().__getattribute__(key)
+        elif key in self.fields:
+            return SessionDataV2(
+                self._version,
+                self.fields[key]['current_value'],
+                partial(self._set_field, key),
+            )
+        else:
+            return super().__getattribute__(key)
+
+    def _set_field(self, key: str, value: tp.Any) -> None:
+        self.fields[key]['current_value'] = value
+
+
+class SessionDataV2:
+    def __init__(self, version: int, initial_value, value_setter):
+        self.generation = version
+        self.initial_value = initial_value
+        self.value = initial_value
+        self._set_value = value_setter
+
+    def get(self) -> tp.Any:
+        return self.value
+
+    def get_initial(self) -> tp.Any:
+        return self.initial_value
+
+    def set(self, value: tp.Any) -> None:
+        self._set_value(value)
+        self.value = value
 
 
 def init_state_v2(state_class: _ClassType) -> SessionStateV2:
@@ -192,7 +239,7 @@ def init_state_v2(state_class: _ClassType) -> SessionStateV2:
         version_key not in session_state
         or session_state[version_key] != version
     ):
-        out = session_state[data_key] = SessionStateV2(state_class)
+        out = session_state[data_key] = SessionStateV2(version, state_class)
         session_state[version_key] = version
         return out
     else:

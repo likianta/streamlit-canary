@@ -29,6 +29,7 @@ from .session import init_shared_data
 from .session import init_state
 from .session import init_state as get_state
 from .session import init_state_v2
+from .session import is_session_init
 from .session import shared_data
 
 __version__ = '0.4.0'
