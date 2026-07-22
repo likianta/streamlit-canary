@@ -14,6 +14,7 @@ from . import keygen
 from . import opener
 from . import session
 from .components import *
+from .components_v2 import bind
 from .compositor import Compositor
 from .event_loop import event_loop
 from .flow import post_events
@@ -27,6 +28,7 @@ from .session import dump_state
 from .session import init_shared_data
 from .session import init_state
 from .session import init_state as get_state
+from .session import init_state_v2
 from .session import shared_data
 
 __version__ = '0.4.0'
