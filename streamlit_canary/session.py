@@ -11,9 +11,9 @@ _ClassType = tp.TypeVar('_ClassType', bound=type)
 _plain_state = {}
 
 
-def is_session_init(version: int = 0) -> tp.Literal[False]:
+def is_session_init(version: int = 0) -> bool:
     if _is_running_in_streamlit():
-        last_frame: FrameType = currentframe().f_back
+        last_frame: FrameType = currentframe().f_back  # type:ignore
         module_path = last_frame.f_globals['__file__']
         version_key = '{}:version'.format(module_path)
         return st.session_state.get(version_key) == version
@@ -22,51 +22,50 @@ def is_session_init(version: int = 0) -> tp.Literal[False]:
 
 
 def init_state(
-    default: tp.Optional[
-        tp.Union[_ClassType, tp.Callable[[], dict], dict]
-    ] = None,
-    #   explain the annotation:
-    #   https://chatgpt.com/share/69c63662-8c98-8324-8817-b81394dd7a5b
+    default: tp.Optional[tp.Union[tp.Callable[[], tp.Any], _ClassType]] = None,
     version: int = 0,
 ) -> tp.Union[dict, tp.Any]:
     """
-    usage:
-        # -- a
-        @init_state()
-        class State:
-            name: str
-            code: int
-            flag: bool = False
-            __version__ = 0
-
-        # -- b1
-        state = init_state(
-            lambda: {
-                'name': '',
-                'code': 0,
-                'flag': False,
-            }
-        )
-
-        # -- b2
-        if not (state := init_state(version=...)):
-            state.update({
-                'name': '',
-                'code': 0,
-                'flag': False,
-            })
-
-        # -- c
-        state = init_state({
-            'name': '',
-            'code': 0,
-            'flag': False,
-        })
+    Usage:
+        Recommended (1):
+            @init_state
+            class State:
+                name = ''
+                code = 0
+                flag = False
+                __version__ = 0
+        Recommended (2):
+            class _State:
+                def __init__(self):
+                    self.name = ''
+                    self.code = 0
+                    self.flag = False
+            state: _State = init_state(_State, version=0)
+        Recommended (3):
+            state: dict[str, tp.Any] = init_state(
+                lambda: {'name': '', 'code': 0, 'flag': False},
+                version=0,
+            )
+        Recommended (4):
+            def _init() -> dict[str, tp.Any]:
+                return {'name': '', 'code': 0, 'flag': False}
+            state: dict[str, tp.Any] = init_state(_init, version=0)
+        Deprecated (1):
+            if not (state := init_state(version=0)):
+                state.update({
+                    'name': '',
+                    'code': 0,
+                    'flag': False,
+                })
     """
-    if _is_running_in_streamlit():
-        session_state = st.session_state
-    else:
+    if tp.TYPE_CHECKING:
         session_state = _plain_state
+    else:
+        if _is_running_in_streamlit():
+            session_state = st.session_state
+        else:
+            session_state = _plain_state
+
     last_frame: FrameType = currentframe().f_back  # type:ignore
     module_name = last_frame.f_globals['__name__']
     #   FIXME: module_name may be `__main__` in the entry point, but when other
@@ -76,7 +75,8 @@ def init_state(
 
     data_key = module_path
     version_key = '{}:version'.format(module_path)
-    if isinstance(default, type):
+    if isinstance(default, type):  # a class
+        #   https://chatgpt.com/share/69c63662-8c98-8324-8817-b81394dd7a5b
         version = getattr(default, '__version__', version)
     if version_key in session_state and session_state[version_key] != version:
         print('rebuild session data', module_name, version)
@@ -84,15 +84,14 @@ def init_state(
         version_key not in session_state
         or session_state[version_key] != version
     ):
-        if isinstance(default, type):
-            _init_class_attrs(default, module_name)
+        # if isinstance(default, type):
+        #     _init_class_attrs(default, module_name)
         out = session_state[data_key] = (
             {}
             if default is None
-            # default if isinstance(default, dict) else
-            else default
-            if isinstance(default, (dict, type))
-            else default()  # noqa
+            else default()
+            if callable(default)  # function, class, lambda, etc.
+            else default  # dict
         )
         # print(module_name, version, id(out), ':v')
         # if isinstance(out, dict):
@@ -133,6 +132,7 @@ def dump_state(state: tp.Union[dict, _ClassType]) -> str:
     )
 
 
+# DELETE: deprecated
 def _init_class_attrs(cls: type, module_name: str):
     current_fields = frozenset(cls.__dict__.keys())
     for name, type_ in cls.__annotations__.items():
@@ -224,7 +224,7 @@ def init_state_v2(state_class: _ClassType) -> SessionStateV2:
     else:
         session_state = _plain_state
 
-    last_frame: FrameType = currentframe().f_back
+    last_frame: FrameType = currentframe().f_back  # type:ignore
     module_name = last_frame.f_globals['__name__']
     module_path = last_frame.f_globals['__file__']
 
