@@ -5,11 +5,15 @@ import streamlit as st
 
 
 def row(
-    vertical_alignment: tp.Literal['top', 'center', 'bottom'] = 'top',
+    vertical_alignment: tp.Literal["top", "center", "bottom"] = "top",
     border: bool = False,
+    **kwargs,
 ):
     return st.container(
-        border=border, horizontal=True, vertical_alignment=vertical_alignment
+        border=border, 
+        horizontal=True, 
+        vertical_alignment=vertical_alignment, 
+        **kwargs
     )
 
 
