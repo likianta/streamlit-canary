@@ -57,18 +57,20 @@ def run(
     proc_st = tp.cast(
         tp.Optional[Popen],
         run_cmd_args(
-            (sys.executable, '-m', 'streamlit', 'run'),
-            ('--browser.gatherUsageStats', 'false'),
             (
-                '--client.showErrorDetails',
-                'full' if show_error_details_on_ui else 'type',
+                (sys.executable, '-m', 'streamlit', 'run'),
+                ('--browser.gatherUsageStats', 'false'),
+                (
+                    '--client.showErrorDetails',
+                    'full' if show_error_details_on_ui else 'type',
+                ),
+                ('--global.developmentMode', 'false'),
+                ('--runner.magicEnabled', 'false'),
+                ('--server.headless', 'true'),
+                ('--server.port', str(port)),
+                target,
+                ('--', *extra_args) if extra_args else ()
             ),
-            ('--global.developmentMode', 'false'),
-            ('--runner.magicEnabled', 'false'),
-            ('--server.headless', 'true'),
-            ('--server.port', port),
-            target,
-            ('--', *extra_args) if extra_args else (),
             verbose=True,
             blocking=False if show_window else blocking,
             force_term_color=True,

@@ -1,5 +1,9 @@
 # Changelog
 
+### 0.4.0 (WIP)
+
+- Native execution flow.
+
 ### 0.3.2 (2026-07-18)
 
 - Tweak `sc.run` parameters.

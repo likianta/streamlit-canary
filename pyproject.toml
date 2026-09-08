@@ -1,18 +1,21 @@
 [project]
 name = "streamlit-canary"
-version = "0.4.0a5"
+version = "0.4.0a9"
 description = "LK-flavored Streamlit components."
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
 license = "MIT"
 # readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "argsense>=1.1.2",
-    "lk-utils>=3.7.3",
-    "neoprint>=0.1.9",
+    "argsense>=1.1.3a1",
+    "lk-utils>=3.8.2a2",
+    "neoprint>=0.1.11",
     "psutil>=7.0.0",
     "pyapp-window>=2.2.3",
-    "streamlit>=1.61.0",
+    "streamlit>=1.61.0,!=1.62.*",
+    #   note:
+    #   v1.62 has a bug with `st.popover:width`.
+    #   v1.63 cannot render dual-line ("\n\n") button (i.e. the "thick" button).
 ]
 
 [build-system]

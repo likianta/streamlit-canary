@@ -18,8 +18,8 @@ def anynum_input(label: str, value: int) -> int:
         return value
 
 
-def hex_input(label: str, value: int) -> int:
-    r = st.text_input(label, placeholder=hex(value))
+def hex_input(label: str, value: int, **kwargs) -> int:
+    r = st.text_input(label, hex(value), placeholder=hex(value), **kwargs)
     if r:
         try:
             return int(r, 16)
@@ -35,7 +35,7 @@ def path_input(
     path: str = '',
     parent: str = '',
     check: t.Union[bool, int] = False,
-    **kwargs
+    **kwargs,
 ) -> str:
     """
     check: True | False | 0 | 1 | 2
@@ -45,11 +45,12 @@ def path_input(
         1: check if file
         2: check if directory
     """
-    x = st.text_input(
-        label,
-        placeholder=kwargs.pop('placeholder', path),
-        **kwargs
-    ) or path
+    x = (
+        st.text_input(
+            label, placeholder=kwargs.pop('placeholder', path), **kwargs
+        )
+        or path
+    )
     if x and check:
         # if not fs.exist(x):
         #     st.warning('Path does not exist')
