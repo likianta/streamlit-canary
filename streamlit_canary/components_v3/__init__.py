@@ -7,7 +7,20 @@ dependency here — the frontend bridge is added in a later phase.
 
 from .base import Component
 from .widgets import Button
+from .widgets import Column
+from .widgets import Radio
 from .widgets import Row
+from .widgets import Selectbox
 from .widgets import Text
+from .widgets import Title
 
-__all__ = ['Button', 'Component', 'Row', 'Text']
+__all__ = [
+    'Button',
+    'Column',
+    'Component',
+    'Radio',
+    'Row',
+    'Selectbox',
+    'Text',
+    'Title',
+]

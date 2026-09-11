@@ -15,6 +15,7 @@ from __future__ import annotations
 import typing as tp
 
 from .property import Property
+from .signal import Signal
 
 
 class PropertyHost:
@@ -43,6 +44,41 @@ class PropertyHost:
             self._handles[name] = Property(
                 prop.default, _bound=True, _instance=self, _name=name
             )
+
+    # -- dynamic property registration -----------------------------------
+
+    def __setattr__(self, name: str, value: tp.Any) -> None:
+        """
+        Support declaring properties dynamically in `__init__`:
+
+            class _State(StateV2):
+                def __init__(self):
+                    super().__init__()
+                    self.my_prop = sc.Property('')   # registered here
+
+        When a `Property` instance is assigned to an attribute, it is
+        converted into a bound handle and registered in `_values` /
+        `_handles` just like a class-level declaration.
+        """
+        if isinstance(value, Property) and not value._bound:
+            # dynamic property: convert to bound handle and register
+            value.name = name
+            value._instance = self
+            value.on_change = Signal(owner_factory=lambda: (value,))
+            # ensure the stores exist (in case __init__ wasn't called yet)
+            stores = getattr(self, '_values', None)
+            if stores is None:
+                object.__setattr__(self, '_values', {})
+                object.__setattr__(self, '_handles', {})
+            self._values[name] = value.default
+            self._handles[name] = value
+            # update the class-level cache so introspection sees it
+            type(self)._properties = {**type(self)._properties, name: value}
+            # store the bound handle in the instance dict so that normal
+            # attribute access (`self.my_prop`) returns the handle.
+            object.__setattr__(self, name, value)
+            return
+        super().__setattr__(name, value)
 
     # -- dict-like access ------------------------------------------------
 

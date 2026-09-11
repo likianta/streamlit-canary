@@ -49,12 +49,15 @@ class Property:
     ) -> None:
         self.default = default
         self.name = _name
+        self._bound = _bound
         if _bound:
             # bound handle: per-instance, carries the value + change signal
             self._instance = _instance
             # `on_change` is emitted with this handle as the argument, so
-            # handlers receive the Property that changed directly.
-            self.on_change = Signal()
+            # handlers receive the Property that changed directly. The
+            # `owner_factory` lets `emit_now` pass this handle without the
+            # caller needing to know what to emit.
+            self.on_change = Signal(owner_factory=lambda: (self,))
         else:
             # unbound descriptor: shared across all instances of the class
             self._instance = None
@@ -96,6 +99,34 @@ class Property:
         self.on_change.emit(self)
 
     # -- sugar -----------------------------------------------------------
+
+    def bind(
+        self, source: 'Property', transform: tp.Callable[[tp.Any], tp.Any]
+    ) -> None:
+        """
+        Bind this property to a source property.
+
+        When `source` changes, `transform(source.get())` is computed and set
+        on this property. An immediate sync is also performed so that this
+        property reflects the current source value right away.
+
+        Usage:
+            sel.options.bind(state.projects, lambda this: list(this.keys()))
+        """
+        assert self.on_change is not None, (
+            'Property.bind() called on an unbound descriptor'
+        )
+        assert source.on_change is not None, (
+            'Property.bind() source is an unbound descriptor'
+        )
+
+        def _sync(_source_handle: 'Property') -> None:
+            new_value = transform(source.get())
+            self.set(new_value)
+
+        source.on_change.connect(_sync)
+        # immediate sync so the bound property starts with the right value.
+        _sync(source)
 
     def __repr__(self) -> str:
         if self._instance is None:

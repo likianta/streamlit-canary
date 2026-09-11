@@ -27,7 +27,31 @@ __all__ = [
     'render_tree',
     'run_app',
     'serve',
+    'set_page_config',
 ]
+
+
+# ---------------------------------------------------------------------------
+# page config (stored globally, consumed by `render_page`)
+# ---------------------------------------------------------------------------
+
+_page_config: dict[str, tp.Any] = {
+    'title': 'Streamlit Canary',
+    'layout': 'centered',
+}
+
+
+def set_page_config(
+    title: str, *, layout: str = 'centered', **kwargs: tp.Any
+) -> None:
+    """Set the page title and layout. Call this at the top of the app function."""
+    _page_config['title'] = title
+    _page_config['layout'] = layout
+    _page_config.update(kwargs)
+
+
+def get_page_config() -> dict[str, tp.Any]:
+    return dict(_page_config)
 
 
 def run_app(

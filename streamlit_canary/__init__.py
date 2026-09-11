@@ -28,6 +28,7 @@ from .opener import open_folder
 from .page import pages
 from .runner import kill
 from .runtime import run
+from .runtime import set_page_config
 from .session import dump_state
 from .session import init_shared_data
 from .session import init_state

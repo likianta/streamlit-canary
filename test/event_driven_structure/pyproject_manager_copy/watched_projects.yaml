@@ -1,0 +1,49 @@
+# ------------------------------------------------------------------------------
+# com.jlsemi.likianta
+
+- C:/Likianta/workspace/com.jlsemi.likianta/asa-gui
+- C:/Likianta/workspace/com.jlsemi.likianta/asa-gui/chore/emei_test_playground
+- C:/Likianta/workspace/com.jlsemi.likianta/batch-dump-registers
+- C:/Likianta/workspace/com.jlsemi.likianta/curve-tracer-auto
+- C:/Likianta/workspace/com.jlsemi.likianta/debug-memory-ui
+- C:/Likianta/workspace/com.jlsemi.likianta/flowcharm
+- C:/Likianta/workspace/com.jlsemi.likianta/ga4111-test-database
+# - C:/Likianta/workspace/com.jlsemi.likianta/ga9168-autotest-gui
+- C:/Likianta/workspace/com.jlsemi.likianta/gaemei-test-database
+- C:/Likianta/workspace/com.jlsemi.likianta/hummingbird-sdk-refactor
+- C:/Likianta/workspace/com.jlsemi.likianta/jlsemi-adoc-toolkit
+- C:/Likianta/workspace/com.jlsemi.likianta/omni-driver-kit
+- C:/Likianta/workspace/com.jlsemi.likianta/omnicomm-serdes-tool
+
+# ------------------------------------------------------------------------------
+# dev.master.likianta
+
+- C:/Likianta/workspace/dev.master.likianta/airmise
+- C:/Likianta/workspace/dev.master.likianta/argsense-cli
+- C:/Likianta/workspace/dev.master.likianta/depsland
+- C:/Likianta/workspace/dev.master.likianta/depsland/sidework/depsland_updater
+- C:/Likianta/workspace/dev.master.likianta/file-sync-pro
+- C:/Likianta/workspace/dev.master.likianta/lk-logger
+- C:/Likianta/workspace/dev.master.likianta/lk-utils
+- C:/Likianta/workspace/dev.master.likianta/markdown-toolset
+- C:/Likianta/workspace/dev.master.likianta/mini-toolbox
+- C:/Likianta/workspace/dev.master.likianta/mini-toolbox/projects/conflore
+- C:/Likianta/workspace/dev.master.likianta/neoprint
+- C:/Likianta/workspace/dev.master.likianta/photolens
+- C:/Likianta/workspace/dev.master.likianta/pinkrain
+- C:/Likianta/workspace/dev.master.likianta/pyapp-window
+- C:/Likianta/workspace/dev.master.likianta/pyportable-crypto
+# - C:/Likianta/workspace/dev.master.likianta/pyportable-installer
+- C:/Likianta/workspace/dev.master.likianta/pyproject-manager
+- C:/Likianta/workspace/dev.master.likianta/python-tree-shaking
+- C:/Likianta/workspace/dev.master.likianta/qmlease
+- C:/Likianta/workspace/dev.master.likianta/qmlease-color-system
+- C:/Likianta/workspace/dev.master.likianta/remote-ipython
+- C:/Likianta/workspace/dev.master.likianta/streamlit-canary
+
+# ------------------------------------------------------------------------------
+# other
+
+- C:/Likianta/workspace/playground/python-playground
+# - C:/Likianta/workspace/playground/python-playground/code/poyang_kit
+# - C:/Likianta/workspace/playground/python-playground/code/ti48_adc_timeskew_mpw202411

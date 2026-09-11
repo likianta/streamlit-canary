@@ -59,13 +59,26 @@ class Runtime:
 
     # -- event routing ----------------------------------------------------
 
-    def on_event(self, component_id: str, event: str) -> None:
-        """Dispatch a client event (e.g. button click) to the component."""
+    def on_event(
+        self, component_id: str, event: str, value: tp.Any = None
+    ) -> None:
+        """Dispatch a client event to the component.
+
+        Supported events:
+            click  — emit `on_click` (Button)
+            change — set `value` Property (Selectbox / Radio), which in turn
+                     emits `on_value` (= `value.on_change`).
+        """
         comp = self._components.get(component_id)
         if comp is None:
             return
         if event == 'click' and hasattr(comp, 'on_click'):
             comp.on_click.emit()
+        elif event == 'change':
+            # Selectbox / Radio: set the value property, which triggers
+            # `on_value` and any handlers bound to it.
+            if 'value' in comp._handles:
+                comp._handles['value'].set(value)
 
     # -- property change → delta -----------------------------------------
 

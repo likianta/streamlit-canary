@@ -41,8 +41,12 @@ class WebSocketClient:
 
 
 def create_app(runtime: Runtime) -> Starlette:
+    # Import here to avoid circular import.
+    from . import get_page_config
+
     async def homepage(request: Request) -> HTMLResponse:
-        return HTMLResponse(render_page(runtime.roots))
+        cfg = get_page_config()
+        return HTMLResponse(render_page(runtime.roots, title=cfg['title']))
 
     async def ws_endpoint(ws: WebSocket) -> None:
         await ws.accept()
@@ -53,7 +57,11 @@ def create_app(runtime: Runtime) -> Starlette:
                 data = await ws.receive_text()
                 message = json.loads(data)
                 if message.get('type') == 'event':
-                    runtime.on_event(message['id'], message['event'])
+                    runtime.on_event(
+                        message['id'],
+                        message['event'],
+                        value=message.get('value'),
+                    )
         except WebSocketDisconnect:
             pass
         finally:

@@ -23,8 +23,14 @@ _H = tp.TypeVar('_H', bound=tp.Callable)
 
 
 class Signal:
-    def __init__(self) -> None:
+    def __init__(
+        self, owner_factory: tp.Callable[[], tuple] | None = None
+    ) -> None:
         self._handlers: list[tp.Callable] = []
+        # When non-None, `emit_now` calls `self.emit(*owner_factory())` so that
+        # the registered handler receives the right argument (e.g. the Property
+        # handle that owns this Signal).
+        self._owner_factory = owner_factory
 
     # -- connection -------------------------------------------------------
 
@@ -35,7 +41,7 @@ class Signal:
     def disconnect(self, handler: tp.Callable) -> None:
         self._handlers = [h for h in self._handlers if h is not handler]
 
-    # -- emit -------------------------------------------------------------
+    # -- emit ------------------------------------------------------------
 
     def emit(self, *args: tp.Any, **kwargs: tp.Any) -> None:
         # iterate over a copy so handlers that disconnect themselves during
@@ -49,6 +55,32 @@ class Signal:
         """Allow `@signal` to register a handler."""
         self.connect(func)
         return func
+
+    # -- register + emit immediately --------------------------------------
+
+    @property
+    def emit_now(self) -> tp.Callable[[_H], _H]:
+        """
+        Decorator: register the handler and immediately emit once.
+
+        Usage:
+            @signal.emit_now
+            def handler(...): ...
+
+        If the Signal was created with `owner_factory`, the immediate emit
+        passes the owner as the argument (e.g. the Property handle for a
+        Property.on_change signal).
+        """
+
+        def decorator(func: _H) -> _H:
+            self.connect(func)
+            if self._owner_factory is not None:
+                self.emit(*self._owner_factory())
+            else:
+                self.emit()
+            return func
+
+        return decorator
 
     # -- partial binding --------------------------------------------------
 
