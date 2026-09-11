@@ -44,7 +44,15 @@ _page_config: dict[str, tp.Any] = {
 def set_page_config(
     title: str, *, layout: str = 'centered', **kwargs: tp.Any
 ) -> None:
-    """Set the page title and layout. Call this at the top of the app function."""
+    """
+    Set the page title, layout, and theme.
+
+    Call this at the top of the app function.
+
+    Supported kwargs:
+        layout: "centered" (default) | "wide"
+        default_theme: "dark" (default) | "light"
+    """
     _page_config['title'] = title
     _page_config['layout'] = layout
     _page_config.update(kwargs)

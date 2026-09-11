@@ -55,7 +55,13 @@ class Title(Component):
 
 
 class Button(Component):
-    """A clickable button."""
+    """A clickable button.
+
+    Matches Streamlit's ``st.button`` API:
+        type: "secondary" (default) | "primary"
+        use_container_width: bool — stretch to fill parent width
+        help: tooltip text
+    """
 
     label = Property('')
 
@@ -63,17 +69,18 @@ class Button(Component):
         self,
         label: str = '',
         *,
-        type: str = 'default',
+        type: str = 'secondary',
         help: str | None = None,
-        width: str | None = None,
+        use_container_width: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self.label.set(label)
-        # `type` / `help` / `width` are static config, not reactive Property.
+        # `type` / `help` / `use_container_width` are static config, not
+        # reactive Property.
         self._type = type
         self._help = help
-        self._width = width
+        self._use_container_width = use_container_width
         self.on_click: Signal = Signal()
 
 

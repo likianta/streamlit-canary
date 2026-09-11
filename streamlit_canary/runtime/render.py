@@ -1,15 +1,11 @@
 """
-Render the v3 component tree to HTML.
+Render the v3 component tree to HTML with Streamlit-style theming.
 
-Each component becomes a DOM element tagged with `data-id="<component id>"`.
-The frontend uses these ids to patch elements when a delta arrives.
+Uses CSS custom properties (--st-*) matching Streamlit's theme variable
+convention. The dark theme is the default, matching Streamlit's built-in
+dark theme colors.
 
-Delta message format (server → client):
-    {"type": "patch", "id": "<comp-id>", "prop": "text", "value": "..."}
-
-Event message format (client → server):
-    {"type": "event", "id": "<comp-id>", "event": "click"}
-    {"type": "event", "id": "<comp-id>", "event": "change", "value": "..."}
+Delta / event protocol is unchanged from Phase 3.
 """
 
 from __future__ import annotations
@@ -28,22 +24,21 @@ from ..components_v3.widgets import Text
 from ..components_v3.widgets import Title
 
 # ---------------------------------------------------------------------------
-# Streamlit-style markup parser: `:color[text]` and `:material/icon`
+# Streamlit-style markup: `:color[text]` and `:material/icon`
 # ---------------------------------------------------------------------------
 
 _COLOR_RE = re.compile(r':([a-zA-Z]+)\[([^\]]*)\]')
 _MATERIAL_RE = re.compile(r':material/([a-zA-Z_]+):')
 
-# Material Symbols (Segoe Fluent Icons fallback to unicode)
 _MATERIAL_MAP = {
-    'autorenew': '\u21bb',  # clockwise open circle arrow
+    'autorenew': '\u21bb',
     'refresh': '\u21bb',
     'delete': '\u2715',
     'add': '+',
     'check': '\u2713',
     'close': '\u2715',
     'edit': '\u270e',
-    'search': '\ud83d\udd0d',
+    'search': '\U0001F50D',
     'settings': '\u2699',
     'download': '\u2b07',
     'upload': '\u2b06',
@@ -63,33 +58,29 @@ _COLOR_CSS = {
 
 def render_markup(text: str) -> str:
     """Convert Streamlit-style markup to HTML-safe spans."""
-    # escape first
     text = html.escape(text)
 
-    # :material/icon: → unicode glyph
     def _mat(m: re.Match) -> str:
         name = m.group(1)
         glyph = _MATERIAL_MAP.get(name, '\u25a1')
-        return f'<span class="sc-icon">{glyph}</span>'
+        return f'<span class="st-icon">{glyph}</span>'
 
     text = _MATERIAL_RE.sub(_mat, text)
 
-    # :color[text] → <span style="color:...">
     def _col(m: re.Match) -> str:
         color = m.group(1)
         inner = m.group(2)
         css = _COLOR_CSS.get(color)
         if css is None:
-            return f'<span class="sc-text-{color}">{inner}</span>'
+            return f'<span class="st-text-{color}">{inner}</span>'
         return f'<span style="color:{css}">{inner}</span>'
 
     text = _COLOR_RE.sub(_col, text)
-
     return text
 
 
 # ---------------------------------------------------------------------------
-# Component tree → HTML
+# Component tree → HTML (Streamlit-style DOM)
 # ---------------------------------------------------------------------------
 
 
@@ -100,55 +91,52 @@ def render_tree(roots: tp.Iterable[Component]) -> str:
 def _render(comp: Component) -> str:
     if isinstance(comp, Row):
         children = ''.join(_render(c) for c in comp.children)
-        return (
-            f'<div class="sc-row" data-id="{comp.id}" '
-            f'style="display:flex;gap:8px;align-items:center">'
-            f'{children}</div>'
-        )
+        return f'<div class="st-row" data-id="{comp.id}">{children}</div>'
     if isinstance(comp, Column):
         children = ''.join(_render(c) for c in comp.children)
-        style = 'display:flex;flex-direction:column;gap:8px;'
-        if getattr(comp, '_width', None):
-            w = comp._width
-            if isinstance(w, int):
-                style += f'width:{w}px;'
-            elif w == 'stretch':
-                style += 'flex:1;'
-            else:
-                style += f'width:{w};'
-        if getattr(comp, '_border', False):
-            style += 'border:1px solid #ddd;border-radius:8px;padding:12px;'
-        return (
-            f'<div class="sc-column" data-id="{comp.id}" '
-            f'style="{style}">{children}</div>'
+        border_cls = (
+            ' st-container--border' if getattr(comp, '_border', False) else ''
         )
-    if isinstance(comp, (Text, Title)):
+        width_style = ''
+        w = getattr(comp, '_width', None)
+        if isinstance(w, int):
+            width_style = f' style="width:{w}px"'
+        return (
+            f'<div class="st-container{border_cls}" data-id="{comp.id}"'
+            f'{width_style}>{children}</div>'
+        )
+    if isinstance(comp, Title):
         text = render_markup(str(comp.text.get()))
-        tag = 'h1' if isinstance(comp, Title) else 'div'
-        cls = 'sc-title' if isinstance(comp, Title) else 'sc-text'
-        return f'<{tag} class="{cls}" data-id="{comp.id}">{text}</{tag}>'
+        return f'<h1 class="st-title" data-id="{comp.id}">{text}</h1>'
+    if isinstance(comp, Text):
+        text = render_markup(str(comp.text.get()))
+        return f'<div class="st-text" data-id="{comp.id}">{text}</div>'
     if isinstance(comp, Button):
-        label = render_markup(str(comp.label.get()))
-        btn_type = getattr(comp, '_type', 'default')
-        width = getattr(comp, '_width', None)
-        cls = f'sc-btn sc-btn-{btn_type}'
-        style = ''
-        if width == 'stretch':
-            style = 'style="width:100%"'
-        help_attr = ''
-        if getattr(comp, '_help', None):
-            help_text = html.escape(str(comp._help))
-            help_attr = f' title="{help_text}"'
-        return (
-            f'<button class="{cls}" data-id="{comp.id}" '
-            f'onclick="scSendClick(this)" {style}{help_attr}>{label}</button>'
-        )
+        return _render_button(comp)
     if isinstance(comp, Selectbox):
         return _render_selectbox(comp)
     if isinstance(comp, Radio):
         return _render_radio(comp)
-    # fallback: render children only
     return ''.join(_render(c) for c in comp.children)
+
+
+def _render_button(comp: Button) -> str:
+    label = render_markup(str(comp.label.get()))
+    btn_type = getattr(comp, '_type', 'default')
+    # Streamlit: type="secondary" is default, "primary" is the accent button.
+    st_type = 'primary' if btn_type == 'primary' else 'secondary'
+    cls = f'st-btn st-btn-{st_type}'
+    use_container_width = getattr(comp, '_use_container_width', False)
+    width_style = ' style="width:100%"' if use_container_width else ''
+    help_attr = ''
+    if getattr(comp, '_help', None):
+        help_text = html.escape(str(comp._help))
+        help_attr = f' title="{help_text}"'
+    return (
+        f'<button class="{cls}" data-id="{comp.id}" '
+        f'onclick="scSendClick(this)"{width_style}{help_attr}>'
+        f'{label}</button>'
+    )
 
 
 def _render_selectbox(comp: Selectbox) -> str:
@@ -163,11 +151,13 @@ def _render_selectbox(comp: Selectbox) -> str:
     )
     label = html.escape(getattr(comp, '_label', ''))
     return (
-        f'<div class="sc-selectbox" data-id="{comp.id}">'
-        f'<label class="sc-selectbox-label">{label}</label>'
+        f'<div class="st-selectbox" data-id="{comp.id}">'
+        f'<label class="st-widget-label">{label}</label>'
+        f'<div class="st-selectbox-control">'
         f'<select onchange="scSendChange(this)" '
         f'data-comp-id="{comp.id}">{opt_html}</select>'
-        f'</div>'
+        f'<span class="st-selectbox-arrow">\u2304</span>'
+        f'</div></div>'
     )
 
 
@@ -177,22 +167,365 @@ def _render_radio(comp: Radio) -> str:
     fmt = getattr(comp, '_format_func', str)
     label = html.escape(getattr(comp, '_label', ''))
     items = ''.join(
-        f'<label class="sc-radio-item">'
+        f'<label class="st-radio-item">'
         f'<input type="radio" name="radio_{comp.id}" '
         f'value="{html.escape(str(o))}" '
         f'{"checked" if o == value else ""} '
         f'onchange="scSendChange(this)" '
         f'data-comp-id="{comp.id}"/>'
-        f'<span>{render_markup(fmt(o))}</span>'
+        f'<span class="st-radio-label-text">'
+        f'{render_markup(fmt(o))}</span>'
         f'</label>'
         for o in options
     )
     return (
-        f'<div class="sc-radio" data-id="{comp.id}">'
-        f'<label class="sc-radio-label">{label}</label>'
-        f'{items}</div>'
+        f'<div class="st-radio" data-id="{comp.id}">'
+        f'<label class="st-widget-label">{label}</label>'
+        f'<div class="st-radio-group">{items}</div>'
+        f'</div>'
     )
 
+
+# ---------------------------------------------------------------------------
+# Page template with Streamlit dark theme
+# ---------------------------------------------------------------------------
+
+_DARK_THEME_VARS = """
+  :root {
+    --st-background-color: #0d1117;
+    --st-secondary-background-color: #161b22;
+    --st-text-color: #e6edf3;
+    --st-heading-color: #e6edf3;
+    --st-primary-color: #ff4b4b;
+    --st-border-color: #30363d;
+    --st-border-color-light: #21262d;
+    --st-widget-border-color: #30363d;
+    --st-base-radius: 8px;
+    --st-button-radius: 6px;
+    --st-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
+    --st-heading-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
+    --st-code-font: "Source Code Pro", "SF Mono", monospace;
+    --st-base-font-size: 14px;
+    --st-base-font-weight: 400;
+    --st-green-color: #3fb950;
+    --st-orange-color: #d29922;
+    --st-red-color: #f85149;
+    --st-blue-color: #58a6ff;
+    --st-gray-color: #8b949e;
+  }
+"""
+
+_LIGHT_THEME_VARS = """
+  :root {
+    --st-background-color: #ffffff;
+    --st-secondary-background-color: #f6f8fa;
+    --st-text-color: #1f2328;
+    --st-heading-color: #1f2328;
+    --st-primary-color: #ff4b4b;
+    --st-border-color: #d0d7de;
+    --st-border-color-light: #eaeef2;
+    --st-widget-border-color: #d0d7de;
+    --st-base-radius: 8px;
+    --st-button-radius: 6px;
+    --st-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
+    --st-heading-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
+    --st-code-font: "Source Code Pro", "SF Mono", monospace;
+    --st-base-font-size: 14px;
+    --st-base-font-weight: 400;
+    --st-green-color: #1a7f37;
+    --st-orange-color: #bf8700;
+    --st-red-color: #cf222e;
+    --st-blue-color: #0969da;
+    --st-gray-color: #57606a;
+  }
+"""
+
+_PAGE_CSS = """
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--st-font);
+    font-size: var(--st-base-font-size);
+    font-weight: var(--st-base-font-weight);
+    background-color: var(--st-background-color);
+    color: var(--st-text-color);
+    line-height: 1.6;
+    padding: 24px 0;
+  }
+  #app {
+    max-width: 768px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  /* Title */
+  .st-title {
+    font-family: var(--st-heading-font);
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--st-heading-color);
+    margin-bottom: 16px;
+    line-height: 1.25;
+  }
+
+  /* Text */
+  .st-text {
+    font-size: 14px;
+    color: var(--st-text-color);
+    margin-bottom: 8px;
+  }
+
+  /* Layout: Row */
+  .st-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .st-row > * { flex: 1; }
+  .st-row > .st-btn-secondary { flex: 0 0 auto; }
+
+  /* Layout: Container (Column) */
+  .st-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .st-container--border {
+    border: 1px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    padding: 16px;
+  }
+
+  /* Widget label */
+  .st-widget-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--st-text-color);
+    margin-bottom: 4px;
+    visibility: visible;
+  }
+
+  /* Button */
+  .st-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    font-family: var(--st-font);
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+  .st-btn-secondary {
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+  }
+  .st-btn-secondary:hover {
+    background-color: var(--st-border-color);
+    border-color: var(--st-text-color);
+  }
+  .st-btn-primary {
+    background-color: var(--st-primary-color);
+    color: #ffffff;
+    border-color: var(--st-primary-color);
+  }
+  .st-btn-primary:hover {
+    filter: brightness(1.1);
+  }
+  .st-icon { font-size: 16px; line-height: 1; }
+
+  /* Selectbox */
+  .st-selectbox { margin-bottom: 8px; }
+  .st-selectbox-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .st-selectbox-control select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    padding: 7px 28px 7px 12px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .st-selectbox-control select:focus {
+    outline: none;
+    border-color: var(--st-primary-color);
+    box-shadow: 0 0 0 2px rgba(255, 75, 75, 0.2);
+  }
+  .st-selectbox-control select:hover {
+    border-color: var(--st-text-color);
+  }
+  .st-selectbox-arrow {
+    position: absolute;
+    right: 10px;
+    pointer-events: none;
+    color: var(--st-gray-color);
+    font-size: 14px;
+  }
+
+  /* Radio */
+  .st-radio { margin-bottom: 8px; }
+  .st-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .st-radio-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s;
+  }
+  .st-radio-item:hover {
+    background-color: var(--st-border-color-light);
+  }
+  .st-radio-item input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--st-widget-border-color);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .st-radio-item input[type="radio"]:checked {
+    border-color: var(--st-primary-color);
+    background-color: var(--st-primary-color);
+  }
+  .st-radio-item input[type="radio"]:checked::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffffff;
+  }
+  .st-radio-item input[type="radio"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 75, 75, 0.2);
+  }
+  .st-radio-label-text {
+    font-size: 14px;
+    color: var(--st-text-color);
+  }
+
+  /* Scrollbar (dark theme) */
+  .st-radio-group::-webkit-scrollbar {
+    width: 6px;
+  }
+  .st-radio-group::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .st-radio-group::-webkit-scrollbar-thumb {
+    background: var(--st-border-color);
+    border-radius: 3px;
+  }
+  .st-radio-group::-webkit-scrollbar-thumb:hover {
+    background: var(--st-gray-color);
+  }
+"""
+
+_PAGE_JS = """
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type !== 'patch') return;
+    const el = document.querySelector(`[data-id="${msg.id}"]`);
+    if (!el) return;
+    if (msg.prop === 'text' || msg.prop === 'label') {
+      // For selectbox/radio, label is in .st-widget-label, not the root
+      if (el.classList.contains('st-selectbox') || el.classList.contains('st-radio')) {
+        const labelEl = el.querySelector('.st-widget-label');
+        if (labelEl) labelEl.textContent = msg.value;
+      } else {
+        el.innerHTML = window.scRenderMarkup(msg.value);
+      }
+    }
+    if (msg.prop === 'options') {
+      if (el.classList.contains('st-selectbox')) {
+        const sel = el.querySelector('select');
+        const currentVal = sel.value;
+        const fmt = sel._scFormat || (x => x);
+        sel.innerHTML = msg.value.map(o =>
+          `<option value="${o}" ${o === currentVal ? 'selected' : ''}>${fmt(o)}</option>`
+        ).join('');
+      }
+      if (el.classList.contains('st-radio')) {
+        const group = el.querySelector('.st-radio-group');
+        const id = msg.id;
+        const currentVal = el._scValue || msg.value;
+        group.innerHTML = msg.value.map(o =>
+          `<label class="st-radio-item">` +
+          `<input type="radio" name="radio_${id}" value="${o}" ` +
+          `${o === currentVal ? 'checked' : ''} ` +
+          `onchange="scSendChange(this)" data-comp-id="${id}"/>` +
+          `<span class="st-radio-label-text">${o}</span>` +
+          `</label>`
+        ).join('');
+      }
+    }
+    if (msg.prop === 'value') {
+      if (el.classList.contains('st-selectbox')) {
+        const sel = el.querySelector('select');
+        if (sel) sel.value = msg.value;
+      }
+      if (el.classList.contains('st-radio')) {
+        el._scValue = msg.value;
+        el.querySelectorAll('input').forEach(r => {
+          r.checked = (r.value === msg.value);
+        });
+      }
+    }
+  };
+  function scSendClick(btn) {
+    ws.send(JSON.stringify({type: 'event', id: btn.dataset.id, event: 'click'}));
+  }
+  function scSendChange(input) {
+    const id = input.dataset.compId;
+    ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.value}));
+  }
+  // expose markup renderer for WS patches
+  window.scRenderMarkup = function(text) {
+    // escape
+    let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // :material/icon:
+    const matMap = {autorenew:'\u21bb',refresh:'\u21bb',delete:'\u2715',add:'+',check:'\u2713',close:'\u2715',edit:'\u270e',search:'\U0001F50D',settings:'\u2699',download:'\u2b07',upload:'\u2b06'};
+    s = s.replace(/:material\/([a-zA-Z_]+):/g, (m,n) => `<span class="st-icon">${matMap[n]||'\u25a1'}</span>`);
+    // :color[text]
+    const colMap = {red:'#ff4b4b',green:'#09ab3b',blue:'#1c83f0',orange:'#ffa422',gray:'#808080',grey:'#808080',violet:'#8e3ab3'};
+    s = s.replace(/:([a-zA-Z]+)\[([^\]]*)\]/g, (m,c,t) => {
+      const css = colMap[c];
+      return css ? `<span style="color:${css}">${t}</span>` : `<span class="st-text-${c}">${t}</span>`;
+    });
+    return s;
+  };
+"""
 
 PAGE_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -200,77 +533,14 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 <meta charset="utf-8" />
 <title>{title}</title>
 <style>
-  body {{ font-family: -apple-system, Segoe UI, sans-serif; padding: 24px; }}
-  .sc-title {{ font-size: 28px; font-weight: 700; margin: 0 0 16px; }}
-  .sc-text {{ font-size: 16px; margin: 4px 0; }}
-  .sc-btn {{
-    padding: 6px 14px; border: 1px solid #ccc; border-radius: 6px;
-    cursor: pointer; font-size: 14px; background: #fff;
-  }}
-  .sc-btn-primary {{ background: #ff4b4b; color: #fff; border-color: #ff4b4b; }}
-  .sc-btn:hover {{ opacity: 0.9; }}
-  .sc-selectbox select {{
-    padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px;
-    font-size: 14px; min-width: 200px;
-  }}
-  .sc-selectbox-label, .sc-radio-label {{
-    font-size: 13px; color: #666; display:block; margin-bottom: 4px;
-  }}
-  .sc-radio {{ display:flex; flex-direction:column; gap:4px; }}
-  .sc-radio-item {{ display:flex; align-items:center; gap:6px;
-    padding:4px 8px; border-radius:4px; cursor:pointer; }}
-  .sc-radio-item:hover {{ background: #f5f5f5; }}
-  .sc-radio-item span {{ font-size: 14px; }}
-  .sc-icon {{ font-size: 16px; }}
+{theme_vars}
+{page_css}
 </style>
 </head>
 <body>
 <div id="app">{body}</div>
 <script>
-const ws = new WebSocket(`ws://${{location.host}}/ws`);
-ws.onmessage = (e) => {{
-  const msg = JSON.parse(e.data);
-  if (msg.type !== 'patch') return;
-  const el = document.querySelector(`[data-id="${{msg.id}}"]`);
-  if (!el) return;
-  // update text content for text/label/title props
-  if (msg.prop === 'text' || msg.prop === 'label') {{
-    el.innerHTML = window.scRenderMarkup(msg.value);
-  }}
-  // update selectbox/radio options + value
-  if (msg.prop === 'options') {{
-    if (el.tagName === 'SELECT' || el.classList.contains('sc-selectbox')) {{
-      const sel = el.querySelector('select') || el;
-      sel.innerHTML = msg.value.map(o =>
-        `<option value="${{o}}">${{o}}</option>`).join('');
-    }}
-    if (el.classList.contains('sc-radio')) {{
-      el.innerHTML = msg.value.map(o =>
-        `<label class="sc-radio-item"><input type="radio" ` +
-        `name="radio_${{msg.id}}" value="${{o}}" ` +
-        `onchange="scSendChange(this)" data-comp-id="${{msg.id}}"/>` +
-        `<span>${{o}}</span></label>`).join('');
-    }}
-  }}
-  if (msg.prop === 'value') {{
-    if (el.classList.contains('sc-selectbox')) {{
-      const sel = el.querySelector('select');
-      if (sel) sel.value = msg.value;
-    }}
-    if (el.classList.contains('sc-radio')) {{
-      el.querySelectorAll('input').forEach(r => {{
-        r.checked = (r.value === msg.value);
-      }});
-    }}
-  }}
-}};
-function scSendClick(btn) {{
-  ws.send(JSON.stringify({{type: 'event', id: btn.dataset.id, event: 'click'}}));
-}}
-function scSendChange(input) {{
-  const id = input.dataset.compId;
-  ws.send(JSON.stringify({{type: 'event', id: id, event: 'change', value: input.value}}));
-}}
+{page_js}
 </script>
 </body>
 </html>
@@ -278,8 +548,17 @@ function scSendChange(input) {{
 
 
 def render_page(
-    roots: tp.Iterable[Component], title: str = 'Streamlit Canary'
+    roots: tp.Iterable[Component],
+    title: str = 'Streamlit Canary',
+    default_theme: str = 'dark',
 ) -> str:
+    theme_vars = (
+        _DARK_THEME_VARS if default_theme == 'dark' else _LIGHT_THEME_VARS
+    )
     return PAGE_TEMPLATE.format(
-        title=html.escape(title), body=render_tree(roots)
+        title=html.escape(title),
+        theme_vars=theme_vars.strip(),
+        page_css=_PAGE_CSS.strip(),
+        page_js=_PAGE_JS.strip(),
+        body=render_tree(roots),
     )

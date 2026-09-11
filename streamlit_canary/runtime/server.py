@@ -46,7 +46,13 @@ def create_app(runtime: Runtime) -> Starlette:
 
     async def homepage(request: Request) -> HTMLResponse:
         cfg = get_page_config()
-        return HTMLResponse(render_page(runtime.roots, title=cfg['title']))
+        return HTMLResponse(
+            render_page(
+                runtime.roots,
+                title=cfg['title'],
+                default_theme=cfg.get('default_theme', 'dark'),
+            )
+        )
 
     async def ws_endpoint(ws: WebSocket) -> None:
         await ws.accept()

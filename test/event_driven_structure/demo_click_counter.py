@@ -51,6 +51,7 @@ state = _State()
 
 
 def click_counter_demo():
+    sc.set_page_config('Click Counter', default_theme='dark')
     # v3 components live under `sc.v3.*` so they don't pollute the stable v1
     # namespace while the event-driven model is still evolving.
     with sc.v3.Row():

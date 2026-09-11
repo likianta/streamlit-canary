@@ -45,9 +45,9 @@ state = _State()
 
 
 def main():
-    sc.set_page_config('Pyproject Manager', layout='wide')
+    sc.set_page_config('Pyproject Manager', layout='wide', default_theme='dark')
     v3.Title('Pyproject Manager')
-    with v3.Column(width=500):
+    with v3.Column():
         _project_list()
 
 
@@ -80,7 +80,7 @@ def _project_list():
     """
 
     with v3.Column(border=True):
-        with v3.Row():
+        with v3.Row(vertical_alignment='bottom'):
 
             def _format_scope_key(key: str) -> str:
                 return (
@@ -151,7 +151,7 @@ def _project_list():
                 state.current_projects, lambda this: list(this.keys())
             )
 
-        with v3.Button('Refresh', width='stretch') as btn:
+        with v3.Button('Refresh', use_container_width=True) as btn:
             btn.on_click.connect(_rescan_projects)
 
 
