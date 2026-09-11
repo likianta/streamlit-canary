@@ -50,6 +50,10 @@ class Component(PropertyHost):
     # stack of components currently inside their `with` block; used to wire up
     # parent/child relationships automatically.
     _context_stack: tp.ClassVar[list[Component]] = []
+    # the runtime that is currently building the component tree; components
+    # register themselves with it during construction. `None` when no build is
+    # in progress (e.g. in unit tests).
+    _active_runtime: tp.ClassVar[tp.Any] = None
 
     def __init__(self, **kwargs: tp.Any) -> None:
         # PropertyHost.__init__ sets up `_values` / `_handles` for all
@@ -62,6 +66,9 @@ class Component(PropertyHost):
         if Component._context_stack:
             self._parent = Component._context_stack[-1]
             self._parent._children.append(self)
+        # register with the active runtime, if any.
+        if Component._active_runtime is not None:
+            Component._active_runtime._register_component(self)
 
     # -- context manager --------------------------------------------------
 

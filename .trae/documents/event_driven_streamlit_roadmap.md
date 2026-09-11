@@ -125,17 +125,18 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 
 **验证**: `test/components_v3_demo.py`,纯 Python 构造组件树,手动触发信号,断言属性变化和处理器调用。
 
-### Phase 3 — 事件运行时 (核心)
+### Phase 3 — 事件运行时 (核心) ✅
 
-**产出**: `sc.run(func, port=...)` 能启动一个最小运行时,app 函数只跑一次,后续用户交互仅触发对应信号处理器。
+**产出**: `sc.run(func, port=...)` 启动事件运行时,app 函数只跑一次,后续用户交互仅触发对应信号处理器;含 Starlette+Uvicorn Web 服务 + WebSocket delta 推送 + 最小前端。
 
 **关键设计点**:
 - 运行时维护: 组件树 (持久) + state (持久) + 信号→处理器映射
-- 事件源: Phase 3 先用 mock (在测试中手动 `btn.on_click.emit()`) 验证
-- 调度: 收到事件 → 找到对应 signal → 调用所有挂载的 handler → handler 修改 Property → Property 发出 on_change → 触发依赖该 Property 的 handler (级联,但需防环)
-- 受影响范围追踪: 通过信号依赖图决定哪些 UI 片段需要 patch (但 Phase 3 不接前端,只记录"哪些组件脏了")
+- `Runtime.build()` 设置 `Component._active_runtime`,app 函数执行时组件自动注册到运行时
+- 调度: 收到客户端事件 → 找到对应 signal → 调用所有挂载的 handler → handler 修改 Property → Property 发出 on_change → runtime 推送 delta 到所有 WS 客户端
+- delta 协议: `{"type":"patch","id":"<comp-id>","prop":"text","value":"..."}`;事件: `{"type":"event","id":"<comp-id>","event":"click"}`
+- 前端: 组件渲染为带 `data-id` 的 DOM 元素,WS 收到 patch 时按 id 更新 `textContent`
 
-**验证**: `test/runtime_demo.py`,跑 demo_click_counter 的逻辑 (无前端),模拟 click,断言 `txt.text` 被正确更新,且 demo 函数体只执行了一次。
+**验证**: `python test/demo_click_counter.py`,浏览器打开点击按钮,计数器递增且无页面刷新。
 
 ### Phase 4 — 前端协议决策 & 对接
 

@@ -24,7 +24,10 @@ requires = ["hatchling>=1.29.0"]
 
 [dependency-groups]
 dev = [
+    # "fastapi[standard]>=0.141.1",
+    "starlette>=1.6.0",
     "streamlit-extras>=1.6.0",
+    "uvicorn[standard]>=0.52.4",
 ]
 
 # [project.optional-dependencies]

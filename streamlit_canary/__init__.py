@@ -27,7 +27,7 @@ from .opener import open_file
 from .opener import open_folder
 from .page import pages
 from .runner import kill
-from .runner import run
+from .runtime import run
 from .session import dump_state
 from .session import init_shared_data
 from .session import init_state

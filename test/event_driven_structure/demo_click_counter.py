@@ -1,17 +1,16 @@
 """
-Demo: Event-driven click counter (Target API snapshot, NOT fully runnable yet).
+Demo: Event-driven click counter (runnable).
 
-This file is a concept demo for the upcoming event-driven Streamlit framework.
-The kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`) and v3 components
-(`sc.v3.Row`, `sc.v3.Text`, `sc.v3.Button`) are implemented; only
-`sc.run(func, port=...)` (the runtime entry point) is still missing, so the
-file cannot be executed end-to-end yet.
+This is the reference demo for the event-driven Streamlit framework. The
+kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`), v3 components
+(`sc.v3.Row`, `sc.v3.Text`, `sc.v3.Button`) and the event runtime
+(`sc.run(func, port=...)`) are all implemented, so this file runs end-to-end:
 
-Purpose: pin down the target API contract. See the roadmap:
-    .trae/documents/event_driven_streamlit_roadmap.md
-
-Run (when the runtime lands):
     python test/demo_click_counter.py
+
+Open http://127.0.0.1:3001 in a browser and click the button — the counter
+updates in place without a full page reload, because the app function only
+runs once and subsequent clicks only execute the registered signal handlers.
 """
 
 import streamlit_canary as sc
