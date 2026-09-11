@@ -367,10 +367,13 @@ _PAGE_CSS = """
   .st-btn-secondary {
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
+    border-color: rgba(250, 250, 250, 0.2);
   }
   .st-btn-secondary:hover {
-    background-color: var(--st-border-color);
-    border-color: var(--st-text-color);
+    background-color: rgba(172, 177, 195, 0.15);
+  }
+  .st-btn-secondary:active {
+    background-color: rgba(172, 177, 195, 0.25);
   }
   .st-btn-primary {
     background-color: var(--st-primary-color);
