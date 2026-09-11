@@ -39,7 +39,7 @@ state = _State()
 def click_counter_demo():
     with sc.Row():
         with sc.Text('Click count: 0') as txt:
-            @state.count.on_change.partial('self')   # Signal.partial('self') 暂不存在
+            @state.count.on_change
             def _(cnt: sc.Property):
                 txt.text = 'Click count: {}'.format(cnt.get())
         with sc.Button('Increase counter', type='primary') as btn:
@@ -55,7 +55,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 1. `sc.StateV2` 基类 — 不存在
 2. `sc.Property` 纯 Python 版 — 不存在 (仅 qmlease 有 Qt 版)
 3. `sc.Signal` 纯 Python 版 — 不存在
-4. `Signal.partial('self')` — qmlease 也没有,需新实现
+4. `Property.on_change` emit 时直接传出 Property 句柄本身,handler 通过 `cnt.get()` 读取新值 — 需明确设计
 5. Property 派生 6 方法的具体命名 (`state.count.get()` / `state.count.on_change` / `state['on_count']`) — qmlease 命名是 `get_*`/`set_*`/`*_changed`,需在 sc 版本中按概念代码的命名重写
 6. `sc.Row`/`sc.Text`/`sc.Button` context-manager 组件 — 部分存在 (v1),但无信号、无持久身份
 7. `@btn.on_click` 装饰器模式 — 不存在
@@ -89,7 +89,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 **范围**:
 - 展示 `sc.StateV2` + `sc.Property` 的 6 方法派生
 - 展示 `sc.Row`/`sc.Text`/`sc.Button` context-manager + 信号
-- 展示 `state.count.on_change.partial('self')` 用法
+- 展示 `@state.count.on_change` 注册 handler,handler 直接接收 Property 句柄
 - 展示 `@btn.on_click` 装饰器
 - 展示 `txt.text = ...` 属性更新
 - 展示 `sc.run(func, port=...)` 新入口
@@ -101,15 +101,16 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 
 **关键设计点**:
 - `Property` 描述符: 类属性形式声明,实例化时创建 getter/setter/signal
-- 元类 (类似 qmlease 的 `DynamicPropMeta`): 扫描类属性中的 `Property` 实例,自动派生 `state.count` 这个属性对象 (含 `.get()`/`.set()`/`.on_change`)
+- 不用 metaclass,改用 `__init_subclass__` 扫描并缓存属性列表 + 描述符 `__get__` 返回绑定句柄
 - `__getitem__`/`__setitem__`: `state['count']` 走 `get()`/`set()`
 - `state['on_count']` / `state.count.on_change`: 都指向同一个 `Signal` 实例
-- `Signal.partial('self')`: 返回一个闭包,在处理器被调用时自动把组件实例 (state 本身或当前 `with` 块的组件) 作为首参传入 — 这是 `partial('self')` 语义的关键
+- `Property.set()` 触发 `on_change.emit(self)`,把 Property 句柄自身作为参数传出;handler 直接 `cnt.get()` 读值
+- `Signal.partial` 保留为通用静态参数绑定 (无 `'self'` 魔法)
 - `__version__` / `version=` kwarg: 控制 schema 变更时是否重建 state
 
 **参考实现**: `lib/qmlease/qtcore/property.py`、`qobject.py` 的 `DynamicPropMeta`,但全部重写为纯 Python。
 
-**验证**: 写一个 `test/state_kernel_demo.py`,不依赖 Streamlit,只验证 Property/Signal 的 6 方法、partial、version 行为正确。
+**验证**: 写一个 `test/state_kernel_demo.py`,不依赖 Streamlit,只验证 Property/Signal 的 6 方法、on_change 传句柄、version 行为正确。
 
 ### Phase 2 — 组件模型 v3
 
@@ -154,7 +155,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 
 **立即动作 (Phase 0)**: 创建 `./test/demo_click_counter.py`,作为目标 API 契约。
 
-**第一阶段实施 (Phase 1)**: 在 `streamlit_canary/` 下新建内核模块 (建议命名 `kernel/` 或 `core/`,具体路径在 Phase 1 详细计划时决定),实现纯 Python 的 `Property`/`Signal`/`StateV2`,并用 `test/state_kernel_demo.py` 验证 6 方法 + `partial('self')` + version 控制。
+**第一阶段实施 (Phase 1)**: 在 `streamlit_canary/` 下新建 `kernel/` 模块,实现纯 Python 的 `Property`/`Signal`/`StateV2`,并用 `test/state_kernel_demo.py` 验证 6 方法 + on_change 传句柄 + version 控制。
 
 **为什么从内核开始**:
 - 概念代码的所有其他部分 (组件、运行时、入口) 都建立在 Property/Signal 之上
@@ -169,7 +170,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 3. **路线图粒度**: 高层,不细化到文件级 — 用户确认;Phase 1 的文件级细化留待 Phase 0 完成后另起一轮计划
 4. **现有 `sc.run` 语义保留兼容**: 新 `sc.run(func, port=...)` 与旧 `sc.run(...)` (走 streamlit 子进程) 签名不兼容,旧用法将在 Phase 5 弃用;过渡期可用不同函数名 (如 `sc.run_event_driven`) 区分 — 此细节留待 Phase 3 决定
 5. **Phase 4 的前端决策推迟**: 不在现阶段预设方案 A 或 B
-6. **概念代码中的 `partial('self')` 语义**: 解释为 "handler 注册时绑定当前作用域的 `self` (state 或当前 `with` 块的组件) 作为首参" — 若用户意图不同,需在 Phase 1 启动前澄清
+6. **`on_change` 传参语义**: `Property.set()` 触发 `on_change.emit(self)`,把发生变化的 Property 句柄自身作为参数传给 handler;handler 直接 `cnt.get()` 读新值。不使用 `partial('self')` 魔法 (已废弃)。`Signal.partial` 仅作为通用静态参数绑定保留
 
 ## 7. 验证步骤 (Verification)
 

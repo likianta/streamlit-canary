@@ -18,6 +18,9 @@ from .components_v2 import bind
 from .compositor import Compositor
 from .event_loop import event_loop
 from .flow import post_events
+from .kernel import Property
+from .kernel import Signal
+from .kernel import StateV2
 from .keygen import generate_keygen
 from .opener import open_file
 from .opener import open_folder

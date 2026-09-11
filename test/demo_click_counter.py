@@ -26,6 +26,7 @@ import streamlit_canary as sc
 #    changes, and old session state will be discarded/rebuilt.
 # ---------------------------------------------------------------------------
 
+
 class _State(sc.StateV2):
     count = sc.Property(0)
     #   The metaclass derives six accessors reachable from the instance:
@@ -50,27 +51,22 @@ state = _State()
 #    handlers registered below — the function body is not re-executed.
 # ---------------------------------------------------------------------------
 
+
 def click_counter_demo():
     with sc.Row():
         # `with sc.Text(...) as txt` creates a persistent Text component whose
         # identity survives across interactions. `txt.text = ...` later patches
         # the existing component in place rather than re-rendering the app.
         with sc.Text('Click count: 0') as txt:
-
-            # `state.count.on_change` is a Signal. `.partial('self')` returns a
-            # decorator that binds the receiving Property as the first arg of
-            # the handler, so the lambda below receives `cnt` automatically.
-            # NOTE: 'self' here refers to the Property object itself (the thing
-            # that changed), not the State instance.
-            @state.count.on_change.partial('self')
+            # `state.count.on_change` is a Signal. Using it as a decorator
+            # registers the handler. When `count` changes, the signal emits
+            # the Property handle itself as the argument, so `cnt` below is
+            # the `count` Property and `cnt.get()` returns its new value.
+            @state.count.on_change
             def _(cnt: sc.Property):
                 txt.text = 'Click count: {}'.format(cnt.get())
 
-        with sc.Button(
-            'Increase counter',
-            type='primary',
-        ) as btn:
-
+        with sc.Button('Increase counter', type='primary') as btn:
             # `btn.on_click` is a Signal. Using it as a decorator registers the
             # handler. When the user clicks the button in the frontend, only
             # this handler runs — no full app re-execution.

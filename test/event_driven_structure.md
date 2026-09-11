@@ -34,7 +34,7 @@ state = _State()
 def click_counter_demo():
     with sc.Row():
         with sc.Text('Click count: 0') as txt:
-            @state.count.on_change.partial('self')
+            @state.count.on_change
             def _(cnt: sc.Property):
                 txt.text = 'Click count: {}'.format(cnt.get())
 
