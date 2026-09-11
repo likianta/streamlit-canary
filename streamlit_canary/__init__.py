@@ -15,7 +15,6 @@ from . import keygen
 from . import opener
 from . import session
 from .components import *
-from .components_v2 import bind
 from .compositor import Compositor
 from .event_loop import event_loop
 from .flow import post_events

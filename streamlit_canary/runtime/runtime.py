@@ -27,11 +27,6 @@ class Runtime:
         self._roots: list[Component] = []
         self._ws_clients: set[WebSocketClient] = set()
         self._built = False
-        # Geometry cache: component_id → {x, y, width, height}.
-        # Populated by frontend WebSocket `geometry_report` messages; read
-        # by `get_element_absolute_geometry` and the `/geometry/<id>` HTTP
-        # endpoint for layout assertions.
-        self._geometry_cache: dict[str, dict] = {}
 
     # -- lifecycle --------------------------------------------------------
 
@@ -116,20 +111,6 @@ class Runtime:
     def _broadcast(self, message: dict) -> None:
         for client in list(self._ws_clients):
             client.send_json(message)
-
-    # -- geometry (frontend-reported element positions) -------------------
-
-    def update_geometry(self, report: dict[str, dict]) -> None:
-        """Merge a frontend geometry report into the cache."""
-        self._geometry_cache.update(report)
-
-    def get_element_absolute_geometry(self, component_id: str) -> dict:
-        """Return cached geometry for a component id.
-
-        Returns a dict with keys: x, y, width, height (all floats, in px).
-        Returns an empty dict if no report has been received yet.
-        """
-        return self._geometry_cache.get(component_id, {})
 
     # -- tree access (for rendering) -------------------------------------
 

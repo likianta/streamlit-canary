@@ -14,7 +14,6 @@ import json
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
-from starlette.responses import JSONResponse
 from starlette.routing import Route
 from starlette.routing import WebSocketRoute
 from starlette.websockets import WebSocket
@@ -55,22 +54,6 @@ def create_app(runtime: Runtime) -> Starlette:
             )
         )
 
-    async def geometry_endpoint(request: Request) -> JSONResponse:
-        """Return cached geometry for a component id.
-
-        If no report has been received yet, waits up to 2s for the frontend
-        to send one (so a test can call this right after page load).
-        """
-        comp_id = request.path_params['id']
-        for _ in range(20):  # 20 × 100ms = 2s
-            geom = runtime.get_element_absolute_geometry(comp_id)
-            if geom:
-                return JSONResponse(geom)
-            await asyncio.sleep(0.1)
-        return JSONResponse(
-            {'error': f'no geometry for {comp_id} (timeout)'}, status_code=404
-        )
-
     async def ws_endpoint(ws: WebSocket) -> None:
         await ws.accept()
         client = WebSocketClient(ws)
@@ -86,19 +69,13 @@ def create_app(runtime: Runtime) -> Starlette:
                         message['event'],
                         value=message.get('value'),
                     )
-                elif msg_type == 'geometry_report':
-                    runtime.update_geometry(message.get('data', {}))
         except WebSocketDisconnect:
             pass
         finally:
             runtime.remove_ws_client(client)
 
     return Starlette(
-        routes=[
-            Route('/', homepage),
-            Route('/geometry/{id}', geometry_endpoint),
-            WebSocketRoute('/ws', ws_endpoint),
-        ]
+        routes=[Route('/', homepage), WebSocketRoute('/ws', ws_endpoint)]
     )
 
 

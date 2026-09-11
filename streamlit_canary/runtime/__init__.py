@@ -84,6 +84,7 @@ def run(
     """
     if callable(target):
         return run_app(tp.cast(tp.Callable[[], None], target), port=port)
-    from ..runner import run as _legacy_run
+    else:
+        from ..runner import run as _legacy_run
 
-    return _legacy_run(target, port=port, **kwargs)
+        return _legacy_run(target, port=port, **kwargs)

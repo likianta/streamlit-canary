@@ -45,7 +45,7 @@ streamlit-canary/
 │   │   ├── demo_click_counter.py   # 计数器 demo
 │   │   └── pyproject_manager_copy/ # pyproject-manager 的 v3 重写版 (运行在 localhost:3001)
 │   └── ...
-├── ref/                      # 参考资源
+├── references/               # 参考资源
 │   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2130
 │   ├── streamlit/            # Streamlit 源码
 │   └── ...                   # 截图, 参考图等
@@ -94,7 +94,7 @@ python test/event_driven_structure/components_v3_demo.py
 
 ### 对比测试环境
 
-- **原版**: `http://localhost:2130` (ref/pyproject_manager, 基于 Streamlit)
+- **原版**: `http://localhost:2130` (references/pyproject_manager, 基于 Streamlit)
 - **我们的**: `http://localhost:3001` (test/event_driven_structure/pyproject_manager_copy, 基于 v3 运行时)
 
 UI 细节对齐时, 通常需要在两个端口分别采集数据, 逐一对比.
@@ -173,10 +173,10 @@ when mouse.click(sel):
 
 ## 8. 架构约束
 
-- **State 和 Components 统一读写风格**: `.get()` / `.set()` / `on_change` / ` / `__set / `__setitem__`,降低理解负担.
-- **组件属性**: 可响应字段用 `Property`(如 `Text.text`、`Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`、`Button._width`).
+- **State 和 Components 统一读写风格**: `.get()` / `.set()` / `on_change` / `__set__` / `__setitem__`, 降低理解负担.
+- **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`, `Button._width`).
 - **不使用 metaclass**: 因为 metaclass 会增加理解负担, 而且在当前实现中, 它的使用是不透明的.
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
-- **Web 服务**: 用 Starlette + Uvicorn(HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
+- **Web 服务**: 用 Starlette + Uvicorn (HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
 - **Web 服务器非阻塞**: 必须非阻塞启动, 可用 StopCommand 停止.
 - **Python 3.12**: 使用现代语法 (`type | type` 联合, `match` 等).

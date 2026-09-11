@@ -546,29 +546,6 @@ _PAGE_CSS = """
 
 _PAGE_JS = """
   const ws = new WebSocket(`ws://${location.host}/ws`);
-  // Geometry reporting: periodically send getBoundingClientRect for every
-  // [data-id] element so the backend can assert on layout (e.g. bottom
-  // alignment of Row children). Throttled to every 200ms.
-  function scReportGeometry() {
-    const els = document.querySelectorAll('[data-id]');
-    const report = {};
-    els.forEach(el => {
-      const r = el.getBoundingClientRect();
-      report[el.dataset.id] = {
-        x: r.left + window.scrollX,
-        y: r.top + window.scrollY,
-        width: r.width,
-        height: r.height,
-      };
-    });
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({type: 'geometry_report', data: report}));
-    }
-  }
-  ws.onopen = () => {
-    scReportGeometry();
-    setInterval(scReportGeometry, 200);
-  };
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type !== 'patch') return;
