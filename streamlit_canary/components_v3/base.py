@@ -55,11 +55,14 @@ class Component(PropertyHost):
     # in progress (e.g. in unit tests).
     _active_runtime: tp.ClassVar[tp.Any] = None
 
-    def __init__(self, **kwargs: tp.Any) -> None:
+    def __init__(self, *, key: str | None = None, **kwargs: tp.Any) -> None:
         # PropertyHost.__init__ sets up `_values` / `_handles` for all
         # declared Property fields.
         super().__init__(**kwargs)
-        self._id: str = uuid()
+        # `key` is an optional stable identifier (Streamlit-style). When
+        # provided, it is used as the component id verbatim, so external
+        # tools (tests, HTTP queries) can reference the element by name.
+        self._id: str = key if key else uuid()
         self._children: list[Component] = []
         self._parent: Component | None = None
         # auto-attach to the enclosing component, if any.
@@ -85,6 +88,11 @@ class Component(PropertyHost):
 
     @property
     def id(self) -> str:
+        return self._id
+
+    @property
+    def key(self) -> str:
+        """Stable identifier alias (matches Streamlit's `.key` convention)."""
         return self._id
 
     @property

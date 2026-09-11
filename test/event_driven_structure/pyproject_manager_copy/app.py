@@ -94,7 +94,7 @@ def _project_list():
                 )
 
             with v3.Selectbox(
-                'Project scope', format_func=_format_scope_key
+                'Project scope', format_func=_format_scope_key, key='scope_sel'
             ) as scope_sel:
                 scope_sel.options.bind(
                     state.project_by_scope, lambda this: list(this.keys())
@@ -111,7 +111,9 @@ def _project_list():
                     )
 
             with v3.Button(
-                ':material/autorenew:', help='Rescan projects'
+                ':material/autorenew:',
+                help='Rescan projects',
+                key='refresh_btn',
             ) as btn:
                 btn.on_click.connect(_rescan_projects)
 
@@ -151,7 +153,7 @@ def _project_list():
                 state.current_projects, lambda this: list(this.keys())
             )
 
-        with v3.Button('Refresh', use_container_width=True) as btn:
+        with v3.Button('Refresh', width='stretch') as btn:
             btn.on_click.connect(_rescan_projects)
 
 
@@ -174,6 +176,7 @@ def _rescan_projects():
 
 
 def _list_projects() -> T.Projects:
+    print('list all projects', ':i')
     projects = {}
     for path in fs.load(fs.here('watched_projects.yaml')):
         pyproj = fs.load('{}/pyproject.toml'.format(path))

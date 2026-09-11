@@ -27,6 +27,11 @@ class Runtime:
         self._roots: list[Component] = []
         self._ws_clients: set[WebSocketClient] = set()
         self._built = False
+        # Geometry cache: component_id → {x, y, width, height}.
+        # Populated by frontend WebSocket `geometry_report` messages; read
+        # by `get_element_absolute_geometry` and the `/geometry/<id>` HTTP
+        # endpoint for layout assertions.
+        self._geometry_cache: dict[str, dict] = {}
 
     # -- lifecycle --------------------------------------------------------
 
@@ -84,9 +89,21 @@ class Runtime:
 
     def _on_prop_change(self, comp: Component, prop_name: str) -> None:
         value = comp._values.get(prop_name)
-        self._broadcast(
-            {'type': 'patch', 'id': comp.id, 'prop': prop_name, 'value': value}
-        )
+        message: dict = {
+            'type': 'patch',
+            'id': comp.id,
+            'prop': prop_name,
+            'value': value,
+        }
+        # For Selectbox / Radio `options` patch, the frontend needs the
+        # formatted labels (via `_format_func`) because the raw values are
+        # keys, not human-readable text. Without this, the JS rebuilds
+        # radio items with raw keys instead of formatted labels.
+        if prop_name == 'options' and hasattr(comp, '_format_func'):
+            fmt = comp._format_func
+            options = value or []
+            message['formatted'] = [fmt(o) for o in options]
+        self._broadcast(message)
 
     # -- websocket client management -------------------------------------
 
@@ -99,6 +116,20 @@ class Runtime:
     def _broadcast(self, message: dict) -> None:
         for client in list(self._ws_clients):
             client.send_json(message)
+
+    # -- geometry (frontend-reported element positions) -------------------
+
+    def update_geometry(self, report: dict[str, dict]) -> None:
+        """Merge a frontend geometry report into the cache."""
+        self._geometry_cache.update(report)
+
+    def get_element_absolute_geometry(self, component_id: str) -> dict:
+        """Return cached geometry for a component id.
+
+        Returns a dict with keys: x, y, width, height (all floats, in px).
+        Returns an empty dict if no report has been received yet.
+        """
+        return self._geometry_cache.get(component_id, {})
 
     # -- tree access (for rendering) -------------------------------------
 

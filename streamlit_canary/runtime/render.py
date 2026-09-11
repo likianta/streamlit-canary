@@ -38,7 +38,7 @@ _MATERIAL_MAP = {
     'check': '\u2713',
     'close': '\u2715',
     'edit': '\u270e',
-    'search': '\U0001F50D',
+    'search': '\U0001f50d',
     'settings': '\u2699',
     'download': '\u2b07',
     'upload': '\u2b06',
@@ -91,7 +91,17 @@ def render_tree(roots: tp.Iterable[Component]) -> str:
 def _render(comp: Component) -> str:
     if isinstance(comp, Row):
         children = ''.join(_render(c) for c in comp.children)
-        return f'<div class="st-row" data-id="{comp.id}">{children}</div>'
+        valign = getattr(comp, '_vertical_alignment', 'top')
+        align_map = {
+            'top': 'flex-start',
+            'center': 'center',
+            'bottom': 'flex-end',
+        }
+        align = align_map.get(valign, 'flex-start')
+        return (
+            f'<div class="st-row" data-id="{comp.id}" '
+            f'style="align-items:{align}">{children}</div>'
+        )
     if isinstance(comp, Column):
         children = ''.join(_render(c) for c in comp.children)
         border_cls = (
@@ -122,12 +132,12 @@ def _render(comp: Component) -> str:
 
 def _render_button(comp: Button) -> str:
     label = render_markup(str(comp.label.get()))
-    btn_type = getattr(comp, '_type', 'default')
+    btn_type = getattr(comp, '_type', 'secondary')
     # Streamlit: type="secondary" is default, "primary" is the accent button.
     st_type = 'primary' if btn_type == 'primary' else 'secondary'
     cls = f'st-btn st-btn-{st_type}'
-    use_container_width = getattr(comp, '_use_container_width', False)
-    width_style = ' style="width:100%"' if use_container_width else ''
+    width = getattr(comp, '_width', 'content')
+    width_style = ' style="width:100%"' if width == 'stretch' else ''
     help_attr = ''
     if getattr(comp, '_help', None):
         help_text = html.escape(str(comp._help))
@@ -143,20 +153,41 @@ def _render_selectbox(comp: Selectbox) -> str:
     options = comp.options.get() or []
     value = comp.value.get()
     fmt = getattr(comp, '_format_func', str)
-    opt_html = ''.join(
-        f'<option value="{html.escape(str(o))}" '
-        f'{"selected" if o == value else ""}>'
-        f'{html.escape(fmt(o))}</option>'
+    # Build option items for the custom dropdown panel. Two-layer structure
+    # matches Streamlit: outer (padding 0 5px) + inner (padding 0 8px), so
+    # the hover background on the inner div is inset from the panel edges.
+    opt_items = ''.join(
+        f'<div class="st-selectbox-option" role="option" '
+        f'data-value="{html.escape(str(o))}" '
+        f'data-comp-id="{comp.id}" '
+        f'onclick="scSelectOption(this)" '
+        f'{"data-selected" if o == value else ""}>'
+        f'<div class="st-selectbox-option-inner">'
+        f'{html.escape(fmt(o))}</div></div>'
         for o in options
     )
+    # Display text for the trigger button.
+    display_text = html.escape(fmt(value)) if value else '\u200b'
     label = html.escape(getattr(comp, '_label', ''))
+    arrow_svg = (
+        '<svg class="st-selectbox-arrow" viewBox="0 0 24 24" '
+        'width="20" height="20" fill="currentColor">'
+        '<path fill="none" d="M0 0h24v24H0V0z"></path>'
+        '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 '
+        '1.41-1.41z"></path>'
+        '</svg>'
+    )
     return (
         f'<div class="st-selectbox" data-id="{comp.id}">'
         f'<label class="st-widget-label">{label}</label>'
         f'<div class="st-selectbox-control">'
-        f'<select onchange="scSendChange(this)" '
-        f'data-comp-id="{comp.id}">{opt_html}</select>'
-        f'<span class="st-selectbox-arrow">\u2304</span>'
+        f'<button type="button" class="st-selectbox-trigger" '
+        f'data-comp-id="{comp.id}" onclick="scToggleSelectbox(this)">'
+        f'<span class="st-selectbox-value">{display_text}</span>'
+        f'{arrow_svg}'
+        f'</button>'
+        f'<div class="st-selectbox-dropdown" '
+        f'data-comp-id="{comp.id}" hidden>{opt_items}</div>'
         f'</div></div>'
     )
 
@@ -283,6 +314,14 @@ _PAGE_CSS = """
   }
   .st-row > * { flex: 1; }
   .st-row > .st-btn-secondary { flex: 0 0 auto; }
+  /* Neutralize widget bottom margins so `align-items` aligns the actual
+  box edges, not the margin box. Use higher specificity than single-class
+  widget rules (e.g. `.st-selectbox { margin-bottom: 8px }`). */
+  .st-row > .st-selectbox,
+  .st-row > .st-radio,
+  .st-row > .st-btn,
+  .st-row > .st-text,
+  .st-row > .st-title { margin-bottom: 0; }
 
   /* Layout: Container (Column) */
   .st-container {
@@ -313,12 +352,14 @@ _PAGE_CSS = """
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 6px 16px;
+    padding: 8px 16px;
+    min-height: 38px;
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     font-family: var(--st-font);
     font-size: 14px;
     font-weight: 400;
+    line-height: 1.4;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s;
     user-select: none;
@@ -341,41 +382,93 @@ _PAGE_CSS = """
   }
   .st-icon { font-size: 16px; line-height: 1; }
 
-  /* Selectbox */
+  /* Selectbox (custom dropdown — no native <select>) */
   .st-selectbox { margin-bottom: 8px; }
   .st-selectbox-control {
     position: relative;
     display: flex;
     align-items: center;
   }
-  .st-selectbox-control select {
-    appearance: none;
-    -webkit-appearance: none;
+  .st-selectbox-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     width: 100%;
-    padding: 7px 28px 7px 12px;
+    min-height: 38px;
+    padding: 8px 12px;
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
     font-family: var(--st-font);
     font-size: 14px;
+    line-height: 1.4;
     cursor: pointer;
     transition: border-color 0.15s;
   }
-  .st-selectbox-control select:focus {
+  /* No border-color change on hover — matches Streamlit's behavior. */
+  .st-selectbox-trigger:focus {
     outline: none;
     border-color: var(--st-primary-color);
     box-shadow: 0 0 0 2px rgba(255, 75, 75, 0.2);
   }
-  .st-selectbox-control select:hover {
-    border-color: var(--st-text-color);
+  .st-selectbox-value {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .st-selectbox-arrow {
+    color: var(--st-text-color);
+    flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .st-selectbox-trigger[aria-expanded="true"] .st-selectbox-arrow {
+    transform: rotate(180deg);
+  }
+  .st-selectbox-dropdown {
     position: absolute;
-    right: 10px;
-    pointer-events: none;
-    color: var(--st-gray-color);
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    padding: 4px 0;
+  }
+  .st-selectbox-option {
+    padding: 0 5px;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  .st-selectbox-option-inner {
+    padding: 8px 8px;
     font-size: 14px;
+    line-height: 1.4;
+    border-radius: 4px;
+    transition: background-color 0.1s;
+  }
+  .st-selectbox-option:hover > .st-selectbox-option-inner {
+    background-color: var(--st-border-color);
+  }
+  .st-selectbox-option[data-selected] .st-selectbox-option-inner {
+    color: var(--st-primary-color);
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar {
+    width: 6px;
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar-thumb {
+    background: var(--st-border-color);
+    border-radius: 3px;
   }
 
   /* Radio */
@@ -453,6 +546,29 @@ _PAGE_CSS = """
 
 _PAGE_JS = """
   const ws = new WebSocket(`ws://${location.host}/ws`);
+  // Geometry reporting: periodically send getBoundingClientRect for every
+  // [data-id] element so the backend can assert on layout (e.g. bottom
+  // alignment of Row children). Throttled to every 200ms.
+  function scReportGeometry() {
+    const els = document.querySelectorAll('[data-id]');
+    const report = {};
+    els.forEach(el => {
+      const r = el.getBoundingClientRect();
+      report[el.dataset.id] = {
+        x: r.left + window.scrollX,
+        y: r.top + window.scrollY,
+        width: r.width,
+        height: r.height,
+      };
+    });
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type: 'geometry_report', data: report}));
+    }
+  }
+  ws.onopen = () => {
+    scReportGeometry();
+    setInterval(scReportGeometry, 200);
+  };
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type !== 'patch') return;
@@ -469,31 +585,60 @@ _PAGE_JS = """
     }
     if (msg.prop === 'options') {
       if (el.classList.contains('st-selectbox')) {
-        const sel = el.querySelector('select');
-        const currentVal = sel.value;
-        const fmt = sel._scFormat || (x => x);
-        sel.innerHTML = msg.value.map(o =>
-          `<option value="${o}" ${o === currentVal ? 'selected' : ''}>${fmt(o)}</option>`
+        // Custom dropdown: rebuild option items + update trigger label.
+        const trigger = el.querySelector('.st-selectbox-trigger');
+        const dropdown = el.querySelector('.st-selectbox-dropdown');
+        const id = msg.id;
+        const currentVal = el._scValue || msg.value[0];
+        const labels = msg.formatted || msg.value.map(x => x);
+        const fmt = window.scRenderMarkup;
+        dropdown.innerHTML = msg.value.map((o, i) =>
+          `<div class="st-selectbox-option" role="option" ` +
+          `data-value="${o}" data-comp-id="${id}" ` +
+          `onclick="scSelectOption(this)" ` +
+          `${o === currentVal ? 'data-selected' : ''}>` +
+          `<div class="st-selectbox-option-inner">${fmt(labels[i])}</div></div>`
         ).join('');
+        const selIdx = msg.value.indexOf(currentVal);
+        const valEl = el.querySelector('.st-selectbox-value');
+        if (valEl) valEl.innerHTML = selIdx >= 0 ? fmt(labels[selIdx]) : '';
       }
       if (el.classList.contains('st-radio')) {
         const group = el.querySelector('.st-radio-group');
         const id = msg.id;
-        const currentVal = el._scValue || msg.value;
-        group.innerHTML = msg.value.map(o =>
+        const currentVal = el._scValue || msg.value[0];
+        const fmt = window.scRenderMarkup;
+        const labels = msg.formatted || msg.value.map(x => x);
+        group.innerHTML = msg.value.map((o, i) =>
           `<label class="st-radio-item">` +
           `<input type="radio" name="radio_${id}" value="${o}" ` +
           `${o === currentVal ? 'checked' : ''} ` +
           `onchange="scSendChange(this)" data-comp-id="${id}"/>` +
-          `<span class="st-radio-label-text">${o}</span>` +
+          `<span class="st-radio-label-text">${fmt(labels[i])}</span>` +
           `</label>`
         ).join('');
       }
     }
     if (msg.prop === 'value') {
       if (el.classList.contains('st-selectbox')) {
-        const sel = el.querySelector('select');
-        if (sel) sel.value = msg.value;
+        // Custom dropdown: update trigger display + selected marker.
+        el._scValue = msg.value;
+        const dropdown = el.querySelector('.st-selectbox-dropdown');
+        const fmt = window.scRenderMarkup;
+        // Rebuild labels from existing options if formatted map is cached.
+        const optEls = dropdown ? dropdown.querySelectorAll('.st-selectbox-option') : [];
+        optEls.forEach(o => {
+          if (o.dataset.value === msg.value) {
+            o.setAttribute('data-selected', '');
+          } else {
+            o.removeAttribute('data-selected');
+          }
+        });
+        // Update trigger text from the matching option's inner div.
+        const matched = Array.from(optEls).find(o => o.dataset.value === msg.value);
+        const inner = matched ? matched.querySelector('.st-selectbox-option-inner') : null;
+        const valEl = el.querySelector('.st-selectbox-value');
+        if (valEl && inner) valEl.textContent = inner.textContent;
       }
       if (el.classList.contains('st-radio')) {
         el._scValue = msg.value;
@@ -510,12 +655,68 @@ _PAGE_JS = """
     const id = input.dataset.compId;
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.value}));
   }
+  // -- Custom selectbox dropdown interaction --
+  function scToggleSelectbox(trigger) {
+    const control = trigger.closest('.st-selectbox-control');
+    const dropdown = control.querySelector('.st-selectbox-dropdown');
+    const isOpen = !dropdown.hidden;
+    // Close any other open dropdown first.
+    document.querySelectorAll('.st-selectbox-dropdown:not([hidden])').forEach(d => {
+      if (d !== dropdown) {
+        d.hidden = true;
+        const t = d.closest('.st-selectbox-control').querySelector('.st-selectbox-trigger');
+        t.removeAttribute('aria-expanded');
+      }
+    });
+    if (isOpen) {
+      dropdown.hidden = true;
+      trigger.removeAttribute('aria-expanded');
+    } else {
+      dropdown.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+  }
+  function scSelectOption(opt) {
+    const id = opt.dataset.compId;
+    const value = opt.dataset.value;
+    // Update UI immediately.
+    const root = document.querySelector(`[data-id="${id}"]`);
+    if (root) {
+      root._scValue = value;
+      // Update selected marker.
+      root.querySelectorAll('.st-selectbox-option').forEach(o => {
+        if (o.dataset.value === value) o.setAttribute('data-selected', '');
+        else o.removeAttribute('data-selected');
+      });
+      // Update trigger label from the inner div's text.
+      const inner = opt.querySelector('.st-selectbox-option-inner');
+      const valEl = root.querySelector('.st-selectbox-value');
+      if (valEl && inner) valEl.textContent = inner.textContent;
+      // Close dropdown.
+      const dropdown = root.querySelector('.st-selectbox-dropdown');
+      const trigger = root.querySelector('.st-selectbox-trigger');
+      if (dropdown) dropdown.hidden = true;
+      if (trigger) trigger.removeAttribute('aria-expanded');
+    }
+    // Send change event to backend.
+    ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
+  }
+  // Close dropdown when clicking outside.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.st-selectbox-control')) {
+      document.querySelectorAll('.st-selectbox-dropdown:not([hidden])').forEach(d => {
+        d.hidden = true;
+        const t = d.closest('.st-selectbox-control').querySelector('.st-selectbox-trigger');
+        t.removeAttribute('aria-expanded');
+      });
+    }
+  });
   // expose markup renderer for WS patches
   window.scRenderMarkup = function(text) {
     // escape
     let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     // :material/icon:
-    const matMap = {autorenew:'\u21bb',refresh:'\u21bb',delete:'\u2715',add:'+',check:'\u2713',close:'\u2715',edit:'\u270e',search:'\U0001F50D',settings:'\u2699',download:'\u2b07',upload:'\u2b06'};
+    const matMap = {autorenew:'\u21bb',refresh:'\u21bb',delete:'\u2715',add:'+',check:'\u2713',close:'\u2715',edit:'\u270e',search:'\U0001f50d',settings:'\u2699',download:'\u2b07',upload:'\u2b06'};
     s = s.replace(/:material\/([a-zA-Z_]+):/g, (m,n) => `<span class="st-icon">${matMap[n]||'\u25a1'}</span>`);
     // :color[text]
     const colMap = {red:'#ff4b4b',green:'#09ab3b',blue:'#1c83f0',orange:'#ffa422',gray:'#808080',grey:'#808080',violet:'#8e3ab3'};

@@ -16,7 +16,21 @@ from .base import Component
 
 
 class Row(Component):
-    """Horizontal layout container."""
+    """Horizontal layout container.
+
+    Args:
+        vertical_alignment: "top" (default) | "center" | "bottom" — how
+            children align on the cross axis.
+    """
+
+    def __init__(
+        self,
+        *,
+        vertical_alignment: tp.Literal['top', 'center', 'bottom'] = 'top',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._vertical_alignment = vertical_alignment
 
 
 class Column(Component):
@@ -59,7 +73,7 @@ class Button(Component):
 
     Matches Streamlit's ``st.button`` API:
         type: "secondary" (default) | "primary"
-        use_container_width: bool — stretch to fill parent width
+        width: "content" (default) | "stretch" — stretch fills parent width
         help: tooltip text
     """
 
@@ -71,16 +85,15 @@ class Button(Component):
         *,
         type: str = 'secondary',
         help: str | None = None,
-        use_container_width: bool = False,
+        width: str = 'content',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self.label.set(label)
-        # `type` / `help` / `use_container_width` are static config, not
-        # reactive Property.
+        # `type` / `help` / `width` are static config, not reactive Property.
         self._type = type
         self._help = help
-        self._use_container_width = use_container_width
+        self._width = width
         self.on_click: Signal = Signal()
 
 
