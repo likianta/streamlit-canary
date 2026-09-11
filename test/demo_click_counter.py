@@ -1,16 +1,16 @@
 """
-Demo: Event-driven click counter (Target API snapshot, NOT runnable yet).
+Demo: Event-driven click counter (Target API snapshot, NOT fully runnable yet).
 
 This file is a concept demo for the upcoming event-driven Streamlit framework.
-It depends on the v3 API (sc.StateV2, sc.Property, sc.Signal, context-manager
-components, sc.run(func, port=...)) which has not been implemented yet. Running
-this file will fail with ImportError or AttributeError.
+The kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`) and v3 components
+(`sc.v3.Row`, `sc.v3.Text`, `sc.v3.Button`) are implemented; only
+`sc.run(func, port=...)` (the runtime entry point) is still missing, so the
+file cannot be executed end-to-end yet.
 
-Purpose: pin down the target API contract so Phase 1+ implementations have a
-clear target to design against. See the roadmap:
+Purpose: pin down the target API contract. See the roadmap:
     .trae/documents/event_driven_streamlit_roadmap.md
 
-Run (when v3 lands):
+Run (when the runtime lands):
     python test/demo_click_counter.py
 """
 
@@ -20,8 +20,7 @@ import streamlit_canary as sc
 # ---------------------------------------------------------------------------
 # 1. State definition.
 #    `sc.StateV2` is the base class for event-driven state. Each `sc.Property`
-#    declared on the class is compiled by the metaclass into a property object
-#    that derives six accessors (see comments below).
+#    declared on the class derives six accessors (see comments below).
 #    `__version__` controls schema migration: bump it when the property layout
 #    changes, and old session state will be discarded/rebuilt.
 # ---------------------------------------------------------------------------
@@ -29,7 +28,7 @@ import streamlit_canary as sc
 
 class _State(sc.StateV2):
     count = sc.Property(0)
-    #   The metaclass derives six accessors reachable from the instance:
+    #   Six accessors reachable from the instance:
     #       1. state.count.get()        -> int           (read current value)
     #       2. state.count.set(value)   -> None          (write + emit on_change)
     #       3. state.count.on_change    -> Signal        (the change signal)
@@ -53,20 +52,23 @@ state = _State()
 
 
 def click_counter_demo():
-    with sc.Row():
-        # `with sc.Text(...) as txt` creates a persistent Text component whose
-        # identity survives across interactions. `txt.text = ...` later patches
-        # the existing component in place rather than re-rendering the app.
-        with sc.Text('Click count: 0') as txt:
+    # v3 components live under `sc.v3.*` so they don't pollute the stable v1
+    # namespace while the event-driven model is still evolving.
+    with sc.v3.Row():
+        # `with sc.v3.Text(...) as txt` creates a persistent Text component
+        # whose identity survives across interactions.
+        # `txt.text` is itself a `Property` (same model as state), so it is
+        # updated via `txt.text.set(...)`, which emits `txt.text.on_change`.
+        with sc.v3.Text('Click count: 0') as txt:
             # `state.count.on_change` is a Signal. Using it as a decorator
             # registers the handler. When `count` changes, the signal emits
             # the Property handle itself as the argument, so `cnt` below is
             # the `count` Property and `cnt.get()` returns its new value.
             @state.count.on_change
             def _(cnt: sc.Property):
-                txt.text = 'Click count: {}'.format(cnt.get())
+                txt.text.set('Click count: {}'.format(cnt.get()))
 
-        with sc.Button('Increase counter', type='primary') as btn:
+        with sc.v3.Button('Increase counter', type='primary') as btn:
             # `btn.on_click` is a Signal. Using it as a decorator registers the
             # handler. When the user clicks the button in the frontend, only
             # this handler runs — no full app re-execution.

@@ -37,12 +37,12 @@ class _State(sc.StateV2):
 state = _State()
 
 def click_counter_demo():
-    with sc.Row():
-        with sc.Text('Click count: 0') as txt:
+    with sc.v3.Row():
+        with sc.v3.Text('Click count: 0') as txt:
             @state.count.on_change
             def _(cnt: sc.Property):
-                txt.text = 'Click count: {}'.format(cnt.get())
-        with sc.Button('Increase counter', type='primary') as btn:
+                txt.text.set('Click count: {}'.format(cnt.get()))
+        with sc.v3.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 state['count'] += 1
@@ -57,9 +57,9 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 3. `sc.Signal` 纯 Python 版 — 不存在
 4. `Property.on_change` emit 时直接传出 Property 句柄本身,handler 通过 `cnt.get()` 读取新值 — 需明确设计
 5. Property 派生 6 方法的具体命名 (`state.count.get()` / `state.count.on_change` / `state['on_count']`) — qmlease 命名是 `get_*`/`set_*`/`*_changed`,需在 sc 版本中按概念代码的命名重写
-6. `sc.Row`/`sc.Text`/`sc.Button` context-manager 组件 — 部分存在 (v1),但无信号、无持久身份
+6. `sc.v3.Row`/`sc.v3.Text`/`sc.v3.Button` context-manager 组件 — 部分存在 (v1),但无信号、无持久身份;v3 组件放在 `sc.v3.*` 下避免污染稳定命名空间
 7. `@btn.on_click` 装饰器模式 — 不存在
-8. `txt.text = ...` 属性赋值触发 UI 更新 — 不存在
+8. `txt.text.set(...)` 更新组件属性并触发 UI 刷新 — 组件属性复用 `Property` 模型,与 state 读写风格统一
 9. `sc.run(func, port=...)` 新入口 — 不存在 (现有 `sc.run` 走子进程)
 10. **No-rerun 运行时** — 不存在,需从零构建 (组件树持久化 + 事件路由 + 仅触发受影响处理器)
 11. **前端 delta 协议** — 未决定 (留待 Phase 4)
@@ -70,7 +70,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 |---|---|---|---|
 | A | **Property/Signal 内核** | 纯 Python 的 `Property` 描述符、`Signal` 类、`partial`、元类自动派生 6 方法 | 无 (起点) |
 | B | **StateV2 基类** | 继承 Property/Signal,加 version/revision 控制、跨"帧"持久化、与 `sc.init_state` 衔接 | A |
-| C | **组件模型 v3** | context-manager 组件 (`Button`/`Text`/`Row`...),持久身份、信号 (`on_click`/`on_change`)、属性 setter (`txt.text = ...`) | A, B |
+| C | **组件模型 v3** | context-manager 组件 (`Button`/`Text`/`Row`...),持久身份、信号 (`on_click`/`on_change`)、组件属性复用 `Property` 模型 (`txt.text.set(...)`) | A, B |
 | D | **组件树 & 生命周期** | 跨交互保持组件树;父-子关系;挂载/卸载;组件 id 生成 | C |
 | E | **事件运行时 (核心)** | App 函数仅调用一次构建图;事件队列;信号→处理器路由;仅重跑受影响处理器;状态持久化 | A, B, C, D |
 | F | **入口 `sc.run(func, port=...)`** | 新启动器,不走 `streamlit run` 子进程;启动运行时 + (可选) HTTP/WS server | E |
@@ -88,10 +88,10 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 
 **范围**:
 - 展示 `sc.StateV2` + `sc.Property` 的 6 方法派生
-- 展示 `sc.Row`/`sc.Text`/`sc.Button` context-manager + 信号
+- 展示 `sc.v3.Row`/`sc.v3.Text`/`sc.v3.Button` context-manager + 信号
 - 展示 `@state.count.on_change` 注册 handler,handler 直接接收 Property 句柄
 - 展示 `@btn.on_click` 装饰器
-- 展示 `txt.text = ...` 属性更新
+- 展示 `txt.text.set(...)` 属性更新 (组件属性复用 Property 模型)
 - 展示 `sc.run(func, port=...)` 新入口
 - 文件头加注释说明"该演示依赖未实现的 v3 API,运行会失败"
 
@@ -114,12 +114,12 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 
 ### Phase 2 — 组件模型 v3
 
-**产出**: `sc.Row`/`sc.Text`/`sc.Button` 等 context-manager 组件,挂在运行时之前的纯 Python 层。
+**产出**: `sc.v3.Row`/`sc.v3.Text`/`sc.v3.Button` 等 context-manager 组件,挂在运行时之前的纯 Python 层 (放在 `sc.v3.*` 下避免污染稳定命名空间)。
 
 **关键设计点**:
-- `with sc.Button(...) as btn:` 构造组件,返回带持久 id 的实例
+- `with sc.v3.Button(...) as btn:` 构造组件,返回带持久 id 的实例
 - `btn.on_click` 是 `Signal`,支持 `@btn.on_click` 装饰器注册处理器
-- `txt.text = ...` 赋值触发 `text` 属性的 setter,发出 `on_change` 信号 → 通知运行时
+- 组件视觉属性复用 `Property` 模型:`txt.text.set(...)` 发出 `txt.text.on_change` 信号 → 通知运行时;与 state 读写风格统一
 - 组件树通过 `with` 嵌套建立父子关系
 - 组件 id 生成 (参考 `streamlit_canary/keygen.py`)
 

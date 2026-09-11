@@ -8,4 +8,7 @@ tested in isolation.
 
 from .property import Property
 from .signal import Signal
+from .state import PropertyHost
 from .state import StateV2
+
+__all__ = ['Property', 'PropertyHost', 'Signal', 'StateV2']

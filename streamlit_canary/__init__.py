@@ -10,6 +10,7 @@ if 1: import neoprint as _np; _np.setup()  # noqa
 
 # from . import components
 from . import components_v2 as v2
+from . import components_v3 as v3
 from . import keygen
 from . import opener
 from . import session
