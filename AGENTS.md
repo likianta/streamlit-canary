@@ -31,6 +31,7 @@ streamlit-canary/
 │   ├── kernel/               # 事件驱动内核 (无 Streamlit 依赖)
 │   │   ├── property.py       # Property: 带 get/set/on_change 的响应式属性
 │   │   ├── signal.py         # Signal: 事件信号
+│   │   ├── special_value.py  # sc._self / sc._value: Signal.partial 的特殊标记
 │   │   └── state.py          # StateV2: 状态容器
 │   ├── components_v3/        # v3 事件驱动组件
 │   │   ├── base.py           # Component 基类: 注册到 runtime, 属性绑定
@@ -88,7 +89,7 @@ ruff format streamlit_canary/
 ty check streamlit_canary/
 
 # 运行内核测试
-python test/event_driven_structure/state_kernel_demo.py
+python test/on_property_test.py
 python test/event_driven_structure/components_v3_demo.py
 ```
 
@@ -180,3 +181,31 @@ when mouse.click(sel):
 - **Web 服务**: 用 Starlette + Uvicorn (HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
 - **Web 服务器非阻塞**: 必须非阻塞启动, 可用 StopCommand 停止.
 - **Python 3.12**: 使用现代语法 (`type | type` 联合, `match` 等).
+
+## 9. Kernel 事件约定 (Property / Signal)
+
+- **`on_change` 不默认传参**: `Property.set()` 触发时调用 `Signal.emit()`, **不会**把 Property 自身作为第一个参数传给 handler.
+- **按需注入 owner**: 用 `Signal.partial(...)` 绑定特殊标记来拿到 owner:
+  - `sc._self` → handler 收到 owner (触发变更的 Property handle)
+  - `sc._value` → handler 收到 owner 的当前值 (`owner.get()`)
+  - 普通值原样绑定在参数列表最前面
+- **立即触发**: `@sig.emit_now` 注册 handler 并立刻 emit 一次; 若同时需要注入 owner, 用 `@sig.partial(sc._self).emit_now`.
+- **Property 可独立使用**: `count = sc.Property(0)` 是自包含的响应式值 (`get` / `set` / `on_change`); 声明在 `StateV2` / `Component` 上时按实例绑定 (descriptor + bound handle).
+
+示例:
+
+```python
+count = sc.Property(0)
+
+@count.on_change                      # 无参 handler
+def aaa(): ...
+
+@count.on_change.partial('x')         # 绑定静态参数
+def bbb(word): ...
+
+@count.on_change.partial(sc._self)    # 收到 Property handle
+def ccc(prop): ...
+
+@count.on_change.partial(sc._value)   # 收到当前值
+def ddd(value): ...
+```

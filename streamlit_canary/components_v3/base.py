@@ -42,6 +42,7 @@ class Component(PropertyHost):
         txt.text.get()
         txt.text.set('hello')
         txt.text.on_change.connect(...)
+        txt.text.on_change.partial(sc._self)   # handler receives the handle
         txt['text']            # alias of .get()
         txt['text'] = 'hi'     # alias of .set()
         txt['on_text']         # alias of .on_change

@@ -1,19 +1,27 @@
 """
 Property descriptor for event-driven state.
 
-Usage:
+Usage (standalone reactive value):
+    count = sc.Property(0)
+    count.get()            # 0
+    count.set(1)           # sets value, emits count.on_change
+    count.on_change        # the change Signal
+
+Usage (declared on a `StateV2` / `Component`):
     class State(StateV2):
         count = Property(0)
 
     s = State()
     s.count.get()          # 0
     s.count.set(1)         # sets value, emits s.count.on_change
-    s.count.on_change      # the change Signal
 
 A `Property` declared at class level is a descriptor. When accessed on an
 instance (`s.count`) it returns a *bound* Property handle that carries
 `.get()`, `.set()` and `.on_change`. The bound handle is cached per instance
 so identity is stable.
+
+A `Property` created outside a class body (e.g. `count = sc.Property(0)`)
+is self-contained: it owns its value directly.
 
 This is a simplified, pure-Python reimplementation of the ideas in
 `lib/qmlease/qtcore/property.py` — without Qt, without metaclass, and with the
@@ -37,7 +45,7 @@ class Property:
     # -- bound-handle attributes ------------------------------------------
     # (only meaningful on the bound handle returned by `__get__`)
     _instance: tp.Any | None
-    on_change: Signal | None
+    on_change: Signal
 
     def __init__(
         self,
@@ -50,18 +58,15 @@ class Property:
         self.default = default
         self.name = _name
         self._bound = _bound
-        if _bound:
-            # bound handle: per-instance, carries the value + change signal
-            self._instance = _instance
-            # `on_change` is emitted with this handle as the argument, so
-            # handlers receive the Property that changed directly. The
-            # `owner_factory` lets `emit_now` pass this handle without the
-            # caller needing to know what to emit.
-            self.on_change = Signal(owner_factory=lambda: (self,))
-        else:
-            # unbound descriptor: shared across all instances of the class
-            self._instance = None
-            self.on_change = None
+        self._instance = _instance
+        # Self-contained value store, used when this Property is not bound to
+        # a `PropertyHost` instance (e.g. `count = sc.Property(0)` at module
+        # level). Bound handles read/write the host's `_values` instead.
+        self._value = default
+        # `on_change` is always available. It does NOT pass the owner to
+        # handlers by default; opt in with `.partial(sc._self / sc._value)`.
+        # The owner_factory lets those markers resolve back to this handle.
+        self.on_change = Signal(owner_factory=lambda: self)
 
     # -- descriptor protocol ---------------------------------------------
 
@@ -77,26 +82,25 @@ class Property:
         # instance-level access: return the cached bound handle
         return instance._handles[self.name]
 
-    # -- value accessors (bound handle only) -----------------------------
+    # -- value accessors --------------------------------------------------
 
     def get(self) -> tp.Any:
-        assert self._instance is not None, (
-            'Property.get() called on an unbound descriptor'
-        )
+        if self._instance is None:
+            return self._value
         return self._instance._values[self.name]
 
-    def set(self, value: tp.Any) -> None:
-        assert self._instance is not None, (
-            'Property.set() called on an unbound descriptor'
-        )
-        old = self._instance._values.get(self.name)
-        if old == value:
-            return
-        self._instance._values[self.name] = value
-        # notify subscribers, passing this handle so handlers can read the
-        # new value via `cnt.get()`.
-        assert self.on_change is not None
-        self.on_change.emit(self)
+    def set(self, value: tp.Any, notify: bool = True) -> None:
+        if self._instance is None:
+            if self._value == value:
+                return
+            self._value = value
+        else:
+            old = self._instance._values.get(self.name)
+            if old == value:
+                return
+            self._instance._values[self.name] = value
+        if notify:
+            self.on_change.emit()
 
     # -- sugar -----------------------------------------------------------
 
@@ -113,22 +117,19 @@ class Property:
         Usage:
             sel.options.bind(state.projects, lambda this: list(this.keys()))
         """
-        assert self.on_change is not None, (
-            'Property.bind() called on an unbound descriptor'
-        )
         assert source.on_change is not None, (
             'Property.bind() source is an unbound descriptor'
         )
 
-        def _sync(_source_handle: 'Property') -> None:
+        def _sync() -> None:
             new_value = transform(source.get())
             self.set(new_value)
 
         source.on_change.connect(_sync)
         # immediate sync so the bound property starts with the right value.
-        _sync(source)
+        _sync()
 
     def __repr__(self) -> str:
-        if self._instance is None:
-            return f'<Property(default={self.default!r})>'
+        if self.name is None:
+            return f'<Property(v={self._value!r})>'
         return f'<Property {self.name}={self.get()!r}>'

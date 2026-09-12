@@ -54,7 +54,7 @@ class Runtime:
         for name in comp._properties:
             handle = comp._handles[name]
             handle.on_change.connect(
-                lambda _h, c=comp, n=name: self._on_prop_change(c, n)
+                lambda c=comp, n=name: self._on_prop_change(c, n)
             )
 
     # -- event routing ----------------------------------------------------

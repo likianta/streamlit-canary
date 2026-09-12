@@ -131,7 +131,7 @@ class Selectbox(Component):
         self._format_func = format_func or str
         self.options.on_change.connect(self._auto_select)
 
-    def _auto_select(self, _opts_prop: Property) -> None:
+    def _auto_select(self) -> None:
         opts = self.options.get()
         if opts and self.value.get() not in opts:
             self.value.set(opts[0])
@@ -170,7 +170,7 @@ class Radio(Component):
         self._format_func = format_func or str
         self.options.on_change.connect(self._auto_select)
 
-    def _auto_select(self, _opts_prop: Property) -> None:
+    def _auto_select(self) -> None:
         opts = self.options.get()
         if opts and self.value.get() not in opts:
             self.value.set(opts[0])

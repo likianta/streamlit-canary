@@ -8,6 +8,7 @@ from collections import defaultdict
 
 import streamlit_canary as sc
 from lk_utils import fs
+from lk_utils import re
 from neoprint import print
 
 v3 = sc.v3
@@ -47,8 +48,11 @@ state = _State()
 def main():
     sc.set_page_config('Pyproject Manager', layout='wide', default_theme='dark')
     v3.Title('Pyproject Manager')
-    with v3.Column():
-        _project_list()
+    with v3.Row():
+        with v3.Column(width=300):
+            _project_list()
+        with v3.Column():
+            _version_bumps()
 
 
 def _project_list():
@@ -100,7 +104,7 @@ def _project_list():
                     state.project_by_scope, lambda this: list(this.keys())
                 )
 
-                @scope_sel['on_value'].emit_now
+                @scope_sel['on_value'].partial(sc._self).emit_now
                 def _(value: sc.Property):
                     state['current_projects'] = state['project_by_scope'][
                         value.get()
@@ -153,8 +157,58 @@ def _project_list():
                 state.current_projects, lambda this: list(this.keys())
             )
 
-        with v3.Button('Refresh', width='stretch') as btn:
+            @curr_proj_list['on_value'].partial(sc._self).emit_now
+            def _(value: sc.Property):
+                _version_bumps(state.current_projects.get()[value.get()])
+
+        with v3.Button('Rescan projects', width='stretch') as btn:
             btn.on_click.connect(_rescan_projects)
+
+
+def _version_bumps(proj_info: T.ProjectInfo):
+    proj_path = proj_info['project_path']
+    proj_ver = proj_info['version']
+    proj_dist = proj_info['dist_file']
+    proj_dist_exist = fs.exist(proj_dist)
+
+    with v3.Column(border=True):
+        with v3.Grid(columns=2) as grid:
+            curr_ver = proj_ver
+            next_ver = _bump_least_version(curr_ver)
+            with grid[0, 0]:  # __getitem__(self, (row, col)) -> CellContainer
+                with _thick_button(
+                    'Bump version',
+                    '(:{}[{}] -> :gray[{}])'.format(
+                        'green' if proj_dist_exist else 'gray',
+                        curr_ver,
+                        next_ver,
+                    ),
+                ) as btn:
+
+                    @btn.on_click
+                    def _():
+                        print(
+                            'bump version: {} -> {}'.format(curr_ver, next_ver)
+                        )
+
+
+# ------------------------------------------------------------------------------
+
+
+def _bump_least_version(old_ver: str) -> str:
+    """
+    example:
+        0.12.0   -> 0.12.1
+        0.12.1a9 -> 0.12.1a10
+        0.12.1b0 -> 0.12.1b1
+    """
+    a, b, c, d = (
+        re.match(r'(\d+)\.(\d+)\.(\d+)([ab]\d+)?', old_ver).sure().groups()
+    )
+    if d:
+        return f'{a}.{b}.{c}{d[0]}{int(d[1:]) + 1}'
+    else:
+        return f'{a}.{b}.{int(c) + 1}'
 
 
 def _rescan_projects():
@@ -173,6 +227,17 @@ def _rescan_projects():
     # Use `.set()` so that Property.on_change fires and bound widgets
     # (e.g. `scope_sel.options.bind(state.project_by_scope, ...)`) sync.
     state['project_by_scope'] = by_scope
+
+
+def _thick_button(primary_label, secondary_label, **kwargs):
+    return v3.Button(
+        '{}\n\n{}'.format(primary_label, secondary_label),
+        width='stretch',
+        **kwargs,
+    )
+
+
+# ------------------------------------------------------------------------------
 
 
 def _list_projects() -> T.Projects:

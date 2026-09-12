@@ -61,10 +61,11 @@ def click_counter_demo():
         # updated via `txt.text.set(...)`, which emits `txt.text.on_change`.
         with sc.v3.Text('Click count: 0') as txt:
             # `state.count.on_change` is a Signal. Using it as a decorator
-            # registers the handler. When `count` changes, the signal emits
-            # the Property handle itself as the argument, so `cnt` below is
-            # the `count` Property and `cnt.get()` returns its new value.
-            @state.count.on_change
+            # registers the handler. The signal does not pass its owner by
+            # default, so `.partial(sc._self)` binds the Property handle as
+            # the first argument: `cnt` below is the `count` Property and
+            # `cnt.get()` returns its new value.
+            @state.count.on_change.partial(sc._self)
             def _(cnt: sc.Property):
                 txt.text.set('Click count: {}'.format(cnt.get()))
 

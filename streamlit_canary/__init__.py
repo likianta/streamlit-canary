@@ -21,6 +21,8 @@ from .flow import post_events
 from .kernel import Property
 from .kernel import Signal
 from .kernel import StateV2
+from .kernel import _self
+from .kernel import _value
 from .keygen import generate_keygen
 from .opener import open_file
 from .opener import open_folder

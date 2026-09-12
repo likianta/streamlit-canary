@@ -15,7 +15,6 @@ from __future__ import annotations
 import typing as tp
 
 from .property import Property
-from .signal import Signal
 
 
 class PropertyHost:
@@ -64,7 +63,6 @@ class PropertyHost:
             # dynamic property: convert to bound handle and register
             value.name = name
             value._instance = self
-            value.on_change = Signal(owner_factory=lambda: (value,))
             # ensure the stores exist (in case __init__ wasn't called yet)
             stores = getattr(self, '_values', None)
             if stores is None:

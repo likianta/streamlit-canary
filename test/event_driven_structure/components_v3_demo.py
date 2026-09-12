@@ -66,9 +66,9 @@ check('text default is "init"', t.text.get() == 'init')
 check("t['text'] == 'init'", t['text'] == 'init')
 
 changes: list = []
-# `t.text.on_change` emits the text Property handle as its argument, exactly
-# like state.count.on_change.
-t.text.on_change.connect(lambda _h: changes.append(t.text.get()))
+# `t.text.on_change` emits no arguments by default (the owner is not
+# injected). Bind `sc._self` if the handler needs the Property handle.
+t.text.on_change.connect(lambda: changes.append(t.text.get()))
 
 t.text.set('updated')
 check('text.set updates value', t.text.get() == 'updated')
@@ -122,7 +122,7 @@ display = Text('Click count: 0')
 button = Button('Increase counter', type='primary')
 
 
-@state.count.on_change
+@state.count.on_change.partial(sc._self)
 def _update(cnt: Property):
     display.text.set('Click count: {}'.format(cnt.get()))
 
@@ -146,7 +146,7 @@ check('display updated to 3', display.text.get() == 'Click count: 3')
 with Row() as outer:
     with Text('Click count: 0') as demo_txt:
 
-        @state.count.on_change
+        @state.count.on_change.partial(sc._self)
         def _(cnt: Property):
             demo_txt.text.set('Click count: {}'.format(cnt.get()))
 
