@@ -63,9 +63,12 @@ class T:
 
 
 class _State(sc.StateV2):
+    build_message: sc.Property[str]
+    current_scope: str
     dependency: sc.Property[T.Dependency]
     name_to_project: sc.Property[T.Projects]
     name_to_project_manager: tp.Dict[T.ProjectName, T.DependenciesManager]
+    private_published_files: sc.Property[tp.Set[str]]
     project: sc.Property[T.ProjectInfo]
     project_dependencies: sc.Property[T.Dependencies]
     project_manager: sc.Property[T.DependenciesManager]
@@ -77,6 +80,7 @@ class _State(sc.StateV2):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
+        self.current_scope = 'all'
         self.build_message = sc.Property[str]()
         self.scope_to_projects = sc.Property()
         self.name_to_project = sc.Property()
@@ -85,7 +89,7 @@ class _State(sc.StateV2):
         self.project_manager = sc.Property()
         self.project_dependencies = sc.Property()
         self.dependency = sc.Property()  # current selected dependency item.
-        self.private_published_files = sc.Property[tp.Set[str]]()
+        self.private_published_files = sc.Property[tp.Set[str]](set())
         self.project_revamped = sc.Signal()
         self.project_selected = sc.Signal()
 
@@ -100,23 +104,25 @@ class _State(sc.StateV2):
         @self.project_selected
         def _selected(proj_name: T.ProjectName) -> None:
             self['project'] = self['name_to_project'][proj_name]
-            if proj_name not in self['name_to_project_manager']:
-                mgr = self._analyze_project(self['project'])
-                self['name_to_project_manager'][proj_name] = mgr
-                self['project_dependencies'] = mgr['dependencies']
-                for one in mgr['dependencies'].values():
-                    self['dependency'] = one
-                    break
+            if proj_name in self.name_to_project_manager:
+                # Reuse the analysed manager, so bump/sync flags survive.
+                self._use_manager(self.name_to_project_manager[proj_name])
+            else:
+                self.reload_pyproject(self['project'])
 
-        @self.project_revamped.partial(self.project)
+        @self.project_revamped
         def _revamped(proj: T.ProjectInfo) -> None:
-            # self['name_to_project_manager'].pop(proj['name'], None)
-            mgr = self._analyze_project(proj)
-            self['name_to_project_manager'][proj['name']] = mgr
-            self['project_dependencies'] = mgr['dependencies']
-            for one in mgr['dependencies'].values():
-                self['dependency'] = one
-                break
+            mgr = self.name_to_project_manager.get(proj['name'])
+            if mgr is None:
+                self.reload_pyproject(proj)
+            else:
+                # Only the project *version* changed: re-read the file so the
+                # toml handler's in-memory lines match the new version, but
+                # keep the dependency bump/sync state untouched.
+                mgr['toml_handler'].reload()
+            # `project` is the very dict we just mutated, so `set()` would not
+            # emit; force-refresh the project-derived UI (button texts).
+            self['on_project'].emit()
 
         self.refresh_projects()
 
@@ -138,12 +144,34 @@ class _State(sc.StateV2):
             )
             by_scope[scope][name] = info
         self.scope_to_projects.set(by_scope)
-        self.name_to_project.set(by_scope['all'])
+        # `name_to_project` follows the scope currently chosen in the UI,
+        # instead of always falling back to "all".
+        if not by_scope.get(self.current_scope):
+            self.current_scope = 'all'
+        self.name_to_project.set(by_scope[self.current_scope])
         for first in self.name_to_project.get().values():
-            self.project.set(first)
+            # Selecting the project loads (or reuses) its dependency manager,
+            # so `project_manager` / `project_dependencies` are never left
+            # unset.
+            self.project_selected.emit(first['name'])
             break
         else:
             raise Exception('No project in "all" scope!')
+
+    def reload_pyproject(self, project: T.ProjectInfo) -> None:
+        """Re-read `project`'s pyproject file and rebuild its manager."""
+        mgr = self._analyze_project(project)
+        self.name_to_project_manager[project['name']] = mgr
+        self._use_manager(mgr)
+
+    def _use_manager(self, mgr: T.DependenciesManager) -> None:
+        """Point `project_manager` / `project_dependencies` / `dependency`
+        at `mgr`."""
+        self['project_manager'] = mgr
+        self['project_dependencies'] = mgr['dependencies']
+        for one in mgr['dependencies'].values():
+            self['dependency'] = one
+            break
 
     def _analyze_project(self, project: T.ProjectInfo) -> T.DependenciesManager:
         deps: T.Dependencies = {}
@@ -367,6 +395,16 @@ def _dependency_manager() -> None:
                 state['on_project_manager'].emit()
                 deps_radio.options.on_change.emit()
 
+        with v3.Button('Reload pyproject file') as btn:
+
+            @btn.on_click
+            def _reload_pyproject():
+                print(
+                    'reload pyproject.toml',
+                    fs.filetime(state['project']['pyproject_file'], str),
+                )
+                state.reload_pyproject(state['project'])
+
 
 def _project_list() -> None:
     """
@@ -416,6 +454,7 @@ def _project_list() -> None:
 
                 @scope_sel['on_value'].partial(sc._value)
                 def _(value: str):
+                    state.current_scope = value
                     state['name_to_project'] = state['scope_to_projects'][value]
                     print(
                         'scope: {}'.format(value), len(state['name_to_project'])
@@ -451,11 +490,15 @@ def _project_list() -> None:
                 )
 
             @state.project_revamped.partial(state.name_to_project)
-            @state['on_name_to_project'].partial(sc._self)
-            def _refresh_labels(name_to_project, *_):
-                scope_sel['options'] = [
+            @state['on_name_to_project'].partial(sc._self).emit_now
+            def _refresh_labels(
+                name_to_project: sc.Property[T.Projects], *_
+            ) -> None:
+                curr_proj_list['options'] = [
                     _project_key_to_label(index, key, info)
-                    for index, (key, info) in enumerate(name_to_project.items())
+                    for index, (key, info) in enumerate(
+                        name_to_project.get().items()
+                    )
                 ]
 
             @curr_proj_list['on_value'].partial(sc._value)
@@ -532,6 +575,11 @@ def _version_bumps() -> None:
                         verbose=True,
                         cwd=proj_info['project_path'],
                     )
+                    state['build_message'] = (
+                        'Successfully built :blue[{}].'.format(
+                            fs.filename(proj_info['dist_file'])
+                        )
+                    )
 
         with grid[1, 0]:
             with v3.Button('Publish to private host...') as btn:
@@ -586,6 +634,11 @@ def _version_bumps() -> None:
             ):
                 pass  # TODO
 
+    v3.Success(
+        state.build_message,
+        visible=sc.bind(state.build_message, lambda x: bool(x)),
+    )
+
 
 # ------------------------------------------------------------------------------
 
@@ -635,6 +688,16 @@ class PyProjTomlHandler:
                 )
                 raise
         assert flag == 'END'
+
+    def reload(self) -> None:
+        """Re-read the file from disk.
+
+        Keeps `self._lines` in sync with edits made outside this handler
+        (e.g. the project version bumped by `_version_bumps`), while the
+        dependency line handlers keep writing into the fresh list.
+        """
+        self._text = fs.load(self._file, 'plain')
+        self._lines = self._text.splitlines()
 
     def save(self) -> None:
         fs.dump(self._lines, self._file, 'plain')

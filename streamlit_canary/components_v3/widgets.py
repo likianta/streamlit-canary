@@ -158,6 +158,28 @@ class Spinner(Component):
         return super().__exit__(*exc)
 
 
+class Success(Component):
+    """A green success alert box (mirrors Streamlit's `st.success`).
+
+    Properties:
+        text:    str  — the message (bindable; `:color[..]` markup allowed)
+        visible: bool — whether the alert is shown (bindable)
+    """
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        visible: bool | Property = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.text = Property('')
+        self.text.set_or_bind(text)
+        self.visible = Property(False)
+        self.visible.set_or_bind(visible)
+
+
 class Grid(Component):
     """A grid layout container.
 
@@ -235,6 +257,7 @@ class Selectbox(Component):
         label: str | Property = '',
         *,
         format_func: tp.Callable[[tp.Any], str] | None = None,
+        label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -243,6 +266,7 @@ class Selectbox(Component):
         self.options = Property([])
         self.value = Property('')
         self.format_func: tp.Callable[[tp.Any], str] = format_func or str
+        self._label_visibility = label_visibility
         self.options.on_change.connect(self._auto_select)
 
     def _auto_select(self) -> None:
@@ -275,6 +299,7 @@ class Radio(Component):
         label: str | Property = '',
         *,
         format_func: tp.Callable[[tp.Any], str] | None = None,
+        label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -283,6 +308,7 @@ class Radio(Component):
         self.options = Property([])
         self.value = Property('')
         self.format_func: tp.Callable[[tp.Any], str] = format_func or str
+        self._label_visibility = label_visibility
         self.options.on_change.connect(self._auto_select)
 
     def _auto_select(self) -> None:

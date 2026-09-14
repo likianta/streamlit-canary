@@ -15,6 +15,7 @@ from .widgets import Radio
 from .widgets import Row
 from .widgets import Selectbox
 from .widgets import Spinner
+from .widgets import Success
 from .widgets import Text
 from .widgets import Title
 
@@ -29,6 +30,7 @@ __all__ = [
     'Row',
     'Selectbox',
     'Spinner',
+    'Success',
     'Text',
     'Title',
 ]
