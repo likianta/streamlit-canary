@@ -2,18 +2,22 @@
 Starlette-based web server for the event-driven runtime.
 
 Routes:
-    GET  /    → render the component tree as HTML
-    WS   /ws  → bidirectional channel for client events and server deltas
+    GET  /                        → render the component tree as HTML
+    GET  /fonts/source-sans.woff2 → the bundled "Source Sans" UI font
+    WS   /ws                      → bidirectional channel for client events
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 
 from starlette.applications import Starlette
 from starlette.requests import Request
+from starlette.responses import FileResponse
 from starlette.responses import HTMLResponse
+from starlette.responses import Response
 from starlette.routing import Route
 from starlette.routing import WebSocketRoute
 from starlette.websockets import WebSocket
@@ -21,6 +25,12 @@ from starlette.websockets import WebSocketDisconnect
 
 from .render import render_page
 from .runtime import Runtime
+
+# 'Source Sans' is Streamlit's UI font. The same variable font is bundled
+# here (copied from the Streamlit package) so text metrics match exactly.
+_FONT_PATH = (
+    Path(__file__).resolve().parent / 'static' / 'SourceSansVF-Upright.woff2'
+)
 
 
 class WebSocketClient:
@@ -54,6 +64,11 @@ def create_app(runtime: Runtime) -> Starlette:
             )
         )
 
+    async def font_endpoint(request: Request) -> Response:
+        if not _FONT_PATH.is_file():
+            return Response(status_code=404)
+        return FileResponse(_FONT_PATH, media_type='font/woff2')
+
     async def ws_endpoint(ws: WebSocket) -> None:
         await ws.accept()
         client = WebSocketClient(ws)
@@ -75,7 +90,11 @@ def create_app(runtime: Runtime) -> Starlette:
             runtime.remove_ws_client(client)
 
     return Starlette(
-        routes=[Route('/', homepage), WebSocketRoute('/ws', ws_endpoint)]
+        routes=[
+            Route('/', homepage),
+            Route('/fonts/source-sans.woff2', font_endpoint),
+            WebSocketRoute('/ws', ws_endpoint),
+        ]
     )
 
 

@@ -16,7 +16,9 @@ import typing as tp
 
 from ..components_v3.base import Component
 from ..components_v3.widgets import Button
+from ..components_v3.widgets import Cell
 from ..components_v3.widgets import Column
+from ..components_v3.widgets import Grid
 from ..components_v3.widgets import Radio
 from ..components_v3.widgets import Row
 from ..components_v3.widgets import Selectbox
@@ -58,6 +60,8 @@ _COLOR_CSS = {
 
 def render_markup(text: str) -> str:
     """Convert Streamlit-style markup to HTML-safe spans."""
+    # Typographer (matches Streamlit's markdown): '->' renders as an arrow.
+    text = text.replace('->', '\u2192')
     text = html.escape(text)
 
     def _mat(m: re.Match) -> str:
@@ -89,6 +93,17 @@ def render_tree(roots: tp.Iterable[Component]) -> str:
 
 
 def _render(comp: Component) -> str:
+    if isinstance(comp, Grid):
+        cells = sorted(comp._cells.values(), key=lambda c: (c._row, c._col))
+        children = ''.join(_render(c) for c in cells)
+        return (
+            f'<div class="st-grid" data-id="{comp.id}" '
+            f'style="grid-template-columns:repeat({comp._columns},1fr)">'
+            f'{children}</div>'
+        )
+    if isinstance(comp, Cell):
+        children = ''.join(_render(c) for c in comp.children)
+        return f'<div class="st-grid-cell" data-id="{comp.id}">{children}</div>'
     if isinstance(comp, Row):
         children = ''.join(_render(c) for c in comp.children)
         valign = getattr(comp, '_vertical_alignment', 'top')
@@ -110,7 +125,9 @@ def _render(comp: Component) -> str:
         width_style = ''
         w = getattr(comp, '_width', None)
         if isinstance(w, int):
-            width_style = f' style="width:{w}px"'
+            # Fixed-width column: opt out of `.st-row > * { flex: 1 }` so the
+            # explicit width is honored and the sibling column fills the rest.
+            width_style = f' style="flex:0 0 {w}px;width:{w}px"'
         return (
             f'<div class="st-container{border_cls}" data-id="{comp.id}"'
             f'{width_style}>{children}</div>'
@@ -130,8 +147,21 @@ def _render(comp: Component) -> str:
     return ''.join(_render(c) for c in comp.children)
 
 
+def _render_paragraphs(text: str) -> str:
+    """Render markdown-style paragraphs: blank lines split into `<p>`.
+
+    Matches Streamlit's markdown behavior, where a blank line starts a new
+    paragraph (a single newline inside a paragraph becomes a soft break).
+    """
+    text = text.strip('\n')
+    if text == '':
+        return ''
+    parts = re.split(r'\n[ \t]*\n', text)
+    return ''.join(f'<p>{render_markup(p)}</p>' for p in parts)
+
+
 def _render_button(comp: Button) -> str:
-    label = render_markup(str(comp.label.get()))
+    label = _render_paragraphs(str(comp.text.get()))
     btn_type = getattr(comp, '_type', 'secondary')
     # Streamlit: type="secondary" is default, "primary" is the accent button.
     st_type = 'primary' if btn_type == 'primary' else 'secondary'
@@ -145,7 +175,7 @@ def _render_button(comp: Button) -> str:
     return (
         f'<button class="{cls}" data-id="{comp.id}" '
         f'onclick="scSendClick(this)"{width_style}{help_attr}>'
-        f'{label}</button>'
+        f'<span class="st-btn-text">{label}</span></button>'
     )
 
 
@@ -233,8 +263,8 @@ _DARK_THEME_VARS = """
     --st-widget-border-color: #30363d;
     --st-base-radius: 8px;
     --st-button-radius: 6px;
-    --st-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
-    --st-heading-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
+    --st-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --st-heading-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --st-code-font: "Source Code Pro", "SF Mono", monospace;
     --st-base-font-size: 14px;
     --st-base-font-weight: 400;
@@ -258,8 +288,8 @@ _LIGHT_THEME_VARS = """
     --st-widget-border-color: #d0d7de;
     --st-base-radius: 8px;
     --st-button-radius: 6px;
-    --st-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
-    --st-heading-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Source Sans 3", sans-serif;
+    --st-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --st-heading-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --st-code-font: "Source Code Pro", "SF Mono", monospace;
     --st-base-font-size: 14px;
     --st-base-font-weight: 400;
@@ -272,6 +302,16 @@ _LIGHT_THEME_VARS = """
 """
 
 _PAGE_CSS = """
+  /* 'Source Sans' is Streamlit's UI font, bundled in this package and
+     served at /fonts/source-sans.woff2 (see server.py). It keeps text
+     metrics identical to Streamlit's. */
+  @font-face {
+    font-family: 'Source Sans';
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/source-sans.woff2') format('woff2');
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: var(--st-font);
@@ -336,6 +376,20 @@ _PAGE_CSS = """
     padding: 16px;
   }
 
+  /* Layout: Grid */
+  .st-grid {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: stretch;
+  }
+  .st-grid-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
   /* Widget label */
   .st-widget-label {
     display: block;
@@ -352,17 +406,26 @@ _PAGE_CSS = """
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 16px;
-    min-height: 38px;
+    padding: 4px 12px;
+    min-height: 40px;
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     font-family: var(--st-font);
     font-size: 14px;
     font-weight: 400;
-    line-height: 1.4;
+    line-height: 1.6;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s;
     user-select: none;
+    text-align: center;
+  }
+  /* Multi-line labels render one `<p>` per markdown paragraph (like
+     Streamlit), so the button keeps a tight two-line box. */
+  .st-btn-text {
+    display: block;
+  }
+  .st-btn-text p {
+    margin: 0;
   }
   .st-btn-secondary {
     background-color: var(--st-secondary-background-color);
@@ -559,6 +622,8 @@ _PAGE_JS = """
       if (el.classList.contains('st-selectbox') || el.classList.contains('st-radio')) {
         const labelEl = el.querySelector('.st-widget-label');
         if (labelEl) labelEl.textContent = msg.value;
+      } else if (el.classList.contains('st-btn')) {
+        el.innerHTML = window.scRenderButtonText(msg.value);
       } else {
         el.innerHTML = window.scRenderMarkup(msg.value);
       }
@@ -693,8 +758,10 @@ _PAGE_JS = """
   });
   // expose markup renderer for WS patches
   window.scRenderMarkup = function(text) {
+    // typographer: '->' renders as an arrow (matches Streamlit markdown)
+    let s = String(text).replace(/->/g, '\u2192');
     // escape
-    let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     // :material/icon:
     const matMap = {autorenew:'\u21bb',refresh:'\u21bb',delete:'\u2715',add:'+',check:'\u2713',close:'\u2715',edit:'\u270e',search:'\U0001f50d',settings:'\u2699',download:'\u2b07',upload:'\u2b06'};
     s = s.replace(/:material\/([a-zA-Z_]+):/g, (m,n) => `<span class="st-icon">${matMap[n]||'\u25a1'}</span>`);
@@ -705,6 +772,13 @@ _PAGE_JS = """
       return css ? `<span style="color:${css}">${t}</span>` : `<span class="st-text-${c}">${t}</span>`;
     });
     return s;
+  };
+  // expose button-text renderer: one <p> per blank-line-separated block,
+  // mirroring the Python-side `_render_paragraphs`.
+  window.scRenderButtonText = function(text) {
+    const NL = String.fromCharCode(10);
+    const parts = String(text).split(NL + NL).map(p => p.trim()).filter(p => p.length > 0);
+    return '<span class="st-btn-text">' + parts.map(p => '<p>' + window.scRenderMarkup(p) + '</p>').join('') + '</span>';
   };
 """
 
