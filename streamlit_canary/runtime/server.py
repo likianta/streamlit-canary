@@ -34,20 +34,22 @@ _FONT_PATH = (
 
 
 class WebSocketClient:
-    """Thin wrapper around a Starlette WebSocket used by the Runtime."""
+    """Thin wrapper around a Starlette WebSocket used by the Runtime.
+
+    ``send_json`` must be callable from *any* thread — signal handlers may
+    run in a worker thread (see ``ws_endpoint`` below), so we capture the
+    event loop at construction time and use ``run_coroutine_threadsafe``
+    to schedule the send back on the loop thread.
+    """
 
     def __init__(self, ws: WebSocket) -> None:
         self._ws = ws
+        self._loop = asyncio.get_running_loop()
 
     def send_json(self, message: dict) -> None:
-        # `WebSocket.send_json` is a coroutine. Signal handlers run
-        # synchronously from within the async websocket loop, so there is a
-        # running event loop we can schedule the send on.
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return
-        loop.create_task(self._ws.send_json(message))
+        asyncio.run_coroutine_threadsafe(
+            self._ws.send_json(message), self._loop
+        )
 
 
 def create_app(runtime: Runtime) -> Starlette:
@@ -79,10 +81,17 @@ def create_app(runtime: Runtime) -> Starlette:
                 message = json.loads(data)
                 msg_type = message.get('type')
                 if msg_type == 'event':
-                    runtime.on_event(
+                    # Run the handler in a worker thread so that blocking
+                    # calls (e.g. ``time.sleep``) don't block the event
+                    # loop.  Delta patches produced during the handler
+                    # are scheduled back on the loop via
+                    # ``run_coroutine_threadsafe`` and reach the client
+                    # immediately.
+                    await asyncio.to_thread(
+                        runtime.on_event,
                         message['id'],
                         message['event'],
-                        value=message.get('value'),
+                        message.get('value'),
                     )
         except WebSocketDisconnect:
             pass

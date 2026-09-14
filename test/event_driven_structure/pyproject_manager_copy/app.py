@@ -6,12 +6,15 @@ import os
 import typing as tp
 from collections import defaultdict
 from functools import partial
+from time import sleep
 
 import streamlit_canary as sc
 from lk_utils import fs
 from lk_utils import re
 
-# `run_cmd_args` is only used by the temporarily-disabled `Sync & lock` code.
+# `run_cmd_args` is only used by the temporarily-disabled code (uv build /
+# uv sync / uv publish).  It is kept here so the commented-out blocks
+# below stay readable.
 from lk_utils import run_cmd_args  # noqa: F401
 from neoprint import print
 
@@ -240,103 +243,80 @@ def _dependency_manager():
         def _set_dependency(dep_name: str):
             state.dependency.set(state['project_dependencies'][dep_name])
 
+    _spinner = v3.Spinner(visible=False)
+
     with v3.Row():
         with v3.Button('Bump version') as btn:
             btn.enabled.bind(
                 state.dependency, lambda this: not this['is_latest']
             )
 
-            # NOTE: the real logic below is temporarily commented out: it
-            # rewrites `pyproject.toml`, which is potentially destructive.
-            # For now we only print what it would do. It will be restored
-            # (and really tested) in a later iteration.
-            #
-            # @btn.on_click
-            # def _bump_this_version():
-            #     dep: T.Dependency = state['dependency']
-            #     mgr: T.DependenciesManager = state['project_manager']
-            #     assert (
-            #         dep['latest_version'] is not None and not dep['is_latest']
-            #     )
-            #     dep['setter'](
-            #         '{}{}{}{}'.format(
-            #             dep['name'],
-            #             '[{}]'.format(dep['markers']['extra'])
-            #             if dep['markers']['extra']
-            #             else '',
-            #             dep['operator'],
-            #             dep['latest_version'],
-            #         )
-            #     )
-            #     dep['current_version'] = dep['latest_version']
-            #     dep['is_latest'] = True
-            #     mgr['bumped_but_not_synced'].add(dep['name'])
-            #     mgr['todo_bump'] = not all(
-            #         d['is_latest'] for d in mgr['dependencies'].values()
-            #     )
-            #     mgr['todo_sync'] = True
-            #     mgr['toml_handler'].save()
-
             @btn.on_click
             def _bump_this_version():
                 dep: T.Dependency = state['dependency']
-                print(
-                    '(TODO) bump this version: {} {} -> {}'.format(
-                        dep['name'],
-                        dep['current_version'],
-                        dep['latest_version'],
-                    ),
-                    ':r2',
+                mgr: T.DependenciesManager = state['project_manager']
+                assert (
+                    dep['latest_version'] is not None and not dep['is_latest']
                 )
+                # Modify the in-memory toml line (not written to disk).
+                dep['setter'](
+                    '{}{}{}{}'.format(
+                        dep['name'],
+                        '[{}]'.format(dep['markers']['extra'])
+                        if dep['markers']['extra']
+                        else '',
+                        dep['operator'],
+                        dep['latest_version'],
+                    )
+                )
+                dep['current_version'] = dep['latest_version']
+                dep['is_latest'] = True
+                mgr['bumped_but_not_synced'].add(dep['name'])
+                mgr['todo_bump'] = not all(
+                    d['is_latest'] for d in mgr['dependencies'].values()
+                )
+                mgr['todo_sync'] = True
+                # NOTE: commented out — writes to pyproject.toml.
+                # mgr['toml_handler'].save()
+                # Trigger UI updates (in-memory state changed, but the
+                # Property holds the same dict object, so we force-emit).
+                state['on_dependency'].emit()
+                state['on_project_manager'].emit()
+                deps_radio.options.on_change.emit()
 
         with v3.Button('Bump all versions') as btn:
             btn.enabled.bind(
                 state.project_manager, lambda this: this['todo_bump']
             )
 
-            # NOTE: the real logic below is temporarily commented out (it
-            # rewrites `pyproject.toml`); see the note above.
-            #
-            # @btn.on_click
-            # def _bump_all_versions():
-            #     mgr: T.DependenciesManager = state['project_manager']
-            #     deps: T.Dependencies = mgr['dependencies']
-            #
-            #     for dep in deps.values():
-            #         if not dep['is_latest']:
-            #             dep['setter'](
-            #                 '{}{}{}{}'.format(
-            #                     dep['name'],
-            #                     '[{}]'.format(dep['markers']['extra'])
-            #                     if dep['markers']['extra']
-            #                     else '',
-            #                     dep['operator'],
-            #                     dep['latest_version'],
-            #                 )
-            #             )
-            #             dep['current_version'] = dep['latest_version']
-            #             dep['is_latest'] = True
-            #             mgr['bumped_but_not_synced'].add(dep['name'])
-            #
-            #     mgr['todo_bump'] = False
-            #     mgr['todo_sync'] = True
-            #
-            #     state['toml_handler'].save()
-            #     print('file updated', state['project']['pyproject_file'])
-            # v3.Toast(
-            #     'File updated: {}'.format(pyproj_data['pyproject_file']),
-            #     duration='long',
-            # )
-
             @btn.on_click
             def _bump_all_versions():
                 mgr: T.DependenciesManager = state['project_manager']
-                pending = [
-                    dep['name']
-                    for dep in mgr['dependencies'].values()
-                    if not dep['is_latest']
-                ]
-                print('(TODO) bump all versions: {}'.format(pending), ':r2')
+                deps: T.Dependencies = mgr['dependencies']
+                for dep in deps.values():
+                    if not dep['is_latest']:
+                        dep['setter'](
+                            '{}{}{}{}'.format(
+                                dep['name'],
+                                '[{}]'.format(dep['markers']['extra'])
+                                if dep['markers']['extra']
+                                else '',
+                                dep['operator'],
+                                dep['latest_version'],
+                            )
+                        )
+                        dep['current_version'] = dep['latest_version']
+                        dep['is_latest'] = True
+                        mgr['bumped_but_not_synced'].add(dep['name'])
+                mgr['todo_bump'] = False
+                mgr['todo_sync'] = True
+                # NOTE: commented out — writes to pyproject.toml.
+                # mgr['toml_handler'].save()
+                # print('file updated', state['project']['pyproject_file'])
+                # Trigger UI updates.
+                state['on_dependency'].emit()
+                state['on_project_manager'].emit()
+                deps_radio.options.on_change.emit()
 
         with v3.Button(
             'Sync & lock',
@@ -344,38 +324,25 @@ def _dependency_manager():
                 state.project_manager, lambda this: this['todo_sync']
             ),
         ) as btn:
-            # NOTE: the real logic below is temporarily commented out: it
-            # runs `uv sync`, which is slow and mutates the environment.
-            #
-            # @btn.on_click
-            # def _sync_and_lock():
-            #     # this function will take several seconds.
-            #     assert state['project_manager']['todo_sync']
-            #     with _spinner('Syncing...'):
-            #         #   `__enter__` shows spinner (visible=True) and starts
-            #         #   infinite spinning animation.
-            #         #   `__call__` renders spinner text.
-            #         #   `__exit__` stops spinning animation, and sets
-            #         #   spinner visibility back to before state.
-            #         run_cmd_args(
-            #             ('uv', 'sync', '--no-install-project'),
-            #             verbose=True,
-            #             cwd=state['project']['project_path'],
-            #         )
-            #     state['project_manager']['todo_sync'] = False
-            #     state['project_manager']['bumped_but_not_synced'].clear()
-            #     state['on_project_manager'].emit()
 
             @btn.on_click
             def _sync_and_lock():
-                print(
-                    '(TODO) sync & lock: {}'.format(
-                        state['project']['project_path']
-                    ),
-                    ':r2',
-                )
-
-    _spinner = v3.Spinner(visible=False)
+                # This function will take several seconds.
+                assert state['project_manager']['todo_sync']
+                with _spinner('Syncing...'):
+                    # NOTE: commented out — runs `uv sync` which mutates
+                    # the environment.
+                    # run_cmd_args(
+                    #     ('uv', 'sync', '--no-install-project'),
+                    #     verbose=True,
+                    #     cwd=state['project']['project_path'],
+                    # )
+                    sleep(3)
+                state['project_manager']['todo_sync'] = False
+                state['project_manager']['bumped_but_not_synced'].clear()
+                # Trigger UI updates.
+                state['on_project_manager'].emit()
+                deps_radio.options.on_change.emit()
 
 
 def _project_list():
@@ -501,11 +468,29 @@ def _version_bumps():
                     proj_info = state['project']
                     curr_ver = proj_info['version']
                     next_ver = _bump_least_version(curr_ver)
+                    # NOTE: commented out — writes to pyproject.toml.
+                    # pyproj_file = proj_info['pyproject_file']
+                    # old_content = fs.load(pyproj_file, 'plain')
+                    # new_content = old_content.replace(
+                    #     'version = "{}"'.format(curr_ver),
+                    #     'version = "{}"'.format(next_ver),
+                    #     1,
+                    # )
+                    # fs.dump(new_content, pyproj_file, 'plain')
+                    # Update in-memory state.
+                    proj_info['version'] = next_ver
+                    proj_info['dist_file'] = proj_info['dist_file'].replace(
+                        '{}-py3-none-any.whl'.format(curr_ver),
+                        '{}-py3-none-any.whl'.format(next_ver),
+                    )
+                    # Trigger UI updates (Grid button texts + project
+                    # radio labels).
+                    state['on_project'].emit()
+                    state['on_project_by_name'].emit()
                     print(
-                        '(TODO) bump version: {} -> {}'.format(
+                        'bumped version in memory: {} -> {}'.format(
                             curr_ver, next_ver
-                        ),
-                        ':r2',
+                        )
                     )
 
         with grid[0, 1]:
@@ -520,16 +505,26 @@ def _version_bumps():
                         proj_info['version'],
                     )
 
-                # NOTE: no actual logic yet. just connect on_click to a
-                # print statement.
                 @btn.on_click
                 def _() -> None:
                     proj_info = state['project']
+                    # NOTE: commented out — runs `uv build --wheel`.
+                    # if proj_info['build_tool'] == 'uv':
+                    #     run_cmd_args(
+                    #         ('uv', 'build', '--wheel'),
+                    #         verbose=True,
+                    #         cwd=proj_info['project_path'],
+                    #     )
+                    # else:
+                    #     run_cmd_args(
+                    #         ('poetry', 'build', '-f', 'wheel'),
+                    #         verbose=True,
+                    #         cwd=proj_info['project_path'],
+                    #     )
                     print(
-                        '(TODO) build wheel package: {} {}'.format(
+                        '(skipped) build wheel: {} {}'.format(
                             proj_info['name'], proj_info['version']
-                        ),
-                        ':r2',
+                        )
                     )
 
         with grid[1, 0]:
@@ -544,16 +539,23 @@ def _version_bumps():
                         proj_info['version'],
                     )
 
-                # NOTE: no actual logic yet. just connect on_click to a
-                # print statement.
                 @btn.on_click
                 def _() -> None:
                     proj_info = state['project']
+                    # NOTE: commented out — uploads to private host.
+                    # url = 'http://{}/{}/{}'.format(
+                    #     'localhost:2132',
+                    #     fs.filename(dist_file)
+                    #     .split('-')[0]
+                    #     .replace('_', '-'),
+                    #     fs.filename(dist_file),
+                    # )
+                    # with open(dist_file, 'rb') as f:
+                    #     requests.put(url, data=f)
                     print(
-                        '(TODO) publish to private host: {} {}'.format(
+                        '(skipped) publish to private host: {} {}'.format(
                             proj_info['name'], proj_info['version']
-                        ),
-                        ':r2',
+                        )
                     )
 
         with grid[1, 1]:
@@ -568,16 +570,22 @@ def _version_bumps():
                         proj_info['version'],
                     )
 
-                # NOTE: no actual logic yet. just connect on_click to a
-                # print statement.
                 @btn.on_click
                 def _() -> None:
                     proj_info = state['project']
+                    # NOTE: commented out — runs `uv publish` (network push).
+                    # run_cmd_args(
+                    #     (
+                    #         'uv', 'publish', '--token', token,
+                    #         proj_info['dist_file'],
+                    #     ),
+                    #     verbose=True,
+                    #     cwd=proj_info['project_path'],
+                    # )
                     print(
-                        '(TODO) publish to public host: {} {}'.format(
+                        '(skipped) publish to public host: {} {}'.format(
                             proj_info['name'], proj_info['version']
-                        ),
-                        ':r2',
+                        )
                     )
 
 
