@@ -1375,7 +1375,7 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0a9"
+version = "0.4.0a10"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -1388,6 +1388,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "requests" },
     { name = "starlette" },
     { name = "streamlit-extras" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1405,6 +1406,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "requests", specifier = ">=2.34.2" },
     { name = "starlette", specifier = ">=1.6.0" },
     { name = "streamlit-extras", specifier = ">=1.6.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
