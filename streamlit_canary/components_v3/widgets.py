@@ -30,7 +30,6 @@ class Row(Component):
 
     def __init__(
         self,
-        *,
         vertical_alignment: tp.Literal['top', 'center', 'bottom'] = 'top',
         **kwargs: tp.Any,
     ) -> None:

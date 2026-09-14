@@ -97,12 +97,19 @@
   /* Layout: Row */
   .st-row {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: flex-start;
     margin-bottom: 8px;
   }
   .st-row > * { flex: 1; }
   .st-row > .st-btn-secondary { flex: 0 0 auto; }
+  /* Stretchy widgets take the remaining space, so they must be allowed to
+  shrink below their min-content width. Otherwise a wide widget pushes its
+  sibling (e.g. the refresh icon button) onto the next line. Buttons are
+  deliberately excluded: they keep their intrinsic width and wrap instead. */
+  .st-row > .st-selectbox,
+  .st-row > .st-radio { min-width: 0; }
   /* Neutralize widget bottom margins so `align-items` aligns the actual
   box edges, not the margin box. Use higher specificity than single-class
   widget rules (e.g. `.st-selectbox { margin-bottom: 8px }`). */
