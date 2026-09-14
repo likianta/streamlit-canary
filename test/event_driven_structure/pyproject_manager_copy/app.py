@@ -202,7 +202,7 @@ class _State(sc.StateV2):
 
 def main():
     sc.set_page_config('Pyproject Manager', layout='wide', default_theme='dark')
-    v3.Title('Pyproject Manager')
+    # v3.Title('Pyproject Manager')
     with v3.Row():
         with v3.Column(width=300):
             _project_list()

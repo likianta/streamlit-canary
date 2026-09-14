@@ -50,14 +50,18 @@ _MATERIAL_MAP = {
     'upload': '\u2b06',
 }
 
+# Streamlit's "basic color palette" *text* colors for the dark theme (see
+# `config.py: *_TextColor`). This is what `:orange[..]`, `:green[..]`, etc.
+# resolve to inside markdown, radios, captions, ...
 _COLOR_CSS = {
-    'red': '#ff4b4b',
-    'green': '#09ab3b',
-    'blue': '#1c83f0',
-    'orange': '#ffa422',
-    'gray': '#808080',
-    'grey': '#808080',
-    'violet': '#8e3ab3',
+    'red': '#ff6c6c',
+    'orange': '#ffbd45',
+    'yellow': '#ffffc2',
+    'blue': '#3d9df3',
+    'green': '#5ce488',
+    'violet': '#b27eff',
+    'gray': 'rgba(250, 250, 250, 0.6)',
+    'grey': 'rgba(250, 250, 250, 0.6)',
     'rainbow': None,
 }
 
@@ -250,14 +254,19 @@ def _render_radio(comp: Radio) -> str:
     label = render_markup(str(comp.label.get()))
     items = ''.join(
         f'<label class="st-radio-item">'
+        f'<span class="st-radio-input-wrap">'
         f'<input type="radio" name="radio_{comp.id}" '
         f'value="{html.escape(str(o))}" '
         f'{"checked" if o == value else ""} '
         f'onchange="scSendChange(this)" '
-        f'data-comp-id="{comp.id}"/>'
-        f'<span class="st-radio-label-text">'
-        f'{render_markup(fmt(o))}</span>'
-        f'</label>'
+        f'data-comp-id="{comp.id}"/></span>'
+        f'<div class="st-radio-item-body">'
+        f'<div class="st-radio-item-row">'
+        f'<div class="st-radio-circle">'
+        f'<div class="st-radio-dot"></div></div>'
+        f'<div class="st-radio-markdown">'
+        f'<p>{render_markup(fmt(o))}</p>'
+        f'</div></div></div></label>'
         for o in options
     )
     return (
@@ -276,7 +285,7 @@ _DARK_THEME_VARS = """
   :root {
     --st-background-color: #0d1117;
     --st-secondary-background-color: #161b22;
-    --st-text-color: #e6edf3;
+    --st-text-color: #fafafa;
     --st-heading-color: #e6edf3;
     --st-primary-color: #ff4b4b;
     --st-border-color: #30363d;
@@ -284,8 +293,8 @@ _DARK_THEME_VARS = """
     --st-widget-border-color: #30363d;
     --st-base-radius: 8px;
     --st-button-radius: 6px;
-    --st-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --st-heading-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --st-font: "Source Sans", sans-serif;
+    --st-heading-font: "Source Sans", sans-serif;
     --st-code-font: "Source Code Pro", "SF Mono", monospace;
     --st-base-font-size: 14px;
     --st-base-font-weight: 400;
@@ -309,8 +318,8 @@ _LIGHT_THEME_VARS = """
     --st-widget-border-color: #d0d7de;
     --st-base-radius: 8px;
     --st-button-radius: 6px;
-    --st-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --st-heading-font: "Source Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --st-font: "Source Sans", sans-serif;
+    --st-heading-font: "Source Sans", sans-serif;
     --st-code-font: "Source Code Pro", "SF Mono", monospace;
     --st-base-font-size: 14px;
     --st-base-font-weight: 400;
@@ -599,76 +608,86 @@ _PAGE_CSS = """
     border-radius: 3px;
   }
 
-  /* Radio */
-  .st-radio { margin-bottom: 8px; }
+  /* Radio (mirrors Streamlit's `stRadio` markup and metrics) */
+  .st-radio {
+    margin-bottom: 8px;
+  }
+  /* Streamlit's radio shrinks to its content width instead of filling the
+     parent container. Scoped to column containers so it does not disturb
+     vertical alignment when a radio sits inside a Row. */
+  .st-container > .st-radio {
+    align-self: flex-start;
+  }
   .st-radio-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    max-height: 400px;
-    overflow-y: auto;
+    align-items: flex-start;
+    gap: 0;
   }
   .st-radio-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 8px;
-    border-radius: 4px;
+    display: block;
+    padding: 0 2px 0 0;
     cursor: pointer;
-    transition: background-color 0.1s;
+    user-select: none;
   }
-  .st-radio-item:hover {
-    background-color: var(--st-border-color-light);
+  .st-radio-item:has(input:focus-visible) {
+    background-color: rgba(172, 177, 195, 0.25);
   }
-  .st-radio-item input[type="radio"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--st-widget-border-color);
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
-    flex-shrink: 0;
-  }
-  .st-radio-item input[type="radio"]:checked {
-    border-color: var(--st-primary-color);
-    background-color: var(--st-primary-color);
-  }
-  .st-radio-item input[type="radio"]:checked::after {
-    content: "";
+  /* The real <input> is visually hidden; the indicator is drawn with divs. */
+  .st-radio-input-wrap {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #ffffff;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
-  .st-radio-item input[type="radio"]:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(255, 75, 75, 0.2);
-  }
-  .st-radio-label-text {
-    font-size: 14px;
+  .st-radio-item-body {
+    display: flex;
+    flex-direction: column;
     color: var(--st-text-color);
   }
-
-  /* Scrollbar (dark theme) */
-  .st-radio-group::-webkit-scrollbar {
+  .st-radio-item-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .st-radio-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: rgba(250, 250, 250, 0.2);
+  }
+  .st-radio-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: var(--st-background-color);
+  }
+  .st-radio-item:has(input:checked) .st-radio-circle {
+    background-color: var(--st-primary-color);
+  }
+  .st-radio-item:has(input:checked) .st-radio-dot {
     width: 6px;
+    height: 6px;
+    background-color: #ffffff;
   }
-  .st-radio-group::-webkit-scrollbar-track {
-    background: transparent;
+  .st-radio-markdown {
+    display: block;
   }
-  .st-radio-group::-webkit-scrollbar-thumb {
-    background: var(--st-border-color);
-    border-radius: 3px;
-  }
-  .st-radio-group::-webkit-scrollbar-thumb:hover {
-    background: var(--st-gray-color);
+  .st-radio-markdown p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-text-color);
   }
 """
 
@@ -727,11 +746,15 @@ _PAGE_JS = """
         const labels = msg.formatted || msg.value.map(x => x);
         group.innerHTML = msg.value.map((o, i) =>
           `<label class="st-radio-item">` +
+          `<span class="st-radio-input-wrap">` +
           `<input type="radio" name="radio_${id}" value="${o}" ` +
           `${o === currentVal ? 'checked' : ''} ` +
-          `onchange="scSendChange(this)" data-comp-id="${id}"/>` +
-          `<span class="st-radio-label-text">${fmt(labels[i])}</span>` +
-          `</label>`
+          `onchange="scSendChange(this)" data-comp-id="${id}"/></span>` +
+          `<div class="st-radio-item-body">` +
+          `<div class="st-radio-item-row">` +
+          `<div class="st-radio-circle"><div class="st-radio-dot"></div></div>` +
+          `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>` +
+          `</div></div></label>`
         ).join('');
       }
     }
@@ -837,7 +860,7 @@ _PAGE_JS = """
     const matMap = {autorenew:'\u21bb',refresh:'\u21bb',delete:'\u2715',add:'+',check:'\u2713',close:'\u2715',edit:'\u270e',search:'\U0001f50d',settings:'\u2699',download:'\u2b07',upload:'\u2b06'};
     s = s.replace(/:material\/([a-zA-Z_]+):/g, (m,n) => `<span class="st-icon">${matMap[n]||'\u25a1'}</span>`);
     // :color[text]
-    const colMap = {red:'#ff4b4b',green:'#09ab3b',blue:'#1c83f0',orange:'#ffa422',gray:'#808080',grey:'#808080',violet:'#8e3ab3'};
+    const colMap = {red:'#ff6c6c',orange:'#ffbd45',yellow:'#ffffc2',blue:'#3d9df3',green:'#5ce488',violet:'#b27eff',gray:'rgba(250, 250, 250, 0.6)',grey:'rgba(250, 250, 250, 0.6)'};
     s = s.replace(/:([a-zA-Z]+)\[([^\]]*)\]/g, (m,c,t) => {
       const css = colMap[c];
       return css ? `<span style="color:${css}">${t}</span>` : `<span class="st-text-${c}">${t}</span>`;
