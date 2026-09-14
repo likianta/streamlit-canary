@@ -18,7 +18,7 @@ class Property:
 
     def __init__(self, default: tp.Any = _undefined) -> None:
         self.default = default
-        self.value = None if default is _undefined else default
+        self.value = default
         self.on_change = Signal(owner_factory=lambda: self)
 
     def __bool__(self) -> bool:

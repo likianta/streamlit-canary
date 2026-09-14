@@ -5,17 +5,33 @@ A copy from `lib/pyproject_manager` but using streamlit-canary components V3.
 import os
 import typing as tp
 from collections import defaultdict
+from functools import partial
 
 import streamlit_canary as sc
 from lk_utils import fs
 from lk_utils import re
+from lk_utils import run_cmd_args
 from neoprint import print
 
 v3 = sc.v3
 
 
 class T:
+    Dependency = tp.TypedDict(
+        'Dependency',
+        {
+            'name': str,
+            'operator': str,
+            'current_version': str,
+            'latest_version': str,
+            'is_latest': bool,
+            'setter': tp.Callable[[str], None],
+            'markers': dict,
+        },
+    )
     PackageName = str  # kebab-case
+
+    Dependencies = tp.Dict[PackageName, Dependency]
     ProjectInfo = tp.TypedDict(
         'ProjectInfo',
         {
@@ -29,20 +45,157 @@ class T:
             'version': str,
         },
     )
+
+    DependenciesManager = tp.TypedDict(
+        'DependenciesManager',
+        {
+            'dependencies': Dependencies,
+            'toml_handler': 'PyProjTomlHandler',
+            'todo_bump': bool,
+            'todo_sync': bool,
+            'bumped_but_not_synced': tp.Set[PackageName],
+        },
+    )
     Projects = tp.Dict[PackageName, ProjectInfo]
 
 
 class _State(sc.StateV2):
-    def __init__(self) -> None:
-        super().__init__()
-        self.current_projects = sc.Property({})
-        self.project_by_scope = sc.Property(defaultdict(dict))
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+        self.dependency = sc.Property()  # current selected dependency item.
+        self.project = sc.Property()  # current selected project item.
+        self.project_by_name = sc.Property()
+        self.project_dependencies = sc.Property()
+        self.project_manager = sc.Property()
+        self.project_manager_by_name = {}
+        self.projects_by_scope = sc.Property()
+
+        self.project_dependencies.bind(
+            self.project, self._load_project_dependencies
+        )
+        self.project_manager.bind(
+            self.project,
+            lambda this: self.project_manager_by_name[this['name']],
+        )
+
+        self.refresh_projects()
+
         self.uv_publish_token = sc.Property(os.getenv('UV_PUBLISH_TOKEN', ''))
         if not self.uv_publish_token.get():
             print('UV_PUBLISH_TOKEN environment variable is not set', ':v8')
 
+    def refresh_projects(self):
+        projects = self._list_projects()
+        by_scope = defaultdict(dict)
+        by_scope['all'] = projects
+        for name, info in projects.items():
+            scope = (
+                'company'
+                if 'com.jlsemi.likianta' in info['project_path']
+                else 'personal'
+                if 'dev.master.likianta' in info['project_path']
+                else 'other'
+            )
+            by_scope[scope][name] = info
+        self.projects_by_scope.set(by_scope)
+        self.project_by_name.set(by_scope['all'])
+        for first in self.project_by_name.get().values():
+            self.project.set(first)
+            break
+        else:
+            raise Exception('No project in "all" scope!')
 
-state = _State()
+    def _list_projects(self) -> T.Projects:
+        print('list all projects', ':i')
+        projects = {}
+        for path in fs.load(fs.here('watched_projects.yaml')):
+            pyproj = fs.load('{}/pyproject.toml'.format(path))
+            if 'project' in pyproj:
+                name = pyproj['project']['name']
+                version = pyproj['project']['version']
+            else:
+                name = pyproj['tool']['poetry']['name']
+                version = pyproj['tool']['poetry']['version']
+            assert '_' not in name, ('Name should be in kebab-case', name)
+            projects[name] = {
+                'name': name,
+                'version': version,
+                'project_path': path,
+                'pyproject_file': '{}/pyproject.toml'.format(path),
+                'modification_time': tp.cast(int, fs.filetime(path)),
+                'toml_data': pyproj,
+                'dist_file': '{}/dist/{}-{}-py3-none-any.whl'.format(
+                    path, name.replace('-', '_'), version
+                ),
+                'build_tool': 'poetry'
+                if 'poetry' in pyproj['tool']
+                and 'dependencies' in pyproj['tool']['poetry']
+                else 'uv',
+            }
+        return dict(sorted(projects.items()))
+
+    def _load_project_dependencies(self, project: T.ProjectInfo):
+        if project['name'] not in self.project_manager_by_name:
+            deps: T.Dependencies = {}
+            handler = PyProjTomlHandler(project['pyproject_file'])
+
+            private_sourced_deps = frozenset(
+                x for x in project['toml_data']['tool']['uv']['sources']
+            )
+            # print(sorted(private_sourced_deps), ':nlv')
+            try:
+                dev_dep_names = frozenset(
+                    re.match(r'([-\w]+)', x).sure().group()
+                    for x in project['toml_data']['dependency-groups']['dev']
+                )
+            except KeyError:
+                dev_dep_names = frozenset()
+            for line in handler.get_dependencies():
+                name, ext, opt, ver = (
+                    re.match(
+                        r'([-\w]+)(?:\[(\w+)])?([!<>=]+)([.\w]+);?',
+                        # ^------^     ^---^   ^-------^^------^
+                        line.get(),
+                    )
+                    .sure()
+                    .groups()
+                )
+                deps[name] = tp.cast(
+                    T.Dependency,
+                    {
+                        'name': name,
+                        'operator': opt,
+                        'current_version': (v0 := ver),
+                        'latest_version': (
+                            v1 := self['project_by_name'][name]['version']
+                            if name in private_sourced_deps
+                            and name not in dev_dep_names
+                            else None
+                        ),
+                        'is_latest': (True if v1 is None else v0 == v1),
+                        'setter': line.set,
+                        'markers': {'extra': ext},
+                    },
+                )
+
+            mgr: T.DependenciesManager = {
+                'dependencies': deps,
+                'toml_handler': handler,
+                'todo_bump': any((not d['is_latest'] for d in deps.values())),
+                'todo_sync': False,
+                'bumped_but_not_synced': set(),
+            }
+            self.project_manager_by_name[project['name']] = mgr
+        else:
+            deps = self.project_manager_by_name[project['name']]['dependencies']
+        for first in deps.values():
+            self.dependency.set(first)
+            break
+        return deps
+
+
+state = _State(version=3)
 
 
 def main():
@@ -52,13 +205,137 @@ def main():
         with v3.Column(width=300):
             _project_list()
         with v3.Column():
-            _version_bumps()
+            with v3.Column(border=True):
+                _version_bumps()
+            with v3.Column(border=True):
+                _dependency_manager()
+
+
+def _dependency_manager():
+    v3.Caption('Dependencies')
+
+    with v3.Radio(
+        sc.bind(
+            state.project,
+            lambda x: 'Project **{}** dependencies'.format(x['name']),
+        )
+    ) as deps_radio:
+        deps_radio.options.bind(
+            state.project_dependencies, lambda x: tuple(x.keys())
+        )
+        deps_radio.format_func = lambda x: '{} ({})'.format(
+            x['name'],
+            ':green[{}]'.format(x['current_version'])
+            if x['name'] in state['project_manager']['bumped_but_not_synced']
+            else x['current_version']
+            if x['is_latest']
+            else ':red[{}] -> :green[{}]'.format(
+                x['current_version'], x['latest_version']
+            ),
+        )
+
+        @deps_radio['on_value'].partial(sc._value)
+        def _set_dependency(dep_name: str):
+            state.dependency.set(state['project_dependencies'][dep_name])
+
+    with v3.Row():
+        with v3.Button('Bump version') as btn:
+            btn.enabled.bind(
+                state.dependency, lambda this: not this['is_latest']
+            )
+
+            @btn.on_click
+            def _bump_this_version():
+                dep: T.Dependency = state['dependency']
+                mgr: T.DependenciesManager = state['project_manager']
+                assert (
+                    dep['latest_version'] is not None and not dep['is_latest']
+                )
+                dep['setter'](
+                    '{}{}{}{}'.format(
+                        dep['name'],
+                        '[{}]'.format(dep['markers']['extra'])
+                        if dep['markers']['extra']
+                        else '',
+                        dep['operator'],
+                        dep['latest_version'],
+                    )
+                )
+                dep['current_version'] = dep['latest_version']
+                dep['is_latest'] = True
+                mgr['bumped_but_not_synced'].add(dep['name'])
+                mgr['todo_bump'] = not all(
+                    d['is_latest'] for d in mgr['dependencies'].values()
+                )
+                mgr['todo_sync'] = True
+                mgr['toml_handler'].save()
+
+        with v3.Button('Bump all versions') as btn:
+            btn.enabled.bind(
+                state.project_manager, lambda this: this['todo_bump']
+            )
+
+            @btn.on_click
+            def _bump_all_versions():
+                mgr: T.DependenciesManager = state['project_manager']
+                deps: T.Dependencies = mgr['dependencies']
+
+                for dep in deps.values():
+                    if not dep['is_latest']:
+                        dep['setter'](
+                            '{}{}{}{}'.format(
+                                dep['name'],
+                                '[{}]'.format(dep['markers']['extra'])
+                                if dep['markers']['extra']
+                                else '',
+                                dep['operator'],
+                                dep['latest_version'],
+                            )
+                        )
+                        dep['current_version'] = dep['latest_version']
+                        dep['is_latest'] = True
+                        mgr['bumped_but_not_synced'].add(dep['name'])
+
+                mgr['todo_bump'] = False
+                mgr['todo_sync'] = True
+
+                state['toml_handler'].save()
+                print('file updated', state['project']['pyproject_file'])
+                # v3.Toast(
+                #     'File updated: {}'.format(pyproj_data['pyproject_file']),
+                #     duration='long',
+                # )
+
+        with v3.Button(
+            'Sync & lock',
+            enabled=sc.bind(
+                state.project_manager, lambda this: this['todo_sync']
+            ),
+        ) as btn:
+
+            @btn.on_click
+            def _sync_and_lock():
+                # this function will take several seconds.
+                assert state['project_manager']['todo_sync']
+                with _spinner('Syncing...'):
+                    #   `__enter__` shows spinner (visible=True) and starts
+                    #   infinite spinning animation.
+                    #   `__call__` renders spinner text.
+                    #   `__exit__` stops spinning animation, and sets spinner 
+                    #   visibility back to before state.
+                    run_cmd_args(
+                        ('uv', 'sync', '--no-install-project'),
+                        verbose=True,
+                        cwd=state['project']['project_path'],
+                    )
+                state['project_manager']['todo_sync'] = False
+                state['project_manager']['bumped_but_not_synced'].clear()
+                state['on_project_manager'].emit()
+
+    _spinner = v3.Spinner(visible=False)
 
 
 def _project_list():
-    if not state['project_by_scope']:
-        _rescan_projects()
-
     """
     UI illustration:
         ╭────────────────────────────────────────────────────╮
@@ -101,16 +378,14 @@ def _project_list():
                 'Project scope', format_func=_format_scope_key, key='scope_sel'
             ) as scope_sel:
                 scope_sel.options.bind(
-                    state.project_by_scope, lambda this: list(this.keys())
+                    state.projects_by_scope, lambda this: list(this.keys())
                 )
 
-                @scope_sel['on_value'].partial(sc._self).emit_now
-                def _(value: sc.Property):
-                    state['current_projects'] = state['project_by_scope'][
-                        value.get()
-                    ]
+                @scope_sel['on_value'].partial(sc._value).emit_now
+                def _(value: str):
+                    state['current_projects'] = state['project_by_scope'][value]
                     print(
-                        'scope: {}'.format(value.get()),
+                        'scope: {}'.format(value),
                         len(state['current_projects']),
                     )
 
@@ -119,7 +394,7 @@ def _project_list():
                 help='Rescan projects',
                 key='refresh_btn',
             ) as btn:
-                btn.on_click.connect(_rescan_projects)
+                btn.on_click.connect(state.refresh_projects)
 
         with v3.Radio('Project') as curr_proj_list:
 
@@ -143,56 +418,216 @@ def _project_list():
                     )
                 )
 
-            # Pre-compute key→label mapping; the radio's format_func looks
-            # up the label by key.
-            def _radio_format(key: str) -> str:
-                projects = state.current_projects.get()
-                if not projects or key not in projects:
-                    return key
-                index = list(projects.keys()).index(key)
-                return _project_key_to_label(index, key, projects[key])
-
-            curr_proj_list._format_func = _radio_format
             curr_proj_list.options.bind(
-                state.current_projects, lambda this: list(this.keys())
+                state.project_by_name,
+                lambda this: [
+                    _project_key_to_label(index, key, info)
+                    for index, (key, info) in enumerate(this.items())
+                ],
             )
 
-            @curr_proj_list['on_value'].partial(sc._self).emit_now
-            def _(value: sc.Property):
-                _version_bumps(state.current_projects.get()[value.get()])
+            @curr_proj_list['on_value'].partial(sc._value)
+            def _(label: str):
+                proj_name = label.split()[1]
+                state['current_project'] = state['current_projects'][proj_name]
 
         with v3.Button('Rescan projects', width='stretch') as btn:
-            btn.on_click.connect(_rescan_projects)
+            btn.on_click.connect(state.refresh_projects)
 
 
-def _version_bumps(proj_info: T.ProjectInfo):
-    proj_path = proj_info['project_path']
-    proj_ver = proj_info['version']
-    proj_dist = proj_info['dist_file']
-    proj_dist_exist = fs.exist(proj_dist)
+def _version_bumps():
+    with v3.Grid(columns=2) as grid:
+        with grid[0, 0]:  # __getitem__(self, (row, col)) -> CellContainer
+            with v3.Button('...') as btn:
 
-    with v3.Column(border=True):
-        with v3.Grid(columns=2) as grid:
-            curr_ver = proj_ver
-            next_ver = _bump_least_version(curr_ver)
-            with grid[0, 0]:  # __getitem__(self, (row, col)) -> CellContainer
-                with _thick_button(
-                    'Bump version',
-                    '(:{}[{}] -> :gray[{}])'.format(
-                        'green' if proj_dist_exist else 'gray',
-                        curr_ver,
-                        next_ver,
-                    ),
-                ) as btn:
-
-                    @btn.on_click
-                    def _():
-                        print(
-                            'bump version: {} -> {}'.format(curr_ver, next_ver)
+                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                def _set_button_text(
+                    btn: v3.Button, proj_info: T.ProjectInfo
+                ) -> None:
+                    btn['text'] = (
+                        'Bump version\n\n(:{}[{}] -> :gray[{}])'.format(
+                            'green'
+                            if fs.exist(proj_info['dist_file'])
+                            else 'gray',
+                            proj_info['version'],
+                            _bump_least_version(proj_info['version']),
                         )
+                    )
+
+                @btn.on_click
+                def _() -> None:
+                    proj_info = state['current_project']
+                    curr_ver = proj_info['version']
+                    next_ver = _bump_least_version(curr_ver)
+                    print(
+                        '(TODO) bump version: {} -> {}'.format(
+                            curr_ver, next_ver
+                        ),
+                        ':r2',
+                    )
+
+        with grid[0, 1]:
+            with v3.Button('...') as btn:
+
+                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                def _set_button_text(
+                    btn: v3.Button, proj_info: T.ProjectInfo
+                ) -> None:
+                    btn['text'] = 'Build wheel\n\n(:{}[{}])'.format(
+                        'green' if fs.exist(proj_info['dist_file']) else 'gray',
+                        proj_info['version'],
+                    )
+
+                # NOTE: no actual logic yet. just connect on_click to a
+                # print statement.
+                @btn.on_click
+                def _() -> None:
+                    proj_info = state['current_project']
+                    print(
+                        '(TODO) build wheel package: {} {}'.format(
+                            proj_info['name'], proj_info['version']
+                        ),
+                        ':r2',
+                    )
+
+        with grid[1, 0]:
+            with v3.Button('...') as btn:
+
+                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                def _set_button_text(
+                    btn: v3.Button, proj_info: T.ProjectInfo
+                ) -> None:
+                    btn['text'] = 'Publish to private host\n\n(:{}[{}])'.format(
+                        'green' if fs.exist(proj_info['dist_file']) else 'gray',
+                        proj_info['version'],
+                    )
+
+                # NOTE: no actual logic yet. just connect on_click to a
+                # print statement.
+                @btn.on_click
+                def _() -> None:
+                    proj_info = state['current_project']
+                    print(
+                        '(TODO) publish to private host: {} {}'.format(
+                            proj_info['name'], proj_info['version']
+                        ),
+                        ':r2',
+                    )
+
+        with grid[1, 1]:
+            with v3.Button('...') as btn:
+
+                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                def _set_button_text(
+                    btn: v3.Button, proj_info: T.ProjectInfo
+                ) -> None:
+                    btn['text'] = 'Publish to public host\n\n(:{}[{}])'.format(
+                        'green' if fs.exist(proj_info['dist_file']) else 'gray',
+                        proj_info['version'],
+                    )
+
+                # NOTE: no actual logic yet. just connect on_click to a
+                # print statement.
+                @btn.on_click
+                def _() -> None:
+                    proj_info = state['current_project']
+                    print(
+                        '(TODO) publish to public host: {} {}'.format(
+                            proj_info['name'], proj_info['version']
+                        ),
+                        ':r2',
+                    )
 
 
 # ------------------------------------------------------------------------------
+
+
+class PyProjTomlHandler:
+    def __init__(self, toml_file: str) -> None:
+        self._file = toml_file
+        self._text = fs.load(toml_file, 'plain')
+        self._lines = self._text.splitlines()
+
+    def get_dependencies(self) -> tp.Iterator['_LineHandler']:
+        def _get(text: str) -> str:
+            return text
+
+        def _set(text: str, index: int, cmt: str = '') -> None:
+            self._lines[index] = '    "{}",{}'.format(text, cmt)
+
+        # # fmt: off
+        # body_part = (
+        #     re.slice(self._text)
+        #     .find('dependencies = [').end().cut()
+        #     .find(']').cut()
+        #     .slice()
+        # )
+        # # fmt: on
+        # lines = (x.lstrip() for x in body_part.splitlines())
+        # for i, line in enumerate(lines):  # FIXME: `i` is not correct.
+        #     if line.startswith('#'):
+        #         continue
+        #     else:
+        #         assert (m := re.fullmatch(r' {4}"(.+)",( +#.+)?', line))
+        #         # yield m.group(1)
+        #         yield LineHandler(
+        #             partial(_get, m.group(1)),
+        #             partial(_set, index=i, cmt=m.group(2) or ''),
+        #         )
+
+        flag = 'START'
+        for i, line in enumerate(self._lines):
+            try:
+                if flag == 'START':
+                    if line.startswith('dependencies'):
+                        flag = 'DEPENDENCIES'
+                    continue
+                if flag == 'DEPENDENCIES':
+                    if line.startswith(']'):
+                        flag = 'END'
+                        break
+                    elif line.strip() == '' or line.lstrip().startswith('#'):
+                        continue
+                    else:
+                        assert (m := re.fullmatch(r' {4}"(.+)",( +#.+)?', line))
+                        # yield m.group(1)
+                        yield _LineHandler(
+                            partial(_get, m.group(1)),
+                            partial(_set, index=i, cmt=m.group(2) or ''),
+                        )
+            except Exception as e:
+                e.add_note(
+                    str(
+                        {
+                            'file': self._file,
+                            'line_number': i + 1,
+                            'line_content': line,
+                        }
+                    )
+                )
+                raise
+        assert flag == 'END'
+
+    def save(self) -> None:
+        fs.dump(self._lines, self._file, 'plain')
+
+
+class _LineHandler:
+    def __init__(
+        self, getter: tp.Callable[[], str], setter: tp.Callable[[str], None]
+    ) -> None:
+        self._getter = getter
+        self._setter = setter
+
+    @property
+    def text(self) -> str:
+        return self._getter()
+
+    def get(self) -> str:
+        return self._getter()
+
+    def set(self, value: str) -> None:
+        self._setter(value)
 
 
 def _bump_least_version(old_ver: str) -> str:
@@ -211,63 +646,12 @@ def _bump_least_version(old_ver: str) -> str:
         return f'{a}.{b}.{int(c) + 1}'
 
 
-def _rescan_projects():
-    projects = _list_projects()
-    by_scope = defaultdict(dict)
-    by_scope['all'] = projects
-    for name, info in projects.items():
-        scope = (
-            'company'
-            if 'com.jlsemi.likianta' in info['project_path']
-            else 'personal'
-            if 'dev.master.likianta' in info['project_path']
-            else 'other'
-        )
-        by_scope[scope][name] = info
-    # Use `.set()` so that Property.on_change fires and bound widgets
-    # (e.g. `scope_sel.options.bind(state.project_by_scope, ...)`) sync.
-    state['project_by_scope'] = by_scope
-
-
 def _thick_button(primary_label, secondary_label, **kwargs):
     return v3.Button(
         '{}\n\n{}'.format(primary_label, secondary_label),
         width='stretch',
         **kwargs,
     )
-
-
-# ------------------------------------------------------------------------------
-
-
-def _list_projects() -> T.Projects:
-    print('list all projects', ':i')
-    projects = {}
-    for path in fs.load(fs.here('watched_projects.yaml')):
-        pyproj = fs.load('{}/pyproject.toml'.format(path))
-        if 'project' in pyproj:
-            name = pyproj['project']['name']
-            version = pyproj['project']['version']
-        else:
-            name = pyproj['tool']['poetry']['name']
-            version = pyproj['tool']['poetry']['version']
-        assert '_' not in name, ('Name should be in kebab-case', name)
-        projects[name] = {
-            'name': name,
-            'version': version,
-            'project_path': path,
-            'pyproject_file': '{}/pyproject.toml'.format(path),
-            'modification_time': tp.cast(int, fs.filetime(path)),
-            'toml_data': pyproj,
-            'dist_file': '{}/dist/{}-{}-py3-none-any.whl'.format(
-                path, name.replace('-', '_'), version
-            ),
-            'build_tool': 'poetry'
-            if 'poetry' in pyproj['tool']
-            and 'dependencies' in pyproj['tool']['poetry']
-            else 'uv',
-        }
-    return dict(sorted(projects.items()))
 
 
 if __name__ == '__main__':
