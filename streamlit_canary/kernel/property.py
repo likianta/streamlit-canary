@@ -34,6 +34,7 @@ from __future__ import annotations
 import typing as tp
 
 from .signal import Signal
+from .special_value import _undefined
 
 
 class Property:
@@ -49,7 +50,7 @@ class Property:
 
     def __init__(
         self,
-        default: tp.Any = None,
+        default: tp.Any = _undefined,
         *,
         _bound: bool = False,
         _instance: tp.Any = None,
@@ -117,17 +118,15 @@ class Property:
         Usage:
             sel.options.bind(state.projects, lambda this: list(this.keys()))
         """
-        assert source.on_change is not None, (
-            'Property.bind() source is an unbound descriptor'
-        )
 
-        def _sync() -> None:
+        def sync() -> None:
             new_value = transform(source.get())
             self.set(new_value)
 
-        source.on_change.connect(_sync)
+        source.on_change.connect(sync)
         # immediate sync so the bound property starts with the right value.
-        _sync()
+        if source.get() is not _undefined:
+            sync()
 
     def __repr__(self) -> str:
         if self.name is None:
