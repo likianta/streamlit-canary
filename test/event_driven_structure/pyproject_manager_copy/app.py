@@ -34,7 +34,7 @@ class T:
             'markers': dict,
         },
     )
-    PackageName = str  # kebab-case
+    PackageName = str  # kebab-case, e.g. 'lk-utils'
 
     Dependencies = tp.Dict[PackageName, Dependency]
     ProjectInfo = tp.TypedDict(
@@ -65,6 +65,15 @@ class T:
 
 
 class _State(sc.StateV2):
+    dependency: sc.Property[T.Dependency]
+    project: sc.Property[T.ProjectInfo]
+    project_by_name: sc.Property[T.Projects]
+    project_dependencies: sc.Property[T.Dependencies]
+    project_manager: sc.Property[T.DependenciesManager]
+    project_manager_by_name: tp.Dict[str, T.DependenciesManager]
+    projects_by_scope: sc.Property[tp.Dict[str, T.Projects]]
+    uv_publish_token: sc.Property[str]
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -235,7 +244,7 @@ def _dependency_manager():
         )
     ) as deps_radio:
         deps_radio.options.bind(
-            state.project_dependencies, lambda x: tuple(x.keys())
+            state.project_dependencies, lambda x: list(x.keys())
         )
         deps_radio.format_func = _format_dependency
 

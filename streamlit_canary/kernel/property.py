@@ -9,14 +9,32 @@ import typing as tp
 
 from .signal import Signal
 from .special_value import _undefined
+from .special_value import _Undefined
+
+_T = tp.TypeVar('_T')
+_S = tp.TypeVar('_S')
 
 
-class Property:
+class Property(tp.Generic[_T]):
+    """A reactive value container.
+
+    The type parameter describes the value the property *holds*, so a type
+    checker can follow `get()` / `set()`:
+
+        dependency: sc.Property[T.Dependency]          # convenient form
+        dependency: sc.Property[T.Dependency | None]   # rigorous form, use
+        #   when the property may still hold nothing (`sc._undefined`).
+
+    Note: `value` itself is kept as `tp.Any` on purpose, because a property
+    starts out as `sc._undefined` until the first `set()`. The declared `_T`
+    is what callers see through `get()`.
+    """
+
     default: tp.Any
     on_change: Signal
     value: tp.Any
 
-    def __init__(self, default: tp.Any = _undefined) -> None:
+    def __init__(self, default: _T | _Undefined = _undefined) -> None:
         self.default = default
         self.value = default
         self.on_change = Signal(owner_factory=lambda: self)
@@ -24,10 +42,10 @@ class Property:
     def __bool__(self) -> bool:
         return bool(self.value)
 
-    def get(self) -> tp.Any:
-        return self.value
+    def get(self) -> _T:
+        return tp.cast(_T, self.value)
 
-    def set(self, value: tp.Any, notify: bool = True) -> None:
+    def set(self, value: _T, notify: bool = True) -> None:
         if self.value != value:
             self.value = value
             if notify:
@@ -35,8 +53,8 @@ class Property:
 
     def bind(
         self,
-        source: 'Property',
-        transform: tp.Optional[tp.Callable[[tp.Any], tp.Any]] = None,
+        source: 'Property[_S]',
+        transform: tp.Callable[[_S], _T] | None = None,
     ) -> None:
         """
         Bind this property to a source property.
@@ -50,15 +68,17 @@ class Property:
         """
 
         def sync() -> None:
-            value = source.get()
-            self.set(value if transform is None else transform(value))
+            if transform is None:
+                self.set(tp.cast(_T, source.get()))
+            else:
+                self.set(transform(source.get()))
 
         source.on_change.connect(sync)
         # immediate sync so the bound property starts with the right value.
         if source.get() is not _undefined:
             sync()
 
-    def set_or_bind(self, value: tp.Any) -> None:
+    def set_or_bind(self, value: '_T | Property[_T]') -> None:
         """
         `set(value)`, unless `value` is itself a `Property`, in which case
         `self` is bound to it instead (mirroring it from now on).
@@ -73,9 +93,8 @@ class Property:
 
 
 def bind(
-    source: Property,
-    transform: tp.Optional[tp.Callable[[tp.Any], tp.Any]] = None,
-) -> Property:
+    source: Property[_S], transform: tp.Callable[[_S], _T] | None = None
+) -> Property[_T]:
     """
     Create an anonymous `Property` bound to `source`.
 
@@ -83,6 +102,6 @@ def bind(
         v3.Radio(sc.bind(state.project, lambda x: x['name']))
         v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))
     """
-    prop = Property()
+    prop = Property[_T]()
     prop.bind(source, transform)
     return prop
