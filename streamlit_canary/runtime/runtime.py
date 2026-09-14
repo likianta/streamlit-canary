@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import typing as tp
 
+from ..kernel import Property
+
 if tp.TYPE_CHECKING:
     from ..components_v3.base import Component
     from .server import WebSocketClient
@@ -44,18 +46,21 @@ class Runtime:
             Component._active_runtime = None
         # roots are the components created outside any `with` block.
         self._roots = [c for c in self._components.values() if c.parent is None]
+        # Observe every Property *after* the tree is fully built: components
+        # create their Property fields inside `__init__`, i.e. after they have
+        # already registered themselves. Changes made during the build are
+        # reflected in the initial render, so only later changes need patches.
+        for comp in self._components.values():
+            for name, prop in comp._iter_properties():
+                prop.on_change.connect(
+                    lambda c=comp, n=name: self._on_prop_change(c, n)
+                )
         self._built = True
 
     # -- component registration ------------------------------------------
 
     def _register_component(self, comp: Component) -> None:
         self._components[comp.id] = comp
-        # observe every Property so we can push a delta when it changes.
-        for name in comp._properties:
-            handle = comp._handles[name]
-            handle.on_change.connect(
-                lambda c=comp, n=name: self._on_prop_change(c, n)
-            )
 
     # -- event routing ----------------------------------------------------
 
@@ -77,13 +82,15 @@ class Runtime:
         elif event == 'change':
             # Selectbox / Radio: set the value property, which triggers
             # `on_value` and any handlers bound to it.
-            if 'value' in comp._handles:
-                comp._handles['value'].set(value)
+            prop = getattr(comp, 'value', None)
+            if isinstance(prop, Property):
+                prop.set(value)
 
     # -- property change → delta -----------------------------------------
 
     def _on_prop_change(self, comp: Component, prop_name: str) -> None:
-        value = comp._values.get(prop_name)
+        prop = getattr(comp, prop_name)
+        value = prop.get()
         message: dict = {
             'type': 'patch',
             'id': comp.id,
@@ -91,13 +98,12 @@ class Runtime:
             'value': value,
         }
         # For Selectbox / Radio `options` patch, the frontend needs the
-        # formatted labels (via `_format_func`) because the raw values are
+        # formatted labels (via `format_func`) because the raw values are
         # keys, not human-readable text. Without this, the JS rebuilds
         # radio items with raw keys instead of formatted labels.
-        if prop_name == 'options' and hasattr(comp, '_format_func'):
-            fmt = comp._format_func
-            options = value or []
-            message['formatted'] = [fmt(o) for o in options]
+        if prop_name == 'options':
+            fmt = getattr(comp, 'format_func', None) or str
+            message['formatted'] = [fmt(o) for o in (value or [])]
         self._broadcast(message)
 
     # -- websocket client management -------------------------------------

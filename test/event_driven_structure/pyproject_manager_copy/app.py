@@ -10,7 +10,9 @@ from functools import partial
 import streamlit_canary as sc
 from lk_utils import fs
 from lk_utils import re
-from lk_utils import run_cmd_args
+
+# `run_cmd_args` is only used by the temporarily-disabled `Sync & lock` code.
+from lk_utils import run_cmd_args  # noqa: F401
 from neoprint import print
 
 v3 = sc.v3
@@ -195,9 +197,6 @@ class _State(sc.StateV2):
         return deps
 
 
-state = _State(version=3)
-
-
 def main():
     sc.set_page_config('Pyproject Manager', layout='wide', default_theme='dark')
     v3.Title('Pyproject Manager')
@@ -214,6 +213,18 @@ def main():
 def _dependency_manager():
     v3.Caption('Dependencies')
 
+    def _format_dependency(name: str) -> str:
+        dep: T.Dependency = state['project_dependencies'][name]
+        if name in state['project_manager']['bumped_but_not_synced']:
+            version = ':green[{}]'.format(dep['current_version'])
+        elif dep['is_latest']:
+            version = dep['current_version']
+        else:
+            version = ':red[{}] -> :green[{}]'.format(
+                dep['current_version'], dep['latest_version']
+            )
+        return '{} ({})'.format(name, version)
+
     with v3.Radio(
         sc.bind(
             state.project,
@@ -223,16 +234,7 @@ def _dependency_manager():
         deps_radio.options.bind(
             state.project_dependencies, lambda x: tuple(x.keys())
         )
-        deps_radio.format_func = lambda x: '{} ({})'.format(
-            x['name'],
-            ':green[{}]'.format(x['current_version'])
-            if x['name'] in state['project_manager']['bumped_but_not_synced']
-            else x['current_version']
-            if x['is_latest']
-            else ':red[{}] -> :green[{}]'.format(
-                x['current_version'], x['latest_version']
-            ),
-        )
+        deps_radio.format_func = _format_dependency
 
         @deps_radio['on_value'].partial(sc._value)
         def _set_dependency(dep_name: str):
@@ -244,67 +246,97 @@ def _dependency_manager():
                 state.dependency, lambda this: not this['is_latest']
             )
 
+            # NOTE: the real logic below is temporarily commented out: it
+            # rewrites `pyproject.toml`, which is potentially destructive.
+            # For now we only print what it would do. It will be restored
+            # (and really tested) in a later iteration.
+            #
+            # @btn.on_click
+            # def _bump_this_version():
+            #     dep: T.Dependency = state['dependency']
+            #     mgr: T.DependenciesManager = state['project_manager']
+            #     assert (
+            #         dep['latest_version'] is not None and not dep['is_latest']
+            #     )
+            #     dep['setter'](
+            #         '{}{}{}{}'.format(
+            #             dep['name'],
+            #             '[{}]'.format(dep['markers']['extra'])
+            #             if dep['markers']['extra']
+            #             else '',
+            #             dep['operator'],
+            #             dep['latest_version'],
+            #         )
+            #     )
+            #     dep['current_version'] = dep['latest_version']
+            #     dep['is_latest'] = True
+            #     mgr['bumped_but_not_synced'].add(dep['name'])
+            #     mgr['todo_bump'] = not all(
+            #         d['is_latest'] for d in mgr['dependencies'].values()
+            #     )
+            #     mgr['todo_sync'] = True
+            #     mgr['toml_handler'].save()
+
             @btn.on_click
             def _bump_this_version():
                 dep: T.Dependency = state['dependency']
-                mgr: T.DependenciesManager = state['project_manager']
-                assert (
-                    dep['latest_version'] is not None and not dep['is_latest']
-                )
-                dep['setter'](
-                    '{}{}{}{}'.format(
+                print(
+                    '(TODO) bump this version: {} {} -> {}'.format(
                         dep['name'],
-                        '[{}]'.format(dep['markers']['extra'])
-                        if dep['markers']['extra']
-                        else '',
-                        dep['operator'],
+                        dep['current_version'],
                         dep['latest_version'],
-                    )
+                    ),
+                    ':r2',
                 )
-                dep['current_version'] = dep['latest_version']
-                dep['is_latest'] = True
-                mgr['bumped_but_not_synced'].add(dep['name'])
-                mgr['todo_bump'] = not all(
-                    d['is_latest'] for d in mgr['dependencies'].values()
-                )
-                mgr['todo_sync'] = True
-                mgr['toml_handler'].save()
 
         with v3.Button('Bump all versions') as btn:
             btn.enabled.bind(
                 state.project_manager, lambda this: this['todo_bump']
             )
 
+            # NOTE: the real logic below is temporarily commented out (it
+            # rewrites `pyproject.toml`); see the note above.
+            #
+            # @btn.on_click
+            # def _bump_all_versions():
+            #     mgr: T.DependenciesManager = state['project_manager']
+            #     deps: T.Dependencies = mgr['dependencies']
+            #
+            #     for dep in deps.values():
+            #         if not dep['is_latest']:
+            #             dep['setter'](
+            #                 '{}{}{}{}'.format(
+            #                     dep['name'],
+            #                     '[{}]'.format(dep['markers']['extra'])
+            #                     if dep['markers']['extra']
+            #                     else '',
+            #                     dep['operator'],
+            #                     dep['latest_version'],
+            #                 )
+            #             )
+            #             dep['current_version'] = dep['latest_version']
+            #             dep['is_latest'] = True
+            #             mgr['bumped_but_not_synced'].add(dep['name'])
+            #
+            #     mgr['todo_bump'] = False
+            #     mgr['todo_sync'] = True
+            #
+            #     state['toml_handler'].save()
+            #     print('file updated', state['project']['pyproject_file'])
+            # v3.Toast(
+            #     'File updated: {}'.format(pyproj_data['pyproject_file']),
+            #     duration='long',
+            # )
+
             @btn.on_click
             def _bump_all_versions():
                 mgr: T.DependenciesManager = state['project_manager']
-                deps: T.Dependencies = mgr['dependencies']
-
-                for dep in deps.values():
-                    if not dep['is_latest']:
-                        dep['setter'](
-                            '{}{}{}{}'.format(
-                                dep['name'],
-                                '[{}]'.format(dep['markers']['extra'])
-                                if dep['markers']['extra']
-                                else '',
-                                dep['operator'],
-                                dep['latest_version'],
-                            )
-                        )
-                        dep['current_version'] = dep['latest_version']
-                        dep['is_latest'] = True
-                        mgr['bumped_but_not_synced'].add(dep['name'])
-
-                mgr['todo_bump'] = False
-                mgr['todo_sync'] = True
-
-                state['toml_handler'].save()
-                print('file updated', state['project']['pyproject_file'])
-                # v3.Toast(
-                #     'File updated: {}'.format(pyproj_data['pyproject_file']),
-                #     duration='long',
-                # )
+                pending = [
+                    dep['name']
+                    for dep in mgr['dependencies'].values()
+                    if not dep['is_latest']
+                ]
+                print('(TODO) bump all versions: {}'.format(pending), ':r2')
 
         with v3.Button(
             'Sync & lock',
@@ -312,25 +344,36 @@ def _dependency_manager():
                 state.project_manager, lambda this: this['todo_sync']
             ),
         ) as btn:
+            # NOTE: the real logic below is temporarily commented out: it
+            # runs `uv sync`, which is slow and mutates the environment.
+            #
+            # @btn.on_click
+            # def _sync_and_lock():
+            #     # this function will take several seconds.
+            #     assert state['project_manager']['todo_sync']
+            #     with _spinner('Syncing...'):
+            #         #   `__enter__` shows spinner (visible=True) and starts
+            #         #   infinite spinning animation.
+            #         #   `__call__` renders spinner text.
+            #         #   `__exit__` stops spinning animation, and sets
+            #         #   spinner visibility back to before state.
+            #         run_cmd_args(
+            #             ('uv', 'sync', '--no-install-project'),
+            #             verbose=True,
+            #             cwd=state['project']['project_path'],
+            #         )
+            #     state['project_manager']['todo_sync'] = False
+            #     state['project_manager']['bumped_but_not_synced'].clear()
+            #     state['on_project_manager'].emit()
 
             @btn.on_click
             def _sync_and_lock():
-                # this function will take several seconds.
-                assert state['project_manager']['todo_sync']
-                with _spinner('Syncing...'):
-                    #   `__enter__` shows spinner (visible=True) and starts
-                    #   infinite spinning animation.
-                    #   `__call__` renders spinner text.
-                    #   `__exit__` stops spinning animation, and sets spinner 
-                    #   visibility back to before state.
-                    run_cmd_args(
-                        ('uv', 'sync', '--no-install-project'),
-                        verbose=True,
-                        cwd=state['project']['project_path'],
-                    )
-                state['project_manager']['todo_sync'] = False
-                state['project_manager']['bumped_but_not_synced'].clear()
-                state['on_project_manager'].emit()
+                print(
+                    '(TODO) sync & lock: {}'.format(
+                        state['project']['project_path']
+                    ),
+                    ':r2',
+                )
 
     _spinner = v3.Spinner(visible=False)
 
@@ -383,10 +426,9 @@ def _project_list():
 
                 @scope_sel['on_value'].partial(sc._value).emit_now
                 def _(value: str):
-                    state['current_projects'] = state['project_by_scope'][value]
+                    state['project_by_name'] = state['projects_by_scope'][value]
                     print(
-                        'scope: {}'.format(value),
-                        len(state['current_projects']),
+                        'scope: {}'.format(value), len(state['project_by_name'])
                     )
 
             with v3.Button(
@@ -429,7 +471,7 @@ def _project_list():
             @curr_proj_list['on_value'].partial(sc._value)
             def _(label: str):
                 proj_name = label.split()[1]
-                state['current_project'] = state['current_projects'][proj_name]
+                state['project'] = state['project_by_name'][proj_name]
 
         with v3.Button('Rescan projects', width='stretch') as btn:
             btn.on_click.connect(state.refresh_projects)
@@ -440,7 +482,7 @@ def _version_bumps():
         with grid[0, 0]:  # __getitem__(self, (row, col)) -> CellContainer
             with v3.Button('...') as btn:
 
-                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                @(state['on_project'].partial(btn, sc._value).emit_now)
                 def _set_button_text(
                     btn: v3.Button, proj_info: T.ProjectInfo
                 ) -> None:
@@ -456,7 +498,7 @@ def _version_bumps():
 
                 @btn.on_click
                 def _() -> None:
-                    proj_info = state['current_project']
+                    proj_info = state['project']
                     curr_ver = proj_info['version']
                     next_ver = _bump_least_version(curr_ver)
                     print(
@@ -469,7 +511,7 @@ def _version_bumps():
         with grid[0, 1]:
             with v3.Button('...') as btn:
 
-                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                @(state['on_project'].partial(btn, sc._value).emit_now)
                 def _set_button_text(
                     btn: v3.Button, proj_info: T.ProjectInfo
                 ) -> None:
@@ -482,7 +524,7 @@ def _version_bumps():
                 # print statement.
                 @btn.on_click
                 def _() -> None:
-                    proj_info = state['current_project']
+                    proj_info = state['project']
                     print(
                         '(TODO) build wheel package: {} {}'.format(
                             proj_info['name'], proj_info['version']
@@ -493,7 +535,7 @@ def _version_bumps():
         with grid[1, 0]:
             with v3.Button('...') as btn:
 
-                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                @(state['on_project'].partial(btn, sc._value).emit_now)
                 def _set_button_text(
                     btn: v3.Button, proj_info: T.ProjectInfo
                 ) -> None:
@@ -506,7 +548,7 @@ def _version_bumps():
                 # print statement.
                 @btn.on_click
                 def _() -> None:
-                    proj_info = state['current_project']
+                    proj_info = state['project']
                     print(
                         '(TODO) publish to private host: {} {}'.format(
                             proj_info['name'], proj_info['version']
@@ -517,7 +559,7 @@ def _version_bumps():
         with grid[1, 1]:
             with v3.Button('...') as btn:
 
-                @(state['on_current_project'].partial(btn, sc._value).emit_now)
+                @(state['on_project'].partial(btn, sc._value).emit_now)
                 def _set_button_text(
                     btn: v3.Button, proj_info: T.ProjectInfo
                 ) -> None:
@@ -530,7 +572,7 @@ def _version_bumps():
                 # print statement.
                 @btn.on_click
                 def _() -> None:
-                    proj_info = state['current_project']
+                    proj_info = state['project']
                     print(
                         '(TODO) publish to public host: {} {}'.format(
                             proj_info['name'], proj_info['version']
@@ -652,6 +694,12 @@ def _thick_button(primary_label, secondary_label, **kwargs):
         width='stretch',
         **kwargs,
     )
+
+
+# The state is instantiated here (not next to `_State`) because building it
+# eagerly loads every project's dependencies, which needs `PyProjTomlHandler`
+# to already be defined.
+state = _State(version=3)
 
 
 if __name__ == '__main__':

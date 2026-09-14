@@ -2,9 +2,10 @@
 PropertyHost — shared base for any object that declares `Property` fields.
 
 Both `StateV2` (application state) and `Component` (UI components) use the
-same property model: a class-level `Property` descriptor compiles into a bound
-handle with `.get()` / `.set()` / `.on_change`, plus `__getitem__` /
-`__setitem__` sugar (`obj['name']`, `obj['name'] = value`, `obj['on_name']`).
+same property model: a `Property` lives on the instance and exposes
+`.get()` / `.set()` / `.on_change`, plus `__getitem__` / `__setitem__` sugar
+(`obj['name']` reads the value, `obj['name'] = value` writes it,
+`obj['on_name']` returns the change Signal).
 
 Extracting this into `PropertyHost` keeps the read/write style uniform across
 state and components.
@@ -23,7 +24,9 @@ class PropertyHost:
             assert isinstance(prop, Property)
             return prop.on_change
         else:
-            return getattr(self, key)
+            prop = getattr(self, key)
+            assert isinstance(prop, Property)
+            return prop.get()
 
     def __setitem__(self, key: str, value: tp.Any) -> None:
         assert not key.startswith('on_')
@@ -31,16 +34,25 @@ class PropertyHost:
         assert isinstance(prop, Property)
         prop.set(value)
 
+    def _iter_properties(self) -> tp.Iterator[tuple[str, Property]]:
+        """Yield `(name, Property)` for every Property field on this host."""
+        for name, value in list(vars(self).items()):
+            if isinstance(value, Property):
+                yield name, value
+
 
 class StateV2(PropertyHost):
     """
     Base class for event-driven state.
 
-    Subclasses declare `Property` fields at class level:
+    Subclasses declare `Property` fields, typically inside `__init__`:
 
         class _State(sc.StateV2):
-            count = sc.Property(0)
             __version__ = 0
+
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.count = sc.Property(0)
 
         state = _State()
         state.count.get()        # 0
@@ -49,10 +61,11 @@ class StateV2(PropertyHost):
         state['count'] = 2       #            (alias of .set())
         state['on_count']        # the change Signal
 
+    A `Property` may also be declared at class level; that is only safe when
+    the state class has a single instance, because class-level properties are
+    shared between instances.
+
     `__version__` (or `version=N` passed to `__init__`) tracks schema version.
-    The actual "rebuild state when version changes" persistence logic is added
-    later when the runtime/persistence layer lands; for now the version is
-    stored on the instance and exposed via `state.version`.
     """
 
     def __init__(
@@ -65,7 +78,9 @@ class StateV2(PropertyHost):
         self._version = version  # TODO
 
     def __repr__(self) -> str:
-        fields = ', '.join(f'{n}={self._values[n]!r}' for n in self._properties)
+        fields = ', '.join(
+            f'{name}={prop.get()!r}' for name, prop in self._iter_properties()
+        )
         return f'<{type(self).__name__} v{self._version} {fields}>'
 
     @property

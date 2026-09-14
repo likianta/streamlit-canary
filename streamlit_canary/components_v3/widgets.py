@@ -1,9 +1,14 @@
 """
-v3 widgets: Row, Column, Text, Title, Button, Selectbox, Radio.
+v3 widgets: Row, Column, Text, Title, Caption, Button, Spinner, Grid,
+Selectbox, Radio.
 
-Component visual fields are `Property` instances, so they share the same
-read/write style as state: `txt.text.get()`, `txt.text.set(...)`,
-`txt.text.on_change`, `txt['text']`, `txt['on_text']`.
+Component visual fields are `Property` instances living on the component
+instance, so they share the same read/write style as state: `txt.text.get()`,
+`txt.text.set(...)`, `txt.text.on_change`, `txt['text']`, `txt['on_text']`.
+
+Constructor arguments that represent a visual value accept either a plain
+value or a bound `Property` (see `sc.bind`); the latter makes the field
+reactive, e.g. `v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
 """
 
 from __future__ import annotations
@@ -51,51 +56,106 @@ class Column(Component):
 class Text(Component):
     """A text display component."""
 
-    text = Property('')
-
-    def __init__(self, text: str = '', **kwargs: tp.Any) -> None:
+    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
         super().__init__(**kwargs)
-        self.text.set(text)
+        self.text = Property('')
+        self.text.set_or_bind(text)
 
 
 class Title(Component):
     """A title (heading) component."""
 
-    text = Property('')
-
-    def __init__(self, text: str = '', **kwargs: tp.Any) -> None:
+    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
         super().__init__(**kwargs)
-        self.text.set(text)
+        self.text = Property('')
+        self.text.set_or_bind(text)
+
+
+class Caption(Component):
+    """A small caption / helper text."""
+
+    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+        self.text = Property('')
+        self.text.set_or_bind(text)
 
 
 class Button(Component):
     """A clickable button.
 
     Matches Streamlit's ``st.button`` API:
-        label: button text (stored in the reactive `text` Property)
-        type: "secondary" (default) | "primary"
-        width: "content" (default) | "stretch" — stretch fills parent width
-        help: tooltip text
-    """
+        label:   button text (stored in the reactive `text` Property)
+        type:    "secondary" (default) | "primary"
+        width:   "content" (default) | "stretch" — stretch fills parent width
+        help:    tooltip text
+        enabled: bool (default True) | bound value (`sc.bind(...)`)
 
-    text = Property('')
+    Signals:
+        on_click: emitted when the user clicks the button.
+    """
 
     def __init__(
         self,
-        label: str = '',
+        label: str | Property = '',
         *,
         type: str = 'secondary',
         help: str | None = None,
         width: str = 'content',
+        enabled: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.text.set(label)
+        self.text = Property('')
+        self.text.set_or_bind(label)
+        # `enabled` is reactive so a button can be disabled dynamically,
+        # e.g. `btn.enabled.bind(state.dep, lambda x: not x['is_latest'])`.
+        self.enabled = Property(True)
+        self.enabled.set_or_bind(enabled)
         # `type` / `help` / `width` are static config, not reactive Property.
         self._type = type
         self._help = help
         self._width = width
         self.on_click: Signal = Signal()
+
+
+class Spinner(Component):
+    """A spinner indicator.
+
+    Args:
+        visible: whether the spinner is shown (default False).
+
+    The spinner is both a containment context manager (like every Component)
+    and a visibility toggle:
+
+        spinner = v3.Spinner(visible=False)
+        ...
+        with spinner('Syncing...'):
+            # __call__ sets the text, __enter__ shows the spinner, and
+            # __exit__ restores the visibility it had before.
+            ...
+    """
+
+    def __init__(self, visible: bool = False, **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+        self.text = Property('')
+        self.visible = Property(False)
+        self.visible.set(visible)
+        self._prev_visible = False
+
+    def __call__(self, text: str = '') -> 'Spinner':
+        """Set the spinner text and return `self` (chainable)."""
+        if text:
+            self.text.set(text)
+        return self
+
+    def __enter__(self) -> 'Spinner':
+        self._prev_visible = bool(self.visible.get())
+        self.visible.set(True)
+        return super().__enter__()
+
+    def __exit__(self, *exc: tp.Any) -> bool:
+        self.visible.set(self._prev_visible)
+        return super().__exit__(*exc)
 
 
 class Grid(Component):
@@ -154,12 +214,13 @@ class Selectbox(Component):
     """A dropdown select component.
 
     Properties:
+        label:   str        — widget label (bindable)
         options: list       — available choices (raw values)
         value:   any        — currently selected value (raw)
 
-    Constructor params:
-        format_func: Callable[[Any], str] — converts raw option value to
-        display string. Default: `str`.
+    Attributes:
+        format_func: Callable[[Any], str] — converts a raw option value to
+        its display string. Default: `str`. Reassign it to change formatting.
 
     Signals:
         on_value (via `sel['on_value']` or `sel.value.on_change`)
@@ -169,19 +230,19 @@ class Selectbox(Component):
     the value is automatically set to the first option.
     """
 
-    options = Property([])
-    value = Property('')
-
     def __init__(
         self,
-        label: str = '',
+        label: str | Property = '',
         *,
         format_func: tp.Callable[[tp.Any], str] | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
-        self._label = label
-        self._format_func = format_func or str
+        self.label = Property('')
+        self.label.set_or_bind(label)
+        self.options = Property([])
+        self.value = Property('')
+        self.format_func: tp.Callable[[tp.Any], str] = format_func or str
         self.options.on_change.connect(self._auto_select)
 
     def _auto_select(self) -> None:
@@ -194,12 +255,13 @@ class Radio(Component):
     """A radio button group.
 
     Properties:
+        label:   str        — widget label (bindable)
         options: list       — available choices (raw values)
         value:   any        — currently selected value (raw)
 
-    Constructor params:
-        format_func: Callable[[Any], str] — converts raw option value to
-        display string. Default: `str`.
+    Attributes:
+        format_func: Callable[[Any], str] — converts a raw option value to
+        its display string. Default: `str`. Reassign it to change formatting.
 
     Signals:
         on_value (via `radio['on_value']` or `radio.value.on_change`)
@@ -208,19 +270,19 @@ class Radio(Component):
     Same auto-select behavior as Selectbox.
     """
 
-    options = Property([])
-    value = Property('')
-
     def __init__(
         self,
-        label: str = '',
+        label: str | Property = '',
         *,
         format_func: tp.Callable[[tp.Any], str] | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
-        self._label = label
-        self._format_func = format_func or str
+        self.label = Property('')
+        self.label.set_or_bind(label)
+        self.options = Property([])
+        self.value = Property('')
+        self.format_func: tp.Callable[[tp.Any], str] = format_func or str
         self.options.on_change.connect(self._auto_select)
 
     def _auto_select(self) -> None:

@@ -13,6 +13,8 @@ This module has no Streamlit dependency — the runtime/frontend bridge is added
 in a later phase.
 """
 
+from __future__ import annotations
+
 import typing as tp
 
 from lk_utils import uuid
@@ -32,9 +34,13 @@ class Component(PropertyHost):
     While inside a `with` block, newly constructed components are
     auto-parented to the top of the context stack.
 
-    Declare visual properties as `Property` class attributes:
+    Declare visual properties as instance attributes inside `__init__`
+    (after `super().__init__()`):
         class Text(Component):
-            text = Property('')
+            def __init__(self, text='', **kwargs):
+                super().__init__(**kwargs)
+                self.text = Property('')
+                self.text.set_or_bind(text)
 
     They are read/written the same way as state properties:
         txt.text.get()
@@ -55,8 +61,6 @@ class Component(PropertyHost):
     _active_runtime: tp.ClassVar[tp.Any] = None
 
     def __init__(self, *, key: str | None = None, **kwargs: tp.Any) -> None:
-        # PropertyHost.__init__ sets up `_values` / `_handles` for all
-        # declared Property fields.
         super().__init__(**kwargs)
         # `key` is an optional stable identifier (Streamlit-style). When
         # provided, it is used as the component id verbatim, so external

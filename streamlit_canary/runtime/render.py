@@ -16,12 +16,14 @@ import typing as tp
 
 from ..components_v3.base import Component
 from ..components_v3.widgets import Button
+from ..components_v3.widgets import Caption
 from ..components_v3.widgets import Cell
 from ..components_v3.widgets import Column
 from ..components_v3.widgets import Grid
 from ..components_v3.widgets import Radio
 from ..components_v3.widgets import Row
 from ..components_v3.widgets import Selectbox
+from ..components_v3.widgets import Spinner
 from ..components_v3.widgets import Text
 from ..components_v3.widgets import Title
 
@@ -31,6 +33,8 @@ from ..components_v3.widgets import Title
 
 _COLOR_RE = re.compile(r':([a-zA-Z]+)\[([^\]]*)\]')
 _MATERIAL_RE = re.compile(r':material/([a-zA-Z_]+):')
+_BOLD_RE = re.compile(r'\*\*([^*]+)\*\*')
+_ITALIC_RE = re.compile(r'\*([^*]+)\*')
 
 _MATERIAL_MAP = {
     'autorenew': '\u21bb',
@@ -80,6 +84,9 @@ def render_markup(text: str) -> str:
         return f'<span style="color:{css}">{inner}</span>'
 
     text = _COLOR_RE.sub(_col, text)
+    # inline emphasis: **bold** then *italic* (matches markdown)
+    text = _BOLD_RE.sub(r'<strong>\1</strong>', text)
+    text = _ITALIC_RE.sub(r'<em>\1</em>', text)
     return text
 
 
@@ -135,9 +142,22 @@ def _render(comp: Component) -> str:
     if isinstance(comp, Title):
         text = render_markup(str(comp.text.get()))
         return f'<h1 class="st-title" data-id="{comp.id}">{text}</h1>'
+    if isinstance(comp, Caption):
+        text = render_markup(str(comp.text.get()))
+        return f'<div class="st-caption" data-id="{comp.id}">{text}</div>'
     if isinstance(comp, Text):
         text = render_markup(str(comp.text.get()))
         return f'<div class="st-text" data-id="{comp.id}">{text}</div>'
+    if isinstance(comp, Spinner):
+        children = ''.join(_render(c) for c in comp.children)
+        hidden = '' if comp.visible.get() else ' hidden'
+        text = render_markup(str(comp.text.get()))
+        return (
+            f'<div class="st-spinner" data-id="{comp.id}"{hidden}>'
+            f'<span class="st-spinner-ring"></span>'
+            f'<span class="st-spinner-text">{text}</span>'
+            f'{children}</div>'
+        )
     if isinstance(comp, Button):
         return _render_button(comp)
     if isinstance(comp, Selectbox):
@@ -168,12 +188,13 @@ def _render_button(comp: Button) -> str:
     cls = f'st-btn st-btn-{st_type}'
     width = getattr(comp, '_width', 'content')
     width_style = ' style="width:100%"' if width == 'stretch' else ''
+    disabled = '' if comp.enabled.get() else ' disabled'
     help_attr = ''
     if getattr(comp, '_help', None):
         help_text = html.escape(str(comp._help))
         help_attr = f' title="{help_text}"'
     return (
-        f'<button class="{cls}" data-id="{comp.id}" '
+        f'<button class="{cls}" data-id="{comp.id}" type="button"{disabled} '
         f'onclick="scSendClick(this)"{width_style}{help_attr}>'
         f'<span class="st-btn-text">{label}</span></button>'
     )
@@ -182,7 +203,7 @@ def _render_button(comp: Button) -> str:
 def _render_selectbox(comp: Selectbox) -> str:
     options = comp.options.get() or []
     value = comp.value.get()
-    fmt = getattr(comp, '_format_func', str)
+    fmt = comp.format_func
     # Build option items for the custom dropdown panel. Two-layer structure
     # matches Streamlit: outer (padding 0 5px) + inner (padding 0 8px), so
     # the hover background on the inner div is inset from the panel edges.
@@ -193,12 +214,12 @@ def _render_selectbox(comp: Selectbox) -> str:
         f'onclick="scSelectOption(this)" '
         f'{"data-selected" if o == value else ""}>'
         f'<div class="st-selectbox-option-inner">'
-        f'{html.escape(fmt(o))}</div></div>'
+        f'{render_markup(fmt(o))}</div></div>'
         for o in options
     )
     # Display text for the trigger button.
-    display_text = html.escape(fmt(value)) if value else '\u200b'
-    label = html.escape(getattr(comp, '_label', ''))
+    display_text = render_markup(fmt(value)) if value else '\u200b'
+    label = render_markup(str(comp.label.get()))
     arrow_svg = (
         '<svg class="st-selectbox-arrow" viewBox="0 0 24 24" '
         'width="20" height="20" fill="currentColor">'
@@ -225,8 +246,8 @@ def _render_selectbox(comp: Selectbox) -> str:
 def _render_radio(comp: Radio) -> str:
     options = comp.options.get() or []
     value = comp.value.get()
-    fmt = getattr(comp, '_format_func', str)
-    label = html.escape(getattr(comp, '_label', ''))
+    fmt = comp.format_func
+    label = render_markup(str(comp.label.get()))
     items = ''.join(
         f'<label class="st-radio-item">'
         f'<input type="radio" name="radio_{comp.id}" '
@@ -345,6 +366,40 @@ _PAGE_CSS = """
     margin-bottom: 8px;
   }
 
+  .st-caption {
+    font-size: 14px;
+    color: var(--st-gray-color);
+    margin-bottom: 8px;
+  }
+
+  /* Spinner */
+  .st-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: var(--st-text-color);
+    font-size: 14px;
+  }
+  .st-spinner[hidden] {
+    display: none;
+  }
+  .st-spinner-ring {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border: 2px solid var(--st-border-color);
+    border-top-color: var(--st-primary-color);
+    border-radius: 50%;
+    animation: st-spin 0.8s linear infinite;
+  }
+  @keyframes st-spin {
+    to { transform: rotate(360deg); }
+  }
+  .st-spinner-text {
+    white-space: pre-line;
+  }
+
   /* Layout: Row */
   .st-row {
     display: flex;
@@ -426,6 +481,13 @@ _PAGE_CSS = """
   }
   .st-btn-text p {
     margin: 0;
+  }
+  .st-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .st-btn:disabled:hover {
+    background-color: var(--st-secondary-background-color);
   }
   .st-btn-secondary {
     background-color: var(--st-secondary-background-color);
@@ -621,12 +683,21 @@ _PAGE_JS = """
       // For selectbox/radio, label is in .st-widget-label, not the root
       if (el.classList.contains('st-selectbox') || el.classList.contains('st-radio')) {
         const labelEl = el.querySelector('.st-widget-label');
-        if (labelEl) labelEl.textContent = msg.value;
+        if (labelEl) labelEl.innerHTML = window.scRenderMarkup(msg.value);
       } else if (el.classList.contains('st-btn')) {
         el.innerHTML = window.scRenderButtonText(msg.value);
+      } else if (el.classList.contains('st-spinner')) {
+        const textEl = el.querySelector('.st-spinner-text');
+        if (textEl) textEl.innerHTML = window.scRenderMarkup(msg.value);
       } else {
         el.innerHTML = window.scRenderMarkup(msg.value);
       }
+    }
+    if (msg.prop === 'enabled') {
+      if (el.classList.contains('st-btn')) el.disabled = !msg.value;
+    }
+    if (msg.prop === 'visible') {
+      el.hidden = !msg.value;
     }
     if (msg.prop === 'options') {
       if (el.classList.contains('st-selectbox')) {
@@ -771,6 +842,9 @@ _PAGE_JS = """
       const css = colMap[c];
       return css ? `<span style="color:${css}">${t}</span>` : `<span class="st-text-${c}">${t}</span>`;
     });
+    // inline emphasis: **bold** then *italic* (matches the Python side)
+    s = s.replace(/\\*\\*([^*]+)\\*\\*/g, '<strong>$1</strong>');
+    s = s.replace(/\\*([^*]+)\\*/g, '<em>$1</em>');
     return s;
   };
   // expose button-text renderer: one <p> per blank-line-separated block,
