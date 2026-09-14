@@ -10,93 +10,26 @@ Extracting this into `PropertyHost` keeps the read/write style uniform across
 state and components.
 """
 
-from __future__ import annotations
-
 import typing as tp
 
 from .property import Property
 
 
 class PropertyHost:
-    # cached per-subclass: {name: Property descriptor}
-    _properties: tp.ClassVar[dict[str, Property]] = {}
-
-    def __init_subclass__(cls, **kwargs: tp.Any) -> None:
-        # No metaclass needed: `__init_subclass__` scans the MRO for Property
-        # descriptors once per subclass definition and caches them.
-        super().__init_subclass__(**kwargs)
-        props: dict[str, Property] = {}
-        for klass in reversed(cls.__mro__):
-            for name, attr in vars(klass).items():
-                if isinstance(attr, Property) and not name.startswith('_'):
-                    props[name] = attr
-        cls._properties = props
-
-    def __init__(self, **_kwargs: tp.Any) -> None:
-        # raw value store: name -> value
-        self._values: dict[str, tp.Any] = {}
-        # bound handles: name -> Property (bound)
-        self._handles: dict[str, Property] = {}
-
-        for name, prop in self._properties.items():
-            self._values[name] = prop.default
-            self._handles[name] = Property(
-                prop.default, _bound=True, _instance=self, _name=name
-            )
-
-    # -- dynamic property registration -----------------------------------
-
-    def __setattr__(self, name: str, value: tp.Any) -> None:
-        """
-        Support declaring properties dynamically in `__init__`:
-
-            class _State(StateV2):
-                def __init__(self):
-                    super().__init__()
-                    self.my_prop = sc.Property('')   # registered here
-
-        When a `Property` instance is assigned to an attribute, it is
-        converted into a bound handle and registered in `_values` /
-        `_handles` just like a class-level declaration.
-        """
-        if isinstance(value, Property) and not value._bound:
-            # dynamic property: convert to bound handle and register
-            value.name = name
-            value._instance = self
-            # ensure the stores exist (in case __init__ wasn't called yet)
-            stores = getattr(self, '_values', None)
-            if stores is None:
-                object.__setattr__(self, '_values', {})
-                object.__setattr__(self, '_handles', {})
-            self._values[name] = value.default
-            self._handles[name] = value
-            # update the class-level cache so introspection sees it
-            type(self)._properties = {**type(self)._properties, name: value}
-            # store the bound handle in the instance dict so that normal
-            # attribute access (`self.my_prop`) returns the handle.
-            object.__setattr__(self, name, value)
-            return
-        super().__setattr__(name, value)
-
-    # -- dict-like access ------------------------------------------------
-
     def __getitem__(self, key: str) -> tp.Any:
         if key.startswith('on_'):
             name = key[3:]
-            if name in self._handles:
-                return self._handles[name].on_change
-            raise KeyError(key)
-        if key in self._values:
-            return self._values[key]
-        raise KeyError(key)
+            prop = getattr(self, name)
+            assert isinstance(prop, Property)
+            return prop.on_change
+        else:
+            return getattr(self, key)
 
     def __setitem__(self, key: str, value: tp.Any) -> None:
-        if key.startswith('on_'):
-            raise TypeError(f'{key!r} is a signal and cannot be assigned to')
-        if key in self._handles:
-            self._handles[key].set(value)
-            return
-        raise KeyError(key)
+        assert not key.startswith('on_')
+        prop = getattr(self, key)
+        assert isinstance(prop, Property)
+        prop.set(value)
 
 
 class StateV2(PropertyHost):
@@ -122,21 +55,19 @@ class StateV2(PropertyHost):
     stored on the instance and exposed via `state.version`.
     """
 
-    def __init__(self, version: int | None = None, **kwargs: tp.Any) -> None:
+    def __init__(
+        self, version: tp.Optional[int] = None, **kwargs: tp.Any
+    ) -> None:
         super().__init__(**kwargs)
         # schema version: explicit kwarg wins, else class-level __version__
         if version is None:
             version = getattr(type(self), '__version__', 0)
-        self._version = version
-
-    # -- version ---------------------------------------------------------
-
-    @property
-    def version(self) -> int:
-        return self._version
-
-    # -- introspection ---------------------------------------------------
+        self._version = version  # TODO
 
     def __repr__(self) -> str:
         fields = ', '.join(f'{n}={self._values[n]!r}' for n in self._properties)
         return f'<{type(self).__name__} v{self._version} {fields}>'
+
+    @property
+    def version(self) -> int:
+        return self._version

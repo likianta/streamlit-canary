@@ -13,8 +13,6 @@ This module has no Streamlit dependency — the runtime/frontend bridge is added
 in a later phase.
 """
 
-from __future__ import annotations
-
 import typing as tp
 
 from lk_utils import uuid

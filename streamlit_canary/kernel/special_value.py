@@ -15,7 +15,11 @@ class _Self:
 
 
 class _Undefined:
-    pass
+    def __bool__(self) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return 'sc._undefined'
 
 
 class _Value:
