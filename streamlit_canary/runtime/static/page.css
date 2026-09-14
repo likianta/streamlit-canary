@@ -1,0 +1,382 @@
+/* 'Source Sans' is Streamlit's UI font, bundled in this package and
+     served at /fonts/source-sans.woff2 (see server.py). It keeps text
+     metrics identical to Streamlit's. */
+  @font-face {
+    font-family: 'Source Sans';
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/source-sans.woff2') format('woff2');
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--st-font);
+    font-size: var(--st-base-font-size);
+    font-weight: var(--st-base-font-weight);
+    background-color: var(--st-background-color);
+    color: var(--st-text-color);
+    line-height: 1.6;
+    padding: 24px 0;
+  }
+  #app {
+    max-width: 768px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  /* Title */
+  .st-title {
+    font-family: var(--st-heading-font);
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--st-heading-color);
+    margin-bottom: 16px;
+    line-height: 1.25;
+  }
+
+  /* Text */
+  .st-text {
+    font-size: 14px;
+    color: var(--st-text-color);
+    margin-bottom: 8px;
+  }
+
+  .st-caption {
+    font-size: 14px;
+    color: var(--st-gray-color);
+    margin-bottom: 8px;
+  }
+
+  /* Success alert (mirrors Streamlit's `st.success`) */
+  .st-alert {
+    display: block;
+  }
+  .st-alert[hidden] {
+    display: none;
+  }
+  .st-alert-container {
+    background-color: rgba(61, 213, 109, 0.2);
+    color: #5ce488;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .st-alert-text p {
+    margin: 0 0 16px;
+    font-size: 16px;
+    color: inherit;
+  }
+
+  /* Spinner */
+  .st-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: var(--st-text-color);
+    font-size: 14px;
+  }
+  .st-spinner[hidden] {
+    display: none;
+  }
+  .st-spinner-ring {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border: 2px solid var(--st-border-color);
+    border-top-color: var(--st-primary-color);
+    border-radius: 50%;
+    animation: st-spin 0.8s linear infinite;
+  }
+  @keyframes st-spin {
+    to { transform: rotate(360deg); }
+  }
+  .st-spinner-text {
+    white-space: pre-line;
+  }
+
+  /* Layout: Row */
+  .st-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .st-row > * { flex: 1; }
+  .st-row > .st-btn-secondary { flex: 0 0 auto; }
+  /* Neutralize widget bottom margins so `align-items` aligns the actual
+  box edges, not the margin box. Use higher specificity than single-class
+  widget rules (e.g. `.st-selectbox { margin-bottom: 8px }`). */
+  .st-row > .st-selectbox,
+  .st-row > .st-radio,
+  .st-row > .st-btn,
+  .st-row > .st-text,
+  .st-row > .st-title { margin-bottom: 0; }
+
+  /* Layout: Container (Column) */
+  .st-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .st-container--border {
+    border: 1px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    padding: 16px;
+  }
+
+  /* Layout: Grid */
+  .st-grid {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: stretch;
+  }
+  .st-grid-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  /* Widget label */
+  .st-widget-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--st-text-color);
+    margin-bottom: 4px;
+    visibility: visible;
+  }
+  .st-widget-label--hidden {
+    visibility: hidden;
+  }
+  .st-widget-label--collapsed {
+    display: none;
+  }
+
+  /* Button */
+  .st-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 12px;
+    min-height: 40px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    font-family: var(--st-font);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.6;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+    user-select: none;
+    text-align: center;
+  }
+  /* Multi-line labels render one `<p>` per markdown paragraph (like
+     Streamlit), so the button keeps a tight two-line box. */
+  .st-btn-text {
+    display: block;
+  }
+  .st-btn-text p {
+    margin: 0;
+  }
+  .st-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .st-btn:disabled:hover {
+    background-color: var(--st-secondary-background-color);
+  }
+  .st-btn-secondary {
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    border-color: rgba(250, 250, 250, 0.2);
+  }
+  .st-btn-secondary:hover {
+    background-color: rgba(172, 177, 195, 0.15);
+  }
+  .st-btn-secondary:active {
+    background-color: rgba(172, 177, 195, 0.25);
+  }
+  .st-btn-primary {
+    background-color: var(--st-primary-color);
+    color: #ffffff;
+    border-color: var(--st-primary-color);
+  }
+  .st-btn-primary:hover {
+    filter: brightness(1.1);
+  }
+  .st-icon { font-size: 16px; line-height: 1; }
+
+  /* Selectbox (custom dropdown — no native <select>) */
+  .st-selectbox { margin-bottom: 8px; }
+  .st-selectbox-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .st-selectbox-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  /* No border-color change on hover — matches Streamlit's behavior. */
+  .st-selectbox-trigger:focus {
+    outline: none;
+    border-color: var(--st-primary-color);
+    box-shadow: 0 0 0 2px rgba(255, 75, 75, 0.2);
+  }
+  .st-selectbox-value {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st-selectbox-arrow {
+    color: var(--st-text-color);
+    flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .st-selectbox-trigger[aria-expanded="true"] .st-selectbox-arrow {
+    transform: rotate(180deg);
+  }
+  .st-selectbox-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    padding: 4px 0;
+  }
+  .st-selectbox-option {
+    padding: 0 5px;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  .st-selectbox-option-inner {
+    padding: 8px 8px;
+    font-size: 14px;
+    line-height: 1.4;
+    border-radius: 4px;
+    transition: background-color 0.1s;
+  }
+  .st-selectbox-option:hover > .st-selectbox-option-inner {
+    background-color: var(--st-border-color);
+  }
+  .st-selectbox-option[data-selected] .st-selectbox-option-inner {
+    color: var(--st-primary-color);
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar {
+    width: 6px;
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar-thumb {
+    background: var(--st-border-color);
+    border-radius: 3px;
+  }
+
+  /* Radio (mirrors Streamlit's `stRadio` markup and metrics) */
+  .st-radio {
+    margin-bottom: 8px;
+  }
+  /* Streamlit's radio shrinks to its content width instead of filling the
+     parent container. Scoped to column containers so it does not disturb
+     vertical alignment when a radio sits inside a Row. */
+  .st-container > .st-radio {
+    align-self: flex-start;
+  }
+  .st-radio-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .st-radio-item {
+    display: block;
+    padding: 0 2px 0 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .st-radio-item:has(input:focus-visible) {
+    background-color: rgba(172, 177, 195, 0.25);
+  }
+  /* The real <input> is visually hidden; the indicator is drawn with divs. */
+  .st-radio-input-wrap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .st-radio-item-body {
+    display: flex;
+    flex-direction: column;
+    color: var(--st-text-color);
+  }
+  .st-radio-item-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .st-radio-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: rgba(250, 250, 250, 0.2);
+  }
+  .st-radio-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: var(--st-background-color);
+  }
+  .st-radio-item:has(input:checked) .st-radio-circle {
+    background-color: var(--st-primary-color);
+  }
+  .st-radio-item:has(input:checked) .st-radio-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #ffffff;
+  }
+  .st-radio-markdown {
+    display: block;
+  }
+  .st-radio-markdown p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-text-color);
+  }

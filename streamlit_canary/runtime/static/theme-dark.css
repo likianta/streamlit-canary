@@ -1,0 +1,22 @@
+:root {
+    --st-background-color: #0d1117;
+    --st-secondary-background-color: #161b22;
+    --st-text-color: #fafafa;
+    --st-heading-color: #e6edf3;
+    --st-primary-color: #ff4b4b;
+    --st-border-color: #30363d;
+    --st-border-color-light: #21262d;
+    --st-widget-border-color: #30363d;
+    --st-base-radius: 8px;
+    --st-button-radius: 6px;
+    --st-font: "Source Sans", sans-serif;
+    --st-heading-font: "Source Sans", sans-serif;
+    --st-code-font: "Source Code Pro", "SF Mono", monospace;
+    --st-base-font-size: 14px;
+    --st-base-font-weight: 400;
+    --st-green-color: #3fb950;
+    --st-orange-color: #d29922;
+    --st-red-color: #f85149;
+    --st-blue-color: #58a6ff;
+    --st-gray-color: #8b949e;
+  }
