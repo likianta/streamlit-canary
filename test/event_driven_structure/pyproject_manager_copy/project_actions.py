@@ -18,18 +18,22 @@ def ui() -> None:
             with v3.Button('Bump version...') as btn:
 
                 @state['on_project'].partial(btn, sc._value).emit_now
-                def _set_button_text(
-                    btn: v3.Button, proj_info: T.ProjectInfo
+                def _set_button_text_1(
+                    btn: v3.Button, project: T.ProjectInfo
                 ) -> None:
                     btn['text'] = (
                         'Bump version\n\n(:{}[{}] -> :gray[{}])'.format(
                             'green'
-                            if fs.exist(proj_info['dist_file'])
+                            if fs.exist(project['dist_file'])
                             else 'gray',
-                            proj_info['version'],
-                            _bump_least_version(proj_info['version']),
+                            project['version'],
+                            _bump_least_version(project['version']),
                         )
                     )
+
+                @state.project_revamped.partial(btn)
+                def _(btn: v3.Button, project: T.ProjectInfo):
+                    _set_button_text_1(btn, project)
 
                 @btn.on_click
                 def _() -> None:
@@ -59,13 +63,17 @@ def ui() -> None:
             with v3.Button('Build wheel package...') as btn:
 
                 @state['on_project'].partial(btn, sc._value).emit_now
-                def _set_button_text(
+                def _set_button_text_2(
                     btn: v3.Button, proj_info: T.ProjectInfo
                 ) -> None:
                     btn['text'] = 'Build wheel package\n\n(:{}[{}])'.format(
                         'green' if fs.exist(proj_info['dist_file']) else 'gray',
                         proj_info['version'],
                     )
+
+                @state.project_revamped.partial(btn)
+                def _(btn: v3.Button, proj_info: T.ProjectInfo):
+                    _set_button_text_2(btn, proj_info)
 
                 @btn.on_click
                 def _() -> None:
@@ -81,23 +89,25 @@ def ui() -> None:
                             fs.filename(proj_info['dist_file'])
                         )
                     )
+                    # The wheel now exists on disk: refresh the project-derived
+                    # UI (button texts + enabled states).
+                    state['on_project'].emit()
 
         with grid[1, 0]:
-            with v3.Button('Publish to private host...') as btn:
+            with v3.Button(
+                'Publish to private host...',
+                enabled=sc.bind(state.project, _private_dist_exists),
+            ) as btn:
 
                 @state['on_project'].partial(btn, sc._value).emit_now
-                def _set_private_publish_button_text(
+                def _set_button_text_3(
                     btn: v3.Button, proj_info: T.ProjectInfo
                 ) -> None:
                     proj_published = (
                         proj_info['dist_file']
                         in state['private_published_files']
                     )
-                    proj_dist_exists = (
-                        True
-                        if proj_published
-                        else fs.exist(proj_info['dist_file'])
-                    )
+                    proj_dist_exists = _private_dist_exists(proj_info)
 
                     btn['text'] = 'Publish to private host\n\n(:{}[{}])'.format(
                         'green' if proj_published else 'gray',
@@ -115,7 +125,7 @@ def ui() -> None:
                     dst = proj_info['dist_file']
                     publish_to_private_index(dst)
                     state['private_published_files'].add(dst)
-                    _set_private_publish_button_text(btn, proj_info)
+                    _set_button_text_3(btn, proj_info)
 
         with grid[1, 1]:
             with v3.Button(
@@ -133,6 +143,12 @@ def ui() -> None:
         state.build_message,
         visible=sc.bind(state.build_message, lambda x: bool(x)),
     )
+
+
+def _private_dist_exists(project: T.ProjectInfo) -> bool:
+    """A wheel can be published once it is on disk or was published before."""
+    dist_file = project['dist_file']
+    return dist_file in state['private_published_files'] or fs.exist(dist_file)
 
 
 def _bump_least_version(old_ver: str) -> str:

@@ -114,7 +114,9 @@ class Button(Component):
         self._type = type
         self._help = help
         self._width = width
-        self.on_click: Signal = Signal()
+        # `Signal(owner_factory=...)` mirrors `Property.on_change`, so
+        # `@btn.on_click.partial(sc._self)` hands the handler this button.
+        self.on_click: Signal = Signal(owner_factory=lambda: self)
 
 
 class Spinner(Component):

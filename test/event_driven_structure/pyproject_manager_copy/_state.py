@@ -63,6 +63,7 @@ class _State(sc.StateV2):
                 # toml handler's in-memory lines match the new version, but
                 # keep the dependency bump/sync state untouched.
                 mgr['toml_handler'].reload()
+            self._refresh_dependents(proj)
             # `project` is the very dict we just mutated, so `set()` would not
             # emit; force-refresh the project-derived UI (button texts).
             self['on_project'].emit()
@@ -115,6 +116,28 @@ class _State(sc.StateV2):
         for one in mgr['dependencies'].values():
             self['dependency'] = one
             break
+
+    def _refresh_dependents(self, project: T.ProjectInfo) -> None:
+        """Update other projects' cached view of `project`'s version.
+
+        A project's manager is analysed once and then cached (so its bump /
+        sync state survives re-selection). When `project`'s version changes,
+        the cached managers that depend on it would keep reporting the old
+        `latest_version`.
+        """
+        name = project['name']
+        latest_version = project['version']
+        for other_name, mgr in self.name_to_project_manager.items():
+            if other_name == name:
+                continue
+            dep = mgr['dependencies'].get(name)
+            if dep is None or dep['latest_version'] is None:
+                continue
+            dep['latest_version'] = latest_version
+            dep['is_latest'] = dep['current_version'] == latest_version
+            mgr['todo_bump'] = any(
+                not d['is_latest'] for d in mgr['dependencies'].values()
+            )
 
     def _analyze_project(self, project: T.ProjectInfo) -> T.DependenciesManager:
         deps: T.Dependencies = {}
