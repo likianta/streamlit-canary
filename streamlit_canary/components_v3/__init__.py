@@ -12,7 +12,9 @@ from .widgets import Cell
 from .widgets import Checkbox
 from .widgets import Code
 from .widgets import Column
+from .widgets import Container
 from .widgets import Grid
+from .widgets import NumberInput
 from .widgets import Popover
 from .widgets import Radio
 from .widgets import Row
@@ -32,7 +34,9 @@ __all__ = [
     'Code',
     'Column',
     'Component',
+    'Container',
     'Grid',
+    'NumberInput',
     'Popover',
     'Radio',
     'Row',

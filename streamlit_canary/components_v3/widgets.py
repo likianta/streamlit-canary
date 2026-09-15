@@ -84,31 +84,95 @@ class _OptionsWidget(_Labeled):
 
     Fields:
         options: Property[list] — the raw choices (bindable).
+        index:   Property[int]  — the selected position (bindable).
         value:   Property[any]  — the raw selected value (bindable).
         format_func: Callable[[Any], str] — raw value → display string.
 
-    When `options` change and the current `value` is no longer among them,
-    `value` falls back to the first option.
+    `index` and `value` mirror each other, so either one may be set: `index`
+    is the position of `value` in `options`, and setting `index` selects
+    `options[index]`. When `options` change and the current `value` is no
+    longer among them, `value` falls back to the first option.
     """
 
     def __init__(
         self,
         label: str | Property = '',
         *,
+        options: tp.Sequence[tp.Any] | Property | None = None,
+        index: int | Property | None = None,
+        value: tp.Any = None,
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         format_func: tp.Callable[[tp.Any], str] | None = None,
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
         self.options = Property([])
+        self.index = Property(0)
         self.value = Property('')
-        self.format_func: tp.Callable[[tp.Any], str] = format_func or str
+        self._format = format
+        self.format_func: tp.Callable[[tp.Any], str] = self._make_format(
+            format, format_func
+        )
         self.options.on_change.connect(self._auto_select)
+        self.value.on_change.connect(self._sync_index)
+        self.index.on_change.connect(self._sync_value)
+        if options is not None:
+            self.options.set_or_bind(tp.cast(tp.Any, options))
+        if value is not None:
+            self.value.set_or_bind(value)
+        elif index is not None:
+            self.index.set_or_bind(tp.cast(tp.Any, index))
+
+    def _make_format(
+        self,
+        format: tp.Callable[[tp.Any], str] | tp.Sequence[str] | None,
+        format_func: tp.Callable[[tp.Any], str] | None,
+    ) -> tp.Callable[[tp.Any], str]:
+        """Resolve the display formatter from `format_func` / `format`.
+
+        `format_func` wins when given. Otherwise `format` may be either a
+        callable (raw value -> display string) or a sequence parallel to
+        `options` (index -> display string). `format` is resolved lazily
+        against the *current* options, so it stays correct after
+        `options` changes.
+        """
+        if format_func is not None:
+            return format_func
+        if format is None:
+            return str
+        if callable(format):
+            return tp.cast(tp.Callable[[tp.Any], str], format)
+        labels = list(format)
+
+        def _fmt(v: tp.Any) -> str:
+            options = list(self.options.get() or [])
+            try:
+                i = options.index(v)
+            except ValueError:
+                return str(v)
+            return str(labels[i]) if i < len(labels) else str(v)
+
+        return _fmt
 
     def _auto_select(self) -> None:
         options = self.options.get()
         if options and self.value.get() not in options:
             self.value.set(options[0])
+
+    def _sync_index(self) -> None:
+        """Mirror `value` into `index` (its position in `options`)."""
+        options = list(self.options.get() or [])
+        value = self.value.get()
+        if value in options:
+            self.index.set(options.index(value))
+
+    def _sync_value(self) -> None:
+        """Mirror `index` into `value`."""
+        options = list(self.options.get() or [])
+        i = self.index.get()
+        if isinstance(i, int) and 0 <= i < len(options):
+            self.value.set(options[i])
 
 
 class _TextVisible(_HasText):
@@ -252,6 +316,10 @@ class Column(Component):
         self._border = border
 
 
+Container = Column
+#   alias of `Column`, mirroring Streamlit's `st.container`.
+
+
 class Grid(Component):
     """A grid layout container.
 
@@ -293,6 +361,58 @@ class Grid(Component):
                 stack.pop()
             self._cells[(row, col)] = cell
         return cell
+
+
+class NumberInput(_Labeled):
+    """A numeric input box (mirrors Streamlit's `st.number_input`).
+
+    Args:
+        label: the widget label.
+        value: initial number (bindable, coerced to `int`).
+        format: optional display formatter, e.g. `hex`.
+        width: `int` (px) | 'content' | 'stretch' | None (default).
+        min / max / step: optional bounds (stored, not enforced yet).
+        placeholder: hint shown while the box is empty.
+
+    Properties:
+        label: str — rendered above the box.
+        value: int — the current number. The client sends a `change` event
+            (fired on blur / Enter); the incoming text is parsed back into
+            an `int`, accepting both `'41'` and `'0x29'`.
+
+    Signals:
+        on_value: emitted when `value` changes.
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        value: int | Property = 0,
+        *,
+        format: tp.Callable[[tp.Any], str] | None = None,
+        width: int | tp.Literal['content', 'stretch'] | None = None,
+        min: tp.Any = None,
+        max: tp.Any = None,
+        step: tp.Any = None,
+        placeholder: str = '',
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.value = _prop(0, value)
+        self.format = format
+        self._width = width
+        self._min = min
+        self._max = max
+        self._step = step
+        self._placeholder = placeholder
+
+    def _coerce_value(self, raw: tp.Any) -> int:
+        """Parse a client-sent string back into an int (accepts `0x..`)."""
+        try:
+            return int(str(raw), 0)
+        except ValueError:
+            return self.value.get()
 
 
 class Popover(_HasText):

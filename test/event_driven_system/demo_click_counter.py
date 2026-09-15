@@ -6,9 +6,9 @@ kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`), v3 components
 (`sc.v3.Row`, `sc.v3.Text`, `sc.v3.Button`) and the event runtime
 (`sc.run(func, port=...)`) are all implemented, so this file runs end-to-end:
 
-    python test/event_driven_structure/demo_click_counter.py
+    python test/event_driven_system/demo_click_counter.py
 
-Open http://127.0.0.1:3001 in a browser and click the button — the counter
+Open http://127.0.0.1:2201 in a browser and click the button — the counter
 updates in place without a full page reload, because the app function only
 runs once and subsequent clicks only execute the registered signal handlers.
 """
@@ -88,5 +88,5 @@ def click_counter_demo():
 # ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # python test/demo_click_counter.py
-    sc.run(click_counter_demo, port=3001)
+    # python test/event_driven_system/demo_click_counter.py
+    sc.run(click_counter_demo, port=2201)

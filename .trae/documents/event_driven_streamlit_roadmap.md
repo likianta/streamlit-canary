@@ -42,9 +42,9 @@ Property/Signal 系统在 streamlit_canary 内部重写一份纯 Python 版本,�
 
 ### 概念代码目标 API
 
-> 最初指向 `test/event_driven_structure.md`; 该概念稿后来落在
-> `test/event_driven_structure/readme.md`, 可运行版本见
-> `test/event_driven_structure/demo_click_counter.py`。
+> 最初指向 `test/event_driven_system.md`; 该概念稿后来落在
+> `test/event_driven_system/readme.md`, 可运行版本见
+> `test/event_driven_system/demo_click_counter.py`。
 
 ```python
 class _State(sc.StateV2):
@@ -64,7 +64,7 @@ def click_counter_demo():
             def _():
                 state['count'] += 1
 
-sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit run 子进程
+sc.run(click_counter_demo, port=2201)   # 直接收函数,不通过 streamlit run 子进程
 ```
 
 ### 关键缺口 (Gaps) — 均已解决
@@ -103,8 +103,8 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 
 ### Phase 0 — 概念演示 ✅
 
-**产出**: 概念稿落在 `test/event_driven_structure/readme.md`, 可运行版本为
-`test/event_driven_structure/demo_click_counter.py` (概念稿已随之更新为当前 API)。
+**产出**: 概念稿落在 `test/event_driven_system/readme.md`, 可运行版本为
+`test/event_driven_system/demo_click_counter.py` (概念稿已随之更新为当前 API)。
 
 **目的**: 把目标 API 钉死,作为后续所有阶段的契约。当时 Property/Signal/StateV2
 尚不存在,这份文件作为"目标快照"指导 Phase 1 设计。
@@ -154,7 +154,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 - 公共字段抽象为私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`)
   以复用,详见 `AGENTS.md` §8
 
-**验证**: `python test/event_driven_structure/components_v3_demo.py`,纯 Python 构造
+**验证**: `python test/event_driven_system/components_v3_demo.py`,纯 Python 构造
 组件树,手动触发信号,断言属性变化和处理器调用。
 
 ### Phase 3 — 事件运行时 (核心) ✅
@@ -168,7 +168,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 - delta 协议: `{"type":"patch","id":"<comp-id>","prop":"text","value":"..."}`;事件: `{"type":"event","id":"<comp-id>","event":"click"}`
 - 前端: 组件渲染为带 `data-id` 的 DOM 元素,WS 收到 patch 时按 id 更新 `textContent`
 
-**验证**: `python test/event_driven_structure/demo_click_counter.py`,浏览器打开点击按钮,计数器递增且无页面刷新。
+**验证**: `python test/event_driven_system/demo_click_counter.py`,浏览器打开点击按钮,计数器递增且无页面刷新。
 
 ### Phase 4 — 前端协议决策 & 对接 (进行中)
 
@@ -178,7 +178,7 @@ sc.run(click_counter_demo, port=3001)   # 直接收函数,不通过 streamlit ru
 在模块导入时加载。
 
 **当前进度**: 基础渲染 + delta 推送已可用; 本阶段剩余工作是**与原版 Streamlit 的
-UI 细节对齐** (以 `test/event_driven_structure/pyproject_manager_copy/` 对照
+UI 细节对齐** (以 `test/event_driven_system/pyproject_manager_copy/` 对照
 `references/pyproject_manager/`, 见 `AGENTS.md` §4/§5)。
 
 **产出**: 选定方案并实现最小可点击 demo (浏览器打开能看到 counter) — 已完成, 并在
@@ -221,9 +221,9 @@ UI 细节对齐** (以 `test/event_driven_structure/pyproject_manager_copy/` 对
 
 | Phase | 验证方式 |
 |---|---|
-| 0 | 代码评审: `test/event_driven_structure/readme.md` + `demo_click_counter.py` 展示概念代码所有特性 |
+| 0 | 代码评审: `test/event_driven_system/readme.md` + `demo_click_counter.py` 展示概念代码所有特性 |
 | 1 | `python test/on_property_test.py` 跑通,断言 6 方法、`partial` 注入、version 行为 |
-| 2 | `python test/event_driven_structure/components_v3_demo.py` 构造组件树,模拟 click,断言处理器被调用 |
-| 3 | `python test/event_driven_structure/demo_click_counter.py` 启动 counter,断言 app 函数只执行一次,counter 正确递增 |
-| 4 | 浏览器打开 `localhost:<port>`,点击按钮,看到 counter 更新;多次点击验证无全量重跑;并在 `:3001` vs `:2130` 对照采集 UI 细节 |
+| 2 | `python test/event_driven_system/components_v3_demo.py` 构造组件树,模拟 click,断言处理器被调用 |
+| 3 | `python test/event_driven_system/demo_click_counter.py` 启动 counter,断言 app 函数只执行一次,counter 正确递增 |
+| 4 | 浏览器打开 `localhost:<port>`,点击按钮,看到 counter 更新;多次点击验证无全量重跑;并在 `:2201` vs `:2200` 对照采集 UI 细节 |
 | 5 | 现有 v1/v2 组件在新模型下可用;旧重复模块删除后 `python test/` 全部通过 |

@@ -7,7 +7,7 @@ LK-flavored Streamlit components, plus an **event-driven (no-rerun)** runtime.
 The app function runs **once** to build a component tree. Later interactions
 only run the handlers registered on signals, and the frontend patches the DOM
 in place (no page reload). See
-`test/event_driven_structure/demo_click_counter.py` for a runnable minimal
+`test/event_driven_system/demo_click_counter.py` for a runnable minimal
 example.
 
 ## Usage

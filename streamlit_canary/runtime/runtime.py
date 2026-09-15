@@ -80,11 +80,14 @@ class Runtime:
         if event == 'click' and hasattr(comp, 'on_click'):
             comp.on_click.emit()
         elif event == 'change':
-            # Selectbox / Radio: set the value property, which triggers
-            # `on_value` and any handlers bound to it.
+            # Selectbox / Radio / TextInput / NumberInput: set the value
+            # property, which triggers `on_value` and any bound handlers.
+            # A component may expose `_coerce_value` to normalize the raw
+            # client string (e.g. NumberInput parses `'0x29'` into an int).
             prop = getattr(comp, 'value', None)
             if isinstance(prop, Property):
-                prop.set(value)
+                coerce = getattr(comp, '_coerce_value', None)
+                prop.set(coerce(value) if callable(coerce) else value)
 
     # -- property change → delta -----------------------------------------
 
@@ -104,6 +107,12 @@ class Runtime:
         if prop_name == 'options':
             fmt = getattr(comp, 'format_func', None) or str
             message['formatted'] = [fmt(o) for o in (value or [])]
+        elif prop_name == 'value':
+            # NumberInput: the display text may differ from the raw value
+            # (e.g. `hex`), so send it along for the frontend to patch.
+            fmt = getattr(comp, 'format', None)
+            if callable(fmt):
+                message['formatted'] = fmt(value)
         self._broadcast(message)
 
     # -- websocket client management -------------------------------------

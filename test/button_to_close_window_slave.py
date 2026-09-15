@@ -5,7 +5,7 @@ import streamlit_canary as sc
 
 def main():
     st.write(os.getpid())
-    st.write(os.environ['SC_WINDOW_PID_FOR_PORT_3001'])
+    st.write(os.environ['SC_WINDOW_PID_FOR_PORT_2200'])
     st.write(st.get_option('server.port'))
     # st.write(type(st.get_option('server.port')) is int)
     if st.button('Close app'):

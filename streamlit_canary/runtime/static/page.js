@@ -105,6 +105,12 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         // Don't clobber what the user is currently typing.
         if (box && box.value !== msg.value) box.value = msg.value;
       }
+      if (el.classList.contains('st-number-input')) {
+        const box = el.querySelector('.st-text-input-box');
+        const next = (msg.formatted !== undefined) ? msg.formatted : msg.value;
+        // Don't clobber what the user is currently typing.
+        if (box && box.value !== String(next)) box.value = String(next);
+      }
       if (el.classList.contains('st-checkbox')) {
         const box = el.querySelector('input[type="checkbox"]');
         if (box) box.checked = !!msg.value;

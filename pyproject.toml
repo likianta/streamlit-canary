@@ -7,7 +7,7 @@ license = "MIT"
 # readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "argsense>=1.1.3a1",
+    "argsense>=1.1.2",
     "lk-utils>=3.8.2a16",
     "neoprint>=0.1.11",
     "psutil>=7.0.0",
@@ -24,7 +24,8 @@ requires = ["hatchling>=1.29.0"]
 
 [dependency-groups]
 dev = [
-    # "fastapi[standard]>=0.141.1",
+    "argsense>=1.1.3a1,<1.2.0",
+    "asa-gui>=2026.9.10b0; python_version >= '3.12'",
     "requests>=2.34.2",
     "starlette>=1.6.0",
     "streamlit-extras>=1.6.0",
@@ -80,10 +81,12 @@ default = true
 [[tool.uv.index]]
 name = "likianta"
 url = "http://localhost:2131/"
-explicit = true
+# explicit = true
 
 [tool.uv.sources]
+airmise = { index = "likianta" }
 argsense = { index = "likianta" }
+asa-gui = { index = "likianta" }
 lk-utils = { index = "likianta" }
 neoprint = { index = "likianta" }
 pyapp-window = { index = "likianta" }

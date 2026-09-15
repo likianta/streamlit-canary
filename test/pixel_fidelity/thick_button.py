@@ -13,19 +13,19 @@ def sc_thick_button():
 
 if __name__ == '__main__':
     if sys.argv[1] == 'st':
-        # python -m streamlit run --server.headless true --server.port 3002 \
+        # python -m streamlit run --server.headless true --server.port 2202 \
         #   test/pixel_fidelity/thick_button.py st
         st_thick_button()
     elif sys.argv[1] == 'sc':
         # python test/pixel_fidelity/thick_button.py sc
-        sc.run(sc_thick_button, port=3003)
+        sc.run(sc_thick_button, port=2203)
 
 """
 Comparison in browser:
-    st_app = open_browser(localhost:3002)
+    st_app = open_browser(localhost:2202)
     st_btn = st_app.find_element(bump_version_button)
 
-    sc_app = open_browser(localhost:3003)
+    sc_app = open_browser(localhost:2203)
     sc_btn = sc_app.find_element(bump_version_button)
     assert sc_btn.width == st_btn.width
     assert sc_btn.height == st_btn.height

@@ -54,6 +54,6 @@ def click_counter_demo():
                 state['count'] += 1
 
 if __name__ == '__main__':
-    # python test/event_driven_structure/demo_click_counter.py
-    sc.run(click_counter_demo, port=3001)
+    # python test/event_driven_system/demo_click_counter.py
+    sc.run(click_counter_demo, port=2201)
 ```

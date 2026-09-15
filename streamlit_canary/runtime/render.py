@@ -24,6 +24,7 @@ from ..components_v3.widgets import Checkbox
 from ..components_v3.widgets import Code
 from ..components_v3.widgets import Column
 from ..components_v3.widgets import Grid
+from ..components_v3.widgets import NumberInput
 from ..components_v3.widgets import Popover
 from ..components_v3.widgets import Radio
 from ..components_v3.widgets import Row
@@ -178,6 +179,8 @@ def _render(comp: Component) -> str:
         return _render_checkbox(comp)
     if isinstance(comp, Button):
         return _render_button(comp)
+    if isinstance(comp, NumberInput):
+        return _render_number_input(comp)
     if isinstance(comp, TextInput):
         return _render_text_input(comp)
     if isinstance(comp, Table):
@@ -223,8 +226,7 @@ def _render_button(comp: Button) -> str:
     # Streamlit: type="secondary" is default, "primary" is the accent button.
     st_type = 'primary' if btn_type == 'primary' else 'secondary'
     cls = f'st-btn st-btn-{st_type}'
-    width = getattr(comp, '_width', 'content')
-    width_style = ' style="width:100%"' if width == 'stretch' else ''
+    width_style = _style_width(getattr(comp, '_width', None))
     disabled = '' if comp.enabled.get() else ' disabled'
     help_attr = ''
     if getattr(comp, '_help', None):
@@ -306,6 +308,39 @@ def _render_table(comp: Table) -> str:
     return (
         f'<div class="st-table" data-id="{comp.id}">'
         f'<table class="st-table-table"><tbody>{body}</tbody></table>'
+        f'</div>'
+    )
+
+
+def _style_width(width: tp.Any) -> str:
+    """CSS `style` attribute for a widget's `width` argument.
+
+    `'stretch'` fills the parent, an `int` is a pixel width, and
+    `'content'` / `None` keeps the default (content-based) sizing.
+    """
+    if width is None or width == 'content':
+        return ''
+    if width == 'stretch':
+        return ' style="width:100%"'
+    if isinstance(width, int):
+        return f' style="width:{width}px"'
+    return f' style="width:{html.escape(str(width))}"'
+
+
+def _render_number_input(comp: NumberInput) -> str:
+    value = comp.value.get()
+    fmt = getattr(comp, 'format', None)
+    text = fmt(value) if callable(fmt) else str(value)
+    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    width_style = _style_width(getattr(comp, '_width', None))
+    return (
+        f'<div class="st-number-input" data-id="{comp.id}">'
+        f'{_widget_label_html(comp)}'
+        f'<input class="st-text-input-box" type="text" '
+        f'data-comp-id="{comp.id}"{width_style} '
+        f'value="{html.escape(text)}" '
+        f'placeholder="{placeholder}" '
+        f'onchange="scSendChange(this)"/>'
         f'</div>'
     )
 

@@ -46,14 +46,14 @@ streamlit-canary/
 │   ├── session.py            # v1 session state 管理 (init_state / init_state_v2)
 │   └── runner.py             # 传统 Streamlit 子进程启动器 (legacy)
 ├── test/                     # 测试与演示
-│   ├── event_driven_structure/     # v3 事件驱动测试
+│   ├── event_driven_system/        # v3 事件驱动测试
 │   │   ├── demo_click_counter.py   # 计数器 demo (最小可运行示例)
 │   │   ├── components_v3_demo.py   # 纯 Python 组件树 / 信号演示
-│   │   └── pyproject_manager_copy/ # pyproject-manager 的 v3 重写版 (运行在 localhost:3001)
+│   │   └── pyproject_manager_copy/ # pyproject-manager 的 v3 重写版 (软链接, 运行在 localhost:2201)
 │   ├── pixel_fidelity/       # UI 像素级对齐的试验脚本
 │   └── ...
 ├── references/               # 参考资源
-│   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2130
+│   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2200
 │   ├── streamlit/            # Streamlit 源码
 │   └── ...                   # 截图, 参考图等
 ├── .trae/documents/          # 设计与路线图文档 (event_driven_streamlit_roadmap.md)
@@ -72,7 +72,7 @@ streamlit-canary/
 
 ### 进行中
 
-- **Phase 4**: 与原版 Streamlit 的 UI 细节对齐 (在 `:2130` 与 `:3001` 之间逐组件比对)
+- **Phase 4**: 与原版 Streamlit 的 UI 细节对齐 (在 `:2200` 与 `:2201` 之间逐组件比对)
 
 ### 待办
 
@@ -81,8 +81,8 @@ streamlit-canary/
 
 ### v3 组件清单 (`sc.v3.*`)
 
-`Button, Caption, Cell, Checkbox, Code, Column, Grid, Popover, Radio, Row,
-Selectbox, Spinner, Success, Table, Text, TextInput, Title`
+`Button, Caption, Cell, Checkbox, Code, Column, Grid, NumberInput, Popover,
+Radio, Row, Selectbox, Spinner, Success, Table, Text, TextInput, Title`
 
 `components_v3/widgets.py` 内部还有 4 个共享私有基类 (不对外暴露):
 `_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible` -- 新组件应优先复用它们.
@@ -96,13 +96,13 @@ Selectbox, Spinner, Success, Table, Text, TextInput, Title`
 uv sync
 
 # 运行 v3 测试应用
-python test/event_driven_structure/pyproject_manager_copy/app.py    # :3001
+python test/event_driven_system/pyproject_manager_copy/app.py     # :2201
 
 # 运行最小 v3 demo (计数器, 参考用法见其 docstring)
-python test/event_driven_structure/demo_click_counter.py            # :3001
+python test/event_driven_system/demo_click_counter.py             # :2201
 
 # 运行原版 (用于对比)
-# 原版 pyproject-manager 运行在 :2130
+# 原版 pyproject-manager 运行在 :2200
 
 # 静态检查
 ruff check streamlit_canary/
@@ -111,7 +111,7 @@ ty check streamlit_canary/
 
 # 运行内核测试
 python test/on_property_test.py
-python test/event_driven_structure/components_v3_demo.py
+python test/event_driven_system/components_v3_demo.py
 ```
 
 > 注意: 全量 `ty check streamlit_canary/` 会对 v1 老模块报出若干**既存**问题
@@ -120,10 +120,22 @@ python test/event_driven_structure/components_v3_demo.py
 > 建议只检查目标包, 例如:
 > `ty check streamlit_canary/components_v3/ streamlit_canary/runtime/`
 
+### 端口说明
+
+我们在本地 (localhost) 提供了 :2200 到 :2209 共十个端口专为本项目使用. 目前定义如下:
+
+```yaml
+localhost:2200: 原版应用. 通常由开发者手动启动并保证长期在线. Agent 可以直接访问.
+localhost:2201: 副本应用. 也就是我们正在用 v3 组件重写并测试的应用. 当有需要时, 可以和原版 (:2200) 对比.
+localhost:2202: 高保真对比测试端口 (streamlit), 见 ./test/pixel_fidelity/*.py
+localhost:2203: 高保真对比测试端口 (streamlit-canary), 见 ./test/pixel_fidelity/*.py
+localhost:2204...2209: 暂未定义, 可根据需要自由取用.
+```
+
 ### 对比测试环境
 
-- **原版**: `http://localhost:2130` (references/pyproject_manager, 基于 Streamlit)
-- **我们的**: `http://localhost:3001` (test/event_driven_structure/pyproject_manager_copy, 基于 v3 运行时)
+- **原版**: `http://localhost:2200` (references/pyproject_manager, 基于 Streamlit)
+- **我们的**: `http://localhost:2201` (test/event_driven_system/pyproject_manager_copy, 基于 v3 运行时)
 
 UI 细节对齐时, 通常需要在两个端口分别采集数据, 逐一对比.
 
@@ -146,7 +158,7 @@ UI 细节对齐时, 通常需要在两个端口分别采集数据, 逐一对比.
 
 ```
 # 1. 打开应用, 定位元素
-sc_app = open_browser(localhost:3001)
+sc_app = open_browser(localhost:2201)
 sel = sc_app.find_element(project_scope_selectbox)
 
 # 2. 静态断言 (无交互)
@@ -177,7 +189,7 @@ when mouse.click(sel):
 当用户提供伪代码时, agent 应该:
 
 1. **解析伪代码**: 识别操作序列, 目标元素, 断言条件
-2. **采集数据**: 用 `browser_evaluate` 在原版 (`:2130`) 和我们的 (`:3001`) 分别采集断言处的实际值
+2. **采集数据**: 用 `browser_evaluate` 在原版 (`:2200`) 和我们的 (`:2201`) 分别采集断言处的实际值
 3. **对比分析**: 找出差异
 4. **修复代码**: 按需改以下位置 --
    - `components_v3/widgets.py` -- 组件定义 / 属性
@@ -210,6 +222,7 @@ when mouse.click(sel):
 - **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`, `Button._width`).
 - **不使用 metaclass**: 因为 metaclass 会增加理解负担, 而且在当前实现中, 它的使用是不透明的.
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
+- **`references/` 只读**: `references/` 目录 (含其中以软链接形式挂载的参考项目) 对 agent 是**只读**的, 不要修改其中的任何文件; 只可读取作为参考.
 - **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/widgets.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
 - **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`page.css` / `page.js` / `theme-*.css`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此**改动这些文件后必须重启服务**.
 - **Web 服务**: 用 Starlette + Uvicorn (HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
@@ -265,5 +278,5 @@ def ddd(value): ...
   `page.js` 已处理的 prop: `text` / `label` / `enabled` / `visible` /
   `options` (附带 `formatted` 显示文案) / `value` / `rows`.
 
-验证: 启动 `python test/event_driven_structure/demo_click_counter.py`
+验证: 启动 `python test/event_driven_system/demo_click_counter.py`
 (或 `pyproject_manager_copy/app.py`), 在浏览器中操作确认.

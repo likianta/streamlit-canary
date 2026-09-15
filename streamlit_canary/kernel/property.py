@@ -2,7 +2,7 @@
 Property descriptor for event-driven state.
 
 Usage: See `test/on_property_test.py` and
-`test/event_driven_structure/demo_click_counter.py`.
+`test/event_driven_system/demo_click_counter.py`.
 """
 
 import typing as tp

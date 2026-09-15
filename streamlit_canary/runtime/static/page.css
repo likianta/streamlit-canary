@@ -205,6 +205,12 @@
     border-color: var(--st-gray-color);
   }
 
+  /* Number input (mirrors Streamlit's `st.number_input`).
+     Reuses the text-input box styling; only the wrapper differs. */
+  .st-number-input {
+    margin-bottom: 8px;
+  }
+
   /* Table (mirrors Streamlit's `st.table`) */
   .st-table {
     overflow: clip;
