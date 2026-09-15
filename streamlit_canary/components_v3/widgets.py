@@ -1,6 +1,15 @@
 """
-v3 widgets: Row, Column, Text, Title, Caption, Button, Spinner, Grid,
-Selectbox, Radio.
+v3 widgets: the built-in component library.
+
+Public widgets (in alphabetical order):
+    Button, Caption, Cell, Checkbox, Code, Column, Grid, Popover, Radio,
+    Row, Selectbox, Spinner, Success, Table, Text, TextInput, Title.
+
+They are built on a few shared private bases (defined first):
+    _HasText       — a single bindable `text` field.
+    _Labeled       — a `label` field plus `label_visibility`.
+    _OptionsWidget — `_Labeled` + `options` / `value` / `format_func`.
+    _TextVisible   — `_HasText` + a bindable `visible` flag.
 
 Component visual fields are `Property` instances living on the component
 instance, so they share the same read/write style as state: `txt.text.get()`,
@@ -19,75 +28,118 @@ from ..kernel import Property
 from ..kernel import Signal
 from .base import Component
 
+_T = tp.TypeVar('_T')
 
-class Row(Component):
-    """Horizontal layout container.
 
-    Args:
-        vertical_alignment: "top" (default) | "center" | "bottom" — how
-            children align on the cross axis.
+def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
+    """Create a `Property` seeded with `default`, then `set_or_bind(source)`.
+
+    Collapses the usual two-step setup into one line, so a field can be
+    declared as either a plain value or a bound `Property`:
+
+        self.text = _prop('', text)
+    """
+    prop = Property(default)
+    prop.set_or_bind(source)
+    return prop
+
+
+# -- shared bases ----------------------------------------------------------
+
+
+class _HasText(Component):
+    """Shared base for components carrying a single bindable `text` field.
+
+    Used by Button, Caption, Code, Popover, Text and Title. The text is the
+    first positional argument and accepts a plain value or a `Property`.
+    """
+
+    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+        self.text = _prop('', text)
+
+
+class _Labeled(Component):
+    """Shared base for widgets that render a `label` above the control.
+
+    Fields:
+        label: Property[str]   — the widget label (bindable).
+        _label_visibility: str — "visible" | "hidden" | "collapsed".
     """
 
     def __init__(
         self,
-        vertical_alignment: tp.Literal['top', 'center', 'bottom'] = 'top',
+        label: str | Property = '',
+        *,
+        label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
-        self._vertical_alignment = vertical_alignment
+        self.label = _prop('', label)
+        self._label_visibility = label_visibility
 
 
-class Column(Component):
-    """Vertical layout container."""
+class _OptionsWidget(_Labeled):
+    """Shared base for Selectbox / Radio.
+
+    Fields:
+        options: Property[list] — the raw choices (bindable).
+        value:   Property[any]  — the raw selected value (bindable).
+        format_func: Callable[[Any], str] — raw value → display string.
+
+    When `options` change and the current `value` is no longer among them,
+    `value` falls back to the first option.
+    """
 
     def __init__(
         self,
+        label: str | Property = '',
         *,
-        width: int | str | None = None,
-        border: bool = False,
+        format_func: tp.Callable[[tp.Any], str] | None = None,
+        label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(**kwargs)
-        self._width = width
-        self._border = border
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.options = Property([])
+        self.value = Property('')
+        self.format_func: tp.Callable[[tp.Any], str] = format_func or str
+        self.options.on_change.connect(self._auto_select)
+
+    def _auto_select(self) -> None:
+        options = self.options.get()
+        if options and self.value.get() not in options:
+            self.value.set(options[0])
 
 
-class Text(Component):
-    """A text display component."""
+class _TextVisible(_HasText):
+    """Shared base for status boxes: a `text` plus a bindable `visible`.
 
-    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
-        super().__init__(**kwargs)
-        self.text = Property('')
-        self.text.set_or_bind(text)
+    Used by Spinner and Success.
+    """
 
-
-class Title(Component):
-    """A title (heading) component."""
-
-    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
-        super().__init__(**kwargs)
-        self.text = Property('')
-        self.text.set_or_bind(text)
-
-
-class Caption(Component):
-    """A small caption / helper text."""
-
-    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
-        super().__init__(**kwargs)
-        self.text = Property('')
-        self.text.set_or_bind(text)
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        visible: bool | Property = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, **kwargs)
+        self.visible = _prop(False, visible)
 
 
-class Button(Component):
+# -- widgets (alphabetical) ------------------------------------------------
+
+
+class Button(_HasText):
     """A clickable button.
 
-    Matches Streamlit's ``st.button`` API:
-        label:   button text (stored in the reactive `text` Property)
-        type:    "secondary" (default) | "primary"
-        width:   "content" (default) | "stretch" — stretch fills parent width
-        help:    tooltip text
-        enabled: bool (default True) | bound value (`sc.bind(...)`)
+    Args:
+        label:   button text (stored in the reactive `text` Property).
+        type:    "secondary" (default) | "primary".
+        width:   "content" (default) | "stretch" — stretch fills parent width.
+        help:    tooltip text.
+        enabled: bool (default True) | bound value (`sc.bind(...)`).
 
     Signals:
         on_click: emitted when the user clicks the button.
@@ -103,13 +155,10 @@ class Button(Component):
         enabled: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(**kwargs)
-        self.text = Property('')
-        self.text.set_or_bind(label)
+        super().__init__(label, **kwargs)
         # `enabled` is reactive so a button can be disabled dynamically,
         # e.g. `btn.enabled.bind(state.dep, lambda x: not x['is_latest'])`.
-        self.enabled = Property(True)
-        self.enabled.set_or_bind(enabled)
+        self.enabled = _prop(True, enabled)
         # `type` / `help` / `width` are static config, not reactive Property.
         self._type = type
         self._help = help
@@ -119,66 +168,88 @@ class Button(Component):
         self.on_click: Signal = Signal(owner_factory=lambda: self)
 
 
-class Spinner(Component):
-    """A spinner indicator.
+class Caption(_HasText):
+    """A small caption / helper text."""
+
+
+class Cell(Component):
+    """A single cell inside a `Grid`, used as `with grid[row, col]:`."""
+
+    def __init__(self, *, row: int = 0, col: int = 0, **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+        self._row = row
+        self._col = col
+
+
+class Checkbox(_Labeled):
+    """A checkbox (mirrors Streamlit's `st.checkbox`).
 
     Args:
-        visible: whether the spinner is shown (default False).
-
-    The spinner is both a containment context manager (like every Component)
-    and a visibility toggle:
-
-        spinner = v3.Spinner(visible=False)
-        ...
-        with spinner('Syncing...'):
-            # __call__ sets the text, __enter__ shows the spinner, and
-            # __exit__ restores the visibility it had before.
-            ...
-    """
-
-    def __init__(self, visible: bool = False, **kwargs: tp.Any) -> None:
-        super().__init__(**kwargs)
-        self.text = Property('')
-        self.visible = Property(False)
-        self.visible.set(visible)
-        self._prev_visible = False
-
-    def __call__(self, text: str = '') -> 'Spinner':
-        """Set the spinner text and return `self` (chainable)."""
-        if text:
-            self.text.set(text)
-        return self
-
-    def __enter__(self) -> 'Spinner':
-        self._prev_visible = bool(self.visible.get())
-        self.visible.set(True)
-        return super().__enter__()
-
-    def __exit__(self, *exc: tp.Any) -> bool:
-        self.visible.set(self._prev_visible)
-        return super().__exit__(*exc)
-
-
-class Success(Component):
-    """A green success alert box (mirrors Streamlit's `st.success`).
+        label: the widget label (bindable).
+        value: the checked state (default False, bindable).
 
     Properties:
-        text:    str  — the message (bindable; `:color[..]` markup allowed)
-        visible: bool — whether the alert is shown (bindable)
+        label: str  — the widget label.
+        value: bool — the checked state; the client sends a `change` event
+            (boolean), which sets this property.
+
+    Signals:
+        on_value (via `cb['on_value']` or `cb.value.on_change`)
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        value: bool | Property = False,
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.value = _prop(False, value)
+
+
+class Code(_HasText):
+    """A code block with a hover-revealed "copy to clipboard" button.
+
+    Args:
+        text: the code content (bindable).
+        language: kept for parity with Streamlit's `st.code`; this
+            implementation does not syntax-highlight.
+
+    Properties:
+        text: str — the code content.
     """
 
     def __init__(
         self,
         text: str | Property = '',
         *,
-        visible: bool | Property = False,
+        language: str = 'python',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, **kwargs)
+        self._language = language
+
+
+class Column(Component):
+    """Vertical layout container.
+
+    Args:
+        width:  fixed width (int px or CSS length) | None (fill parent).
+        border: whether to draw a bordered container around the children.
+    """
+
+    def __init__(
+        self,
+        *,
+        width: int | str | None = None,
+        border: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.text = Property('')
-        self.text.set_or_bind(text)
-        self.visible = Property(False)
-        self.visible.set_or_bind(visible)
+        self._width = width
+        self._border = border
 
 
 class Grid(Component):
@@ -224,75 +295,42 @@ class Grid(Component):
         return cell
 
 
-class Cell(Component):
-    """A single cell inside a `Grid`, used as `with grid[row, col]:`."""
+class Popover(_HasText):
+    """A popover: a trigger button that reveals a floating panel.
 
-    def __init__(self, *, row: int = 0, col: int = 0, **kwargs: tp.Any) -> None:
-        super().__init__(**kwargs)
-        self._row = row
-        self._col = col
+    Children render inside the panel (hidden until the trigger is clicked):
 
+        with v3.Popover('Export requirements'):
+            v3.Radio('Mirror source', ...)
+            v3.Checkbox('Lock self', value=True)
 
-class Selectbox(Component):
-    """A dropdown select component.
+    Opening/closing is handled entirely on the client, so it never reruns.
 
     Properties:
-        label:   str        — widget label (bindable)
-        options: list       — available choices (raw values)
-        value:   any        — currently selected value (raw)
-
-    Attributes:
-        format_func: Callable[[Any], str] — converts a raw option value to
-        its display string. Default: `str`. Reassign it to change formatting.
-
-    Signals:
-        on_value (via `sel['on_value']` or `sel.value.on_change`)
-        on_options (via `sel['on_options']` or `sel.options.on_change`)
-
-    When options change, if the current value is not in the new options,
-    the value is automatically set to the first option.
+        text: str — the trigger label (bindable).
     """
 
-    def __init__(
-        self,
-        label: str | Property = '',
-        *,
-        format_func: tp.Callable[[tp.Any], str] | None = None,
-        label_visibility: str = 'visible',
-        **kwargs: tp.Any,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.label = Property('')
-        self.label.set_or_bind(label)
-        self.options = Property([])
-        self.value = Property('')
-        self.format_func: tp.Callable[[tp.Any], str] = format_func or str
-        self._label_visibility = label_visibility
-        self.options.on_change.connect(self._auto_select)
-
-    def _auto_select(self) -> None:
-        opts = self.options.get()
-        if opts and self.value.get() not in opts:
-            self.value.set(opts[0])
+    def __init__(self, label: str | Property = '', **kwargs: tp.Any) -> None:
+        super().__init__(label, **kwargs)
 
 
-class Radio(Component):
-    """A radio button group.
+class Radio(_OptionsWidget):
+    """A radio button group (mirrors Streamlit's `st.radio`).
+
+    Args:
+        label:     the widget label (bindable).
+        horizontal: lay the options out in a row instead of a column.
 
     Properties:
-        label:   str        — widget label (bindable)
-        options: list       — available choices (raw values)
-        value:   any        — currently selected value (raw)
+        label, options, value — see `_OptionsWidget`.
 
     Attributes:
-        format_func: Callable[[Any], str] — converts a raw option value to
-        its display string. Default: `str`. Reassign it to change formatting.
+        format_func: Callable[[Any], str] — raw option value → display string
+        (default `str`; reassign it to change formatting).
 
     Signals:
         on_value (via `radio['on_value']` or `radio.value.on_change`)
         on_options (via `radio['on_options']` or `radio.options.on_change`)
-
-    Same auto-select behavior as Selectbox.
     """
 
     def __init__(
@@ -301,18 +339,160 @@ class Radio(Component):
         *,
         format_func: tp.Callable[[tp.Any], str] | None = None,
         label_visibility: str = 'visible',
+        horizontal: bool = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(
+            label,
+            format_func=format_func,
+            label_visibility=label_visibility,
+            **kwargs,
+        )
+        self._horizontal = horizontal
+
+
+class Row(Component):
+    """Horizontal layout container.
+
+    Args:
+        vertical_alignment: "top" (default) | "center" | "bottom" — how
+            children align on the cross axis.
+    """
+
+    def __init__(
+        self,
+        vertical_alignment: tp.Literal['top', 'center', 'bottom'] = 'top',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.label = Property('')
-        self.label.set_or_bind(label)
-        self.options = Property([])
-        self.value = Property('')
-        self.format_func: tp.Callable[[tp.Any], str] = format_func or str
-        self._label_visibility = label_visibility
-        self.options.on_change.connect(self._auto_select)
+        self._vertical_alignment = vertical_alignment
 
-    def _auto_select(self) -> None:
-        opts = self.options.get()
-        if opts and self.value.get() not in opts:
-            self.value.set(opts[0])
+
+class Selectbox(_OptionsWidget):
+    """A dropdown select component (mirrors Streamlit's `st.selectbox`).
+
+    Properties:
+        label, options, value — see `_OptionsWidget`.
+
+    Attributes:
+        format_func: Callable[[Any], str] — raw option value → display string
+        (default `str`; reassign it to change formatting).
+
+    Signals:
+        on_value (via `sel['on_value']` or `sel.value.on_change`)
+        on_options (via `sel['on_options']` or `sel.options.on_change`)
+    """
+
+
+class Spinner(_TextVisible):
+    """A spinner indicator.
+
+    Args:
+        text: the label shown next to the ring (bindable).
+        visible: whether the spinner is shown (default False, bindable).
+
+    The spinner is both a containment context manager (like every Component)
+    and a visibility toggle:
+
+        spinner = v3.Spinner(visible=False)
+        ...
+        with spinner('Syncing...'):
+            # __call__ sets the text, __enter__ shows the spinner, and
+            # __exit__ restores the visibility it had before.
+            ...
+
+    Or drive it entirely from state:
+
+        v3.Spinner(state.busy_text, visible=sc.bind(state.busy_text, bool))
+    """
+
+    # Visibility remembered by `__enter__` and restored by `__exit__`; a
+    # class-level default keeps subclasses from re-declaring the signature.
+    _prev_visible = False
+
+    def __call__(self, text: str = '') -> 'Spinner':
+        """Set the spinner text and return `self` (chainable)."""
+        if text:
+            self.text.set(text)
+        return self
+
+    def __enter__(self) -> 'Spinner':
+        self._prev_visible = bool(self.visible.get())
+        self.visible.set(True)
+        return super().__enter__()
+
+    def __exit__(self, *exc: tp.Any) -> bool:
+        self.visible.set(self._prev_visible)
+        return super().__exit__(*exc)
+
+
+class Success(_TextVisible):
+    """A green success alert box (mirrors Streamlit's `st.success`).
+
+    Properties:
+        text:    str  — the message (bindable; `:color[..]` markup allowed)
+        visible: bool — whether the alert is shown (bindable)
+    """
+
+
+class Table(Component):
+    """A static table (mirrors Streamlit's `st.table`).
+
+    Args:
+        rows: an iterable of `(key, value)` pairs. Both cells accept the
+            same `:color[..]` markup as `v3.Text`. Bindable.
+
+    Properties:
+        rows: list[tuple[str, str]] — the table body.
+    """
+
+    def __init__(
+        self,
+        rows: tp.Iterable[tp.Tuple[str, str]] | Property | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.rows = Property([])
+        if isinstance(rows, Property):
+            self.rows.bind(rows)
+        elif rows is not None:
+            self.rows.set(list(rows))
+
+
+class Text(_HasText):
+    """A text display component."""
+
+
+class TextInput(_Labeled):
+    """A single-line text input (mirrors Streamlit's `st.text_input`).
+
+    Args:
+        label: the widget label.
+        value: initial text (bindable).
+        placeholder: hint shown while the box is empty.
+
+    Properties:
+        label: str — rendered above the box.
+        value: str — the current text; the client sends a `change` event
+            (fired on blur / Enter), which sets this property.
+
+    Signals:
+        on_value: emitted when `value` changes.
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        value: str | Property = '',
+        placeholder: str = '',
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.value = _prop('', value)
+        self._placeholder = placeholder
+
+
+class Title(_HasText):
+    """A title (heading) component."""

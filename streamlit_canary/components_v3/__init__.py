@@ -9,28 +9,38 @@ from .base import Component
 from .widgets import Button
 from .widgets import Caption
 from .widgets import Cell
+from .widgets import Checkbox
+from .widgets import Code
 from .widgets import Column
 from .widgets import Grid
+from .widgets import Popover
 from .widgets import Radio
 from .widgets import Row
 from .widgets import Selectbox
 from .widgets import Spinner
 from .widgets import Success
+from .widgets import Table
 from .widgets import Text
+from .widgets import TextInput
 from .widgets import Title
 
 __all__ = [
     'Button',
     'Caption',
     'Cell',
+    'Checkbox',
+    'Code',
     'Column',
     'Component',
     'Grid',
+    'Popover',
     'Radio',
     'Row',
     'Selectbox',
     'Spinner',
     'Success',
+    'Table',
     'Text',
+    'TextInput',
     'Title',
 ]

@@ -1,9 +1,9 @@
-"""
-Starlette-based web server for the event-driven runtime.
+"""Starlette-based web server for the event-driven runtime.
 
 Routes:
     GET  /                        → render the component tree as HTML
     GET  /fonts/source-sans.woff2 → the bundled "Source Sans" UI font
+    GET  /fonts/source-code.woff2 → the bundled "Source Code Pro" code font
     WS   /ws                      → bidirectional channel for client events
 """
 
@@ -26,10 +26,14 @@ from starlette.websockets import WebSocketDisconnect
 from .render import render_page
 from .runtime import Runtime
 
-# 'Source Sans' is Streamlit's UI font. The same variable font is bundled
-# here (copied from the Streamlit package) so text metrics match exactly.
+# 'Source Sans' is Streamlit's UI font and 'Source Code Pro' its code font.
+# The same variable fonts are bundled here (copied from the Streamlit
+# package) so text metrics match exactly.
 _FONT_PATH = (
     Path(__file__).resolve().parent / 'static' / 'SourceSansVF-Upright.woff2'
+)
+_CODE_FONT_PATH = (
+    Path(__file__).resolve().parent / 'static' / 'SourceCodeVF-Upright.woff2'
 )
 
 
@@ -71,6 +75,11 @@ def create_app(runtime: Runtime) -> Starlette:
             return Response(status_code=404)
         return FileResponse(_FONT_PATH, media_type='font/woff2')
 
+    async def code_font_endpoint(request: Request) -> Response:
+        if not _CODE_FONT_PATH.is_file():
+            return Response(status_code=404)
+        return FileResponse(_CODE_FONT_PATH, media_type='font/woff2')
+
     async def ws_endpoint(ws: WebSocket) -> None:
         await ws.accept()
         client = WebSocketClient(ws)
@@ -102,6 +111,7 @@ def create_app(runtime: Runtime) -> Starlette:
         routes=[
             Route('/', homepage),
             Route('/fonts/source-sans.woff2', font_endpoint),
+            Route('/fonts/source-code.woff2', code_font_endpoint),
             WebSocketRoute('/ws', ws_endpoint),
         ]
     )

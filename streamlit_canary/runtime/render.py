@@ -20,14 +20,19 @@ from ..components_v3.base import Component
 from ..components_v3.widgets import Button
 from ..components_v3.widgets import Caption
 from ..components_v3.widgets import Cell
+from ..components_v3.widgets import Checkbox
+from ..components_v3.widgets import Code
 from ..components_v3.widgets import Column
 from ..components_v3.widgets import Grid
+from ..components_v3.widgets import Popover
 from ..components_v3.widgets import Radio
 from ..components_v3.widgets import Row
 from ..components_v3.widgets import Selectbox
 from ..components_v3.widgets import Spinner
 from ..components_v3.widgets import Success
+from ..components_v3.widgets import Table
 from ..components_v3.widgets import Text
+from ..components_v3.widgets import TextInput
 from ..components_v3.widgets import Title
 
 # ---------------------------------------------------------------------------
@@ -167,8 +172,18 @@ def _render(comp: Component) -> str:
         )
     if isinstance(comp, Success):
         return _render_success(comp)
+    if isinstance(comp, Popover):
+        return _render_popover(comp)
+    if isinstance(comp, Checkbox):
+        return _render_checkbox(comp)
     if isinstance(comp, Button):
         return _render_button(comp)
+    if isinstance(comp, TextInput):
+        return _render_text_input(comp)
+    if isinstance(comp, Table):
+        return _render_table(comp)
+    if isinstance(comp, Code):
+        return _render_code(comp)
     if isinstance(comp, Selectbox):
         return _render_selectbox(comp)
     if isinstance(comp, Radio):
@@ -241,6 +256,74 @@ def _widget_label_html(comp: Component) -> str:
     )
 
 
+# Material icons: "content_copy" and "check" (same paths Streamlit uses).
+_COPY_ICON = (
+    '<path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14'
+    'c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z">'
+    '</path>'
+)
+_CHECK_ICON = (
+    '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path>'
+)
+# Chevron-down used by the popover trigger (Streamlit's `expand_more`).
+_CHEVRON_DOWN = (
+    '<svg class="st-popover-chevron" viewBox="0 0 24 24" width="20" '
+    'height="20" fill="currentColor" aria-hidden="true" focusable="false">'
+    '<path fill="none" d="M0 0h24v24H0V0z"></path>'
+    '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z">'
+    '</path></svg>'
+)
+
+
+def _render_code(comp: Code) -> str:
+    return (
+        f'<div class="st-code" data-id="{comp.id}">'
+        f'<pre><code>{html.escape(str(comp.text.get()))}</code></pre>'
+        f'<div class="st-code-toolbar">'
+        f'<span class="st-code-copy-chip">'
+        f'<button class="st-code-copy" type="button" '
+        f'aria-label="Copy to clipboard" title="Copy to clipboard" '
+        f'onclick="scCopyCode(this)">'
+        f'<svg class="icon-copy" viewBox="0 0 24 24" aria-hidden="true" '
+        f'focusable="false" fill="currentColor">{_COPY_ICON}</svg>'
+        f'<svg class="icon-done" viewBox="0 0 24 24" aria-hidden="true" '
+        f'focusable="false" fill="currentColor">{_CHECK_ICON}</svg>'
+        f'</button>'
+        f'</span>'
+        f'</div>'
+        f'</div>'
+    )
+
+
+def _render_table(comp: Table) -> str:
+    body = ''.join(
+        '<tr>'
+        f'<td class="st-table-cell"><p>{render_markup(str(key))}</p></td>'
+        f'<td class="st-table-cell"><p>{render_markup(str(value))}</p></td>'
+        '</tr>'
+        for key, value in (comp.rows.get() or [])
+    )
+    return (
+        f'<div class="st-table" data-id="{comp.id}">'
+        f'<table class="st-table-table"><tbody>{body}</tbody></table>'
+        f'</div>'
+    )
+
+
+def _render_text_input(comp: TextInput) -> str:
+    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    return (
+        f'<div class="st-text-input" data-id="{comp.id}">'
+        f'{_widget_label_html(comp)}'
+        f'<input class="st-text-input-box" type="text" '
+        f'data-comp-id="{comp.id}" '
+        f'value="{html.escape(str(comp.value.get()))}" '
+        f'placeholder="{placeholder}" '
+        f'onchange="scSendChange(this)"/>'
+        f'</div>'
+    )
+
+
 def _render_selectbox(comp: Selectbox) -> str:
     options = comp.options.get() or []
     value = comp.value.get()
@@ -304,10 +387,48 @@ def _render_radio(comp: Radio) -> str:
         f'</div></div></div></label>'
         for o in options
     )
+    root_cls = 'st-radio'
+    if getattr(comp, '_horizontal', False):
+        root_cls += ' st-radio--horizontal'
     return (
-        f'<div class="st-radio" data-id="{comp.id}">'
+        f'<div class="{root_cls}" data-id="{comp.id}">'
         f'{_widget_label_html(comp)}'
         f'<div class="st-radio-group">{items}</div>'
+        f'</div>'
+    )
+
+
+def _render_checkbox(comp: Checkbox) -> str:
+    checked = ' checked' if comp.value.get() else ''
+    return (
+        f'<div class="st-checkbox" data-id="{comp.id}">'
+        f'<label class="st-checkbox-label">'
+        f'<span class="st-checkbox-input-wrap">'
+        f'<input type="checkbox" data-comp-id="{comp.id}" '
+        f'{checked} onchange="scSendCheck(this)"/></span>'
+        f'<div class="st-checkbox-box">'
+        f'<svg viewBox="0 0 10 8" aria-hidden="true">'
+        f'<polyline points="1 4 4 7 9 1"></polyline></svg></div>'
+        f'<div class="st-checkbox-text">'
+        f'{render_markup(str(comp.label.get()))}</div>'
+        f'</label></div>'
+    )
+
+
+def _render_popover(comp: Popover) -> str:
+    label = _render_paragraphs(str(comp.text.get()))
+    children = ''.join(_render(c) for c in comp.children)
+    return (
+        f'<div class="st-popover" data-id="{comp.id}">'
+        f'<button class="st-btn st-btn-secondary st-popover-trigger" '
+        f'type="button" aria-haspopup="dialog" aria-expanded="false" '
+        f'onclick="scTogglePopover(this)">'
+        f'<span class="st-btn-text st-popover-trigger-label">{label}</span>'
+        f'<span class="st-popover-icon">{_CHEVRON_DOWN}</span>'
+        f'</button>'
+        f'<div class="st-popover-panel" role="dialog" hidden>'
+        f'{children}'
+        f'</div>'
         f'</div>'
     )
 

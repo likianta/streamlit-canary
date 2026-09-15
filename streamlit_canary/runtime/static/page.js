@@ -14,9 +14,15 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       } else if (el.classList.contains('st-spinner')) {
         const textEl = el.querySelector('.st-spinner-text');
         if (textEl) textEl.innerHTML = window.scRenderMarkup(msg.value);
+      } else if (el.classList.contains('st-code')) {
+        const codeEl = el.querySelector('code');
+        if (codeEl) codeEl.textContent = msg.value;
       } else if (el.classList.contains('st-alert')) {
         const textEl = el.querySelector('.st-alert-text');
         if (textEl) textEl.innerHTML = window.scRenderParagraphs(msg.value);
+      } else if (el.classList.contains('st-popover')) {
+        const labelEl = el.querySelector('.st-popover-trigger-label');
+        if (labelEl) labelEl.innerHTML = window.scRenderParagraphs(msg.value);
       } else {
         el.innerHTML = window.scRenderMarkup(msg.value);
       }
@@ -94,8 +100,58 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           r.checked = (r.value === msg.value);
         });
       }
+      if (el.classList.contains('st-text-input')) {
+        const box = el.querySelector('.st-text-input-box');
+        // Don't clobber what the user is currently typing.
+        if (box && box.value !== msg.value) box.value = msg.value;
+      }
+      if (el.classList.contains('st-checkbox')) {
+        const box = el.querySelector('input[type="checkbox"]');
+        if (box) box.checked = !!msg.value;
+      }
+    }
+    if (msg.prop === 'rows') {
+      if (el.classList.contains('st-table')) {
+        const tbody = el.querySelector('tbody');
+        const fmt = window.scRenderMarkup;
+        tbody.innerHTML = (msg.value || []).map(r =>
+          '<tr>' +
+          '<td class="st-table-cell"><p>' + fmt(String(r[0])) + '</p></td>' +
+          '<td class="st-table-cell"><p>' + fmt(String(r[1])) + '</p></td>' +
+          '</tr>'
+        ).join('');
+      }
     }
   };
+  // Copy a code block's text; the button briefly switches to a check mark.
+  function scCopyCode(btn) {
+    const wrap = btn.closest('.st-code');
+    const codeEl = wrap ? wrap.querySelector('code') : null;
+    const text = codeEl ? codeEl.textContent : '';
+    const done = () => {
+      btn.classList.add('is-copied');
+      setTimeout(() => btn.classList.remove('is-copied'), 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => {
+        scCopyFallback(text);
+        done();
+      });
+    } else {
+      scCopyFallback(text);
+      done();
+    }
+  }
+  function scCopyFallback(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(area);
+  }
   function scSendClick(btn) {
     ws.send(JSON.stringify({type: 'event', id: btn.dataset.id, event: 'click'}));
   }
@@ -149,6 +205,34 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     // Send change event to backend.
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
   }
+  // -- Custom popover interaction (toggle is client-only; no rerun) --
+  function scClosePopovers(except) {
+    document.querySelectorAll('.st-popover-panel:not([hidden])').forEach(p => {
+      if (p === except) return;
+      p.hidden = true;
+      const root = p.closest('.st-popover');
+      const t = root ? root.querySelector('.st-popover-trigger') : null;
+      if (t) t.setAttribute('aria-expanded', 'false');
+    });
+  }
+  function scTogglePopover(trigger) {
+    const root = trigger.closest('.st-popover');
+    const panel = root.querySelector('.st-popover-panel');
+    const isOpen = !panel.hidden;
+    scClosePopovers(panel);
+    if (isOpen) {
+      panel.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+    } else {
+      panel.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+  }
+  // -- Checkbox: send the boolean checked state --
+  function scSendCheck(input) {
+    const id = input.dataset.compId;
+    ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.checked}));
+  }
   // Close dropdown when clicking outside.
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.st-selectbox-control')) {
@@ -158,6 +242,13 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         t.removeAttribute('aria-expanded');
       });
     }
+    if (!e.target.closest('.st-popover')) {
+      scClosePopovers(null);
+    }
+  });
+  // Close popovers on Escape.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') scClosePopovers(null);
   });
   // expose markup renderer for WS patches
   window.scRenderMarkup = function(text) {
