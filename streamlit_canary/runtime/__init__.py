@@ -18,10 +18,14 @@ from .runtime import Runtime
 from .server import create_app
 from .server import serve
 from .server import WebSocketClient
+from .watcher import add_watch_file
+from .watcher import add_watch_folder
 
 __all__ = [
     'Runtime',
     'WebSocketClient',
+    'add_watch_file',
+    'add_watch_folder',
     'create_app',
     'render_page',
     'render_tree',

@@ -12,10 +12,13 @@ dependencies = [
     "neoprint>=0.1.11",
     "psutil>=7.0.0",
     "pyapp-window>=2.2.3",
+    "starlette>=1.6.0",
     "streamlit>=1.61.0,!=1.62.*",
     #   note:
     #   v1.62 has a bug with `st.popover:width`.
     #   v1.63 cannot render dual-line ("\n\n") button (i.e. the "thick" button).
+    "uvicorn[standard]>=0.52.4",
+    "watchdog>=6.0.0",
 ]
 
 [build-system]
@@ -26,10 +29,10 @@ requires = ["hatchling>=1.29.0"]
 dev = [
     "argsense>=1.1.3a1,<1.2.0",
     "asa-gui>=2026.9.10b0; python_version >= '3.12'",
+    "jurigged>=0.6.1",
     "requests>=2.34.2",
-    "starlette>=1.6.0",
     "streamlit-extras>=1.6.0",
-    "uvicorn[standard]>=0.52.4",
+    # "watchfiles>=1.2.0",
 ]
 
 # [project.optional-dependencies]

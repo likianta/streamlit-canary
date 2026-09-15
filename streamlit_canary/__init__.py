@@ -30,6 +30,8 @@ from .opener import open_file
 from .opener import open_folder
 from .page import pages
 from .runner import kill
+from .runtime import add_watch_file
+from .runtime import add_watch_folder
 from .runtime import run
 from .runtime import set_page_config
 from .session import dump_state

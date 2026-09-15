@@ -1,6 +1,8 @@
 const ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
+    if (msg.type === 'source_changed') { scShowRerunToast(msg.files || []); return; }
+    if (msg.type === 'reloading') { scWaitForServer(); return; }
     if (msg.type !== 'patch') return;
     const el = document.querySelector(`[data-id="${msg.id}"]`);
     if (!el) return;
@@ -291,3 +293,78 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const parts = String(text).split(NL + NL).map(p => p.trim()).filter(p => p.length > 0);
     return '<span class="st-btn-text">' + parts.map(p => '<p>' + window.scRenderMarkup(p) + '</p>').join('') + '</span>';
   };
+
+  // -- Source-change notice + rerun (dev-time convenience, like Streamlit) --
+  function scRerunToast() {
+    let el = document.getElementById('sc-rerun-toast');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'sc-rerun-toast';
+    el.className = 'st-rerun-toast';
+    el.hidden = true;
+    el.innerHTML =
+      '<span class="st-rerun-icon">\u21bb</span>' +
+      '<span class="st-rerun-body">' +
+      '<span class="st-rerun-title">Source file changed</span>' +
+      '<span class="st-rerun-detail"></span></span>' +
+      '<button class="st-rerun-btn" type="button" ' +
+      'onclick="scSendRerun()">Rerun</button>' +
+      '<button class="st-rerun-close" type="button" title="Dismiss" ' +
+      'onclick="scDismissRerun()">\u2715</button>';
+    document.body.appendChild(el);
+    return el;
+  }
+  // The notice is `position: fixed`, so the body reserves top padding while
+  // it is visible (see `body.sc-rerun-visible` in page.css) to keep it from
+  // covering the app.
+  function scSetRerunVisible(visible) {
+    const el = scRerunToast();
+    el.hidden = !visible;
+    document.body.classList.toggle('sc-rerun-visible', !!visible);
+  }
+  function scShowRerunToast(files) {
+    const el = scRerunToast();
+    if (!files.length) { scSetRerunVisible(false); return; }
+    el.querySelector('.st-rerun-title').textContent = 'Source file changed';
+    el.querySelector('.st-rerun-detail').textContent =
+      files.length === 1 ? files[0] : files.length + ' files changed';
+    el.classList.remove('is-reloading');
+    el.querySelector('.st-rerun-btn').disabled = false;
+    scSetRerunVisible(true);
+  }
+  function scDismissRerun() {
+    // Client-side only: the pending change stays known to the server, so
+    // reloading the page (or editing again) brings the notice back and the
+    // rerun stays reachable.
+    scSetRerunVisible(false);
+  }
+  function scSendRerun() {
+    try { ws.send(JSON.stringify({ type: 'rerun' })); } catch (e) {}
+    scWaitForServer();
+  }
+  // The rerun re-executes the server process; poll until it answers again,
+  // then reload the page so the fresh render is picked up.
+  function scWaitForServer() {
+    const el = scRerunToast();
+    scSetRerunVisible(true);
+    el.classList.add('is-reloading');
+    el.querySelector('.st-rerun-title').textContent = 'Reloading\u2026';
+    el.querySelector('.st-rerun-detail').textContent = 'waiting for the server';
+    el.querySelector('.st-rerun-btn').disabled = true;
+    let tries = 0;
+    const poll = () => {
+      tries += 1;
+      fetch('/healthz?_=' + Date.now(), { cache: 'no-store' })
+        .then(r => { if (!r.ok) throw new Error('not ready'); location.reload(); })
+        .catch(() => {
+          if (tries >= 50) {
+            el.querySelector('.st-rerun-title').textContent = 'Server did not come back';
+            el.querySelector('.st-rerun-detail').textContent =
+              'check the terminal, then reload the page';
+            return;
+          }
+          setTimeout(poll, 400);
+        });
+    };
+    setTimeout(poll, 400);
+  }

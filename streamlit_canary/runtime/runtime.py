@@ -13,6 +13,7 @@ never runs again — only signal handlers execute.
 
 from __future__ import annotations
 
+import os
 import typing as tp
 
 from ..kernel import Property
@@ -22,12 +23,21 @@ if tp.TYPE_CHECKING:
     from .server import WebSocketClient
 
 
+def _display_path(path: str) -> str:
+    """Prefer a path relative to the working directory, for readability."""
+    try:
+        return os.path.relpath(path, os.getcwd()).replace('\\', '/')
+    except ValueError:  # different drive on Windows
+        return path.replace('\\', '/')
+
+
 class Runtime:
     def __init__(self, app_func: tp.Callable[[], None]) -> None:
         self._app_func = app_func
         self._components: dict[str, Component] = {}
         self._roots: list[Component] = []
         self._ws_clients: set[WebSocketClient] = set()
+        self._source_changed: set[str] = set()
         self._built = False
 
     # -- lifecycle --------------------------------------------------------
@@ -126,6 +136,37 @@ class Runtime:
     def _broadcast(self, message: dict) -> None:
         for client in list(self._ws_clients):
             client.send_json(message)
+
+    # -- source watching / rerun -----------------------------------------
+
+    @property
+    def app_file(self) -> str | None:
+        """The file the app function was defined in (watched by default)."""
+        code = getattr(self._app_func, '__code__', None)
+        filename = getattr(code, 'co_filename', None)
+        return filename or None
+
+    @property
+    def source_changed(self) -> tuple[str, ...]:
+        return tuple(sorted(self._source_changed))
+
+    def mark_source_changed(self, paths: tp.Iterable[str]) -> None:
+        """Record changed source files and notify the browsers."""
+        self._source_changed.update(str(p) for p in paths)
+        self._notify_source_changed()
+
+    def send_source_state(self, client: WebSocketClient) -> None:
+        """Replay the current notice to a freshly connected client."""
+        client.send_json(self._source_message())
+
+    def _source_message(self) -> dict:
+        return {
+            'type': 'source_changed',
+            'files': [_display_path(p) for p in self.source_changed],
+        }
+
+    def _notify_source_changed(self) -> None:
+        self._broadcast(self._source_message())
 
     # -- tree access (for rendering) -------------------------------------
 
