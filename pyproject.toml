@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-canary"
-version = "0.4.0a10"
+version = "0.4.0a11"
 description = "LK-flavored Streamlit components."
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
 license = "MIT"
@@ -8,7 +8,7 @@ license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "argsense>=1.1.3a1",
-    "lk-utils>=3.8.2a2",
+    "lk-utils>=3.8.2a16",
     "neoprint>=0.1.11",
     "psutil>=7.0.0",
     "pyapp-window>=2.2.3",

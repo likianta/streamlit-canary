@@ -2,4 +2,5 @@
 /dist/
 /lib/
 /references/
+/test/event_driven_structure/pyproject_manager_copy
 __pycache__/

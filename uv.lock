@@ -381,7 +381,7 @@ wheels = [
 
 [[package]]
 name = "lk-utils"
-version = "3.8.2a2"
+version = "3.8.2a16"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
@@ -391,7 +391,7 @@ dependencies = [
     { name = "rich" },
 ]
 wheels = [
-    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2a2-py3-none-any.whl" },
+    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2a16-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -1397,7 +1397,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argsense", specifier = ">=1.1.3a1", index = "http://localhost:2131/" },
-    { name = "lk-utils", specifier = ">=3.8.2a2", index = "http://localhost:2131/" },
+    { name = "lk-utils", specifier = ">=3.8.2a16", index = "http://localhost:2131/" },
     { name = "neoprint", specifier = ">=0.1.11", index = "http://localhost:2131/" },
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pyapp-window", specifier = ">=2.2.3", index = "http://localhost:2131/" },
