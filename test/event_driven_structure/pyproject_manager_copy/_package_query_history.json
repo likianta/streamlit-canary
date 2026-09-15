@@ -1,0 +1,16 @@
+{
+    "rich": {
+        "name": "rich",
+        "version": "15.0.0",
+        "upload_time": "2026-04-12 08:24:02",
+        "query_time": "2026-09-14 18:57:19",
+        "files": [
+            "rich-15.0.0-py3-none-any.whl",
+            "rich-15.0.0.tar.gz"
+        ],
+        "tags": [
+            "any",
+            "py3"
+        ]
+    }
+}

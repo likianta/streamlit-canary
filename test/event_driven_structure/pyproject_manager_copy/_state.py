@@ -15,6 +15,7 @@ from .toml_handler import PyProjTomlHandler
 
 class _State(sc.StateV2):
     build_message: sc.Property[str]
+    busy_text: sc.Property[str]
     current_scope: str
     dependency: sc.Property[T.Dependency]
     name_to_project: sc.Property[T.Projects]
@@ -33,6 +34,9 @@ class _State(sc.StateV2):
 
         self.current_scope = 'all'
         self.build_message = sc.Property[str]()
+        # '' when idle; while set, the shared status area shows a spinner
+        # labelled with this text instead of the success message.
+        self.busy_text = sc.Property[str]('')
         self.scope_to_projects = sc.Property()
         self.name_to_project = sc.Property()
         self.name_to_project_manager = {}

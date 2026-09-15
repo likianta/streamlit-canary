@@ -79,11 +79,23 @@ def ui() -> None:
                 def _() -> None:
                     proj_info: T.ProjectInfo = state['project']
                     assert proj_info['build_tool'] == 'uv'
-                    run_cmd_args(
-                        ('uv', 'build', '--wheel', proj_info['project_path']),
-                        verbose=True,
-                        cwd=proj_info['project_path'],
-                    )
+                    # Building takes a while: clear the success box and show a
+                    # spinner in its place (they share one status area).
+                    state['build_message'] = ''
+                    state['busy_text'] = 'Building wheel...'
+                    try:
+                        run_cmd_args(
+                            (
+                                'uv',
+                                'build',
+                                '--wheel',
+                                proj_info['project_path'],
+                            ),
+                            verbose=True,
+                            cwd=proj_info['project_path'],
+                        )
+                    finally:
+                        state['busy_text'] = ''
                     state['build_message'] = (
                         'Successfully built :blue[{}].'.format(
                             fs.filename(proj_info['dist_file'])
@@ -139,6 +151,12 @@ def ui() -> None:
             ):
                 pass  # TODO
 
+    # Shared status area: the spinner and the success box occupy the same spot
+    # and are mutually exclusive -- a long operation clears `build_message`
+    # and sets `busy_text` while it runs.
+    v3.Spinner(
+        state.busy_text, visible=sc.bind(state.busy_text, lambda x: bool(x))
+    )
     v3.Success(
         state.build_message,
         visible=sc.bind(state.build_message, lambda x: bool(x)),

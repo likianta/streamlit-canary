@@ -13,6 +13,7 @@ if not __package__:
 import streamlit_canary as sc
 
 from . import dependency_manager
+from . import package_query
 from . import project_actions
 from . import projects
 
@@ -30,6 +31,8 @@ def main() -> None:
                 project_actions.ui()
             with v3.Column(border=True):
                 dependency_manager.ui()
+            with v3.Column(border=True):
+                package_query.ui()
 
 
 if __name__ == '__main__':

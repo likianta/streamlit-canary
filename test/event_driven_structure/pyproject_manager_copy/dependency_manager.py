@@ -1,5 +1,7 @@
 """Dependency panel: list the selected project's dependencies and manage them."""
 
+import typing as tp
+
 import streamlit_canary as sc
 from lk_utils import fs
 from lk_utils import run_cmd_args
@@ -7,6 +9,7 @@ from neoprint import print
 
 from ._state import state
 from ._types import T
+from .export import lock_requirements
 
 v3 = sc.v3
 
@@ -147,3 +150,50 @@ def ui() -> None:
                     fs.filetime(state['project']['pyproject_file'], str),
                 )
                 state.reload_pyproject(state['project'])
+
+        with v3.Popover('Export requirements'):
+            with v3.Radio('Mirror source', horizontal=True) as host_radio:
+                host_radio.options.set(['Tsinghua', 'Aliyun'])
+                host_radio.value.set('Tsinghua')
+
+            with v3.Selectbox('Secondary source') as extra_select:
+                extra_select.options.set(
+                    ['localhost', '172.20.128.100', '47.102.108.149']
+                )
+                extra_select.value.set('localhost')
+
+            lock_self = v3.Checkbox('Lock self', value=True)
+
+            with v3.Button(
+                'Export', type='primary', width='stretch'
+            ) as export_btn:
+
+                @export_btn.on_click
+                def _export_requirements():
+                    proj_info: T.ProjectInfo = state['project']
+                    # `uv export` takes a moment: clear the success box and
+                    # show a spinner in its place (they share one status area).
+                    state['build_message'] = ''
+                    state['busy_text'] = 'Exporting requirements...'
+                    try:
+                        lock_requirements(
+                            proj_info,
+                            include_self=bool(lock_self.value.get()),
+                            primary_host=tp.cast(
+                                tp.Literal['aliyun', 'tsinghua'],
+                                str(host_radio.value.get()).lower(),
+                            ),
+                            secondary_host=str(extra_select.value.get()),
+                        )
+                    except Exception as e:
+                        state['build_message'] = (
+                            ':red[Export failed: {}]'.format(e)
+                        )
+                        return
+                    finally:
+                        state['busy_text'] = ''
+                    state['build_message'] = (
+                        ':green[Exported to "{}/requirements.lock".]'.format(
+                            fs.basename(proj_info['project_path'])
+                        )
+                    )
