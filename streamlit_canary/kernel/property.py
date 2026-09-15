@@ -5,6 +5,8 @@ Usage: See `test/on_property_test.py` and
 `test/event_driven_system/demo_click_counter.py`.
 """
 
+import contextlib
+import contextvars
 import typing as tp
 
 from .signal import Signal
@@ -13,6 +15,13 @@ from .special_value import _Undefined
 
 _T = tp.TypeVar('_T')
 _S = tp.TypeVar('_S')
+
+# Properties whose notification was deferred by an `updating()` block. A
+# ContextVar (rather than a thread-local) scopes the transaction to the
+# logical context, which also covers handlers run via `asyncio.to_thread`.
+_pending_updates: contextvars.ContextVar = contextvars.ContextVar(
+    'sc_pending_updates', default=None
+)
 
 
 class Property(tp.Generic[_T]):
@@ -49,7 +58,13 @@ class Property(tp.Generic[_T]):
         if self.value != value:
             self.value = value
             if notify:
-                self.on_change.emit()
+                pending = _pending_updates.get()
+                if pending is None:
+                    self.on_change.emit()
+                else:
+                    # Deferred: `updating()` emits once per property when the
+                    # block ends, with the final value.
+                    pending.add(self)
 
     def bind(
         self,
@@ -105,3 +120,41 @@ def bind(
     prop = Property[_T]()
     prop.bind(source, transform)
     return prop
+
+
+@contextlib.contextmanager
+def updating() -> tp.Iterator[None]:
+    """Batch property notifications until the block exits.
+
+    Inside the block, `Property.set()` updates the value but does *not*
+    emit `on_change`. Every property that changed then emits exactly once,
+    carrying its final value, so a burst of intermediate updates collapses
+    into a single notification per property:
+
+        with sc.updating():
+            state.count.set(1)
+            state.count.set(2)
+            state.count.set(3)
+        # `on_change` fires once, with count == 3
+
+    This matters for the delta protocol: each notification becomes a
+    websocket frame pushed to the browser, so squashing them also trims
+    traffic. `Property.set(notify=False)` still never notifies.
+
+    Nested blocks join the outermost one, and an exception raised in the
+    block still flushes whatever had already changed.
+    """
+    txn = _pending_updates.get()
+    if txn is not None:
+        yield  # join the enclosing transaction
+        return
+    txn = set()
+    token = _pending_updates.set(txn)
+    try:
+        yield
+    finally:
+        # Reset first, so that a handler which `set()`s other properties
+        # during the flush notifies normally instead of being deferred.
+        _pending_updates.reset(token)
+        for prop in list(txn):
+            prop.on_change.emit()

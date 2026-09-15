@@ -90,6 +90,12 @@ class Runtime:
         if event == 'click' and hasattr(comp, 'on_click'):
             comp.on_click.emit()
         elif event == 'change':
+            # A component may consume the raw client value itself, e.g.
+            # Tabs receives the label that just became visible.
+            hook = getattr(comp, '_on_client_change', None)
+            if callable(hook):
+                hook(value)
+                return
             # Selectbox / Radio / TextInput / NumberInput: set the value
             # property, which triggers `on_value` and any bound handlers.
             # A component may expose `_coerce_value` to normalize the raw

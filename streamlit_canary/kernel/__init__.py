@@ -8,6 +8,7 @@ tested in isolation.
 
 from .property import Property
 from .property import bind
+from .property import updating
 from .signal import Signal
 from .special_value import _self
 from .special_value import _undefined
@@ -24,4 +25,5 @@ __all__ = [
     '_undefined',
     '_value',
     'bind',
+    'updating',
 ]
