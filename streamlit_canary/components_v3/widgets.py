@@ -33,33 +33,41 @@ from .base import Component
 _T = tp.TypeVar('_T')
 
 
-def _number_type(*candidates: tp.Any) -> type:
-    """Decide whether a NumberInput behaves as an int or a float widget.
+def _resolve_number(value: tp.Any) -> int | float:
+    """The plain number behind a NumberInput `value` argument.
 
-    `value` / `min_value` / `max_value` must agree — mixing ints and floats
-    is a programming error, so it is reported where the widget is built
-    rather than producing a confusing comparison later on. Property
-    arguments are inspected through their `default`, and unset ones
-    (`sc._undefined`) are skipped.
+    A bound `Property` is inspected through its current value (falling back
+    to `default` while it is still unset), so the widget's numeric type can
+    be decided even when the caller passes `sc.bind(...)` / `sc.bbind(...)`.
     """
-    kinds: set[type] = set()
-    for candidate in candidates:
-        if isinstance(candidate, Property):
-            candidate = candidate.default
-        if candidate is None or candidate is _undefined:
-            continue
-        if not isinstance(candidate, (int, float)):
-            raise TypeError(
-                'NumberInput expects int or float values, got '
-                f'{type(candidate).__name__}: {candidate!r}'
-            )
-        kinds.add(float if isinstance(candidate, float) else int)
-    if len(kinds) > 1:
+    if isinstance(value, Property):
+        current = value.get()
+        value = current if current is not _undefined else value.default
+    if value is _undefined or value is None:
+        return 0
+    if isinstance(value, (int, float)):
+        return value
+    raise TypeError(
+        'NumberInput expects an int or float value, got '
+        f'{type(value).__name__}: {value!r}'
+    )
+
+
+def _check_number_arg(arg: tp.Any, is_float: bool, name: str) -> int | float:
+    """Validate a `min_value` / `max_value` / `step` argument.
+
+    An int widget only accepts ints; a float widget also accepts ints and
+    converts them to float.
+    """
+    if not isinstance(arg, (int, float)):
+        raise TypeError(f'NumberInput {name} must be a number, got {arg!r}')
+    if is_float:
+        return float(arg)
+    if isinstance(arg, float):
         raise TypeError(
-            'NumberInput value / min_value / max_value must be all ints or '
-            'all floats, got a mix.'
+            f'NumberInput {name} must be an int for an int widget, got {arg!r}'
         )
-    return kinds.pop() if kinds else int
+    return arg
 
 
 def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
@@ -463,14 +471,15 @@ class NumberInput(_Labeled):
 
     Args:
         label: the widget label.
-        value: the number (bindable). Together with `min_value` / `max_value`
-            it also decides whether this is an int or a float widget.
-        min_value / max_value: optional bounds. `value`, `min_value` and
-            `max_value` must be all ints or all floats.
-        step: increment used by the stepper (+/-) gadgets. `None` means
-            "decide from the type of `value`": an int widget steps by 1,
-            while a float widget shows *no* stepper (a float step cannot be
-            guessed, so it has to be set explicitly).
+        value: the number (bindable). It alone decides whether this is an
+            int widget or a float widget.
+        min_value / max_value: optional inclusive bounds. An int widget
+            requires ints; a float widget also accepts ints and converts
+            them to float.
+        step: increment used by the stepper (+/-) gadgets. `None` (the
+            default) shows **no stepper at all** — set it explicitly to get
+            one. An int widget requires an int step; a float widget accepts
+            int or float (converted to float). Must be > 0.
         format: optional display formatter, e.g. `hex` (int widgets only).
         width: `int` (px) | 'content' | 'stretch' | None (default).
         placeholder: hint shown while the box is empty.
@@ -484,6 +493,12 @@ class NumberInput(_Labeled):
 
     Signals:
         on_value: emitted when `value` changes.
+
+    Raises:
+        TypeError: `value` is not a number, or `min_value` / `max_value` /
+            `step` do not match the widget's numeric type.
+        ValueError: `value` falls outside `[min_value, max_value]`, or
+            `step` is not > 0.
     """
 
     def __init__(
@@ -501,15 +516,35 @@ class NumberInput(_Labeled):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
-        self._num_type = _number_type(value, min_value, max_value)
-        self.value = _prop(0, tp.cast(tp.Any, value))
+        number = _resolve_number(value)
+        is_float = isinstance(number, float)
+        self._num_type = float if is_float else int
+
+        if min_value is not None:
+            min_value = _check_number_arg(min_value, is_float, 'min_value')
+        if max_value is not None:
+            max_value = _check_number_arg(max_value, is_float, 'max_value')
+        if min_value is not None and number < min_value:
+            raise ValueError(
+                f'NumberInput value {number!r} is below min_value '
+                f'{min_value!r}.'
+            )
+        if max_value is not None and number > max_value:
+            raise ValueError(
+                f'NumberInput value {number!r} is above max_value '
+                f'{max_value!r}.'
+            )
+        if step is not None:
+            step = _check_number_arg(step, is_float, 'step')
+            if step <= 0:
+                raise ValueError(f'NumberInput step must be > 0, got {step!r}.')
+
+        # `None` stays `None`: no stepper is rendered in that case.
+        self.value = _prop(tp.cast(tp.Any, number), tp.cast(tp.Any, value))
         self.format = format
         self._width = width
         self._min = min_value
         self._max = max_value
-        if step is None and self._num_type is int:
-            step = 1
-        # `step is None` now means "a float widget without a stepper".
         self._step = step
         self._placeholder = placeholder
 
