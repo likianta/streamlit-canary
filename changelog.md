@@ -1,8 +1,10 @@
-# Changelog
+# CHANGELOG
 
 ### 0.4.0 (WIP)
 
-- Native execution flow.
+- Native execution flow (event-driven, no-rerun).
+- Add pure-Python kernel: `Property`, `Signal`, `StateV2`.
+- Add v3 component library (`sc.v3.*`).
 
 ### 0.3.2 (2026-07-18)
 

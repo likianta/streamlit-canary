@@ -7,7 +7,7 @@ import streamlit_canary as sc
 
 class _State(sc.StateV2):
     count = sc.Property(0)  
-    #   ref: lib/qmlease/qtcore/property.py:Property:__init__
+    #   ref: streamlit_canary/kernel/property.py:Property
     #   it derives six methods:
     #       1. state.count.get: Callable[[], int]
     #       2. state.count.set: Callable[[int], None]
@@ -38,8 +38,10 @@ def click_counter_demo():
             #   has the same six accessors:
             #       txt.text.get() / txt.text.set(value) / txt.text.on_change
             #       txt['text'] / txt['text'] = value / txt['on_text']
-            @state.count.on_change
+            @state.count.on_change.partial(sc._self)
             def _(cnt: sc.Property):
+                # `on_change` does not pass the owner by default, so we use
+                # `.partial(sc._self)` to bind the `count` Property handle.
                 txt.text.set('Click count: {}'.format(cnt.get()))
 
         with sc.v3.Button(
@@ -52,6 +54,6 @@ def click_counter_demo():
                 state['count'] += 1
 
 if __name__ == '__main__':
-    # python test/event_driven_structure.py
+    # python test/event_driven_structure/demo_click_counter.py
     sc.run(click_counter_demo, port=3001)
 ```

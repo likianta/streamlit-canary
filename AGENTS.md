@@ -7,7 +7,7 @@
 **Streamlit Canary** (`streamlit-canary`) 是对 Streamlit 的二次开发, 扩展了原版的组件库, 并实现了一套基于事件驱动的运行时. 开发者用纯 Python 写组件树, 运行时负责渲染 HTML, 路由事件, 推送 delta patch, 前端局部更新 DOM, 无需页面刷新.
 
 - **语言**: Python 3.12 及以上
-- **版本**: 0.4.0a9
+- **版本**: 0.4.0a10
 - **包管理**: uv
 - **代码风格**: ruff (line-length=80, single-quote, skip-magic-trailing-comma)
 - **类型检查**: ty check
@@ -30,27 +30,35 @@ streamlit-canary/
 ├── streamlit_canary/         # 主包
 │   ├── kernel/               # 事件驱动内核 (无 Streamlit 依赖)
 │   │   ├── property.py       # Property: 带 get/set/on_change 的响应式属性
-│   │   ├── signal.py         # Signal: 事件信号
+│   │   ├── signal.py         # Signal: 事件信号 (partial / emit_now)
 │   │   ├── special_value.py  # sc._self / sc._value: Signal.partial 的特殊标记
-│   │   └── state.py          # StateV2: 状态容器
-│   ├── components_v3/        # v3 事件驱动组件
-│   │   ├── base.py           # Component 基类: 注册到 runtime, 属性绑定
-│   │   └── widgets.py        # 具体组件实现
+│   │   └── state.py          # PropertyHost / StateV2: 状态容器
+│   ├── components_v3/        # v3 事件驱动组件 (纯 Python, 无 Streamlit 依赖)
+│   │   ├── base.py           # Component 基类: 组件树, 上下文栈, 注册到 runtime
+│   │   └── widgets.py        # 内置组件 + 共享私有基类 (见 §3 组件清单)
 │   ├── runtime/              # 事件驱动运行时
+│   │   ├── runtime.py        # Runtime: 持久组件树 + 事件路由 + delta 广播
+│   │   ├── render.py         # 组件树 → HTML
+│   │   ├── server.py         # Starlette 应用 + WebSocket 端点
+│   │   └── static/           # 前端资源: page.css / page.js / theme-*.css / 字体
 │   ├── components/           # v1 组件 (基于 Streamlit)
 │   ├── components_v2/        # v2 组件 (过渡版本)
-│   ├── session.py            # Session state 管理
+│   ├── session.py            # v1 session state 管理 (init_state / init_state_v2)
 │   └── runner.py             # 传统 Streamlit 子进程启动器 (legacy)
 ├── test/                     # 测试与演示
 │   ├── event_driven_structure/     # v3 事件驱动测试
-│   │   ├── demo_click_counter.py   # 计数器 demo
+│   │   ├── demo_click_counter.py   # 计数器 demo (最小可运行示例)
+│   │   ├── components_v3_demo.py   # 纯 Python 组件树 / 信号演示
 │   │   └── pyproject_manager_copy/ # pyproject-manager 的 v3 重写版 (运行在 localhost:3001)
+│   ├── pixel_fidelity/       # UI 像素级对齐的试验脚本
 │   └── ...
 ├── references/               # 参考资源
 │   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2130
 │   ├── streamlit/            # Streamlit 源码
 │   └── ...                   # 截图, 参考图等
+├── .trae/documents/          # 设计与路线图文档 (event_driven_streamlit_roadmap.md)
 ├── pyproject.toml            # 项目配置
+├── readme.md                 # 简要说明 (session state / v3 用法)
 └── changelog.md              # 变更记录
 ```
 
@@ -58,16 +66,26 @@ streamlit-canary/
 
 ### 已完成
 
-- **Phase 1**: Kernel 层(Property, Signal, StateV2)
-- **Phase 2**: Components v3 层(Row, Column, Text, Title, Button, Selectbox, Radio)
-- **Phase 3**: 事件驱动运行时(Runtime, Server, Render)
-- **Phase 4 (进行中)**: 前端协议与 UI 细节对齐
+- **Phase 1**: Kernel 层 (Property, Signal, PropertyHost / StateV2)
+- **Phase 2**: Components v3 层 (全部内置组件, 见下方清单)
+- **Phase 3**: 事件驱动运行时 (Runtime, Server, Render, 前端 delta 协议)
+
+### 进行中
+
+- **Phase 4**: 与原版 Streamlit 的 UI 细节对齐 (在 `:2130` 与 `:3001` 之间逐组件比对)
 
 ### 待办
 
-- [ ] 更多组件迁移(Phase 5)
-- [ ] 前端协议完善(Phase 4 继续)
-- [ ] 与原版 Streamlit 的更多 UI 细节对齐
+- [ ] 更多组件从 v1/v2 迁移到 v3 (Phase 5)
+- [ ] 与原版 Streamlit 继续对齐 UI 细节
+
+### v3 组件清单 (`sc.v3.*`)
+
+`Button, Caption, Cell, Checkbox, Code, Column, Grid, Popover, Radio, Row,
+Selectbox, Spinner, Success, Table, Text, TextInput, Title`
+
+`components_v3/widgets.py` 内部还有 4 个共享私有基类 (不对外暴露):
+`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible` -- 新组件应优先复用它们.
 
 ## 4. 开发环境
 
@@ -79,6 +97,9 @@ uv sync
 
 # 运行 v3 测试应用
 python test/event_driven_structure/pyproject_manager_copy/app.py    # :3001
+
+# 运行最小 v3 demo (计数器, 参考用法见其 docstring)
+python test/event_driven_structure/demo_click_counter.py            # :3001
 
 # 运行原版 (用于对比)
 # 原版 pyproject-manager 运行在 :2130
@@ -92,6 +113,12 @@ ty check streamlit_canary/
 python test/on_property_test.py
 python test/event_driven_structure/components_v3_demo.py
 ```
+
+> 注意: 全量 `ty check streamlit_canary/` 会对 v1 老模块报出若干**既存**问题
+> (`components/filelist.py`、`components/radio.py`、
+> `components/tree_select/wrappers.py`、`__main__.py`). 改动 v3 相关代码时,
+> 建议只检查目标包, 例如:
+> `ty check streamlit_canary/components_v3/ streamlit_canary/runtime/`
 
 ### 对比测试环境
 
@@ -152,8 +179,12 @@ when mouse.click(sel):
 1. **解析伪代码**: 识别操作序列, 目标元素, 断言条件
 2. **采集数据**: 用 `browser_evaluate` 在原版 (`:2130`) 和我们的 (`:3001`) 分别采集断言处的实际值
 3. **对比分析**: 找出差异
-4. **修复代码**: 修改 `render.py` (HTML 结构 / CSS / JS) 或 `widgets.py` (组件定义)
-5. **重新验证**: 重启服务, 再次采集数据, 确认所有 assert 通过
+4. **修复代码**: 按需改以下位置 --
+   - `components_v3/widgets.py` -- 组件定义 / 属性
+   - `runtime/render.py` -- HTML 结构
+   - `runtime/static/page.css` -- 样式
+   - `runtime/static/page.js` -- 前端交互 (事件回传 / delta patch)
+5. **重新验证**: 重启服务 (前端资源在启动时读入, 改动后必须重启), 再次采集数据, 确认所有 assert 通过
 
 ## 6. 工具链
 
@@ -171,6 +202,7 @@ when mouse.click(sel):
 - 每行代码不超过 80 字符 (见 `pyproject.toml:[tool.ruff]:line-length`).
 - import 使用 force-single-line 风格 (见 `pyproject.toml:[tool.ruff.lint.isort]`).
 - 字符串使用单引号 (见 `pyproject.toml:[tool.ruff.format]:quote-style`).
+- 同一模块内的 class 按字母序排列 (私有基类因为要先于使用者定义, 可集中放在文件前部, 如 `components_v3/widgets.py`).
 
 ## 8. 架构约束
 
@@ -178,6 +210,8 @@ when mouse.click(sel):
 - **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`, `Button._width`).
 - **不使用 metaclass**: 因为 metaclass 会增加理解负担, 而且在当前实现中, 它的使用是不透明的.
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
+- **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/widgets.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
+- **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`page.css` / `page.js` / `theme-*.css`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此**改动这些文件后必须重启服务**.
 - **Web 服务**: 用 Starlette + Uvicorn (HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
 - **Web 服务器非阻塞**: 必须非阻塞启动, 可用 StopCommand 停止.
 - **Python 3.12**: 使用现代语法 (`type | type` 联合, `match` 等).
@@ -190,7 +224,9 @@ when mouse.click(sel):
   - `sc._value` → handler 收到 owner 的当前值 (`owner.get()`)
   - 普通值原样绑定在参数列表最前面
 - **立即触发**: `@sig.emit_now` 注册 handler 并立刻 emit 一次; 若同时需要注入 owner, 用 `@sig.partial(sc._self).emit_now`.
-- **Property 可独立使用**: `count = sc.Property(0)` 是自包含的响应式值 (`get` / `set` / `on_change`); 声明在 `StateV2` / `Component` 上时按实例绑定 (descriptor + bound handle).
+- **Property 可独立使用**: `count = sc.Property(0)` 是自包含的响应式值 (`get` / `set` / `on_change`).
+- **挂到 StateV2 / Component 上**: 在 `__init__` 里赋值成实例属性 (如 `self.count = sc.Property(0)`); `PropertyHost._iter_properties()` 通过扫描实例 `__dict__` 发现它们, 因此每个实例各持一份, 互不共享. (类属性写法也能用, 但会被该类所有实例共享, 只适合单实例场景.)
+- **值或绑定二选一**: 构造参数用 `p.set_or_bind(x)` 统一处理 -- `x` 是 `Property` 就 `bind` (此后跟随其变化), 否则 `set`. `sc.bind(source, transform)` 用于创建匿名绑定 Property, 例如 `v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
 
 示例:
 
@@ -209,3 +245,25 @@ def ccc(prop): ...
 @count.on_change.partial(sc._value)   # 收到当前值
 def ddd(value): ...
 ```
+
+## 10. 新增一个 v3 组件的流程
+
+一个 v3 组件通常涉及以下几处改动:
+
+1. `components_v3/widgets.py` -- 定义 class (按字母序插入, 优先复用私有基类); 在 `components_v3/__init__.py` 里导出.
+2. `runtime/render.py` -- 新增 `_render_xxx(comp)`, 并在 `_render()` 的分发链里加一个 `isinstance(comp, Xxx)` 分支 (必须放在最后的兜底分支之前).
+3. `runtime/static/page.css` -- 组件的样式.
+4. `runtime/static/page.js` -- 需要回传事件时加发送函数 (参照 `scSendChange` / `scSendCheck`); 需要响应 delta 时, 在 patch 分支里按 `el.classList.contains('st-xxx')` 处理.
+
+协议约定:
+
+- 前端 → 后端: `{"type":"event","id":"<comp-id>","event":"click"}` 或
+  `{"type":"event","id":"<comp-id>","event":"change","value":...}`
+- `Runtime.on_event()` 目前只识别 `click` (→ 组件的 `on_click`) 与
+  `change` (→ 组件的 `value` Property); 其它事件类型需要在这里扩展.
+- 后端 → 前端: `{"type":"patch","id":"<comp-id>","prop":"<prop-name>","value":...}`.
+  `page.js` 已处理的 prop: `text` / `label` / `enabled` / `visible` /
+  `options` (附带 `formatted` 显示文案) / `value` / `rows`.
+
+验证: 启动 `python test/event_driven_structure/demo_click_counter.py`
+(或 `pyproject_manager_copy/app.py`), 在浏览器中操作确认.

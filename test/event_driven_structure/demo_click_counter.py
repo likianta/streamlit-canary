@@ -6,7 +6,7 @@ kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`), v3 components
 (`sc.v3.Row`, `sc.v3.Text`, `sc.v3.Button`) and the event runtime
 (`sc.run(func, port=...)`) are all implemented, so this file runs end-to-end:
 
-    python test/demo_click_counter.py
+    python test/event_driven_structure/demo_click_counter.py
 
 Open http://127.0.0.1:3001 in a browser and click the button — the counter
 updates in place without a full page reload, because the app function only
