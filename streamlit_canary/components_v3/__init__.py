@@ -6,6 +6,7 @@ dependency here — the frontend bridge is added in a later phase.
 """
 
 from .base import Component
+from .widgets import AltairChart
 from .widgets import Button
 from .widgets import Caption
 from .widgets import Cell
@@ -17,6 +18,7 @@ from .widgets import Expander
 from .widgets import Grid
 from .widgets import NumberInput
 from .widgets import Popover
+from .widgets import Progress
 from .widgets import Radio
 from .widgets import Row
 from .widgets import Selectbox
@@ -29,6 +31,7 @@ from .widgets import TextInput
 from .widgets import Title
 
 __all__ = [
+    'AltairChart',
     'Button',
     'Caption',
     'Cell',
@@ -41,6 +44,7 @@ __all__ = [
     'Grid',
     'NumberInput',
     'Popover',
+    'Progress',
     'Radio',
     'Row',
     'Selectbox',

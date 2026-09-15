@@ -11,12 +11,14 @@ Delta / event protocol is unchanged from Phase 3.
 from __future__ import annotations
 
 import html
+import json
 import re
 import typing as tp
 
 from lk_utils import fs
 
 from ..components_v3.base import Component
+from ..components_v3.widgets import AltairChart
 from ..components_v3.widgets import Button
 from ..components_v3.widgets import Caption
 from ..components_v3.widgets import Cell
@@ -27,6 +29,7 @@ from ..components_v3.widgets import Expander
 from ..components_v3.widgets import Grid
 from ..components_v3.widgets import NumberInput
 from ..components_v3.widgets import Popover
+from ..components_v3.widgets import Progress
 from ..components_v3.widgets import Radio
 from ..components_v3.widgets import Row
 from ..components_v3.widgets import Selectbox
@@ -184,6 +187,10 @@ def _render(comp: Component) -> str:
         return _render_success(comp)
     if isinstance(comp, Popover):
         return _render_popover(comp)
+    if isinstance(comp, Progress):
+        return _render_progress(comp)
+    if isinstance(comp, AltairChart):
+        return _render_altair_chart(comp)
     if isinstance(comp, Checkbox):
         return _render_checkbox(comp)
     if isinstance(comp, Button):
@@ -271,7 +278,9 @@ def _render_expander(comp: Expander) -> str:
         f'<span class="st-expander-icon">{_EXPANDER_ICON}</span>'
         f'<span class="st-expander-label">{label}</span>'
         f'</div>'
-        f'<div class="st-expander-body"{hidden}>{body}</div>'
+        f'<div class="st-expander-body"{hidden}>'
+        f'<div class="st-expander-body-inner">{body}</div>'
+        f'</div>'
         f'</div>'
     )
 
@@ -410,7 +419,10 @@ def _style_width(width: tp.Any) -> str:
     if width == 'stretch':
         return ' style="width:100%"'
     if isinstance(width, int):
-        return f' style="width:{width}px"'
+        # `flex: 0 1 auto` keeps `width` authoritative inside a flex row:
+        # the default `.st-row > * { flex: 1 }` would otherwise let
+        # flex-basis win and stretch the widget.
+        return f' style="flex:0 1 auto;width:{width}px"'
     return f' style="width:{html.escape(str(width))}"'
 
 
@@ -460,9 +472,9 @@ def _render_number_input(comp: NumberInput) -> str:
             '</span>'
         )
     return (
-        f'<div class="st-number-input" data-id="{comp.id}">'
+        f'<div class="st-number-input" data-id="{comp.id}"{width_style}>'
         f'{_widget_label_html(comp)}'
-        f'<div class="st-number-box"{width_style}>'
+        f'<div class="st-number-box">'
         f'<input class="st-text-input-box" type="text" '
         f'data-comp-id="{comp.id}"{data} '
         f'value="{html.escape(text)}" '
@@ -615,6 +627,55 @@ def _render_popover(comp: Popover) -> str:
     )
 
 
+def _render_progress(comp: Progress) -> str:
+    """Render a progress bar (mirrors Streamlit's `st.progress`).
+
+    `value` is a 0-100 percentage, or `None` for an indeterminate
+    (animated) bar. The bar is hidden while `visible` is false, so a
+    long-running step can toggle it like a spinner.
+    """
+    hidden = '' if comp.visible.get() else ' hidden'
+    value = comp.value.get()
+    if value is None:
+        bar = '<div class="st-progress-bar is-indeterminate"></div>'
+    else:
+        pct = max(0, min(100, int(value)))
+        bar = f'<div class="st-progress-bar" style="width:{pct}%"></div>'
+    text = render_markup(str(comp.text.get()))
+    return (
+        f'<div class="st-progress" data-id="{comp.id}"{hidden}>'
+        f'<div class="st-progress-track">{bar}</div>'
+        f'<div class="st-progress-text">{text}</div>'
+        f'</div>'
+    )
+
+
+def _render_altair_chart(comp: AltairChart) -> str:
+    """Render a Vega-Lite chart container (drawn client-side by vega-embed).
+
+    The spec travels as an inert JSON `<script>` block so the browser can
+    parse it without any string escaping games; `page.js` reads it on load
+    and re-draws whenever a `chart` patch arrives.
+    """
+    width_style = _style_width(getattr(comp, '_width', 'stretch'))
+    spec = comp.chart.get()
+    spec_html = ''
+    if spec is not None:
+        # Escape `</` so a `</script>` inside the payload cannot terminate
+        # the block early.
+        raw = json.dumps(spec, separators=(',', ':')).replace('</', '<\\/')
+        spec_html = (
+            '<script type="application/json" class="st-altair-spec">'
+            f'{raw}</script>'
+        )
+    return (
+        f'<div class="st-altair-chart" data-id="{comp.id}"{width_style}>'
+        f'<div class="st-altair-canvas"></div>'
+        f'{spec_html}'
+        f'</div>'
+    )
+
+
 # ---------------------------------------------------------------------------
 # Page template with Streamlit dark theme
 # ---------------------------------------------------------------------------
@@ -644,7 +705,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </style>
 </head>
 <body>
-<div id="app">{body}</div>
+<div id="app"{app_attr}>{body}</div>
 <script>
 {page_js}
 </script>
@@ -657,12 +718,15 @@ def render_page(
     roots: tp.Iterable[Component],
     title: str = 'Streamlit Canary',
     default_theme: str = 'dark',
+    layout: str = 'centered',
 ) -> str:
     theme_vars = (
         _DARK_THEME_VARS if default_theme == 'dark' else _LIGHT_THEME_VARS
     )
+    app_attr = ' class="st-wide"' if layout == 'wide' else ''
     return PAGE_TEMPLATE.format(
         title=html.escape(title),
+        app_attr=app_attr,
         theme_vars=theme_vars.strip(),
         page_css=_PAGE_CSS.strip(),
         page_js=_PAGE_JS.strip(),

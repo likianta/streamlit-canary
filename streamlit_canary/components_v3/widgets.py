@@ -2,9 +2,9 @@
 v3 widgets: the built-in component library.
 
 Public widgets (in alphabetical order):
-    Button, Caption, Cell, Checkbox, Code, Column, Container, Expander,
-    Grid, NumberInput, Popover, Radio, Row, Selectbox, Spinner, Success,
-    Table, Tabs, Text, TextInput, Title.
+    AltairChart, Button, Caption, Cell, Checkbox, Code, Column, Container,
+    Expander, Grid, NumberInput, Popover, Progress, Radio, Row, Selectbox,
+    Spinner, Success, Table, Tabs, Text, TextInput, Title.
 
 They are built on a few shared private bases (defined first):
     _HasText       — a single bindable `text` field.
@@ -81,6 +81,54 @@ def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
     prop = Property(default)
     prop.set_or_bind(source)
     return prop
+
+
+def _inline_datasets(node: tp.Any, datasets: dict) -> None:
+    """Replace `{"name": "<key>"}` data references with inline values.
+
+    Altair's default data transformer keeps the rows in a top-level
+    `datasets` map and leaves `{"name": ...}` references behind — a
+    Jupyter-only convention that plain Vega-Lite (and therefore
+    `vega-embed`) does not understand. Resolving the references here keeps
+    the emitted spec self-contained. The walk covers layered / concatenated
+    specs too, since every nested `data` is visited.
+    """
+    if isinstance(node, dict):
+        data = node.get('data')
+        if (
+            isinstance(data, dict)
+            and set(data) == {'name'}
+            and data['name'] in datasets
+        ):
+            node['data'] = {'values': datasets[data['name']]}
+        for value in node.values():
+            _inline_datasets(value, datasets)
+    elif isinstance(node, list):
+        for value in node:
+            _inline_datasets(value, datasets)
+
+
+def _to_vega_lite_spec(chart: tp.Any) -> dict:
+    """Normalize an Altair chart (or an already-built spec) to a spec dict.
+
+    Altair's own `to_dict()` is used when available, which keeps `altair`
+    out of `streamlit_canary`'s dependencies — the chart object is the only
+    thing that needs altair installed. Named datasets are inlined so the
+    result renders with a plain `vega-embed` call.
+    """
+    to_dict = getattr(chart, 'to_dict', None)
+    if callable(to_dict):
+        spec = tp.cast(dict, to_dict())
+        datasets = spec.pop('datasets', None)
+        if datasets:
+            _inline_datasets(spec, datasets)
+        return spec
+    if isinstance(chart, dict):
+        return chart
+    raise TypeError(
+        'AltairChart expects an altair.Chart or a Vega-Lite spec dict, '
+        f'got {type(chart).__name__}: {chart!r}'
+    )
 
 
 # -- shared bases ----------------------------------------------------------
@@ -245,6 +293,47 @@ class _TextVisible(_HasText):
 
 
 # -- widgets (alphabetical) ------------------------------------------------
+
+
+class AltairChart(Component):
+    """A chart drawn from an Altair (Vega-Lite) specification.
+
+    Args:
+        chart: an `altair.Chart` — more precisely, anything exposing
+            `to_dict()` — or an already-built Vega-Lite spec (`dict`).
+            Bindable. `None` renders nothing until a spec is set.
+        width: "stretch" (default; fills the parent) | "content" | int px.
+
+    Properties:
+        chart: dict | None — the Vega-Lite spec (JSON-serializable). The
+            client renders it with `vega-embed` and re-renders whenever the
+            spec changes.
+
+    `streamlit_canary` never imports altair itself; a chart object is
+    converted through its own `to_dict()`, so altair stays optional:
+
+        v3.AltairChart(chart)
+        v3.AltairChart(state.spec)  # a Property holding a spec dict
+    """
+
+    def __init__(
+        self,
+        chart: tp.Any = None,
+        *,
+        width: tp.Union[int, tp.Literal['content', 'stretch']] = 'stretch',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.chart: Property[dict | None] = Property(None)
+        self._width = width
+        if isinstance(chart, Property):
+            self.chart.set_or_bind(chart)
+        elif chart is not None:
+            self.set_chart(chart)
+
+    def set_chart(self, chart: tp.Any) -> None:
+        """Set the chart from an Altair object or a Vega-Lite spec dict."""
+        self.chart.set(_to_vega_lite_spec(chart))
 
 
 class Button(_HasText):
@@ -601,6 +690,39 @@ class Popover(_HasText):
     ) -> None:
         super().__init__(label, **kwargs)
         self._width = width
+
+
+class Progress(_HasText):
+    """A progress bar (mirrors Streamlit's `st.progress`).
+
+    Args:
+        value: completion percentage — an int between 0 and 100, or `None`
+            for an indeterminate (animated) bar. Bindable.
+        text:  an optional caption shown under the bar (bindable).
+        visible: whether the bar is shown (default False, bindable), so a
+            long-running step can toggle it like a spinner.
+
+    Properties:
+        value:   int | None — the completion percentage.
+        text:    str — the caption.
+        visible: bool — whether the bar is shown.
+    """
+
+    def __init__(
+        self,
+        value: int | None | Property = None,
+        *,
+        text: str | Property = '',
+        visible: bool | Property = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, **kwargs)
+        self.value: Property[int | None] = Property(None)
+        if isinstance(value, Property):
+            self.value.bind(value)
+        elif value is not None:
+            self.value.set(value)
+        self.visible = _prop(False, visible)
 
 
 class Radio(_OptionsWidget):

@@ -74,6 +74,7 @@ def create_app(runtime: Runtime) -> Starlette:
                 runtime.roots,
                 title=cfg['title'],
                 default_theme=cfg.get('default_theme', 'dark'),
+                layout=cfg.get('layout', 'centered'),
             )
         )
 

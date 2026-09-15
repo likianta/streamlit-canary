@@ -25,6 +25,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       } else if (el.classList.contains('st-popover')) {
         const labelEl = el.querySelector('.st-popover-trigger-label');
         if (labelEl) labelEl.innerHTML = window.scRenderParagraphs(msg.value);
+      } else if (el.classList.contains('st-progress')) {
+        const textEl = el.querySelector('.st-progress-text');
+        if (textEl) textEl.innerHTML = window.scRenderMarkup(msg.value);
       } else {
         el.innerHTML = window.scRenderMarkup(msg.value);
       }
@@ -113,6 +116,24 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       if (el.classList.contains('st-checkbox')) {
         const box = el.querySelector('input[type="checkbox"]');
         if (box) box.checked = !!msg.value;
+      }
+      if (el.classList.contains('st-progress')) {
+        const bar = el.querySelector('.st-progress-bar');
+        if (bar) {
+          if (msg.value === null || msg.value === undefined) {
+            bar.classList.add('is-indeterminate');
+            bar.style.width = '';
+          } else {
+            bar.classList.remove('is-indeterminate');
+            const pct = Math.max(0, Math.min(100, msg.value));
+            bar.style.width = pct + '%';
+          }
+        }
+      }
+    }
+    if (msg.prop === 'chart') {
+      if (el.classList.contains('st-altair-chart')) {
+        scRenderVegaLite(el, msg.value);
       }
     }
     if (msg.prop === 'rows') {
@@ -406,7 +427,34 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     root.classList.toggle('is-expanded', expanded);
     header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     const body = root.querySelector('.st-expander-body');
-    if (body) body.hidden = !expanded;
+    if (body) scAnimateExpanderBody(body, expanded);
+  }
+  // Expand/collapse the body with a height animation. `hidden` still drives
+  // the server-rendered state; while animating the height is set explicitly
+  // and the overflow is clipped (so a dropdown inside is not cut off once
+  // the transition is over).
+  function scAnimateExpanderBody(body, expanded) {
+    if (body._scExpandAnim) body._scExpandAnim.cancel();
+    const from = body.hidden ? 0 : body.getBoundingClientRect().height;
+    body.hidden = false;
+    const to = expanded ? body.scrollHeight : 0;
+    if (from === to) {
+      body.hidden = !expanded;
+      body.style.height = '';
+      return;
+    }
+    body.style.height = from + 'px';
+    body.style.overflow = 'hidden';
+    body._scExpandAnim = body.animate(
+      { height: [from + 'px', to + 'px'] },
+      { duration: 200, easing: 'ease' }
+    );
+    body._scExpandAnim.addEventListener('finish', () => {
+      body._scExpandAnim = null;
+      body.style.height = '';
+      body.style.overflow = '';
+      body.hidden = !expanded;
+    });
   }
   function scStepNumber(btn, direction) {
     const box = btn.closest('.st-number-box');
@@ -430,6 +478,61 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     input.dataset.value = text;
     input.value = text;
     scSendChange(input);
+  }
+
+  // -- AltairChart: draw Vega-Lite specs with vega-embed (lazy CDN load) --
+  // `vega`, `vega-lite` and `vega-embed` are pulled in on first use and
+  // cached for the lifetime of the page. vega-embed expects both globals to
+  // be present, so the scripts are loaded in order.
+  const SC_VEGA_URLS = [
+    'https://cdn.jsdelivr.net/npm/vega@6',
+    'https://cdn.jsdelivr.net/npm/vega-lite@6',
+    'https://cdn.jsdelivr.net/npm/vega-embed@7',
+  ];
+  let scVegaEmbedPromise = null;
+  function scLoadVega() {
+    if (scVegaEmbedPromise) return scVegaEmbedPromise;
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = false;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('failed to load ' + src));
+      document.head.appendChild(s);
+    });
+    scVegaEmbedPromise = SC_VEGA_URLS
+      .reduce((p, src) => p.then(() => loadScript(src)), Promise.resolve())
+      .then(() => (typeof window.vegaEmbed === 'function' ? window.vegaEmbed : null))
+      .catch(() => null);
+    return scVegaEmbedPromise;
+  }
+  function scRenderVegaLite(el, spec) {
+    const canvas = el.querySelector('.st-altair-canvas');
+    if (!canvas) return;
+    if (!spec) {
+      canvas.innerHTML = '';
+      el.removeAttribute('data-sc-rendered');
+      return;
+    }
+    scLoadVega().then((embed) => {
+      if (!embed) return;
+      // vega-embed replaces the container's content; a stale render is
+      // discarded so rapid `chart` patches don't interleave.
+      embed(canvas, spec, { actions: false, renderer: 'canvas' })
+        .then(() => { el.setAttribute('data-sc-rendered', '1'); })
+        .catch(() => {});
+    });
+  }
+  function scInitAltairCharts() {
+    document.querySelectorAll('.st-altair-chart').forEach((el) => {
+      if (el.dataset.scInitialized) return;
+      el.dataset.scInitialized = '1';
+      const script = el.querySelector('.st-altair-spec');
+      if (!script) return;
+      try {
+        scRenderVegaLite(el, JSON.parse(script.textContent));
+      } catch (e) {}
+    });
   }
 
   // -- Source-change notice + rerun (dev-time convenience, like Streamlit) --
@@ -506,3 +609,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     };
     setTimeout(poll, 400);
   }
+
+  // Draw any charts that were part of the initial server-rendered page.
+  // The script tag sits at the end of <body>, so the DOM is already parsed.
+  scInitAltairCharts();
