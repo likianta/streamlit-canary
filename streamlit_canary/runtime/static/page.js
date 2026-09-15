@@ -112,6 +112,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         const next = (msg.formatted !== undefined) ? msg.formatted : msg.value;
         // Don't clobber what the user is currently typing.
         if (box && box.value !== String(next)) box.value = String(next);
+        // The stepper does arithmetic on the raw value, not on the display
+        // text (which may be formatted, e.g. hex).
+        if (box) box.dataset.value = String(msg.value);
       }
       if (el.classList.contains('st-checkbox')) {
         const box = el.querySelector('input[type="checkbox"]');
@@ -293,6 +296,60 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const parts = String(text).split(NL + NL).map(p => p.trim()).filter(p => p.length > 0);
     return '<span class="st-btn-text">' + parts.map(p => '<p>' + window.scRenderMarkup(p) + '</p>').join('') + '</span>';
   };
+
+  // -- Tabs / Expander / NumberInput stepper (client-side UI state) --
+  function scSelectTab(btn) {
+    const root = btn.closest('.st-tabs');
+    if (!root) return;
+    const label = btn.dataset.tab;
+    root.querySelectorAll('.st-tabs-bar > .st-tab').forEach(b => {
+      const on = b === btn;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    root.querySelectorAll('.st-tabs-panels > .st-tab-panel').forEach(p => {
+      p.hidden = p.dataset.tab !== label;
+    });
+    // Keep the server-side `active` property in sync.
+    const id = root.dataset.id;
+    if (id) {
+      ws.send(JSON.stringify({
+        type: 'event', id: id, event: 'change', value: label,
+      }));
+    }
+  }
+  function scToggleExpander(header) {
+    const root = header.closest('.st-expander');
+    if (!root) return;
+    const expanded = !root.classList.contains('is-expanded');
+    root.classList.toggle('is-expanded', expanded);
+    header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    const body = root.querySelector('.st-expander-body');
+    if (body) body.hidden = !expanded;
+  }
+  function scStepNumber(btn, direction) {
+    const box = btn.closest('.st-number-box');
+    const input = box ? box.querySelector('input') : null;
+    if (!input) return;
+    const step = parseFloat(input.dataset.step);
+    const current = parseFloat(input.dataset.value);
+    if (!isFinite(step) || !isFinite(current)) return;
+    let value = current + direction * step;
+    const min = input.dataset.min;
+    const max = input.dataset.max;
+    if (min !== undefined && min !== '' && value < parseFloat(min)) {
+      value = parseFloat(min);
+    }
+    if (max !== undefined && max !== '' && value > parseFloat(max)) {
+      value = parseFloat(max);
+    }
+    // Trim the float noise a step like 0.1 introduces.
+    const decimals = (String(step).split('.')[1] || '').length;
+    const text = decimals ? value.toFixed(decimals) : String(value);
+    input.dataset.value = text;
+    input.value = text;
+    scSendChange(input);
+  }
 
   // -- Source-change notice + rerun (dev-time convenience, like Streamlit) --
   function scRerunToast() {

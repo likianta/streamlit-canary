@@ -206,9 +206,53 @@
   }
 
   /* Number input (mirrors Streamlit's `st.number_input`).
-     Reuses the text-input box styling; only the wrapper differs. */
+     The wrapper owns the border/background so the stepper (+/-) gadgets can
+     sit inside the same box; the inner input is stripped of its own frame. */
   .st-number-input {
     margin-bottom: 8px;
+  }
+  .st-number-box {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    min-height: 38px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    box-sizing: border-box;
+  }
+  .st-number-box:focus-within {
+    border-color: var(--st-gray-color);
+  }
+  .st-number-box > .st-text-input-box {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    border: none;
+    background-color: transparent;
+  }
+  .st-number-stepper {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    border-left: 1px solid var(--st-widget-border-color);
+  }
+  .st-number-step {
+    display: flex;
+    flex: 1 1 50%;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--st-gray-color);
+    cursor: pointer;
+  }
+  .st-number-step:hover {
+    background-color: rgba(172, 177, 195, 0.15);
+    color: var(--st-text-color);
   }
 
   /* Table (mirrors Streamlit's `st.table`) */
@@ -722,3 +766,58 @@
     background-color: rgba(172, 177, 195, 0.15);
     color: var(--st-text-color);
   }
+  /* -- Tabs (mirrors Streamlit's `st.tabs`) -- */
+  .st-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .st-tabs-bar {
+    display: flex;
+    gap: 24px;
+    border-bottom: 1px solid var(--st-border-color);
+  }
+  .st-tab {
+    padding: 8px 0;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--st-gray-color);
+    font-family: var(--st-font);
+    font-size: var(--st-base-font-size);
+    cursor: pointer;
+  }
+  .st-tab:hover { color: var(--st-text-color); }
+  .st-tab.is-active {
+    border-bottom-color: var(--st-primary-color);
+    color: var(--st-text-color);
+  }
+  .st-tab-panel[hidden] { display: none; }
+
+  /* -- Expander (mirrors Streamlit's `st.expander`) -- */
+  .st-expander {
+    margin-bottom: 16px;
+    border: 1px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    overflow: hidden;
+  }
+  .st-expander-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  .st-expander-icon {
+    display: inline-flex;
+    transition: transform 0.15s ease;
+  }
+  .st-expander.is-expanded .st-expander-icon {
+    transform: rotate(90deg);
+  }
+  .st-expander-label p { margin: 0; }
+  .st-expander-body {
+    padding: 0 16px 16px;
+  }
+  .st-expander-body[hidden] { display: none; }

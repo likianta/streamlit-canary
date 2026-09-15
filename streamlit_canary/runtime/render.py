@@ -23,6 +23,7 @@ from ..components_v3.widgets import Cell
 from ..components_v3.widgets import Checkbox
 from ..components_v3.widgets import Code
 from ..components_v3.widgets import Column
+from ..components_v3.widgets import Expander
 from ..components_v3.widgets import Grid
 from ..components_v3.widgets import NumberInput
 from ..components_v3.widgets import Popover
@@ -32,9 +33,11 @@ from ..components_v3.widgets import Selectbox
 from ..components_v3.widgets import Spinner
 from ..components_v3.widgets import Success
 from ..components_v3.widgets import Table
+from ..components_v3.widgets import Tabs
 from ..components_v3.widgets import Text
 from ..components_v3.widgets import TextInput
 from ..components_v3.widgets import Title
+from ..components_v3.widgets import _TabPanel
 
 # ---------------------------------------------------------------------------
 # Streamlit-style markup: `:color[text]` and `:material/icon`
@@ -152,6 +155,12 @@ def _render(comp: Component) -> str:
             f'<div class="st-container{border_cls}" data-id="{comp.id}"'
             f'{width_style}>{children}</div>'
         )
+    if isinstance(comp, Tabs):
+        return _render_tabs(comp)
+    if isinstance(comp, _TabPanel):
+        return _render_tab_panel(comp)
+    if isinstance(comp, Expander):
+        return _render_expander(comp)
     if isinstance(comp, Title):
         text = render_markup(str(comp.text.get()))
         return f'<h1 class="st-title" data-id="{comp.id}">{text}</h1>'
@@ -205,6 +214,66 @@ def _render_paragraphs(text: str) -> str:
         return ''
     parts = re.split(r'\n[ \t]*\n', text)
     return ''.join(f'<p>{render_markup(p)}</p>' for p in parts)
+
+
+def _render_tabs(comp: Tabs) -> str:
+    """Render a tab bar plus one panel per label (only one is visible)."""
+    active = str(comp.active.get())
+    buttons: list[str] = []
+    panels: list[str] = []
+    for label in comp._labels:
+        escaped = html.escape(label)
+        is_active = label == active
+        selected = 'true' if is_active else 'false'
+        buttons.append(
+            f'<button class="st-tab{" is-active" if is_active else ""}"'
+            f' type="button" role="tab" aria-selected="{selected}"'
+            f' data-tab="{escaped}" onclick="scSelectTab(this)">'
+            f'{escaped}</button>'
+        )
+        panel = comp._panels.get(label)
+        body = ''.join(_render(c) for c in panel.children) if panel else ''
+        hidden = '' if is_active else ' hidden'
+        panels.append(
+            f'<div class="st-tab-panel" role="tabpanel" data-tab="{escaped}"'
+            f'{hidden}>{body}</div>'
+        )
+    return (
+        f'<div class="st-tabs" data-id="{comp.id}">'
+        f'<div class="st-tabs-bar" role="tablist">{"".join(buttons)}</div>'
+        f'<div class="st-tabs-panels">{"".join(panels)}</div>'
+        f'</div>'
+    )
+
+
+def _render_tab_panel(comp: _TabPanel) -> str:
+    # Panels are normally rendered by `_render_tabs`; this branch only runs
+    # if a panel ends up being rendered on its own.
+    children = ''.join(_render(c) for c in comp.children)
+    return (
+        f'<div class="st-tab-panel" role="tabpanel"'
+        f' data-tab="{html.escape(comp._label)}">{children}</div>'
+    )
+
+
+def _render_expander(comp: Expander) -> str:
+    """Render a collapsible section (mirrors Streamlit's `st.expander`)."""
+    label = _render_paragraphs(str(comp.label.get()))
+    body = ''.join(_render(c) for c in comp.children)
+    expanded = bool(getattr(comp, '_expanded', False))
+    state = 'true' if expanded else 'false'
+    cls = 'st-expander is-expanded' if expanded else 'st-expander'
+    hidden = '' if expanded else ' hidden'
+    return (
+        f'<div class="{cls}" data-id="{comp.id}">'
+        f'<div class="st-expander-header" role="button" tabindex="0"'
+        f' aria-expanded="{state}" onclick="scToggleExpander(this)">'
+        f'<span class="st-expander-icon">{_EXPANDER_ICON}</span>'
+        f'<span class="st-expander-label">{label}</span>'
+        f'</div>'
+        f'<div class="st-expander-body"{hidden}>{body}</div>'
+        f'</div>'
+    )
 
 
 def _render_success(comp: Success) -> str:
@@ -275,6 +344,24 @@ _CHEVRON_DOWN = (
     '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z">'
     '</path></svg>'
 )
+# Expander header chevron (material `keyboard_arrow_right`); CSS rotates it
+# to point down while the section is expanded.
+_EXPANDER_ICON = (
+    '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" '
+    'aria-hidden="true" focusable="false">'
+    '<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg>'
+)
+# Stepper glyphs for NumberInput (material `remove` / `add`).
+_ICON_MINUS = (
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" '
+    'aria-hidden="true" focusable="false">'
+    '<path d="M19 13H5v-2h14v2z"></path></svg>'
+)
+_ICON_PLUS = (
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" '
+    'aria-hidden="true" focusable="false">'
+    '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>'
+)
 
 
 def _render_code(comp: Code) -> str:
@@ -327,21 +414,61 @@ def _style_width(width: tp.Any) -> str:
     return f' style="width:{html.escape(str(width))}"'
 
 
+def _format_number(comp: NumberInput, value: tp.Any) -> str:
+    """Apply a widget's `format` callable, tolerating a type mismatch.
+
+    `hex` on a float widget raises `TypeError`; the display then simply
+    falls back to `str(value)`.
+    """
+    fmt = getattr(comp, 'format', None)
+    if callable(fmt):
+        try:
+            return str(fmt(value))
+        except (TypeError, ValueError):
+            pass
+    return str(value)
+
+
 def _render_number_input(comp: NumberInput) -> str:
     value = comp.value.get()
-    fmt = getattr(comp, 'format', None)
-    text = fmt(value) if callable(fmt) else str(value)
+    text = _format_number(comp, value)
+    step = getattr(comp, '_step', None)
+    min_value = getattr(comp, '_min', None)
+    max_value = getattr(comp, '_max', None)
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
     width_style = _style_width(getattr(comp, '_width', None))
+    # `data-value` carries the raw (unformatted) number, which is what the
+    # stepper does its arithmetic on.
+    data = f' data-value="{html.escape(str(value))}"'
+    if step is not None:
+        data += f' data-step="{step}"'
+    if min_value is not None:
+        data += f' data-min="{min_value}"'
+    if max_value is not None:
+        data += f' data-max="{max_value}"'
+    # A float widget without an explicit `step` shows no stepper.
+    stepper = ''
+    if step is not None:
+        stepper = (
+            '<span class="st-number-stepper">'
+            f'<button class="st-number-step" type="button" tabindex="-1" '
+            f'title="Decrease" onclick="scStepNumber(this, -1)">'
+            f'{_ICON_MINUS}</button>'
+            f'<button class="st-number-step" type="button" tabindex="-1" '
+            f'title="Increase" onclick="scStepNumber(this, 1)">'
+            f'{_ICON_PLUS}</button>'
+            '</span>'
+        )
     return (
         f'<div class="st-number-input" data-id="{comp.id}">'
         f'{_widget_label_html(comp)}'
+        f'<div class="st-number-box"{width_style}>'
         f'<input class="st-text-input-box" type="text" '
-        f'data-comp-id="{comp.id}"{width_style} '
+        f'data-comp-id="{comp.id}"{data} '
         f'value="{html.escape(text)}" '
         f'placeholder="{placeholder}" '
         f'onchange="scSendChange(this)"/>'
-        f'</div>'
+        f'{stepper}</div></div>'
     )
 
 

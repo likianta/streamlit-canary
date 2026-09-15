@@ -13,6 +13,7 @@ from .widgets import Checkbox
 from .widgets import Code
 from .widgets import Column
 from .widgets import Container
+from .widgets import Expander
 from .widgets import Grid
 from .widgets import NumberInput
 from .widgets import Popover
@@ -22,6 +23,7 @@ from .widgets import Selectbox
 from .widgets import Spinner
 from .widgets import Success
 from .widgets import Table
+from .widgets import Tabs
 from .widgets import Text
 from .widgets import TextInput
 from .widgets import Title
@@ -35,6 +37,7 @@ __all__ = [
     'Column',
     'Component',
     'Container',
+    'Expander',
     'Grid',
     'NumberInput',
     'Popover',
@@ -44,6 +47,7 @@ __all__ = [
     'Spinner',
     'Success',
     'Table',
+    'Tabs',
     'Text',
     'TextInput',
     'Title',

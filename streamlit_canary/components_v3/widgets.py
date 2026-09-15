@@ -2,8 +2,9 @@
 v3 widgets: the built-in component library.
 
 Public widgets (in alphabetical order):
-    Button, Caption, Cell, Checkbox, Code, Column, Grid, Popover, Radio,
-    Row, Selectbox, Spinner, Success, Table, Text, TextInput, Title.
+    Button, Caption, Cell, Checkbox, Code, Column, Container, Expander,
+    Grid, NumberInput, Popover, Radio, Row, Selectbox, Spinner, Success,
+    Table, Tabs, Text, TextInput, Title.
 
 They are built on a few shared private bases (defined first):
     _HasText       — a single bindable `text` field.
@@ -26,9 +27,39 @@ import typing as tp
 
 from ..kernel import Property
 from ..kernel import Signal
+from ..kernel import _undefined
 from .base import Component
 
 _T = tp.TypeVar('_T')
+
+
+def _number_type(*candidates: tp.Any) -> type:
+    """Decide whether a NumberInput behaves as an int or a float widget.
+
+    `value` / `min_value` / `max_value` must agree — mixing ints and floats
+    is a programming error, so it is reported where the widget is built
+    rather than producing a confusing comparison later on. Property
+    arguments are inspected through their `default`, and unset ones
+    (`sc._undefined`) are skipped.
+    """
+    kinds: set[type] = set()
+    for candidate in candidates:
+        if isinstance(candidate, Property):
+            candidate = candidate.default
+        if candidate is None or candidate is _undefined:
+            continue
+        if not isinstance(candidate, (int, float)):
+            raise TypeError(
+                'NumberInput expects int or float values, got '
+                f'{type(candidate).__name__}: {candidate!r}'
+            )
+        kinds.add(float if isinstance(candidate, float) else int)
+    if len(kinds) > 1:
+        raise TypeError(
+            'NumberInput value / min_value / max_value must be all ints or '
+            'all floats, got a mix.'
+        )
+    return kinds.pop() if kinds else int
 
 
 def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
@@ -206,7 +237,8 @@ class Button(_HasText):
         enabled: bool (default True) | bound value (`sc.bind(...)`).
 
     Signals:
-        on_click: emitted when the user clicks the button.
+        on_click: emitted when the user clicks the button. A handler may
+            also be attached at construction time via `on_click=...`.
     """
 
     def __init__(
@@ -217,6 +249,7 @@ class Button(_HasText):
         help: str | None = None,
         width: str = 'content',
         enabled: bool | Property = True,
+        on_click: tp.Callable[[], None] | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, **kwargs)
@@ -230,6 +263,8 @@ class Button(_HasText):
         # `Signal(owner_factory=...)` mirrors `Property.on_change`, so
         # `@btn.on_click.partial(sc._self)` hands the handler this button.
         self.on_click: Signal = Signal(owner_factory=lambda: self)
+        if on_click is not None:
+            self.on_click.connect(on_click)
 
 
 class Caption(_HasText):
@@ -320,28 +355,88 @@ Container = Column
 #   alias of `Column`, mirroring Streamlit's `st.container`.
 
 
+class Expander(Component):
+    """A collapsible container (mirrors Streamlit's `st.expander`).
+
+    Args:
+        label: the header text (bindable).
+        expanded: whether the body starts open.
+
+    Children render inside the body:
+
+        with v3.Expander('Configurations', expanded=True):
+            v3.Button('Force refresh')
+
+    Expanding / collapsing is handled entirely on the client, so it never
+    reruns.
+
+    Properties:
+        label: str — the header text.
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        expanded: bool = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.label = _prop('', label)
+        # Initial state only; the client owns it from then on.
+        self._expanded = expanded
+
+
 class Grid(Component):
     """A grid layout container.
 
     Args:
-        columns: number of columns (rows grow as needed).
+        rows: number of rows (default 1).
+        cols: number of columns (default 2).
+        columns: alias of `cols` (kept for backwards compatibility).
 
-    Cells are addressed by `(row, col)` and used as context managers:
+    Cells are addressed with `next(grid)` or `(row, col)`, and are used as
+    context managers:
 
-        with v3.Grid(columns=2) as grid:
-            with grid[0, 0]:
+        with v3.Grid(rows=1, cols=2) as grid:
+            with next(grid):
                 v3.Button('a')
-            with grid[0, 1]:
+            with next(grid):
                 v3.Button('b')
 
-    Each `grid[row, col]` returns a stable `Cell` component (created on first
-    access and reused afterwards).
+    `next(grid)` — and `for cell in grid:` — walks the cells left to right,
+    then top to bottom. `grid[row, col]` returns a stable `Cell`, created on
+    first access and reused afterwards, so a cell may also be re-entered.
     """
 
-    def __init__(self, *, columns: int = 2, **kwargs: tp.Any) -> None:
+    def __init__(
+        self,
+        *,
+        rows: int = 1,
+        cols: int = 2,
+        columns: int | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
         super().__init__(**kwargs)
-        self._columns = columns
+        if columns is not None:
+            cols = columns
+        self._rows = rows
+        self._columns = cols
         self._cells: dict[tuple[int, int], Cell] = {}
+        self._cursor = 0
+
+    # -- cell iteration (left to right, then top to bottom) ---------------
+
+    def __iter__(self) -> 'Grid':
+        self._cursor = 0
+        return self
+
+    def __next__(self) -> 'Cell':
+        if self._cursor >= self._rows * self._columns:
+            raise StopIteration
+        index = self._cursor
+        self._cursor += 1
+        return self[index // self._columns, index % self._columns]
 
     def __getitem__(self, key: tp.Any) -> tp.Any:
         # Keep compatibility with `PropertyHost.__getitem__` (str keys) and
@@ -368,17 +463,24 @@ class NumberInput(_Labeled):
 
     Args:
         label: the widget label.
-        value: initial number (bindable, coerced to `int`).
-        format: optional display formatter, e.g. `hex`.
+        value: the number (bindable). Together with `min_value` / `max_value`
+            it also decides whether this is an int or a float widget.
+        min_value / max_value: optional bounds. `value`, `min_value` and
+            `max_value` must be all ints or all floats.
+        step: increment used by the stepper (+/-) gadgets. `None` means
+            "decide from the type of `value`": an int widget steps by 1,
+            while a float widget shows *no* stepper (a float step cannot be
+            guessed, so it has to be set explicitly).
+        format: optional display formatter, e.g. `hex` (int widgets only).
         width: `int` (px) | 'content' | 'stretch' | None (default).
-        min / max / step: optional bounds (stored, not enforced yet).
         placeholder: hint shown while the box is empty.
 
     Properties:
         label: str — rendered above the box.
-        value: int — the current number. The client sends a `change` event
-            (fired on blur / Enter); the incoming text is parsed back into
-            an `int`, accepting both `'41'` and `'0x29'`.
+        value: int | float — the current number. The client sends a `change`
+            event (fired on blur / Enter, or by the stepper); the incoming
+            text is parsed with the widget's numeric type, so both `'41'`
+            and `'0x29'` are accepted for an int widget.
 
     Signals:
         on_value: emitted when `value` changes.
@@ -387,30 +489,37 @@ class NumberInput(_Labeled):
     def __init__(
         self,
         label: str | Property = '',
-        value: int | Property = 0,
+        value: int | float | Property = 0,
+        min_value: int | float | None = None,
+        max_value: int | float | None = None,
         *,
+        step: int | float | None = None,
         format: tp.Callable[[tp.Any], str] | None = None,
         width: int | tp.Literal['content', 'stretch'] | None = None,
-        min: tp.Any = None,
-        max: tp.Any = None,
-        step: tp.Any = None,
         placeholder: str = '',
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
-        self.value = _prop(0, value)
+        self._num_type = _number_type(value, min_value, max_value)
+        self.value = _prop(0, tp.cast(tp.Any, value))
         self.format = format
         self._width = width
-        self._min = min
-        self._max = max
+        self._min = min_value
+        self._max = max_value
+        if step is None and self._num_type is int:
+            step = 1
+        # `step is None` now means "a float widget without a stepper".
         self._step = step
         self._placeholder = placeholder
 
-    def _coerce_value(self, raw: tp.Any) -> int:
-        """Parse a client-sent string back into an int (accepts `0x..`)."""
+    def _coerce_value(self, raw: tp.Any) -> int | float:
+        """Parse a client-sent string back with the widget's numeric type."""
+        text = str(raw).strip()
         try:
-            return int(str(raw), 0)
+            if self._num_type is float:
+                return float(text)
+            return int(text, 0)
         except ValueError:
             return self.value.get()
 
@@ -577,6 +686,80 @@ class Table(Component):
             self.rows.bind(rows)
         elif rows is not None:
             self.rows.set(list(rows))
+
+
+class _TabPanel(Component):
+    """The content holder of one `Tabs` label (internal to `Tabs`)."""
+
+    def __init__(self, *, label: str = '', **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+        self._label = label
+
+
+class Tabs(Component):
+    """A tab bar with one panel per label (mirrors Streamlit's `st.tabs`).
+
+        with v3.Tabs(('Eye Diagram', 'Batchtub Curve')) as tabs:
+            with tabs['Eye Diagram']:
+                v3.Text('...')
+            with tabs['Batchtub Curve']:
+                v3.Text('...')
+
+    Every panel is built up front; switching tabs happens entirely on the
+    client, so it never reruns. `tabs[label]` returns that label's panel
+    (created on first access and reused afterwards).
+
+    A label wins over property access, so a tab named after a property
+    (e.g. 'active') is not reachable as `tabs['active']`; read the property
+    through `tabs.active` instead.
+
+    Properties:
+        active: str — the visible tab's label.
+
+    Signals:
+        on_active (via `tabs['on_active']` or `tabs.active.on_change`)
+    """
+
+    def __init__(
+        self,
+        labels: tp.Sequence[str],
+        *,
+        active: str | Property | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._labels = tuple(labels)
+        if not self._labels:
+            raise ValueError('Tabs needs at least one label.')
+        self._panels: dict[str, _TabPanel] = {}
+        if active is None:
+            active = self._labels[0]
+        self.active = _prop(self._labels[0], tp.cast(tp.Any, active))
+
+    def __getitem__(self, key: tp.Any) -> tp.Any:
+        if isinstance(key, str) and key in self._labels:
+            return self._panel(key)
+        return super().__getitem__(key)
+
+    def _panel(self, label: str) -> _TabPanel:
+        panel = self._panels.get(label)
+        if panel is None:
+            # Create the panel with this Tabs as its parent, regardless of
+            # what is currently on the context stack.
+            stack = Component._context_stack
+            stack.append(self)
+            try:
+                panel = _TabPanel(label=label)
+            finally:
+                stack.pop()
+            self._panels[label] = panel
+        return panel
+
+    def _on_client_change(self, value: tp.Any) -> None:
+        """A tab click reports the label that became visible."""
+        label = str(value)
+        if label in self._labels:
+            self.active.set(label)
 
 
 class Text(_HasText):
