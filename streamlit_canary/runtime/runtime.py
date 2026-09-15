@@ -79,23 +79,27 @@ class Runtime:
     ) -> None:
         """Dispatch a client event to the component.
 
-        Supported events:
+        Built-in events:
             click  — emit `on_click` (Button)
-            change — set `value` Property (Selectbox / Radio), which in turn
-                     emits `on_value` (= `value.on_change`).
+            change — set the `value` Property (Selectbox / Radio / TextInput
+                     / NumberInput), which in turn emits `on_value`
+                     (= `value.on_change`).
+
+        A component may also handle an event itself by defining an
+        `_on_<event>` method, which receives the raw client value. That is
+        how Tabs consumes `change` and Selectbox consumes `new_option`.
         """
         comp = self._components.get(component_id)
         if comp is None:
             return
         if event == 'click' and hasattr(comp, 'on_click'):
             comp.on_click.emit()
-        elif event == 'change':
-            # A component may consume the raw client value itself, e.g.
-            # Tabs receives the label that just became visible.
-            hook = getattr(comp, '_on_client_change', None)
-            if callable(hook):
-                hook(value)
-                return
+            return
+        hook = getattr(comp, f'_on_{event}', None)
+        if callable(hook):
+            hook(value)
+            return
+        if event == 'change':
             # Selectbox / Radio / TextInput / NumberInput: set the value
             # property, which triggers `on_value` and any bound handlers.
             # A component may expose `_coerce_value` to normalize the raw

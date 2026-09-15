@@ -136,8 +136,8 @@ class _OptionsWidget(_Labeled):
     def __init__(
         self,
         label: str | Property = '',
-        *,
         options: tp.Sequence[tp.Any] | Property | None = None,
+        *,
         index: int | Property | None = None,
         value: tp.Any = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
@@ -213,6 +213,19 @@ class _OptionsWidget(_Labeled):
         if isinstance(i, int) and 0 <= i < len(options):
             self.value.set(options[i])
 
+    def _coerce_value(self, raw: tp.Any) -> tp.Any:
+        """Recover an option's real type from the client-sent string.
+
+        The DOM only carries strings, so clicking an option sends `'48'`
+        even when the option itself is the int `48`. This maps the text back
+        onto the matching entry of `options`; an unknown value is passed
+        through unchanged (it may be a `new_option` mid-flight).
+        """
+        for option in self.options.get() or []:
+            if str(option) == str(raw):
+                return option
+        return raw
+
 
 class _TextVisible(_HasText):
     """Shared base for status boxes: a `text` plus a bindable `visible`.
@@ -255,7 +268,7 @@ class Button(_HasText):
         *,
         type: str = 'secondary',
         help: str | None = None,
-        width: str = 'content',
+        width: tp.Union[int, tp.Literal['content', 'stretch']] = 'content',
         enabled: bool | Property = True,
         on_click: tp.Callable[[], None] | None = None,
         **kwargs: tp.Any,
@@ -570,12 +583,24 @@ class Popover(_HasText):
 
     Opening/closing is handled entirely on the client, so it never reruns.
 
+    Args:
+        label: the trigger label (bindable).
+        width: `int` (px) | 'content' | 'stretch' | None (default) — width
+            of the trigger button.
+
     Properties:
         text: str — the trigger label (bindable).
     """
 
-    def __init__(self, label: str | Property = '', **kwargs: tp.Any) -> None:
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        width: int | tp.Literal['content', 'stretch'] | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
         super().__init__(label, **kwargs)
+        self._width = width
 
 
 class Radio(_OptionsWidget):
@@ -635,8 +660,15 @@ class Row(Component):
 class Selectbox(_OptionsWidget):
     """A dropdown select component (mirrors Streamlit's `st.selectbox`).
 
+    Args:
+        accept_new_options: allow typing a value that is not among
+            `options` yet — an input row appears at the top of the dropdown.
+        format_new_option: converts the typed text into an option value,
+            e.g. `lambda x: int(x, 0)` for `'0x30'` / `'48'`. Required when
+            `accept_new_options` is on.
+
     Properties:
-        label, options, value — see `_OptionsWidget`.
+        label, options, index, value — see `_OptionsWidget`.
 
     Attributes:
         format_func: Callable[[Any], str] — raw option value → display string
@@ -646,6 +678,59 @@ class Selectbox(_OptionsWidget):
         on_value (via `sel['on_value']` or `sel.value.on_change`)
         on_options (via `sel['on_options']` or `sel.options.on_change`)
     """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        options: tp.Sequence[tp.Any] | Property | None = None,
+        *,
+        index: int | Property | None = None,
+        value: tp.Any = None,
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
+        format_func: tp.Callable[[tp.Any], str] | None = None,
+        accept_new_options: bool = False,
+        format_new_option: tp.Callable[[str], tp.Any] | None = None,
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(
+            label,
+            options,
+            index=index,
+            value=value,
+            format=format,
+            format_func=format_func,
+            label_visibility=label_visibility,
+            **kwargs,
+        )
+        if accept_new_options and format_new_option is None:
+            raise TypeError(
+                'Selectbox(accept_new_options=True) needs a '
+                '`format_new_option` callable to convert the typed text.'
+            )
+        self._accept_new_options = accept_new_options
+        self._format_new_option = format_new_option
+
+    def _on_new_option(self, text: str) -> None:
+        """The client typed a value that is not among `options` yet.
+
+        `format_new_option` turns the raw text (e.g. `'0x30'`) into a value,
+        which is appended to `options` (when new) and then selected. Input
+        the converter rejects leaves the widget untouched and is reported on
+        the server console.
+        """
+        convert = self._format_new_option
+        try:
+            new_value = convert(text) if convert is not None else text
+        except Exception as exc:
+            print(f'[streamlit-canary] ignored new option {text!r}: {exc}')
+            return
+        options = list(self.options.get() or [])
+        if new_value not in options:
+            options.append(new_value)
+            self.options.set(options)
+        # `_sync_index` mirrors the new position into `index`.
+        self.value.set(new_value)
 
 
 class Spinner(_TextVisible):
@@ -790,7 +875,7 @@ class Tabs(Component):
             self._panels[label] = panel
         return panel
 
-    def _on_client_change(self, value: tp.Any) -> None:
+    def _on_change(self, value: tp.Any) -> None:
         """A tab click reports the label that became visible."""
         label = str(value)
         if label in self._labels:

@@ -68,10 +68,7 @@ class StateV2(PropertyHost):
     `__version__` (or `version=N` passed to `__init__`) tracks schema version.
     """
 
-    def __init__(
-        self, version: tp.Optional[int] = None, **kwargs: tp.Any
-    ) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, version: tp.Optional[int] = None) -> None:
         # schema version: explicit kwarg wins, else class-level __version__
         if version is None:
             version = getattr(type(self), '__version__', 0)

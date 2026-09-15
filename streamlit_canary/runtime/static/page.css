@@ -488,6 +488,38 @@
     background: var(--st-border-color);
     border-radius: 3px;
   }
+  /* `accept_new_options`: the "type a new value" row at the top of the
+     dropdown, plus the "Add: ..." affordance below it. */
+  .st-selectbox-new {
+    padding: 5px 5px 0;
+  }
+  .st-selectbox-new-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: 4px;
+    background-color: var(--st-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+  }
+  .st-selectbox-new-input:focus {
+    border-color: var(--st-gray-color);
+  }
+  .st-selectbox-newitem {
+    padding: 0 5px;
+    color: var(--st-gray-color);
+    cursor: pointer;
+  }
+  .st-selectbox-newitem[hidden] { display: none; }
+  .st-selectbox-newitem > .st-selectbox-option-inner {
+    border: 0.8px dashed var(--st-border-color);
+  }
+  .st-selectbox-newitem:hover > .st-selectbox-option-inner {
+    background-color: var(--st-border-color);
+  }
 
   /* Radio (mirrors Streamlit's `stRadio` markup and metrics) */
   .st-radio {

@@ -38,19 +38,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     if (msg.prop === 'options') {
       if (el.classList.contains('st-selectbox')) {
         // Custom dropdown: rebuild option items + update trigger label.
-        const trigger = el.querySelector('.st-selectbox-trigger');
-        const dropdown = el.querySelector('.st-selectbox-dropdown');
-        const id = msg.id;
-        const currentVal = el._scValue || msg.value[0];
-        const labels = msg.formatted || msg.value.map(x => x);
         const fmt = window.scRenderMarkup;
-        dropdown.innerHTML = msg.value.map((o, i) =>
-          `<div class="st-selectbox-option" role="option" ` +
-          `data-value="${o}" data-comp-id="${id}" ` +
-          `onclick="scSelectOption(this)" ` +
-          `${o === currentVal ? 'data-selected' : ''}>` +
-          `<div class="st-selectbox-option-inner">${fmt(labels[i])}</div></div>`
-        ).join('');
+        const labels = msg.formatted || msg.value.map(x => x);
+        scRenderSelectboxOptions(el, msg.value, labels, msg.id);
+        const currentVal = el._scValue || msg.value[0];
         const selIdx = msg.value.indexOf(currentVal);
         const valEl = el.querySelector('.st-selectbox-value');
         if (valEl) valEl.innerHTML = selIdx >= 0 ? fmt(labels[selIdx]) : '';
@@ -83,15 +74,18 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         const fmt = window.scRenderMarkup;
         // Rebuild labels from existing options if formatted map is cached.
         const optEls = dropdown ? dropdown.querySelectorAll('.st-selectbox-option') : [];
+        // `dataset.value` is always a string while `msg.value` keeps the
+        // option's real type (e.g. the int 48), so compare as strings.
+        const wanted = String(msg.value);
         optEls.forEach(o => {
-          if (o.dataset.value === msg.value) {
+          if (o.dataset.value === wanted) {
             o.setAttribute('data-selected', '');
           } else {
             o.removeAttribute('data-selected');
           }
         });
         // Update trigger text from the matching option's inner div.
-        const matched = Array.from(optEls).find(o => o.dataset.value === msg.value);
+        const matched = Array.from(optEls).find(o => o.dataset.value === wanted);
         const inner = matched ? matched.querySelector('.st-selectbox-option-inner') : null;
         const valEl = el.querySelector('.st-selectbox-value');
         if (valEl && inner) valEl.textContent = inner.textContent;
@@ -170,6 +164,75 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const id = input.dataset.compId;
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.value}));
   }
+  // -- Selectbox options rendering -----------------------------------------
+  // Shared by the initial render's patch path: rebuilding the dropdown must
+  // re-create the "accept_new_options" input row, since `innerHTML` replaces
+  // the whole subtree.
+  function scNewOptionRow(el) {
+    const id = el.dataset.id;
+    return (
+      '<div class="st-selectbox-new">' +
+      `<input class="st-selectbox-new-input" type="text" ` +
+      `data-comp-id="${id}" placeholder="Type a new value" ` +
+      `oninput="scNewOptionInput(this)" ` +
+      `onkeydown="scNewOptionKey(event, this)"/>` +
+      `<div class="st-selectbox-newitem" role="option" ` +
+      `data-comp-id="${id}" onclick="scAddNewOption(this)" hidden>` +
+      '<div class="st-selectbox-option-inner"></div></div></div>'
+    );
+  }
+  function scRenderSelectboxOptions(el, values, labels, id) {
+    const dropdown = el.querySelector('.st-selectbox-dropdown');
+    if (!dropdown) return;
+    const current = el._scValue;
+    const fmt = window.scRenderMarkup;
+    const items = values.map((o, i) =>
+      `<div class="st-selectbox-option" role="option" ` +
+      `data-value="${o}" data-comp-id="${id}" ` +
+      `onclick="scSelectOption(this)" ` +
+      `${o === current ? 'data-selected' : ''}>` +
+      `<div class="st-selectbox-option-inner">${fmt(labels[i])}</div></div>`
+    ).join('');
+    dropdown.innerHTML =
+      (el.dataset.acceptNew ? scNewOptionRow(el) : '') + items;
+  }
+  // -- Selectbox "accept_new_options" input row --
+  function scNewOptionInput(input) {
+    const row = input.closest('.st-selectbox-new');
+    const item = row ? row.querySelector('.st-selectbox-newitem') : null;
+    if (!item) return;
+    const text = input.value.trim();
+    item.hidden = text === '';
+    if (text !== '') {
+      const inner = item.querySelector('.st-selectbox-option-inner');
+      if (inner) inner.textContent = 'Add: "' + text + '"';
+    }
+  }
+  function scNewOptionKey(event, input) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    scAddNewOption(input);
+  }
+  function scAddNewOption(el) {
+    // `el` is the input or the "Add: ..." item; both sit inside the root.
+    const root = el.closest('.st-selectbox');
+    const input = root ? root.querySelector('.st-selectbox-new-input') : null;
+    if (!root || !input) return;
+    const text = input.value.trim();
+    if (text === '') return;
+    ws.send(JSON.stringify({
+      type: 'event', id: root.dataset.id, event: 'new_option', value: text,
+    }));
+    input.value = '';
+    // Reset the "Add: ..." row; if the backend rejects the value (e.g. the
+    // format function raises), no `options` patch arrives to rebuild it.
+    scNewOptionInput(input);
+    // Close the dropdown; the incoming `options` / `value` patches refresh it.
+    const dropdown = root.querySelector('.st-selectbox-dropdown');
+    const trigger = root.querySelector('.st-selectbox-trigger');
+    if (dropdown) dropdown.hidden = true;
+    if (trigger) trigger.removeAttribute('aria-expanded');
+  }
   // -- Custom selectbox dropdown interaction --
   function scToggleSelectbox(trigger) {
     const control = trigger.closest('.st-selectbox-control');
@@ -226,6 +289,23 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       if (t) t.setAttribute('aria-expanded', 'false');
     });
   }
+  // Keep the floating panel inside the viewport: anchor it to the trigger's
+  // left edge, but shift it leftward when that would overflow the right edge
+  // (and back rightward when it would overflow the left edge).
+  function scPositionPopover(panel) {
+    const margin = 16;
+    panel.style.left = '0px';
+    const rect = panel.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    let left = 0;
+    if (rect.right > vw - margin) {
+      left -= rect.right - (vw - margin);
+    }
+    if (rect.left + left < margin) {
+      left += margin - (rect.left + left);
+    }
+    panel.style.left = left + 'px';
+  }
   function scTogglePopover(trigger) {
     const root = trigger.closest('.st-popover');
     const panel = root.querySelector('.st-popover-panel');
@@ -237,6 +317,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     } else {
       panel.hidden = false;
       trigger.setAttribute('aria-expanded', 'true');
+      scPositionPopover(panel);
     }
   }
   // -- Checkbox: send the boolean checked state --

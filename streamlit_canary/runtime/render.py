@@ -513,8 +513,27 @@ def _render_selectbox(comp: Selectbox) -> str:
         '1.41-1.41z"></path>'
         '</svg>'
     )
+    # `accept_new_options`: an input row at the top of the dropdown lets the
+    # user type a value that is not in the list yet.
+    accept_new = bool(getattr(comp, '_accept_new_options', False))
+    new_row = ''
+    if accept_new:
+        new_row = (
+            '<div class="st-selectbox-new">'
+            f'<input class="st-selectbox-new-input" type="text" '
+            f'data-comp-id="{comp.id}" placeholder="Type a new value" '
+            f'oninput="scNewOptionInput(this)" '
+            f'onkeydown="scNewOptionKey(event, this)"/>'
+            f'<div class="st-selectbox-newitem" role="option" '
+            f'data-comp-id="{comp.id}" onclick="scAddNewOption(this)" hidden>'
+            '<div class="st-selectbox-option-inner"></div></div>'
+            '</div>'
+        )
+    root_attrs = f' data-id="{comp.id}"'
+    if accept_new:
+        root_attrs += ' data-accept-new="1"'
     return (
-        f'<div class="st-selectbox" data-id="{comp.id}">'
+        f'<div class="st-selectbox"{root_attrs}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-selectbox-control">'
         f'<button type="button" class="st-selectbox-trigger" '
@@ -523,7 +542,7 @@ def _render_selectbox(comp: Selectbox) -> str:
         f'{arrow_svg}'
         f'</button>'
         f'<div class="st-selectbox-dropdown" '
-        f'data-comp-id="{comp.id}" hidden>{opt_items}</div>'
+        f'data-comp-id="{comp.id}" hidden>{new_row}{opt_items}</div>'
         f'</div></div>'
     )
 
@@ -580,11 +599,12 @@ def _render_checkbox(comp: Checkbox) -> str:
 def _render_popover(comp: Popover) -> str:
     label = _render_paragraphs(str(comp.text.get()))
     children = ''.join(_render(c) for c in comp.children)
+    width_style = _style_width(getattr(comp, '_width', None))
     return (
         f'<div class="st-popover" data-id="{comp.id}">'
         f'<button class="st-btn st-btn-secondary st-popover-trigger" '
-        f'type="button" aria-haspopup="dialog" aria-expanded="false" '
-        f'onclick="scTogglePopover(this)">'
+        f'type="button" aria-haspopup="dialog" aria-expanded="false"'
+        f'{width_style} onclick="scTogglePopover(this)">'
         f'<span class="st-btn-text st-popover-trigger-label">{label}</span>'
         f'<span class="st-popover-icon">{_CHEVRON_DOWN}</span>'
         f'</button>'
