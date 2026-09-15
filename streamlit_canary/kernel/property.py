@@ -100,9 +100,15 @@ class Property(tp.Generic[_T]):
 
         This lets APIs accept either a plain value or a bound value, e.g.
         `Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
+
+        When the source comes from `sc.bbind`, the link is two-way: later
+        changes of `self` are written back into the original property.
         """
         if isinstance(value, Property):
             self.bind(value)
+            target = getattr(value, '_bidi_target', None)
+            if target is not None:
+                self.on_change.connect(lambda: target.set(self.get()))
         else:
             self.set(value)
 
@@ -120,6 +126,39 @@ def bind(
     prop = Property[_T]()
     prop.bind(source, transform)
     return prop
+
+
+class _BidiProperty(Property[_T]):
+    """The `Property` returned by `bbind`, carrying its reverse target.
+
+    `Property.set_or_bind` looks for `_bidi_target` and wires the reverse
+    direction, so a widget bound to this property writes its own changes
+    back into the original one.
+    """
+
+    def __init__(self, target: Property[_T]) -> None:
+        super().__init__()
+        self._bidi_target: Property[_T] = target
+        self.bind(target)
+
+
+def bbind(source: Property[_T]) -> Property[_T]:
+    """
+    Create a property that binds *both ways* with `source`.
+
+    The widget mirrors `source`, and the widget's own changes are written
+    back into `source`:
+
+        v3.NumberInput('Channel', sc.bbind(state.eye_channel))
+
+    is equivalent to:
+
+        with v3.NumberInput('Channel', sc.bind(state.eye_channel)) as inp:
+            @inp.value.on_change.partial(sc._value)
+            def _(new_channel):
+                state.eye_channel.set(new_channel)
+    """
+    return _BidiProperty(source)
 
 
 @contextlib.contextmanager

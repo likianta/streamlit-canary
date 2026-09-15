@@ -7,6 +7,7 @@ tested in isolation.
 """
 
 from .property import Property
+from .property import bbind
 from .property import bind
 from .property import updating
 from .signal import Signal
@@ -24,6 +25,7 @@ __all__ = [
     '_self',
     '_undefined',
     '_value',
+    'bbind',
     'bind',
     'updating',
 ]

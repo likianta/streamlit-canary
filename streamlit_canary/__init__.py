@@ -24,6 +24,7 @@ from .kernel import StateV2
 from .kernel import _self
 from .kernel import _undefined
 from .kernel import _value
+from .kernel import bbind
 from .kernel import bind
 from .kernel import updating
 from .keygen import generate_keygen
