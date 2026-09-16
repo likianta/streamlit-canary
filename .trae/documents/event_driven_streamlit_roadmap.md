@@ -225,5 +225,5 @@ UI 细节对齐** (以 `test/event_driven_system/pyproject_manager_copy/` 对照
 | 1 | `python test/on_property_test.py` 跑通,断言 6 方法、`partial` 注入、version 行为 |
 | 2 | `python test/event_driven_system/components_v3_demo.py` 构造组件树,模拟 click,断言处理器被调用 |
 | 3 | `python test/event_driven_system/demo_click_counter.py` 启动 counter,断言 app 函数只执行一次,counter 正确递增 |
-| 4 | 浏览器打开 `localhost:<port>`,点击按钮,看到 counter 更新;多次点击验证无全量重跑;并在 `:2201` vs `:2200` 对照采集 UI 细节 |
+| 4 | 浏览器打开 `localhost:<port>`,点击按钮,看到 counter 更新;多次点击验证无全量重跑;并在 "原版 ↔ 副本" 端口对 (如 `:2204` ↔ `:2205`) 上对照采集 UI 细节 |
 | 5 | 现有 v1/v2 组件在新模型下可用;旧重复模块删除后 `python test/` 全部通过 |

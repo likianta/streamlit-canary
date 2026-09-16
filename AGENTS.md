@@ -49,11 +49,11 @@ streamlit-canary/
 │   ├── event_driven_system/        # v3 事件驱动测试
 │   │   ├── demo_click_counter.py   # 计数器 demo (最小可运行示例)
 │   │   ├── components_v3_demo.py   # 纯 Python 组件树 / 信号演示
-│   │   └── pyproject_manager_copy/ # pyproject-manager 的 v3 重写版 (软链接, 运行在 localhost:2201)
+│   │   └── pyproject_manager_copy/ # pyproject-manager 的 v3 重写版 (软链接, 运行在 localhost:2207)
 │   ├── pixel_fidelity/       # UI 像素级对齐的试验脚本
 │   └── ...
 ├── references/               # 参考资源
-│   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2200
+│   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2206
 │   ├── streamlit/            # Streamlit 源码
 │   └── ...                   # 截图, 参考图等
 ├── .trae/documents/          # 设计与路线图文档 (event_driven_streamlit_roadmap.md)
@@ -62,32 +62,7 @@ streamlit-canary/
 └── changelog.md              # 变更记录
 ```
 
-## 3. 开发进度
-
-### 已完成
-
-- **Phase 1**: Kernel 层 (Property, Signal, PropertyHost / StateV2)
-- **Phase 2**: Components v3 层 (全部内置组件, 见下方清单)
-- **Phase 3**: 事件驱动运行时 (Runtime, Server, Render, 前端 delta 协议)
-
-### 进行中
-
-- **Phase 4**: 与原版 Streamlit 的 UI 细节对齐 (在 `:2200` 与 `:2201` 之间逐组件比对)
-
-### 待办
-
-- [ ] 更多组件从 v1/v2 迁移到 v3 (Phase 5)
-- [ ] 与原版 Streamlit 继续对齐 UI 细节
-
-### v3 组件清单 (`sc.v3.*`)
-
-`Button, Caption, Cell, Checkbox, Code, Column, Grid, NumberInput, Popover,
-Radio, Row, Selectbox, Spinner, Success, Table, Text, TextInput, Title`
-
-`components_v3/widgets.py` 内部还有 4 个共享私有基类 (不对外暴露):
-`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible` -- 新组件应优先复用它们.
-
-## 4. 开发环境
+## 3. 开发环境
 
 ### 常用命令
 
@@ -96,13 +71,13 @@ Radio, Row, Selectbox, Spinner, Success, Table, Text, TextInput, Title`
 uv sync
 
 # 运行 v3 测试应用
-python test/event_driven_system/pyproject_manager_copy/app.py     # :2201
+python test/event_driven_system/pyproject_manager_copy/app.py     # :2207
 
 # 运行最小 v3 demo (计数器, 参考用法见其 docstring)
 python test/event_driven_system/demo_click_counter.py             # :2201
 
 # 运行原版 (用于对比)
-# 原版 pyproject-manager 运行在 :2200
+# 原版 pyproject-manager 运行在 :2206
 
 # 静态检查
 ruff check streamlit_canary/
@@ -122,28 +97,44 @@ python test/event_driven_system/components_v3_demo.py
 
 ### 端口说明
 
-我们在本地 (localhost) 提供了 :2200 到 :2209 共十个端口专为本项目使用. 目前定义如下:
+我们在本地 (localhost) 提供了 :2200 到 :2229 共 30 个端口专为本项目使用. 目前定义如下:
 
 ```yaml
-localhost:2200: 原版应用. 通常由开发者手动启动并保证长期在线. Agent 可以直接访问.
-localhost:2201: 副本应用. 也就是我们正在用 v3 组件重写并测试的应用. 当有需要时, 可以和原版 (:2200) 对比.
-localhost:2202: 高保真对比测试端口 (streamlit), 见 ./test/pixel_fidelity/*.py
-localhost:2203: 高保真对比测试端口 (streamlit-canary), 见 ./test/pixel_fidelity/*.py
-localhost:2204...2209: 暂未定义, 可根据需要自由取用.
+2200: 默认的 streamlit 应用端口, 常见于 sc.run 函数的默认值, 以及基于 streamlit 的应用的临时测试.
+2201: 默认的 streamlit canary (v3) 应用端口. 常见于基于 streamlit canary v3 的应用的临时测试.
+2202: 高保真对比测试端口 (streamlit), 见 ./test/pixel_fidelity/ui_scene_st.py
+2203: 高保真对比测试端口 (streamlit-canary), 见 ./test/pixel_fidelity/ui_scene_sc.py
+2204: ASA GUI 原版应用.
+2205: ASA GUI 副本应用. 也就是我们正在用 v3 组件重写并测试的应用.
+2206: PyProject Manager 原版应用.
+2207: PyProject Manager 副本应用. 也就是我们正在用 v3 组件重写并测试的应用.
+2208: Depsland AppBuilder 原版应用 (暂未开始).
+2209: Depsland AppBuilder 副本应用 (暂未开始).
+2210...2229: 暂未定义, 未来会根据需要添加.
 ```
 
-### 对比测试环境
+### Playwright 使用说明
 
-- **原版**: `http://localhost:2200` (references/pyproject_manager, 基于 Streamlit)
-- **我们的**: `http://localhost:2201` (test/event_driven_system/pyproject_manager_copy, 基于 v3 运行时)
+本项目已经安装了 playwright 依赖, 并且下载了 chromium 浏览器 (位于 `C:\Users\Likianta\AppData\Local\ms-playwright\chromium_headless_shell-1243`).
 
-UI 细节对齐时, 通常需要在两个端口分别采集数据, 逐一对比.
+因为 chromium 是安装在全局的, 所以不需要配置额外的 playwright 环境变量. 直接在脚本中调用即可:
 
-## 5. 伪代码驱动的 UI 验证方法
+```python
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True)
+    page = browser.new_page()
+    page.goto('http://localhost:2201')
+    # testing...
+    browser.close()
+```
+
+## 4. 伪代码驱动的 UI 验证方法
 
 在与 agent 交流 UI 交互和视觉要求时, **纯文字描述往往不够精确**. 推荐使用 **伪代码 (pseudo-code)** 来描述交互操作和断言.
 
-### 5.1 为什么用伪代码
+### 4.1 为什么用伪代码
 
 - 文字描述容易遗漏细节 (如 "hover 时背景应该是灰色" -- 哪个元素的灰色? 和谁对齐?)
 - 伪代码可以精确表达:
@@ -152,7 +143,7 @@ UI 细节对齐时, 通常需要在两个端口分别采集数据, 逐一对比.
   - **断言条件**: 具体的 CSS 属性值, 几何关系
 - Agent 可以直接把伪代码翻译为浏览器自动化行为
 
-### 5.2 伪代码示例
+### 4.2 伪代码示例
 
 伪代码不需要可执行, 但需要描述测试意图和可被自动化实现的操作步骤:
 
@@ -184,12 +175,12 @@ when mouse.click(sel):
         assert children[1].background.horizontal_visual_margin > 0
 ```
 
-### 5.3 Agent 工作流
+### 4.3 Agent 工作流
 
 当用户提供伪代码时, agent 应该:
 
 1. **解析伪代码**: 识别操作序列, 目标元素, 断言条件
-2. **采集数据**: 用 `browser_evaluate` 在原版 (`:2200`) 和我们的 (`:2201`) 分别采集断言处的实际值
+2. **采集数据**: 用 `browser_evaluate` 在原版 (`:2204` / `:2206`) 和副本 (`:2205` / `:2207`) 分别采集断言处的实际值
 3. **对比分析**: 找出差异
 4. **修复代码**: 按需改以下位置 --
    - `components_v3/widgets.py` -- 组件定义 / 属性
@@ -198,7 +189,7 @@ when mouse.click(sel):
    - `runtime/static/page.js` -- 前端交互 (事件回传 / delta patch)
 5. **重新验证**: 重启服务 (前端资源在启动时读入, 改动后必须重启), 再次采集数据, 确认所有 assert 通过
 
-## 6. 工具链
+## 5. 工具链
 
 - 使用 `python ...` 运行脚本 (已配置 `PYTHONPATH`,不需要 `sys.path.append`).
 - 使用 `uv sync` 同步依赖, 使用 `uv` 管理 `pyproject.toml` 中的依赖.
@@ -206,7 +197,7 @@ when mouse.click(sel):
 - 使用 `ruff check` 检查代码风格, 使用 `ruff format` 格式化代码.
 - 每当完成修改后, 运行 `ty check`、`ruff check`、`ruff format` 确认无误.
 
-## 7. 代码风格
+## 6. 代码风格
 
 - 优先使用 `format` 而不是 `f-string`.
 - 代码中使用全英文注释, 不要有中文注释.
@@ -215,8 +206,9 @@ when mouse.click(sel):
 - import 使用 force-single-line 风格 (见 `pyproject.toml:[tool.ruff.lint.isort]`).
 - 字符串使用单引号 (见 `pyproject.toml:[tool.ruff.format]:quote-style`).
 - 同一模块内的 class 按字母序排列 (私有基类因为要先于使用者定义, 可集中放在文件前部, 如 `components_v3/widgets.py`).
+- 在代码注释 (`#` 开头的注释), `print(...)` 以及 `Exception(...)` 中使用小写字母开头的句子. 在函数注解 (docstring) 以及 triple-quoted strings 中, 使用规范的大小写格式.
 
-## 8. 架构约束
+## 7. 架构约束
 
 - **State 和 Components 统一读写风格**: `.get()` / `.set()` / `on_change` / `__set__` / `__setitem__`, 降低理解负担.
 - **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`, `Button._width`).
@@ -230,7 +222,7 @@ when mouse.click(sel):
 - **Web 服务器非阻塞**: 必须非阻塞启动, 可用 StopCommand 停止.
 - **Python 3.12**: 使用现代语法 (`type | type` 联合, `match` 等).
 
-## 9. Kernel 事件约定 (Property / Signal)
+## 8. Kernel 事件约定 (Property / Signal)
 
 - **`on_change` 不默认传参**: `Property.set()` 触发时调用 `Signal.emit()`, **不会**把 Property 自身作为第一个参数传给 handler.
 - **按需注入 owner**: 用 `Signal.partial(...)` 绑定特殊标记来拿到 owner:
@@ -260,7 +252,7 @@ def ccc(prop): ...
 def ddd(value): ...
 ```
 
-## 10. 新增一个 v3 组件的流程
+## 9. 新增一个 v3 组件的流程
 
 一个 v3 组件通常涉及以下几处改动:
 
@@ -278,6 +270,3 @@ def ddd(value): ...
 - 后端 → 前端: `{"type":"patch","id":"<comp-id>","prop":"<prop-name>","value":...}`.
   `page.js` 已处理的 prop: `text` / `label` / `enabled` / `visible` /
   `options` (附带 `formatted` 显示文案) / `value` / `rows`.
-
-验证: 启动 `python test/event_driven_system/demo_click_counter.py`
-(或 `pyproject_manager_copy/app.py`), 在浏览器中操作确认.

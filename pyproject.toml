@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-canary"
-version = "0.4.0a11"
+version = "0.4.0a12"
 description = "LK-flavored Streamlit components."
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
 license = "MIT"
@@ -29,7 +29,8 @@ requires = ["hatchling>=1.29.0"]
 dev = [
     "argsense>=1.1.3a1,<1.2.0",
     "asa-gui>=2026.9.10b0; python_version >= '3.12'",
-    "jurigged>=0.6.1",
+    # "jurigged>=0.6.1",
+    "playwright>=1.63.0",
     "requests>=2.34.2",
     "streamlit-extras>=1.6.0",
     # "watchfiles>=1.2.0",
