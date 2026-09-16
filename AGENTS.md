@@ -211,7 +211,8 @@ when mouse.click(sel):
 ## 7. 架构约束
 
 - **State 和 Components 统一读写风格**: `.get()` / `.set()` / `on_change` / `__set__` / `__setitem__`, 降低理解负担.
-- **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`, `Button._width`).
+- **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`).
+- **width / height 统一 scheme**: 尺寸在 `Component` 基类收口 (对齐 Streamlit 的 `layout_utils.py`): 每个组件都接受 `width` / `height`, 取值是 `int` (px) 或 `'stretch'` / `'content'` / `'auto'`; `None` 表示"用组件自己的默认值". 组件通过类属性 `_default_width` / `_default_height` 声明默认 (如 `Button = 'content'`, `TextInput = 'stretch'`, `Text` / `Caption` / `Title` = `'auto'`), 设为 `None` 表示该组件不参与尺寸 scheme. 基类把最终值存到 `comp._width` / `comp._height`; 渲染层用 `render.py` 的 `_size_style(comp)` (输出 `style` 属性, 同时处理 width 与 height) 或 `_width_style(comp)` (只处理 width, 供 `TextArea` 这类把高度放在内层元素的组件使用). 需要特殊语义的组件 (如 `Dialog` 用 `small` / `medium` / `large` 语义尺寸, `Column` 用 flex weight) 自行在 `__init__` 里解析并覆盖 `self._width`.
 - **不使用 metaclass**: 因为 metaclass 会增加理解负担, 而且在当前实现中, 它的使用是不透明的.
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
 - **`references/` 只读**: `references/` 目录 (含其中以软链接形式挂载的参考项目) 对 agent 是**只读**的, 不要修改其中的任何文件; 只可读取作为参考.

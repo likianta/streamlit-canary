@@ -234,11 +234,21 @@
     min-width: 0;
   }
   /* Stretchy widgets take the remaining space, so they must be allowed to
-  shrink below their min-content width. Otherwise a wide widget pushes its
-  sibling (e.g. the refresh icon button) onto the next line. Buttons are
-  deliberately excluded: they keep their intrinsic width and wrap instead. */
+     shrink below their min-content width. Otherwise a wide widget pushes its
+     sibling (e.g. the refresh icon button) onto the next line. Buttons are
+     deliberately excluded: they keep their intrinsic width and wrap instead. */
   .st-row > .st-selectbox,
   .st-row > .st-radio { min-width: 0; }
+
+  /* Markdown family `width='auto'` (Streamlit): the element stretches inside
+     a vertical container (handled by its own block layout) but shrinks to
+     its content inside a horizontal one. */
+  .st-row > .st-text,
+  .st-row > .st-caption,
+  .st-row > .st-title {
+    flex: 0 1 auto;
+    width: fit-content;
+  }
 
   /* Layout: Container (Column) */
   .st-container {

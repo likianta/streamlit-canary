@@ -36,6 +36,7 @@ from lk_utils import fs
 
 from ..kernel import Property
 from ..kernel import Signal
+from .base import Width
 from .widgets import Button
 from .widgets import Caption
 from .widgets import Column
@@ -186,7 +187,7 @@ class SimpleTreeSelect(Column):
         filter: T.Filter = None,
         show_recent: bool = True,
         height: int = 500,
-        width: int | None = None,
+        width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -377,7 +378,7 @@ class TreeSelect(Column):
         node_type: T.NodeType = 'file',
         preview_subfolders: bool = True,
         show_confirm_button: bool = True,
-        width: int | None = None,
+        width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -653,7 +654,7 @@ class TreeSelectWithInput(Column):
         dialog_title: str = '',
         tree_panel_height: int = 500,
         custom: tp.Optional[dict] = None,
-        width: int | None = None,
+        width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -707,7 +708,7 @@ class TreeSelectWithInput(Column):
             title = dialog_title or 'Select {}'.format(
                 'file' if node_type == 'file' else 'folder'
             )
-            self._dialog = Dialog(title, visible=self._browsing, width=960)
+            self._dialog = Dialog(title, visible=self._browsing, width='large')
             with self._dialog:
                 self._tree = TreeSelect(
                     nav.directory,

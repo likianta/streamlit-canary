@@ -123,6 +123,12 @@ def _render(comp: Component) -> str:
             rules.append(f'flex:0 0 {w}px')
             rules.append(f'width:{w}px')
             rules.append('min-width:0')
+        elif w == 'content':
+            rules.append('flex:0 1 auto')
+            rules.append('width:fit-content')
+        elif w == 'stretch':
+            rules.append('flex:1 1 0%')
+            rules.append('min-width:0')
         elif weight is not None:
             # Weighted columns, e.g. `st.columns((5, 2))`.
             rules.append(f'flex:{weight} 1 0%')
@@ -157,14 +163,15 @@ def _render(comp: Component) -> str:
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
         return (
-            f'<h1 class="st-title" data-id="{comp.id}">{text}{help_html}</h1>'
+            f'<h1 class="st-title" data-id="{comp.id}"{_size_style(comp)}>'
+            f'{text}{help_html}</h1>'
         )
     if isinstance(comp, Caption):
         text = render_markup(str(comp.text.get()))
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
         return (
-            f'<div class="st-caption" data-id="{comp.id}">'
+            f'<div class="st-caption" data-id="{comp.id}"{_size_style(comp)}>'
             f'{text}{help_html}</div>'
         )
     if isinstance(comp, Text):
@@ -172,7 +179,8 @@ def _render(comp: Component) -> str:
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
         return (
-            f'<div class="st-text" data-id="{comp.id}">{text}{help_html}</div>'
+            f'<div class="st-text" data-id="{comp.id}"{_size_style(comp)}>'
+            f'{text}{help_html}</div>'
         )
     if isinstance(comp, Spinner):
         children = ''.join(_render(c) for c in comp.children)
@@ -374,7 +382,7 @@ def _render_button(comp: Button) -> str:
     cls = f'st-btn st-btn-{st_type}'
     if getattr(comp, '_icon_only', False):
         cls += ' st-btn-icon'
-    width_style = _style_width(getattr(comp, '_width', None))
+    width_style = _size_style(comp)
     disabled = '' if comp.enabled.get() else ' disabled'
     help_attr = ''
     help_text = _help_text(comp)
@@ -482,8 +490,7 @@ def _render_table(comp: Table) -> str:
     if getattr(comp, '_width', 'stretch') == 'content':
         cls += ' st-table--content'
     return (
-        f'<div class="{cls}" data-id="{comp.id}"'
-        f'{_style_width(getattr(comp, "_width", "stretch"))}>'
+        f'<div class="{cls}" data-id="{comp.id}"{_size_style(comp)}>'
         f'<div class="st-table-scroll">'
         f'<table class="st-table-table"><tbody>{body}</tbody></table>'
         f'</div>'
@@ -491,22 +498,50 @@ def _render_table(comp: Table) -> str:
     )
 
 
-def _style_width(width: tp.Any) -> str:
-    """CSS `style` attribute for a widget's `width` argument.
+def _size_rule(value: tp.Any, name: str) -> str:
+    """CSS declaration(s) for one sizing value (`name` is 'width'/'height').
 
-    `'stretch'` fills the parent, an `int` is a pixel width, and
-    `'content'` / `None` keeps the default (content-based) sizing.
+    Returns '' for a value the inline style does not own: `None` and the
+    `'auto'` keyword are left to CSS, so a component's own rules (or the
+    markdown family's vertical/horizontal switch) still apply.
     """
-    if width is None or width == 'content':
-        return ''
-    if width == 'stretch':
-        return ' style="width:100%"'
-    if isinstance(width, int):
-        # `flex: 0 1 auto` keeps `width` authoritative inside a flex row:
-        # the default `.st-row > * { flex: 1 }` would otherwise let
-        # flex-basis win and stretch the widget.
-        return f' style="flex:0 1 auto;width:{width}px"'
-    return f' style="width:{html.escape(str(width))}"'
+    if value == 'stretch':
+        return f'{name}:100%'
+    if value == 'content':
+        return f'{name}:fit-content;max-{name}:100%'
+    if isinstance(value, int) and not isinstance(value, bool):
+        # `flex: 0 1 auto` keeps the explicit size authoritative inside a
+        # flex row: the default `.st-row > * { flex: 1 }` would otherwise
+        # let flex-basis win and stretch the widget.
+        return f'flex:0 1 auto;{name}:{value}px'
+    return ''
+
+
+def _width_style(comp: Component) -> str:
+    """Inline `style` attribute for a component's `width` only.
+
+    Used by renderers that size the width on the wrapper but the height on
+    an inner box (e.g. `TextArea`).
+    """
+    rule = _size_rule(getattr(comp, '_width', None), 'width')
+    return f' style="{rule}"' if rule else ''
+
+
+def _size_style(comp: Component) -> str:
+    """Inline `style` attribute for a component's `width` / `height`.
+
+    Mirrors Streamlit's sizing keywords:
+        'stretch'  fill the parent (`width: 100%`).
+        'content'  hug the content, capped at the parent width.
+        int        a fixed pixel size.
+        'auto' / None  no inline rule -- CSS decides (see `page.css`).
+    """
+    rules = [
+        rule
+        for name in ('width', 'height')
+        if (rule := _size_rule(getattr(comp, f'_{name}', None), name))
+    ]
+    return f' style="{";".join(rules)}"' if rules else ''
 
 
 def _format_number(comp: NumberInput, value: tp.Any) -> str:
@@ -531,7 +566,7 @@ def _render_number_input(comp: NumberInput) -> str:
     min_value = getattr(comp, '_min', None)
     max_value = getattr(comp, '_max', None)
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
-    width_style = _style_width(getattr(comp, '_width', None))
+    width_style = _size_style(comp)
     # `data-value` carries the raw (unformatted) number, which is what the
     # stepper does its arithmetic on.
     data = f' data-value="{html.escape(str(value))}"'
@@ -585,17 +620,18 @@ def _render_number_input(comp: NumberInput) -> str:
 def _render_text_area(comp: TextArea) -> str:
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
     disabled = '' if comp.enabled.get() else ' disabled'
-    height = getattr(comp, '_height', 200)
-    style = _style_width(getattr(comp, '_width', None))
-    if style:
-        style = f'{style[:-1]};height:{height}px"'
-    else:
-        style = f' style="height:{height}px"'
+    # The width belongs to the wrapper; the height belongs to the `<textarea>`
+    # (the box itself keeps `width: 100%` so it fills the wrapper).
+    width_style = _width_style(comp)
+    height = getattr(comp, '_height', None)
+    height_style = (
+        f' style="height:{height}px"' if isinstance(height, int) else ''
+    )
     return (
-        f'<div class="st-text-area" data-id="{comp.id}">'
+        f'<div class="st-text-area" data-id="{comp.id}"{width_style}>'
         f'{_widget_label_html(comp)}'
         f'<textarea class="st-text-area-box" data-comp-id="{comp.id}"'
-        f'{style} placeholder="{placeholder}"{disabled}'
+        f'{height_style} placeholder="{placeholder}"{disabled}'
         f' onchange="scSendChange(this)">'
         f'{html.escape(str(comp.value.get()))}</textarea>'
         f'</div>'
@@ -605,7 +641,7 @@ def _render_text_area(comp: TextArea) -> str:
 def _render_text_input(comp: TextInput) -> str:
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
     disabled = '' if comp.enabled.get() else ' disabled'
-    width_style = _style_width(getattr(comp, '_width', None))
+    width_style = _size_style(comp)
     return (
         f'<div class="st-text-input" data-id="{comp.id}"{width_style}>'
         f'{_widget_label_html(comp)}'
@@ -666,7 +702,7 @@ def _render_selectbox(comp: Selectbox) -> str:
         root_attrs += ' data-accept-new="1"'
     disabled = '' if comp.enabled.get() else ' disabled'
     return (
-        f'<div class="st-selectbox"{root_attrs}>'
+        f'<div class="st-selectbox"{root_attrs}{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-selectbox-control">'
         f'<button type="button" class="st-selectbox-trigger" '
@@ -719,7 +755,7 @@ def _render_multiselect(comp: Multiselect) -> str:
 
     return (
         f'<div class="st-multiselect" data-id="{comp.id}"'
-        f' data-placeholder="{placeholder}">'
+        f' data-placeholder="{placeholder}"{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-multiselect-trigger"'
         f' onclick="scToggleMultiselect(this)">'
@@ -758,7 +794,7 @@ def _render_select_slider(comp: SelectSlider) -> str:
         )
     fill = 0.0 if n <= 1 else round(active_index / (n - 1) * 100, 4)
     return (
-        f'<div class="st-select-slider" data-id="{comp.id}">'
+        f'<div class="st-select-slider" data-id="{comp.id}"{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-select-slider-track" data-comp-id="{comp.id}"'
         f' onmousedown="scSelectSliderStart(event, this)"'
@@ -806,7 +842,7 @@ def _render_radio(comp: Radio) -> str:
         else ''
     )
     return (
-        f'<div class="{root_cls}" data-id="{comp.id}">'
+        f'<div class="{root_cls}" data-id="{comp.id}"{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-radio-group"{group_style}>{items}</div>'
         f'</div>'
@@ -816,7 +852,7 @@ def _render_radio(comp: Radio) -> str:
 def _render_checkbox(comp: Checkbox) -> str:
     checked = ' checked' if comp.value.get() else ''
     return (
-        f'<div class="st-checkbox" data-id="{comp.id}">'
+        f'<div class="st-checkbox" data-id="{comp.id}"{_size_style(comp)}>'
         f'<label class="st-checkbox-label">'
         f'<span class="st-checkbox-input-wrap">'
         f'<input type="checkbox" data-comp-id="{comp.id}" '
@@ -833,7 +869,7 @@ def _render_checkbox(comp: Checkbox) -> str:
 def _render_toggle(comp: Toggle) -> str:
     checked = ' checked' if comp.value.get() else ''
     return (
-        f'<div class="st-toggle" data-id="{comp.id}">'
+        f'<div class="st-toggle" data-id="{comp.id}"{_size_style(comp)}>'
         f'<label class="st-toggle-label">'
         f'<span class="st-toggle-input-wrap">'
         f'<input type="checkbox" data-comp-id="{comp.id}" '
@@ -848,7 +884,7 @@ def _render_toggle(comp: Toggle) -> str:
 def _render_popover(comp: Popover) -> str:
     label = _render_paragraphs(str(comp.text.get()))
     children = ''.join(_render(c) for c in comp.children)
-    width_style = _style_width(getattr(comp, '_width', None))
+    width_style = _size_style(comp)
     hidden = '' if comp.visible.get() else ' hidden'
     help_attr = ''
     help_text = _help_text(comp)
@@ -906,7 +942,7 @@ def _render_altair_chart(comp: AltairChart) -> str:
     parse it without any string escaping games; `page.js` reads it on load
     and re-draws whenever a `chart` patch arrives.
     """
-    width_style = _style_width(getattr(comp, '_width', 'stretch'))
+    width_style = _size_style(comp)
     spec = comp.chart.get()
     spec_html = ''
     if spec is not None:

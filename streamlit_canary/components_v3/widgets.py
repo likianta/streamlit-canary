@@ -30,8 +30,16 @@ from ..kernel import Property
 from ..kernel import Signal
 from ..kernel import _undefined
 from .base import Component
+from .base import Height
+from .base import Width
+from .base import _validate_size
 
 _T = tp.TypeVar('_T')
+
+# Streamlit's semantic dialog sizes (`DialogWidth`), mapped to their maximum
+# pixel widths (see `st.dialog`: small=500, medium=750, large=1280).
+DialogWidth: tp.TypeAlias = tp.Literal['small', 'medium', 'large']
+_DIALOG_WIDTHS: dict[str, int] = {'small': 500, 'medium': 750, 'large': 1280}
 
 
 def _resolve_number(value: tp.Any) -> int | float:
@@ -166,7 +174,13 @@ class _HelpText(_HasText):
         text: Property[str] — the displayed text (bindable).
         help: Property[str] — markdown tooltip shown next to the text
             (bindable; bind it when the text depends on state).
+
+    `width` defaults to `'auto'` (mirroring Streamlit's markdown family): the
+    text stretches inside a vertical container and shrinks to its content
+    inside a horizontal one. Pass an explicit `width` to override.
     """
+
+    _default_width = 'auto'
 
     def __init__(
         self,
@@ -356,16 +370,17 @@ class AltairChart(Component):
         v3.AltairChart(state.spec)  # a Property holding a spec dict
     """
 
+    _default_width = 'stretch'
+
     def __init__(
         self,
         chart: tp.Any = None,
         *,
-        width: tp.Union[int, tp.Literal['content', 'stretch']] = 'stretch',
+        width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(width=width, **kwargs)
         self.chart: Property[dict | None] = Property(None)
-        self._width = width
         if isinstance(chart, Property):
             self.chart.set_or_bind(chart)
         elif chart is not None:
@@ -399,27 +414,29 @@ class Button(_HasText):
             also be attached at construction time via `on_click=...`.
     """
 
+    _default_width = 'content'
+
     def __init__(
         self,
         label: str | Property = '',
         *,
         type: str = 'secondary',
         help: str | Property | None = None,
-        width: tp.Union[int, tp.Literal['content', 'stretch']] = 'content',
+        width: Width | None = None,
         enabled: bool | Property = True,
         on_click: tp.Callable[[], None] | None = None,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(label, **kwargs)
+        super().__init__(label, width=width, **kwargs)
         # `enabled` is reactive so a button can be disabled dynamically,
         # e.g. `btn.enabled.bind(state.dep, lambda x: not x['is_latest'])`.
         self.enabled = _prop(True, enabled)
         # `help` is reactive too: Streamlit recomputes it on every rerun, so
         # a no-rerun port needs a bound Property to reach the same effect.
         self.help = _prop('', '' if help is None else help)
-        # `type` / `width` are static config, not reactive Property.
+        # `type` is static config, not a reactive Property (`width` is
+        # collected by the base class).
         self._type = type
-        self._width = width
         # `Signal(owner_factory=...)` mirrors `Property.on_change`, so
         # `@btn.on_click.partial(sc._self)` hands the handler this button.
         self.on_click: Signal = Signal(owner_factory=lambda: self)
@@ -433,6 +450,8 @@ class Caption(_HelpText):
     Args:
         text: the caption content (bindable).
         help: optional markdown tooltip shown next to the text.
+        width: `int` px | 'stretch' | 'content' | 'auto' (default; see
+            `_HelpText`).
     """
 
 
@@ -461,6 +480,8 @@ class Checkbox(_Labeled):
         on_value (via `cb['on_value']` or `cb.value.on_change`)
     """
 
+    _default_width = 'stretch'
+
     def __init__(
         self,
         label: str | Property = '',
@@ -485,6 +506,8 @@ class Code(_HasText):
         text: str — the code content.
     """
 
+    _default_width = 'stretch'
+
     def __init__(
         self,
         text: str | Property = '',
@@ -500,7 +523,7 @@ class Column(Component):
     """Vertical layout container.
 
     Args:
-        width:  fixed width (int px or CSS length) | None (fill parent).
+        width:  `int` (px) | 'stretch' | 'content' | None (fill parent).
         weight: flex-grow ratio when laid out inside a `Row`, e.g. a
             `(5, 2)` split is `Column(weight=5)` + `Column(weight=2)`;
             None keeps the default equal share.
@@ -518,19 +541,17 @@ class Column(Component):
     def __init__(
         self,
         *,
-        width: int | str | None = None,
+        width: Width | None = None,
         weight: float | None = None,
         border: bool = False,
-        height: int | None = None,
+        height: Height | None = None,
         visible: bool | Property = True,
         animated: bool = False,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(**kwargs)
-        self._width = width
+        super().__init__(width=width, height=height, **kwargs)
         self._weight = weight
         self._border = border
-        self._height = height
         self._animated = animated
         self.visible = _prop(True, visible)
 
@@ -542,7 +563,7 @@ Container = Column
 class Dialog(Component):
     """A modal dialog (mirrors Streamlit's `st.dialog`).
 
-        with v3.Dialog('Select a file', visible=state.browsing, width=800):
+        with v3.Dialog('Select a file', visible=state.browsing):
             ...
 
     `st.dialog` decorates a function that Streamlit re-runs every time the
@@ -554,7 +575,9 @@ class Dialog(Component):
     Args:
         text:    the dialog title.
         visible: bool (default True, bindable) — whether it is open.
-        width:   panel width in px (None keeps the default).
+        width:   `'small'` (default, 500px) | `'medium'` (750px) |
+            `'large'` (1280px); an int px value is accepted as an escape
+            hatch. Mirrors Streamlit's semantic `DialogWidth`.
 
     Properties:
         text: str  — the title.
@@ -569,13 +592,24 @@ class Dialog(Component):
         text: str | Property = '',
         *,
         visible: bool | Property = True,
-        width: int | None = None,
+        width: DialogWidth | int = 'small',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self.text = _prop('', text)
         self.visible = _prop(True, visible)
-        self._width = width
+        # Resolve the semantic size to px up front so the renderer stays thin
+        # (and `comp._width` is always an int).
+        if isinstance(width, str):
+            if width not in _DIALOG_WIDTHS:
+                raise ValueError(
+                    f'Dialog width must be one of '
+                    f'{tuple(_DIALOG_WIDTHS)} or an int, got {width!r}'
+                )
+            self._width = _DIALOG_WIDTHS[width]
+        else:
+            _validate_size(width, 'width')
+            self._width = width
         self.on_close: Signal = Signal(owner_factory=lambda: self)
 
     def _on_close(self, _value: tp.Any = None) -> None:
@@ -757,6 +791,8 @@ class Multiselect(_Labeled):
 
     format_func: tp.Callable[[tp.Any], str]
 
+    _default_width = 'stretch'
+
     def __init__(
         self,
         label: str | Property = '',
@@ -835,6 +871,8 @@ class NumberInput(_Labeled):
             `step` is not > 0.
     """
 
+    _default_width = 'stretch'
+
     def __init__(
         self,
         label: str | Property = '',
@@ -844,12 +882,14 @@ class NumberInput(_Labeled):
         step: int | float | None = None,
         *,
         format: tp.Callable[[tp.Any], str] | None = None,
-        width: int | tp.Literal['content', 'stretch'] | None = None,
+        width: Width | None = None,
         placeholder: str = '',
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        super().__init__(
+            label, label_visibility=label_visibility, width=width, **kwargs
+        )
         number = _resolve_number(value)
         is_float = isinstance(number, float)
         self._num_type = float if is_float else int
@@ -876,7 +916,6 @@ class NumberInput(_Labeled):
         # `None` stays `None`: no stepper is rendered in that case.
         self.value = _prop(tp.cast(tp.Any, number), tp.cast(tp.Any, value))
         self.format = format
-        self._width = width
         self._min = min_value
         self._max = max_value
         self._step = step
@@ -922,21 +961,22 @@ class Popover(_HasText):
         visible: bool — whether the popover is shown.
     """
 
+    _default_width = 'content'
+
     def __init__(
         self,
         label: str | Property = '',
         *,
-        width: int | tp.Literal['content', 'stretch'] | None = None,
+        width: Width | None = None,
         visible: bool | Property = True,
         help: str | Property = '',
         panel_align: tp.Literal['trigger', 'row'] = 'trigger',
         panel_max_height: int | None = None,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(label, **kwargs)
+        super().__init__(label, width=width, **kwargs)
         self.visible = _prop(True, visible)
         self.help = _prop('', help)
-        self._width = width
         self._panel_align = panel_align
         self._panel_max_height = panel_max_height
 
@@ -994,6 +1034,8 @@ class Radio(_OptionsWidget):
         on_value (via `radio['on_value']` or `radio.value.on_change`)
         on_options (via `radio['on_options']` or `radio.options.on_change`)
     """
+
+    _default_width = 'stretch'
 
     def __init__(
         self,
@@ -1062,6 +1104,8 @@ class SelectSlider(_OptionsWidget):
         on_value (via `slider['on_value']` or `slider.value.on_change`)
     """
 
+    _default_width = 'stretch'
+
 
 class Selectbox(_OptionsWidget):
     """A dropdown select component (mirrors Streamlit's `st.selectbox`).
@@ -1084,6 +1128,8 @@ class Selectbox(_OptionsWidget):
         on_value (via `sel['on_value']` or `sel.value.on_change`)
         on_options (via `sel['on_options']` or `sel.options.on_change`)
     """
+
+    _default_width = 'stretch'
 
     def __init__(
         self,
@@ -1205,16 +1251,16 @@ class Table(Component):
         rows: list[tuple[str, str]] — the table body.
     """
 
+    _default_width = 'stretch'
+
     def __init__(
         self,
         rows: tp.Iterable[tp.Tuple[str, str]] | Property | None = None,
         *,
-        width: tp.Union[int, tp.Literal['content', 'stretch']] = 'stretch',
+        width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(**kwargs)
-        # `width` is static config, not reactive Property.
-        self._width = width
+        super().__init__(width=width, **kwargs)
         self.rows = Property([])
         if isinstance(rows, Property):
             self.rows.bind(rows)
@@ -1302,6 +1348,8 @@ class Text(_HelpText):
     Args:
         text: the text content (bindable).
         help: optional markdown tooltip shown next to the text.
+        width: `int` px | 'stretch' | 'content' | 'auto' (default; see
+            `_HelpText`).
     """
 
 
@@ -1312,10 +1360,11 @@ class TextArea(_Labeled):
         label: the widget label.
         value: initial text (bindable).
         placeholder: hint shown while the box is empty.
-        height: box height in px; the text scrolls once it overflows.
+        height: box height — `int` px (default 200) | 'stretch' | 'content';
+            the text scrolls once it overflows.
         enabled: bool (default True, bindable) — a disabled box is greyed
             out and cannot be edited.
-        width: int px | 'content' | 'stretch' | None (fill parent).
+        width: `int` px | 'stretch' | 'content' | None (fill parent).
         help: optional tooltip shown next to the label.
 
     Properties:
@@ -1328,27 +1377,33 @@ class TextArea(_Labeled):
         on_value: emitted when `value` changes.
     """
 
+    _default_width = 'stretch'
+    _default_height = 200
+
     def __init__(
         self,
         label: str | Property = '',
         *,
         value: str | Property = '',
         placeholder: str = '',
-        height: int = 200,
+        height: Height | None = None,
         enabled: bool | Property = True,
-        width: int | tp.Literal['content', 'stretch'] | None = None,
+        width: Width | None = None,
         help: str = '',
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
-            label, help=help, label_visibility=label_visibility, **kwargs
+            label,
+            help=help,
+            label_visibility=label_visibility,
+            width=width,
+            height=height,
+            **kwargs,
         )
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
         self._placeholder = placeholder
-        self._height = height
-        self._width = width
 
 
 class TextInput(_Labeled):
@@ -1360,7 +1415,7 @@ class TextInput(_Labeled):
         placeholder: hint shown while the box is empty.
         enabled: bool (default True, bindable) — a disabled box is greyed
             out and cannot be edited.
-        width: int px | 'content' | 'stretch' | None (fill parent).
+        width: `int` px | 'stretch' | 'content' | None (fill parent).
         help: optional tooltip shown next to the label.
 
     Properties:
@@ -1373,6 +1428,8 @@ class TextInput(_Labeled):
         on_value: emitted when `value` changes.
     """
 
+    _default_width = 'stretch'
+
     def __init__(
         self,
         label: str | Property = '',
@@ -1380,18 +1437,21 @@ class TextInput(_Labeled):
         value: str | Property = '',
         placeholder: str = '',
         enabled: bool | Property = True,
-        width: int | tp.Literal['content', 'stretch'] | None = None,
+        width: Width | None = None,
         help: str = '',
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
-            label, help=help, label_visibility=label_visibility, **kwargs
+            label,
+            help=help,
+            label_visibility=label_visibility,
+            width=width,
+            **kwargs,
         )
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
         self._placeholder = placeholder
-        self._width = width
 
 
 class Title(_HelpText):
@@ -1400,6 +1460,8 @@ class Title(_HelpText):
     Args:
         text: the title content (bindable).
         help: optional markdown tooltip shown next to the text.
+        width: `int` px | 'stretch' | 'content' | 'auto' (default; see
+            `_HelpText`).
     """
 
 
@@ -1421,6 +1483,8 @@ class Toggle(_Labeled):
     Signals:
         on_value (via `tg['on_value']` or `tg.value.on_change`)
     """
+
+    _default_width = 'stretch'
 
     def __init__(
         self,
