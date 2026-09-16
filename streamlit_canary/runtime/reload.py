@@ -14,8 +14,6 @@ State is deliberately not preserved: this is the same contract as
 FastAPI's ``--reload`` (``StateV2`` does not survive a rerun).
 """
 
-from __future__ import annotations
-
 import os
 import sys
 import threading

@@ -8,8 +8,6 @@ Exposes:
     run_app    — convenience: app function + port → running server
 """
 
-from __future__ import annotations
-
 import typing as tp
 
 from .render import render_page

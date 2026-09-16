@@ -34,8 +34,6 @@ Only geometry is compared (sizes, spacing, alignment). Colours belong to the
 theme and are covered by `compare_primary_button_style.py`.
 """
 
-from __future__ import annotations
-
 import sys
 
 from playwright.sync_api import Page

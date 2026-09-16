@@ -8,8 +8,6 @@ Routes:
     WS   /ws                      → bidirectional channel for client events
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 import os

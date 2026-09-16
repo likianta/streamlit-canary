@@ -22,8 +22,6 @@ value or a bound `Property` (see `sc.bind`); the latter makes the field
 reactive, e.g. `v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
 """
 
-from __future__ import annotations
-
 import textwrap
 import typing as tp
 

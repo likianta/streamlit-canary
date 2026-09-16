@@ -42,8 +42,6 @@ is what turns the transient tint into a test failure instead of a matter of
 opinion.
 """
 
-from __future__ import annotations
-
 import json
 import re
 import sys

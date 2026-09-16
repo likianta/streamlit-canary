@@ -8,8 +8,6 @@ dark theme colors.
 Delta / event protocol is unchanged from Phase 3.
 """
 
-from __future__ import annotations
-
 import html
 import json
 import typing as tp

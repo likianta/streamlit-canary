@@ -17,8 +17,6 @@ around this with mtime + content-hash checks; we use the cheaper
 collapse the burst of events a single editor save produces.
 """
 
-from __future__ import annotations
-
 import os
 import sys
 import threading

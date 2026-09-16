@@ -26,8 +26,6 @@ Where v1 needed Streamlit-only primitives, the v3 build uses:
     `node_type='file'` and `'folder'` are supported.
 """
 
-from __future__ import annotations
-
 import os
 import typing as tp
 from collections import deque

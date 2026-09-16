@@ -11,8 +11,6 @@ This is the core of the "no rerun" model: after `build()`, the app function
 never runs again — only signal handlers execute.
 """
 
-from __future__ import annotations
-
 import os
 import typing as tp
 

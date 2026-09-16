@@ -28,8 +28,6 @@ Pseudo-code (the spec this script implements):
        shape is "forbidden").
 """
 
-from __future__ import annotations
-
 import re
 import sys
 import time

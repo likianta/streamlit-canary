@@ -39,8 +39,6 @@ provides; the `_self` / `_value` markers resolve to the owner at emit time:
     def handler(value): ...
 """
 
-from __future__ import annotations
-
 import inspect
 import typing as tp
 

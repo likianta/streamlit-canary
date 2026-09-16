@@ -40,8 +40,6 @@ Pseudo-code (the assertions this script implements):
         assert sc_btn.border_color == st_btn.border_color
 """
 
-from __future__ import annotations
-
 import re
 import sys
 import typing as tp

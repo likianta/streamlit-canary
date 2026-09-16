@@ -13,8 +13,6 @@ This module has no Streamlit dependency — the runtime/frontend bridge is added
 in a later phase.
 """
 
-from __future__ import annotations
-
 import typing as tp
 
 from lk_utils import uuid
@@ -104,7 +102,7 @@ class Component(PropertyHost):
 
     # stack of components currently inside their `with` block; used to wire up
     # parent/child relationships automatically.
-    _context_stack: tp.ClassVar[list[Component]] = []
+    _context_stack: tp.ClassVar[list['Component']] = []
     # the runtime that is currently building the component tree; components
     # register themselves with it during construction. `None` when no build is
     # in progress (e.g. in unit tests).
@@ -172,11 +170,11 @@ class Component(PropertyHost):
         return self._id
 
     @property
-    def parent(self) -> Component | None:
+    def parent(self) -> 'Component | None':
         return self._parent
 
     @property
-    def children(self) -> tuple[Component, ...]:
+    def children(self) -> tuple['Component', ...]:
         return tuple(self._children)
 
     def __repr__(self) -> str:

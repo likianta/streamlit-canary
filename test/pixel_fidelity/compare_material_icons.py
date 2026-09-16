@@ -46,8 +46,6 @@ The selectors differ per app (Streamlit's markdown carries test ids, ours
 carry classes), so they are given per app just like in the sibling scripts.
 """
 
-from __future__ import annotations
-
 import re
 import sys
 
