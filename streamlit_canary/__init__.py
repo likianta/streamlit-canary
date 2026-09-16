@@ -9,7 +9,9 @@ if 1: import neoprint as _np; _np.setup()  # noqa
 # fmt: on
 
 # from . import components
+from . import components_v2
 from . import components_v2 as v2
+from . import components_v3
 from . import components_v3 as v3
 from . import keygen
 from . import opener

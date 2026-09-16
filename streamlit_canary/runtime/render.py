@@ -88,9 +88,24 @@ def _render(comp: Component) -> str:
     if isinstance(comp, Grid):
         cells = sorted(comp._cells.values(), key=lambda c: (c._row, c._col))
         children = ''.join(_render(c) for c in cells)
+        # Weighted columns mirror `st.columns((5, 2))`: Streamlit sizes each
+        # column as `weight% - gap * (n - 1) / n`, so the tracks plus the gaps
+        # exactly fill the container (with `fr` tracks the gap would instead be
+        # subtracted from the whole row, narrowing every column).
+        weights = comp._weights
+        n = len(weights)
+        gap_px = 16  # matches `.st-grid { gap: 16px }`
+        share = gap_px * (n - 1) / n
+        total = sum(weights)
+        tracks = ' '.join(
+            '100%' if n == 1 else f'calc({w / total * 100:.6f}% - {share:g}px)'
+            for w in weights
+        )
+        align_map = {'top': 'start', 'center': 'center', 'bottom': 'end'}
+        align = align_map.get(comp._vertical_alignment, 'start')
         return (
             f'<div class="st-grid" data-id="{comp.id}" '
-            f'style="grid-template-columns:repeat({comp._columns},1fr)">'
+            f'style="grid-template-columns:{tracks};align-items:{align}">'
             f'{children}</div>'
         )
     if isinstance(comp, Cell):
@@ -117,19 +132,29 @@ def _render(comp: Component) -> str:
         rules: list[str] = []
         w = getattr(comp, '_width', None)
         weight = getattr(comp, '_weight', None)
+        # `flex` only means something when the column is a flex item of a
+        # `Row`. Inside a vertical container `flex-basis` would constrain the
+        # *height* instead (e.g. `Container(width=540)` would become 540 tall),
+        # so there we only emit `width`.
+        in_row = isinstance(comp._parent, Row)
         if isinstance(w, int):
-            # Fixed-width column: opt out of `.st-row > * { flex: 1 }` so the
+            # Fixed-width column: opt out of the row's own `flex` so the
             # explicit width is honored and the sibling column fills the rest.
-            rules.append(f'flex:0 0 {w}px')
+            if in_row:
+                rules.append(f'flex:0 0 {w}px')
             rules.append(f'width:{w}px')
             rules.append('min-width:0')
         elif w == 'content':
-            rules.append('flex:0 1 auto')
+            if in_row:
+                rules.append('flex:0 1 auto')
             rules.append('width:fit-content')
         elif w == 'stretch':
-            rules.append('flex:1 1 0%')
+            if in_row:
+                # Streamlit stretches a container block from the same `8rem`
+                # basis it gives the input-like widgets.
+                rules.append('flex:1 1 8rem')
             rules.append('min-width:0')
-        elif weight is not None:
+        elif weight is not None and in_row:
             # Weighted columns, e.g. `st.columns((5, 2))`.
             rules.append(f'flex:{weight} 1 0%')
             # A flex item's automatic minimum is its min-content width, which
@@ -508,11 +533,14 @@ def _size_rule(value: tp.Any, name: str) -> str:
     if value == 'stretch':
         return f'{name}:100%'
     if value == 'content':
-        return f'{name}:fit-content;max-{name}:100%'
+        # Inside a flex row the row's own `flex` would stretch the element, so
+        # the inline `flex: 0 1 auto` keeps the content size authoritative.
+        prefix = 'flex:0 1 auto;' if name == 'width' else ''
+        return f'{prefix}{name}:fit-content;max-{name}:100%'
     if isinstance(value, int) and not isinstance(value, bool):
-        # `flex: 0 1 auto` keeps the explicit size authoritative inside a
-        # flex row: the default `.st-row > * { flex: 1 }` would otherwise
-        # let flex-basis win and stretch the widget.
+        # `flex: 0 1 auto` keeps the explicit size authoritative inside a flex
+        # row: the row's default `flex` would otherwise let flex-basis win and
+        # stretch the widget.
         return f'flex:0 1 auto;{name}:{value}px'
     return ''
 

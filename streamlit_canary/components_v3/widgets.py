@@ -659,8 +659,12 @@ class Grid(Component):
 
     Args:
         rows: number of rows (default 1).
-        cols: number of columns (default 2).
+        cols: number of columns (default 2), or a sequence of column weights
+            — `cols=(5, 2)` mirrors `st.columns((5, 2))`.
         columns: alias of `cols` (kept for backwards compatibility).
+        vertical_alignment: "top" (default) | "center" | "bottom" — how a
+            cell's content aligns inside its row when the columns differ in
+            height (mirrors `st.columns(vertical_alignment=...)`).
 
     Cells are addressed with `next(grid)` or `(row, col)`, and are used as
     context managers:
@@ -680,15 +684,27 @@ class Grid(Component):
         self,
         *,
         rows: int = 1,
-        cols: int = 2,
-        columns: int | None = None,
+        cols: int | tp.Sequence[float] = 2,
+        columns: int | tp.Sequence[float] | None = None,
+        vertical_alignment: tp.Literal['top', 'center', 'bottom'] = 'top',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         if columns is not None:
             cols = columns
+        # An int means "N equal columns"; a sequence is taken as explicit
+        # weights, so `cols=(5, 2)` mirrors `st.columns((5, 2))`.
+        weights = (
+            (1.0,) * cols
+            if isinstance(cols, int)
+            else tuple(float(w) for w in cols)
+        )
+        if not weights:
+            raise ValueError('Grid needs at least one column.')
         self._rows = rows
-        self._columns = cols
+        self._weights = weights
+        self._columns = len(weights)
+        self._vertical_alignment = vertical_alignment
         self._cells: dict[tuple[int, int], Cell] = {}
         self._cursor = 0
 
@@ -1285,6 +1301,15 @@ class Tabs(Component):
             with tabs['Batchtub Curve']:
                 v3.Text('...')
 
+    Panels may also be walked in label order with `next(tabs)` (mirroring
+    `next(grid)`):
+
+        with v3.Tabs(('a', 'b')) as tabs:
+            with next(tabs):
+                v3.Text('...')
+            with next(tabs):
+                v3.Text('...')
+
     Every panel is built up front; switching tabs happens entirely on the
     client, so it never reruns. `tabs[label]` returns that label's panel
     (created on first access and reused afterwards).
@@ -1312,6 +1337,7 @@ class Tabs(Component):
         if not self._labels:
             raise ValueError('Tabs needs at least one label.')
         self._panels: dict[str, _TabPanel] = {}
+        self._cursor = 0
         if active is None:
             active = self._labels[0]
         self.active = _prop(self._labels[0], tp.cast(tp.Any, active))
@@ -1320,6 +1346,19 @@ class Tabs(Component):
         if isinstance(key, str) and key in self._labels:
             return self._panel(key)
         return super().__getitem__(key)
+
+    # -- panel iteration (in label order) ---------------------------------
+
+    def __iter__(self) -> 'Tabs':
+        self._cursor = 0
+        return self
+
+    def __next__(self) -> '_TabPanel':
+        if self._cursor >= len(self._labels):
+            raise StopIteration
+        label = self._labels[self._cursor]
+        self._cursor += 1
+        return self._panel(label)
 
     def _panel(self, label: str) -> _TabPanel:
         panel = self._panels.get(label)

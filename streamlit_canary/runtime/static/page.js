@@ -484,20 +484,36 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       if (t) t.setAttribute('aria-expanded', 'false');
     });
   }
-  // Keep the floating panel inside the viewport: anchor it to the trigger's
-  // left edge, but shift it leftward when that would overflow the right edge
-  // (and back rightward when it would overflow the left edge).
+  // The app content box (page padding excluded). The floating panel is kept
+  // inside it, the way Streamlit's floating-ui respects its clipping ancestor,
+  // so a wide panel neither sticks out past the page padding nor hugs the
+  // window edge.
+  function scPopoverBounds() {
+    const app = document.querySelector('#app');
+    if (!app) {
+      const vw = document.documentElement.clientWidth;
+      return { left: 16, right: vw - 16 };
+    }
+    const rect = app.getBoundingClientRect();
+    const cs = getComputedStyle(app);
+    return {
+      left: rect.left + (parseFloat(cs.paddingLeft) || 0),
+      right: rect.right - (parseFloat(cs.paddingRight) || 0),
+    };
+  }
+  // Keep the floating panel inside `scPopoverBounds()`: anchor it to the
+  // trigger's left edge, but shift it leftward when that would overflow the
+  // right edge (and back rightward when it would overflow the left edge).
   function scPositionPopover(panel) {
-    const margin = 16;
     panel.style.left = '0px';
     const rect = panel.getBoundingClientRect();
-    const vw = document.documentElement.clientWidth;
+    const bounds = scPopoverBounds();
     let left = 0;
-    if (rect.right > vw - margin) {
-      left -= rect.right - (vw - margin);
+    if (rect.right > bounds.right) {
+      left -= rect.right - bounds.right;
     }
-    if (rect.left + left < margin) {
-      left += margin - (rect.left + left);
+    if (rect.left + left < bounds.left) {
+      left += bounds.left - (rect.left + left);
     }
     panel.style.left = left + 'px';
   }
