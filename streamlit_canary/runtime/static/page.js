@@ -330,6 +330,24 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     if (dropdown) dropdown.hidden = true;
     if (trigger) trigger.removeAttribute('aria-expanded');
   }
+  // -- Expanded-area entry animation --
+  // The panels that unfold on click (the selectbox dropdown, the popover panel)
+  // are grown by the `...-in` keyframes in page.css, which need a target
+  // height: `auto` is not animatable, so it has to be measured. Call this in
+  // the same task as the `hidden` flip so the first painted frame already grows
+  // towards the right height, and after any placement pass so a panel sized
+  // from its surroundings is measured at its final width. `scrollHeight`
+  // reports the whole content even while the box is 0 tall, and `max-height`
+  // caps tall content (a long option list, a scrolling panel) -- hence the
+  // clamp against the computed cap.
+  function scMeasureOpenHeight(el, varName) {
+    const cap = parseFloat(getComputedStyle(el).maxHeight);
+    const height = el.scrollHeight;
+    el.style.setProperty(
+      varName,
+      (Number.isFinite(cap) ? Math.min(height, cap) : height) + 'px',
+    );
+  }
   // -- Custom selectbox dropdown interaction --
   function scToggleSelectbox(trigger) {
     const control = trigger.closest('.st-selectbox-control');
@@ -348,6 +366,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       trigger.removeAttribute('aria-expanded');
     } else {
       dropdown.hidden = false;
+      // The chevron turn (80ms) is quicker than the panel growth (120ms), so
+      // the rotation is over before the panel is fully open.
+      scMeasureOpenHeight(dropdown, '--st-selectbox-open-height');
       trigger.setAttribute('aria-expanded', 'true');
     }
   }
@@ -555,6 +576,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       } else {
         scPositionPopover(panel);
       }
+      // Measured after the placement pass, so a row-aligned panel is sized
+      // from its final width. The chevron is swapped, not animated.
+      scMeasureOpenHeight(panel, '--st-popover-open-height');
     }
     scSwapChevron(
       trigger, '.st-popover-chevron', 'expand_more', 'expand_less', !isOpen

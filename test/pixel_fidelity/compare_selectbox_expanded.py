@@ -28,6 +28,12 @@ Pseudo-code (the spec this script implements):
        uses), and pressing an item leaves that highlight untouched.
     3. The items are 40px tall with a 28px highlight box (6px radius), so a
        three-option popup measures 122px.
+    4. Two canary-only touches, both listed in
+       `.trae/documents/pixel_fidelity_caveats.md`: the panel grows from 0 to
+       its content height in 120ms while the chevron turns in 80ms (so the
+       turn always lands before the panel is fully open), and clicking the
+       control over and over keeps toggling it -- a double click never starts
+       selecting the label the way Streamlit's control does.
 
 The frame sampler is installed *before* the popup opens, so the very first
 painted frame is captured; `analyse_open()` then reads the colour history out
@@ -38,6 +44,7 @@ opinion.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 
@@ -56,13 +63,18 @@ ST_THEME_DARK = '[data-testid="stMainMenuItem-theme-Dark"]'
 # border), while ours is a single element.
 ST_SELECTORS = {
     'control': '[data-testid="stSelectbox"] [role="group"]',
+    'trigger': '[data-testid="stSelectbox"] [role="combobox"]',
+    'arrow': '[data-testid="stSelectbox"] svg',
     'primary': '[data-testid="stBaseButton-primary"]',
     'listbox': '[role="listbox"]',
+    'popup': '[role="listbox"]',
     'row': '[role="listbox"] [role="option"]',
     'inner': '[role="listbox"] [role="option"] > div',
 }
 SC_SELECTORS = {
     'control': '.st-selectbox-trigger',
+    'trigger': '.st-selectbox-trigger',
+    'arrow': '.st-selectbox-arrow',
     'primary': '.st-btn.st-btn-primary',
     'popup': '.st-selectbox-dropdown',
     'row': '.st-selectbox-option',
@@ -96,6 +108,10 @@ _WATCH_JS = """
       open: !!popup && rect(popup).height > 0,
       border: ccs ? ccs.borderTopColor : null,
       shadow: ccs ? ccs.boxShadow : null,
+      popup_h: popup ? +rect(popup).height.toFixed(2) : 0,
+      popup_scroll_h: popup ? popup.scrollHeight : 0,
+      popup_client_h: popup ? popup.clientHeight : 0,
+      popup_overflow_y: popup ? getComputedStyle(popup).overflowY : null,
       rows: Array.from(document.querySelectorAll(a.row)).map((row) => {
         const inner = row.firstElementChild || row;
         const ics = getComputedStyle(inner);
@@ -252,6 +268,21 @@ def analyse_open(frames: list[dict]) -> dict:
                 seen.append(row['color'])
         colours.append(seen)
     first = opened[0] if opened else {'rows': []}
+    # The panel's entry: how many distinct heights it passed through, and
+    # whether the frames in which it was still shorter than its content kept
+    # that content clipped (a scrollbar would flash otherwise).
+    heights: list[float] = []
+    full = max((frame['popup_h'] for frame in opened), default=0)
+    clipped = True
+    for frame in opened:
+        if frame['popup_h'] not in heights:
+            heights.append(frame['popup_h'])
+        if frame['popup_h'] >= full - EPS:
+            continue
+        if frame['popup_scroll_h'] <= frame['popup_client_h']:
+            continue
+        if frame['popup_overflow_y'] != 'hidden':
+            clipped = False
     return {
         'frame_count': len(opened),
         'borders': borders,
@@ -260,6 +291,8 @@ def analyse_open(frames: list[dict]) -> dict:
         'repaints': sum(len(seen) - 1 for seen in colours),
         'first_backgrounds': [row['bg'] for row in first['rows']],
         'first_colours': [row['color'] for row in first['rows']],
+        'heights': heights,
+        'clipped_while_growing': clipped,
     }
 
 
@@ -337,6 +370,59 @@ def primary_color(page: Page, selectors: dict) -> str:
 
 def read(page: Page, selectors: dict, kind: str) -> dict:
     return page.evaluate(_READ_JS, dict(selectors, kind=kind))
+
+
+# The chevron/panel animation and the control's click behaviour: a canary-only
+# touch, so `animation()` + the section 5 checks below assert on each app's own
+# expectation instead of comparing raw values.
+_ANIM_JS = """
+(a) => {
+  const trig = document.querySelector(a.trigger);
+  const arrow = document.querySelector(a.arrow);
+  const popup = a.popup ? document.querySelector(a.popup) : null;
+  const acs = arrow ? getComputedStyle(arrow) : null;
+  return JSON.stringify({
+    expanded: trig ? trig.getAttribute('aria-expanded') === 'true' : false,
+    arrow_transform: acs ? acs.transform : null,
+    arrow_duration: acs ? parseFloat(acs.transitionDuration) : null,
+    popup_duration: popup
+      ? parseFloat(getComputedStyle(popup).animationDuration) : null,
+    selection: String(window.getSelection()),
+  });
+}
+"""
+
+
+def animation(page: Page, selectors: dict) -> dict:
+    return json.loads(page.evaluate(_ANIM_JS, selectors))
+
+
+def open_if_needed(page: Page, selectors: dict) -> None:
+    """Section 4's press may have closed the dropdown; re-open it if so."""
+    if not animation(page, selectors)['expanded']:
+        page.locator(selectors['trigger']).first.click()
+        page.wait_for_timeout(500)
+
+
+def click_trigger(page: Page, selectors: dict, double: bool = False) -> None:
+    """Click the trigger (or double-click it) the way a user toggles it."""
+    locator = page.locator(selectors['trigger']).first
+    if double:
+        locator.dblclick()
+    else:
+        locator.click()
+    page.wait_for_timeout(500)
+
+
+def clear_selection(page: Page) -> None:
+    """Drop any selection the earlier sections may have left behind.
+
+    Section 4 releases the mouse button away from the item it pressed, so the
+    drag sweeps across the page and selects whatever text is on the way. That
+    selection has nothing to do with the control, hence the reset before the
+    repeated-click checks.
+    """
+    page.evaluate('window.getSelection().removeAllRanges()')
 
 
 class Report:
@@ -440,6 +526,30 @@ def main() -> int:
             st_open['repaints'] == 0,
             sc_open['repaints'] == 0,
         )
+        # The panel's entry is a canary-only height animation: it grows from 0
+        # to its content height over several frames, while Streamlit's popup
+        # appears at full height in a single frame. Clipping is what keeps the
+        # items from spilling out of the still-short panel and keeps a
+        # scrollbar from flashing -- for Streamlit there is no mid-growth frame
+        # at all, so the check holds trivially.
+        report.add_predicate(
+            'the panel grows over several frames (canary only)',
+            len(st_open['heights']) == 1,
+            len(sc_open['heights']) > 1,
+        )
+        report.add_predicate(
+            'the growing panel clips instead of scrolling',
+            st_open['clipped_while_growing'],
+            sc_open['clipped_while_growing'],
+        )
+        # Shown for reference only -- the two apps are expected to differ here,
+        # so the row is never compared.
+        report.add(
+            'panel heights while opening (not compared)',
+            ', '.join(str(h) for h in st_open['heights']),
+            ', '.join(str(h) for h in sc_open['heights']),
+            cmp=lambda _a, _b: True,
+        )
         # Streamlit marks the current selection with the highlight background,
         # we mark it with the theme colour of the item's text. Which item is
         # the current one is up to the app, so any item may carry the mark.
@@ -541,6 +651,65 @@ def main() -> int:
                 same_color(a, st_hover['background'])
                 and same_color(b, sc_hover['background'])
             ),
+        )
+
+        # -- 5. canary-only chevron turn + repeated-click toggling ------
+        # Both are deliberate differences, listed as such in
+        # .trae/documents/pixel_fidelity_caveats.md: the chevron turns (80ms)
+        # while the panel grows (120ms) -- the turn lands first, so the panel
+        # is never fully open with the chevron still halfway -- and the
+        # control can be clicked over and over to collapse/expand it instead
+        # of turning into a text selection.
+        open_if_needed(st_page, ST_SELECTORS)
+        open_if_needed(sc_page, SC_SELECTORS)
+        st_anim = animation(st_page, ST_SELECTORS)
+        sc_anim = animation(sc_page, SC_SELECTORS)
+        report.add_predicate(
+            'the chevron turns on expand (canary only)',
+            st_anim['arrow_transform'] == 'none',
+            sc_anim['arrow_transform'] == 'matrix(-1, 0, 0, -1, 0, 0)',
+        )
+        report.add_predicate(
+            'the chevron turn is no slower than the panel growth',
+            st_anim['arrow_duration'] <= st_anim['popup_duration'],
+            sc_anim['arrow_duration'] <= sc_anim['popup_duration'],
+        )
+        # Shown for reference only: the canary's two clocks (80ms for the turn,
+        # 120ms for the growth) against Streamlit's single frame.
+        report.add(
+            'turn / growth duration (not compared)',
+            '{} / {}'.format(
+                st_anim['arrow_duration'], st_anim['popup_duration']
+            ),
+            '{} / {}'.format(
+                sc_anim['arrow_duration'], sc_anim['popup_duration']
+            ),
+            cmp=lambda _a, _b: True,
+        )
+        clear_selection(st_page)
+        clear_selection(sc_page)
+        click_trigger(st_page, ST_SELECTORS)
+        click_trigger(sc_page, SC_SELECTORS)
+        st_again = animation(st_page, ST_SELECTORS)
+        sc_again = animation(sc_page, SC_SELECTORS)
+        report.add_predicate(
+            'a repeat click collapses the dropdown (canary only)',
+            st_again['expanded'],
+            not sc_again['expanded'],
+        )
+        # A double click is where the two apps really part ways: Streamlit's
+        # control has no `user-select: none` guard, so the second press starts
+        # selecting its label, while ours keeps toggling.
+        clear_selection(st_page)
+        clear_selection(sc_page)
+        click_trigger(st_page, ST_SELECTORS, double=True)
+        click_trigger(sc_page, SC_SELECTORS, double=True)
+        st_sel = animation(st_page, ST_SELECTORS)['selection']
+        sc_sel = animation(sc_page, SC_SELECTORS)['selection']
+        report.add_predicate(
+            'a double click selects no text (canary only)',
+            st_sel != '',
+            sc_sel == '',
         )
 
         report.print()

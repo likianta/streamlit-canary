@@ -737,7 +737,15 @@
   }
 
   /* Selectbox (custom dropdown — no native <select>) */
-  .st-selectbox { margin-bottom: 8px; }
+  .st-selectbox {
+    margin-bottom: 8px;
+    /* Two clocks, both canary-only touches. The chevron turns quickly so
+       clicking reads as instant, while the panel takes a little longer to
+       grow -- the turn therefore always lands *before* the panel is fully
+       open, never after it. */
+    --st-selectbox-chevron-anim: 80ms;
+    --st-selectbox-panel-anim: 120ms;
+  }
   .st-selectbox-control {
     position: relative;
     display: flex;
@@ -759,6 +767,9 @@
     font-size: 14px;
     line-height: 1.4;
     cursor: pointer;
+    /* Clicking the trigger repeatedly must keep toggling the dropdown (like
+       the popover trigger does) instead of turning into a text selection. */
+    user-select: none;
     /* No transition here: Streamlit turns the border red as soon as the
        control is focused, so a fading (translucent) red in between would be
        a visible artifact. */
@@ -779,8 +790,13 @@
   .st-selectbox-arrow {
     color: var(--st-text-color);
     flex-shrink: 0;
-    /* Streamlit keeps this chevron as it is while the dropdown is open (the
-       panel itself is the open/closed signal); no rotation, no transition. */
+    /* A canary-only touch (Streamlit keeps the chevron still and lets the
+       panel alone signal the state): the chevron turns over while the panel
+       grows, and is already back at rest before the growth ends. */
+    transition: transform var(--st-selectbox-chevron-anim) ease;
+  }
+  .st-selectbox-trigger[aria-expanded="true"] .st-selectbox-arrow {
+    transform: rotate(180deg);
   }
   .st-selectbox-dropdown {
     position: absolute;
@@ -797,6 +813,20 @@
     background-color: var(--st-background-color);
     box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.4);
     padding: 0;
+    /* Grows to the height `scMeasureOpenHeight` measured, over the same
+       interval the popover panel uses. */
+    animation: st-selectbox-dropdown-in var(--st-selectbox-panel-anim) ease;
+  }
+  /* The panel grows from 0 to its content height (a canary-only touch). The
+     target is set by `scMeasureOpenHeight`, because `auto` is not animatable
+     and the panel's height is not known ahead of time. Clipping is what keeps
+     the items from spilling out of the still-short panel and keeps a
+     scrollbar from flashing on the way; both `height` and `overflow` fall
+     back to the base rule once the animation is over, so a long list is
+     scrollable again the moment the panel is fully open. */
+  @keyframes st-selectbox-dropdown-in {
+    from { height: 0; overflow: hidden; }
+    to { height: var(--st-selectbox-open-height, auto); overflow: hidden; }
   }
   .st-selectbox-option {
     display: flex;
@@ -1097,6 +1127,10 @@
     position: relative;
     display: inline-block;
     margin-bottom: 8px;
+    /* The panel grows open over this interval (a canary-only touch, same entry
+       as the selectbox dropdown). The chevron does not animate: it is swapped
+       for a different glyph. */
+    --st-popover-anim: 120ms;
   }
   .st-popover[hidden] {
     display: none;
@@ -1138,6 +1172,19 @@
     border: 0.8px solid var(--st-border-color);
     border-radius: 12px;
     background-color: var(--st-background-color);
+    /* Grows to the height `scMeasureOpenHeight` measured, like the selectbox
+       dropdown -- `top` anchors the panel below the trigger, so it unfolds
+       downwards. */
+    animation: st-popover-panel-in var(--st-popover-anim) ease;
+  }
+  /* Same clipping contract as `st-selectbox-dropdown-in`: the contents stay
+     clipped while the panel is still short (nothing spills out, no scrollbar
+     flashes) and both `height` and `overflow` fall back to the base rule once
+     the animation is over -- which is what leaves the row-aligned variant
+     scrollable again. */
+  @keyframes st-popover-panel-in {
+    from { height: 0; overflow: hidden; }
+    to { height: var(--st-popover-open-height, auto); overflow: hidden; }
   }
   .st-popover-panel[hidden] { display: none; }
   /* Child bottom margins are dropped by the shared vertical-rhythm rule at

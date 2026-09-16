@@ -1024,6 +1024,14 @@ class Popover(_HasText):
     Properties:
         text: str — the trigger label (bindable).
         visible: bool — whether the popover is shown.
+
+    Note:
+        The trigger's chevron is *swapped* between `expand_more` and
+        `expand_less` on open/close (see `render._POPOVER_CHEVRON_*` and
+        `scSwapChevron` in `page.js`), which is what Streamlit does. The
+        selectbox chevron, on the other hand, rotates (a canary-only touch,
+        listed in `.trae/documents/pixel_fidelity_caveats.md`). The two may be
+        unified on the rotation later on, so keep the swap isolated here.
     """
 
     _default_width = 'content'

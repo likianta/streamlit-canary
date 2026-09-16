@@ -16,19 +16,32 @@
 
     原版行为: st.number_input 的 stepper 只要组件宽度 <= 7.5rem (其前端常量 `hideNumberInputControls`) 就直接隐藏, 没有竖排这一步.
 
+- Popover
+  - Popover 的展开面板使用高度动画 (120ms), 跟 Selectbox 的展开面板是同一套做法: 从 0 高度展开到内容高度, 展开过程中内容被裁剪, 因此不会溢出, 也不会出现滚动条 (展开结束后若内容超过 max-height, 才恢复为可滚动).
+
+    原版行为: st.popover 的面板是瞬间出现的, 没有展开动画.
+
 - Radio
-  - TODO: 当鼠标悬浮在选项上时, 选项背景色高亮, 就像 SelectBox.expanded.item 一样.
+  - TODO: 当鼠标悬浮在选项上时, 选项背景色高亮, 就像 Selectbox.expanded.item 一样.
 
     原版行为: 鼠标略过时, 只有开头的圆圈形状的颜色会稍稍变深.
 
-- SelectBox
-  - SelectBox 在展开后, 会对当前已选择的选项的文字以主题色高亮显示.
+- Selectbox
+  - Selectbox 在展开后, 会对当前已选择的选项的文字以主题色高亮显示.
 
-    原版行为: st.selectbox 的所有选项的文字都是默认色.
+    原版行为: st.Selectbox 的所有选项的文字都是默认色.
 
-  - SelectBox.accept_new_options 会在展开的面板内的第一行显示一个输入组件.
+  - Selectbox.accept_new_options 会在展开的面板内的第一行显示一个输入组件.
 
-    原版行为: st.selectbox 允许用户直接在输入触发器上输入文字, 但会跟折叠/展开操作混合, 体验不是很好.
+    原版行为: st.Selectbox 允许用户直接在输入触发器上输入文字, 但会跟折叠/展开操作混合, 体验不是很好.
+
+  - Selectbox 的展开面板使用高度动画 (120ms): 从 0 高度展开到内容高度, 展开过程中内容被裁剪, 因此不会溢出, 也不会出现滚动条 (展开结束后若内容超过 max-height, 才恢复为可滚动). 同时 chevron 图标旋转 180 度 (80ms, 比面板更快), 因此不会出现 "面板已经展开, 而 chevron 还没转到位" 的情况.
+
+    原版行为: st.Selectbox 的 chevron 在展开/折叠时保持不动, 仅靠面板的开合来提示状态; 面板也是瞬间出现的, 没有展开动画.
+
+  - Selectbox 输入框连续点击, 可以反复折叠/展开. 跟 Popover 的按钮行为一致 (触发器文字设置为 `user-select: none`, 因此连续点击不会变成文字选择状态).
+
+    原版行为: 只有连续点击 chevron 图标, 才能折叠/展开. 重复点击输入框, 会变成文字选择状态. 这是因为原版的 accept_new_options 功能与设计耦合导致的缺陷.
 
 - Table
   - TODO: Table 的单元格带有一些 padding.
