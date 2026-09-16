@@ -3,6 +3,8 @@ A general UI components set for pixel fidelity test.
 This script is hosting Streamlit app.
 """
 
+from time import sleep
+
 import streamlit as st
 
 
@@ -33,12 +35,23 @@ def main():
     )
 
     _table()
+    _progress()
     _exception()
 
 
 def _exception():
     if st.button(':red[Raise an error]'):
         raise Exception('Test error')
+
+
+def _progress():
+    # a determinate bar: it starts at 37% so the pixel tests have a fixed
+    # value to compare, and the button runs it through 1..100.
+    bar = st.progress(37, '37%')
+    if st.button('Run progress bar'):
+        for i in range(100):
+            sleep(0.03)
+            bar.progress(i + 1, '{}%'.format(i + 1))
 
 
 def _line_calibration() -> None:

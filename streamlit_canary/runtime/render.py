@@ -968,6 +968,12 @@ def _render_progress(comp: Progress) -> str:
     `value` is a 0-100 percentage, or `None` for an indeterminate
     (animated) bar. The bar is hidden while `visible` is false, so a
     long-running step can toggle it like a spinner.
+
+    The caption sits *above* the track, as it does in Streamlit, and the
+    fill is a square-ended rectangle: Streamlit keeps the bar at full width
+    and slides it with `transform: translateX(-(100 - percent)%)`, so the
+    rounded ends you see come from the track clipping it (see the
+    `.st-progress-*` rules in `page.css`).
     """
     hidden = '' if comp.visible.get() else ' hidden'
     value = comp.value.get()
@@ -976,11 +982,13 @@ def _render_progress(comp: Progress) -> str:
     else:
         pct = max(0, min(100, int(value)))
         bar = f'<div class="st-progress-bar" style="width:{pct}%"></div>'
+    # the caption stays in the tree even when empty: a `text` patch has to
+    # land somewhere, and `:empty` keeps it from taking up space meanwhile.
     text = render_markup(str(comp.text.get()))
     return (
         f'<div class="st-progress" data-id="{comp.id}"{hidden}>'
-        f'<div class="st-progress-track">{bar}</div>'
         f'<div class="st-progress-text">{text}</div>'
+        f'<div class="st-progress-track">{bar}</div>'
         f'</div>'
     )
 

@@ -1533,24 +1533,39 @@
   .st-row > .st-btn-icon { flex: 0 0 auto; }
 
   /* -- Progress bar (mirrors Streamlit's `st.progress`) -- */
+  /* Streamlit stacks the caption above the track, and neither the root nor
+     the caption carries a margin of its own: the 8px gap below the caption
+     is all there is, and the surrounding layout brings the rest.  The track
+     is an 8px bar with a 4px radius, and the fill is square-ended -- the
+     rounded ends come from the track clipping it (measured on :2202). */
   .st-progress {
     display: block;
-    margin-bottom: 8px;
   }
   .st-progress[hidden] { display: none; }
+  .st-progress-text {
+    /* Streamlit's caption is `line-height: normal` (19px at 14px font), not
+       the 1.6 the rest of the body text uses. */
+    margin-bottom: 8px;
+    font-size: var(--st-small-font-size);
+    line-height: normal;
+    color: var(--st-text-color);
+  }
+  .st-progress-text:empty { display: none; }
   .st-progress-track {
     position: relative;
     width: 100%;
     height: 8px;
-    border-radius: 999px;
+    border-radius: 4px;
     background-color: var(--st-secondary-background-color);
     overflow: hidden;
   }
   .st-progress-bar {
     height: 100%;
-    border-radius: 999px;
     background-color: var(--st-primary-color);
-    transition: width 0.2s ease;
+    /* Streamlit transitions the step change over 0.5s (`transform 0.5s` on
+       its own full-width fill); a width transition looks the same and keeps
+       the delta patch a plain `style="width:..%"`. */
+    transition: width 0.5s ease;
   }
   /* `value=None`: a sliding segment instead of a fixed width. */
   .st-progress-bar.is-indeterminate {
@@ -1561,12 +1576,6 @@
     0% { margin-left: -30%; }
     100% { margin-left: 100%; }
   }
-  .st-progress-text {
-    margin-top: 4px;
-    font-size: 14px;
-    color: var(--st-gray-color);
-  }
-  .st-progress-text:empty { display: none; }
 
   /* -- AltairChart (Vega-Lite spec drawn client-side by vega-embed) -- */
   .st-altair-chart {

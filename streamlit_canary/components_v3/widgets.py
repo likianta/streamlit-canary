@@ -24,6 +24,7 @@ reactive, e.g. `v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
 
 import textwrap
 import typing as tp
+from time import sleep
 
 from ..kernel import Property
 from ..kernel import Signal
@@ -1061,11 +1062,30 @@ class Progress(_HasText):
         text:  an optional caption shown under the bar (bindable).
         visible: whether the bar is shown (default False, bindable), so a
             long-running step can toggle it like a spinner.
+        total: how many steps the bar is driven through (see `update`).
+        auto_close: hide the bar when a `with` block ends.
 
     Properties:
         value:   int | None — the completion percentage.
         text:    str — the caption.
         visible: bool — whether the bar is shown.
+
+    A bar can also be *stepped*, which is how a loop-driven bar is usually
+    written (this mirrors `streamlit_canary.progress`, the design the
+    original applications use):
+
+        with v3.Progress(total=len(sheets)) as prog:
+            for sheet in sheets:
+                prog.update(sheet.title)
+
+    `update` advances `index` by one and moves `value` to
+    `index / total * 100`. A caller is free to set `total` itself once it is
+    known -- that is what `emei_kit_r6p0`'s collector does on its first step,
+    so a bare `v3.Progress()` can be handed to vendor code as-is.
+
+    Use the `with` form *inside* a handler (the block then spans the work).
+    At build time the block is the build itself, so it would close the bar
+    immediately -- construct the component plainly there instead.
     """
 
     def __init__(
@@ -1074,6 +1094,8 @@ class Progress(_HasText):
         *,
         text: str | Property = '',
         visible: bool | Property = False,
+        total: int = 0,
+        auto_close: bool = True,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(text, **kwargs)
@@ -1083,6 +1105,58 @@ class Progress(_HasText):
         elif value is not None:
             self.value.set(value)
         self.visible = _prop(False, visible)
+        # `total` / `index` are plain attributes on purpose: `update` runs in
+        # the worker thread that executes a handler, and vendor code (the
+        # collector) assigns `total` directly before its first `update`.
+        self.total = total
+        self._auto_close = auto_close
+
+    @property
+    def total(self) -> int:
+        """How many steps the bar is driven through (see `update`)."""
+        return self._total
+
+    @total.setter
+    def total(self, value: int) -> None:
+        """Re-initialise the step count; `index` restarts together with it.
+
+        Vendor code assigns this on the first step of a run, so the second
+        run must not carry on counting where the first one stopped -- the v1
+        shim got that for free, because every run built a fresh object.
+        """
+        self._total = value
+        self.index = 0
+
+    def __enter__(self) -> 'Progress':
+        # the base class keeps the component-tree protocol here (it pushes
+        # this component onto the build stack, like `with v3.Row():`), so it
+        # has to run first; on top of that, entering shows the bar.
+        super().__enter__()
+        self['visible'] = True
+        return self
+
+    def __exit__(self, *exc_info: tp.Any) -> bool:
+        if self._auto_close:
+            # let the browser paint the finished bar before it is hidden
+            sleep(0.2)
+            self.close()
+        return super().__exit__(*exc_info)
+
+    def update(self, item: tp.Any = None) -> None:
+        """Advance one step: move the bar, and caption the step."""
+        self.index += 1
+        if self.total:
+            # a caller may step past `total` (a retry, a count that grows),
+            # so the percentage is capped rather than overshooting 100
+            self['value'] = min(100, round(self.index / self.total * 100))
+        if item is not None:
+            self['text'] = '[{}/{}] {}'.format(self.index, self.total, item)
+        elif self.total:
+            self['text'] = '{:.2%}'.format(self.index / self.total)
+
+    def close(self) -> None:
+        """Hide the bar (the value stays, so it can be shown again)."""
+        self['visible'] = False
 
 
 class Radio(_OptionsWidget):

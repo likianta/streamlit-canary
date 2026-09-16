@@ -3,6 +3,8 @@ A general UI components set for pixel fidelity test.
 This script is hosting Streamlit Canary app.
 """
 
+from time import sleep
+
 import streamlit_canary as sc
 from streamlit_canary import components_v3 as v3
 
@@ -31,6 +33,8 @@ def main():
 
     _table()
 
+    _progress()
+
     _exception()
 
 
@@ -40,6 +44,22 @@ def _exception():
         @btn.on_click
         def _():
             raise Exception('Test error')
+
+
+def _progress():
+    # a determinate bar: it starts at 37% so the pixel tests have a fixed
+    # value to compare, and the button runs it through 1..100.  The handler
+    # blocks in a worker thread (see `runtime/server.py`), so the patches it
+    # emits reach the browser while the loop is still running.
+    bar = v3.Progress(37, text='37%', visible=True)
+    with v3.Button('Run progress bar') as btn:
+
+        @btn.on_click
+        def _run() -> None:
+            for i in range(100):
+                sleep(0.03)
+                bar['value'] = i + 1
+                bar['text'] = '{}%'.format(i + 1)
 
 
 def _line_calibration() -> None:
