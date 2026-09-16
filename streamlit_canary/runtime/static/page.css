@@ -536,9 +536,18 @@
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     font-family: var(--st-font);
+    /* Streamlit's button carries no font size of its own, so the
+       `<button>` inherits its 16px base size -- but the label `<p>` it
+       renders sets 14px, which is what the user actually sees. Match the
+       visible size, not the inherited one. */
     font-size: 14px;
     font-weight: 400;
     line-height: 1.6;
+    /* `#app` is a column flex container, so its default `align-items:
+       stretch` would blow the button up to the full width. Streamlit
+       sizes buttons to their content; the inline `width` that
+       `Button(width=...)` emits still wins over this. */
+    width: fit-content;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s;
     user-select: none;
@@ -575,8 +584,16 @@
     color: #ffffff;
     border-color: var(--st-primary-color);
   }
+  /* Hover darkens both the background and the border; pressing keeps the
+     base background but keeps the hover border. Mirrors Streamlit 1.63,
+     where the same colour derives from the primary colour. */
   .st-btn-primary:hover {
-    filter: brightness(1.1);
+    background-color: var(--st-primary-color-hover);
+    border-color: var(--st-primary-color-hover);
+  }
+  .st-btn-primary:active {
+    background-color: var(--st-primary-color);
+    border-color: var(--st-primary-color-hover);
   }
   .st-icon { font-size: 16px; line-height: 1; }
 

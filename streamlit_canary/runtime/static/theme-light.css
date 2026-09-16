@@ -4,6 +4,9 @@
     --st-text-color: #1f2328;
     --st-heading-color: #1f2328;
     --st-primary-color: #ff4b4b;
+    /* Streamlit's primary *button* hover background/border (measured on
+       Streamlit 1.63, dark theme): `#ff4b4b` resolves to `#ff0000`. */
+    --st-primary-color-hover: #ff0000;
     --st-border-color: #d0d7de;
     --st-border-color-light: #eaeef2;
     --st-widget-border-color: #d0d7de;
