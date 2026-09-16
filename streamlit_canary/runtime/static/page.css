@@ -1300,6 +1300,68 @@
     background-color: var(--st-hover-background-color);
     color: var(--st-text-color);
   }
+  /* -- Uncaught exception panel: traceback + Rerun (see page.js) -- */
+  /* Streamlit draws the exception inside the app body, where the script
+     failed. This runtime has no failure position to paste it into -- the
+     error comes out of an event handler, not out of rendering -- so it
+     floats at the top-right instead, next to the rerun button. */
+  .st-error-panel {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 2100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: border-box;
+    width: 560px;
+    max-width: calc(100vw - 32px);
+    max-height: 70vh;
+    padding: 12px 14px;
+    border: 1px solid var(--st-red-color);
+    border-radius: 8px;
+    background-color: var(--st-secondary-background-color);
+    box-shadow: 0 6px 20px rgba(var(--st-shadow-rgb), 0.45);
+    font-family: var(--st-font);
+    font-size: var(--st-base-font-size);
+    line-height: 1.3;
+  }
+  .st-error-panel[hidden] { display: none; }
+  .st-error-head {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+  }
+  /* The exception's last line, i.e. `Exception: Test error`, in the same
+     `redTextColor` Streamlit titles its exception box with. */
+  .st-error-title {
+    flex: 1 1 auto;
+    overflow: hidden;
+    color: var(--st-red-text-color);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st-error-body {
+    flex: 1 1 auto;
+    overflow: auto;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background-color: var(--st-code-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-code-font);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .st-error-actions {
+    display: flex;
+    flex: none;
+    justify-content: flex-end;
+  }
   /* -- Tabs (mirrors Streamlit's `st.tabs`) -- */
   .st-tabs {
     display: flex;

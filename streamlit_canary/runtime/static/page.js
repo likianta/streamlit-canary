@@ -2,6 +2,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'source_changed') { scShowRerunToast(msg.files || []); return; }
+    if (msg.type === 'error') { scShowError(msg.message); return; }
     if (msg.type === 'reloading') { scWaitForServer(); return; }
     if (msg.type !== 'patch') return;
     const el = document.querySelector(`[data-id="${msg.id}"]`);
@@ -1201,6 +1202,67 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         });
     };
     setTimeout(poll, 400);
+  }
+
+  // -- Uncaught exception panel ------------------------------------------
+  // A handler that raises is caught by the runtime and arrives here as one
+  // `traceback.format_exception` string (see `Runtime._report_error`).
+  // Unlike a rerun-based app, the tree survives the error, so the panel has
+  // nothing to repair -- it only has to be visible and dismissable. Its
+  // Rerun button restarts the process, exactly like the source-change
+  // notice, which is what "ignore this error and run again" needs.
+  function scErrorPanel() {
+    let el = document.getElementById('sc-error-panel');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'sc-error-panel';
+    el.className = 'st-error-panel';
+    el.hidden = true;
+    // Streamlit titles its exception box with the error's last line and
+    // keeps the whole traceback underneath, which is what we mirror.
+    el.innerHTML =
+      '<span class="st-error-head">' +
+      '<span class="st-error-title"></span>' +
+      '<button class="st-rerun-close" type="button" title="Dismiss" ' +
+      'onclick="scDismissError()">\u2715</button></span>' +
+      '<pre class="st-error-body"></pre>' +
+      '<div class="st-error-actions">' +
+      // same button as the source-change notice, hence the shared class
+      '<button class="st-rerun-btn" type="button" ' +
+      'onclick="scSendErrorRerun()">Rerun</button></div>';
+    document.body.appendChild(el);
+    return el;
+  }
+  function scShowError(message) {
+    const el = scErrorPanel();
+    const text = String(message == null ? '' : message).replace(/\s+$/, '');
+    const lines = text.split('\n');
+    el.querySelector('.st-error-title').textContent =
+      lines[lines.length - 1] || 'Uncaught exception';
+    el.querySelector('.st-error-body').textContent = text;
+    const btn = el.querySelector('.st-rerun-btn');
+    btn.textContent = 'Rerun';
+    btn.disabled = false;
+    // The source-change notice owns the top-right corner too; step below it
+    // when it happens to be on screen (both can be up at the same time).
+    const toast = document.getElementById('sc-rerun-toast');
+    const below = toast && !toast.hidden
+      ? toast.getBoundingClientRect().height + 8
+      : 0;
+    el.style.top = 16 + below + 'px';
+    el.hidden = false;
+  }
+  // The panel floats over the app, and the app stays usable after an error,
+  // so it must be possible to get it out of the way without restarting the
+  // process (dismissing only hides it; the next error brings it back).
+  function scDismissError() {
+    scErrorPanel().hidden = true;
+  }
+  function scSendErrorRerun() {
+    const btn = scErrorPanel().querySelector('.st-rerun-btn');
+    btn.disabled = true;
+    btn.textContent = 'Reloading\u2026';
+    scSendRerun();
   }
 
   // Fill the markdown placeholders that the server rendered, then draw any

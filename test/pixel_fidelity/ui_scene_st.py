@@ -33,6 +33,12 @@ def main():
     )
 
     _table()
+    _exception()
+
+
+def _exception():
+    if st.button(':red[Raise an error]'):
+        raise Exception('Test error')
 
 
 def _line_calibration() -> None:

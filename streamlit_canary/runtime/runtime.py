@@ -12,13 +12,18 @@ never runs again — only signal handlers execute.
 """
 
 import os
+import sys
+import traceback
 import typing as tp
 
 from ..kernel import Property
 
 if tp.TYPE_CHECKING:
-    from ..components_v3.base import Component
     from .server import WebSocketClient
+    from ..components_v3.base import Component
+else:
+    Component = tp.Any
+    WebSocketClient = tp.Any
 
 
 def _display_path(path: str) -> str:
@@ -27,6 +32,17 @@ def _display_path(path: str) -> str:
         return os.path.relpath(path, os.getcwd()).replace('\\', '/')
     except ValueError:  # different drive on Windows
         return path.replace('\\', '/')
+
+
+def _log_error(text: str) -> None:
+    """Echo a traceback to stderr, where uvicorn's own logging goes.
+
+    `print` is monkey-patched by neoprint in this package (it rejects
+    `flush=...` and decorates the output), so the traceback would come out
+    mangled; stderr keeps it byte-for-byte.
+    """
+    sys.stderr.write(text if text.endswith('\n') else text + '\n')
+    sys.stderr.flush()
 
 
 class Runtime:
@@ -86,7 +102,21 @@ class Runtime:
         A component may also handle an event itself by defining an
         `_on_<event>` method, which receives the raw client value. That is
         how Tabs consumes `change` and Selectbox consumes `new_option`.
+
+        An exception raised by a handler is *caught* and reported to the
+        browsers (`_report_error`). Letting it escape would tear the
+        websocket down (Starlette closes it), so the client would lose every
+        later patch -- while the built tree stays perfectly valid. The error
+        is therefore shown instead, and the user decides when to rerun.
         """
+        try:
+            self._dispatch_event(component_id, event, value)
+        except Exception as exc:
+            self._report_error(exc)
+
+    def _dispatch_event(
+        self, component_id: str, event: str, value: tp.Any = None
+    ) -> None:
         comp = self._components.get(component_id)
         if comp is None:
             return
@@ -175,6 +205,23 @@ class Runtime:
 
     def _notify_source_changed(self) -> None:
         self._broadcast(self._source_message())
+
+    # -- error reporting --------------------------------------------------
+
+    def _report_error(self, exc: BaseException) -> None:
+        """Send a handler's traceback to the browsers (and to the terminal).
+
+        The whole traceback goes out as one `format_exception` string --
+        `str(exc)` alone would only carry the last line, and the source
+        excerpts plus the frame list are exactly what makes an error
+        actionable. The frontend renders it in a panel whose Rerun button
+        restarts the process, which is how the error is dismissed.
+        """
+        message = ''.join(
+            traceback.format_exception(type(exc), exc, exc.__traceback__)
+        )
+        _log_error(message)
+        self._broadcast({'type': 'error', 'message': message})
 
     # -- tree access (for rendering) -------------------------------------
 

@@ -31,6 +31,16 @@ def main():
 
     _table()
 
+    _exception()
+
+
+def _exception():
+    with v3.Button(':red[Raise an error]') as btn:
+
+        @btn.on_click
+        def _():
+            raise Exception('Test error')
+
 
 def _line_calibration() -> None:
     with v3.Tabs(('One-line Calibration', 'Two-line Calibration')) as tabs:
