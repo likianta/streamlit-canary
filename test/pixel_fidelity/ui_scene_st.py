@@ -11,7 +11,15 @@ def main():
         st.selectbox(
             'Select device', ('ASA EMEI r6p0', 'Fake device', 'Remote device')
         )
-        st.number_input('Channel', min_value=0, max_value=3, value=0, step=1)
+        st.number_input(
+            'Channel',
+            min_value=0,
+            max_value=3,
+            value=0,
+            step=1,
+            help='Available channels can be read from `0xF102[3:0]`.',
+            #   single-line help.
+        )
         st.button('Start eye monitor', type='primary', width='stretch')
         with st.popover(':material/adjust:', help='Line calibration'):
             with st.container(width=540):
@@ -49,7 +57,7 @@ def _line_calibration() -> None:
                     value=2.0,
                     step=1.0,
                     format='%0.1f',
-                    help=(
+                    help=(  # multi-line help
                         """
                         The Bias parameter is used to measure the pulse offset 
                         caused by the routing design on the PCB board. 
@@ -67,7 +75,43 @@ def _line_calibration() -> None:
                 )
             st.button('Start calibration')
     with calib_tabs[1]:
-        ...
+        with st.container(horizontal=True, vertical_alignment='bottom'):
+            st.text_input(
+                'First line length',
+                '1m@ch0',
+                help=(  # help text, markdown with table
+                    """
+                    Supported format:
+
+                    | Example  | Result                   | Note        |
+                    | -------- | ------------------------ | ----------- |
+                    | `1`      | channel=0, line_lengh=1m |             |
+                    | `1m`     | channel=0, line_lengh=1m | recommended |
+                    | `1m@ch0` | channel=0, line_lengh=1m | recommended |
+                    | `1m@0`   | channel=0, line_lengh=1m |             |
+                    | `1@0`    | channel=0, line_lengh=1m |             |
+                    """
+                ),
+            )
+            st.button('Calibrate', key='_:two_line_calib:calib_btn_1')
+            st.text_input(
+                'Second line length',
+                '2m@ch1',
+                help=(
+                    """
+                    Supported format:
+
+                    | Example  | Result                   | Note        |
+                    | -------- | ------------------------ | ----------- |
+                    | `1`      | channel=0, line_lengh=1m |             |
+                    | `1m`     | channel=0, line_lengh=1m | recommended |
+                    | `1m@ch0` | channel=0, line_lengh=1m | recommended |
+                    | `1m@0`   | channel=0, line_lengh=1m |             |
+                    | `1@0`    | channel=0, line_lengh=1m |             |
+                    """
+                ),
+            )
+            st.button('Calibrate', key='_:two_line_calib:calib_btn_2')
 
 
 def _table():

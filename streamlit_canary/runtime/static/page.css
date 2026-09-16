@@ -343,10 +343,13 @@
   .st-widget-label--collapsed {
     display: none;
   }
+  /* The info glyph sits at the far right of the label row -- above the right
+     edge of the input -- not next to the label text, which is where Streamlit
+     puts it. */
   .st-widget-label .st-widget-help {
     display: inline-flex;
     align-items: center;
-    margin-left: 4px;
+    margin-left: auto;
     color: var(--st-text-color);
     opacity: 0.4;
     cursor: help;
@@ -356,33 +359,30 @@
   }
 
   /* Help tooltip: markdown-capable replacement for the native `title`.
-     Positioned in viewport coordinates by `scShowHelp` in page.js. */
+     Positioned in viewport coordinates by `scShowHelp` in page.js. It is an
+     interactive pane (links, tables, selectable text), so the pointer may
+     travel from the glyph onto it; `scScheduleHelpHide` in page.js keeps it
+     alive during that trip. Metrics mirror Streamlit's `stTooltipContent`. */
   .st-help-tooltip {
     position: fixed;
     top: 0;
     left: 0;
     z-index: 1000;
-    max-width: 320px;
-    padding: 8px 12px;
+    max-width: 672px;
+    padding: 6px 12px;
     border: 1px solid var(--st-border-color);
     border-radius: 8px;
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
     box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.15);
     font-family: var(--st-font);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 400;
     line-height: 1.5;
-    pointer-events: none;
+    pointer-events: auto;
   }
   .st-help-tooltip[hidden] {
     display: none;
-  }
-  .st-help-tooltip p {
-    margin: 0 0 8px;
-  }
-  .st-help-tooltip p:last-child {
-    margin-bottom: 0;
   }
 
   /* Text input (mirrors Streamlit's `st.text_input`) */

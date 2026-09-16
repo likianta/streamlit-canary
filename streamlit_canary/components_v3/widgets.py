@@ -24,6 +24,7 @@ reactive, e.g. `v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
 
 from __future__ import annotations
 
+import textwrap
 import typing as tp
 
 from ..kernel import Property
@@ -96,6 +97,35 @@ def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
     """
     prop = Property(default)
     prop.set_or_bind(source)
+    return prop
+
+
+def _dedent_help(value: tp.Any) -> str:
+    """Strip the common indentation from a `help` text.
+
+    Help is normally written as an indented triple-quoted literal. Markdown
+    reads four leading spaces as a code block, so the indent has to go before
+    the text is ever handed to the parser -- Streamlit dedents for the same
+    reason. Deeper indentation (an intentional code block) is left alone,
+    since only the *common* prefix is removed.
+    """
+    if value is None:
+        return ''
+    return textwrap.dedent(str(value))
+
+
+def _help_prop(help: str | Property) -> Property[str]:
+    """Declare a `help` Property, dedenting its text on the way in.
+
+    The dedent has to happen on the property itself (rather than while
+    rendering) so that a `help` reachable through a `Property` is dedented too
+    -- the frontend receives its value as a delta patch.
+    """
+    prop: Property[str] = Property('')
+    if isinstance(help, Property):
+        prop.bind(help, _dedent_help)
+    else:
+        prop.set(_dedent_help(help))
     return prop
 
 
@@ -190,7 +220,7 @@ class _HelpText(_HasText):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(text, **kwargs)
-        self.help = _prop('', help)
+        self.help = _help_prop(help)
 
 
 class _Labeled(Component):
@@ -214,7 +244,7 @@ class _Labeled(Component):
         super().__init__(**kwargs)
         self.label = _prop('', label)
         self._label_visibility = label_visibility
-        self.help = _prop('', help)
+        self.help = _help_prop(help)
 
 
 class _OptionsWidget(_Labeled):
@@ -433,7 +463,7 @@ class Button(_HasText):
         self.enabled = _prop(True, enabled)
         # `help` is reactive too: Streamlit recomputes it on every rerun, so
         # a no-rerun port needs a bound Property to reach the same effect.
-        self.help = _prop('', '' if help is None else help)
+        self.help = _help_prop('' if help is None else help)
         # `type` is static config, not a reactive Property (`width` is
         # collected by the base class).
         self._type = type
@@ -1011,7 +1041,7 @@ class Popover(_HasText):
     ) -> None:
         super().__init__(label, width=width, **kwargs)
         self.visible = _prop(True, visible)
-        self.help = _prop('', help)
+        self.help = _help_prop(help)
         self._panel_align = panel_align
         self._panel_max_height = panel_max_height
 
@@ -1491,8 +1521,8 @@ class TextInput(_Labeled):
     def __init__(
         self,
         label: str | Property = '',
-        *,
         value: str | Property = '',
+        *,
         placeholder: str = '',
         enabled: bool | Property = True,
         width: Width | None = None,

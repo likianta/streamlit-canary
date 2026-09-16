@@ -5,4 +5,5 @@
 /references/
 /test/event_driven_system/asa_gui_copy
 /test/event_driven_system/pyproject_manager_copy
+/_probe.py
 __pycache__/

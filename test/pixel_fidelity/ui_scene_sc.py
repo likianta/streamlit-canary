@@ -12,8 +12,11 @@ def main():
         v3.Selectbox(
             'Select device', ('ASA EMEI r6p0', 'Fake device', 'Remote device')
         )
-        v3.NumberInput('Channel', 0, 0, 3, 1)
-        #   positional arguments: label, value, min_value, max_value, step
+        v3.NumberInput(
+            *('Channel', 0, 0, 3, 1),
+            #   positional arguments: label, value, min_value, max_value, step
+            help='Available channels can be read from `0xF102[3:0]`.',
+        )
         v3.Button('Start eye monitor', type='primary', width='stretch')
         with v3.Popover(':material/adjust:', help='Line calibration'):
             with v3.Container(width=540):
@@ -73,7 +76,44 @@ def _line_calibration() -> None:
                         )
                 v3.Button('Start calibration')
         with next(tabs):
-            ...
+            with v3.Row('bottom'):
+                v3.TextInput(
+                    'First line length',
+                    '1m@ch0',
+                    help=(
+                        """
+                        Supported format:
+
+                        | Example  | Result                   | Note        |
+                        | -------- | ------------------------ | ----------- |
+                        | `1`      | channel=0, line_lengh=1m |             |
+                        | `1m`     | channel=0, line_lengh=1m | recommended |
+                        | `1m@ch0` | channel=0, line_lengh=1m | recommended |
+                        | `1m@0`   | channel=0, line_lengh=1m |             |
+                        | `1@0`    | channel=0, line_lengh=1m |             |
+                        """
+                    ),
+                )
+            v3.Button('Calibrate')
+            with v3.Row('bottom'):
+                v3.TextInput(
+                    'Second line length',
+                    '2m@ch1',
+                    help=(
+                        """
+                        Supported format:
+
+                        | Example  | Result                   | Note        |
+                        | -------- | ------------------------ | ----------- |
+                        | `1`      | channel=0, line_lengh=1m |             |
+                        | `1m`     | channel=0, line_lengh=1m | recommended |
+                        | `1m@ch0` | channel=0, line_lengh=1m | recommended |
+                        | `1m@0`   | channel=0, line_lengh=1m |             |
+                        | `1@0`    | channel=0, line_lengh=1m |             |
+                        """
+                    ),
+                )
+            v3.Button('Calibrate')
 
 
 def _table():

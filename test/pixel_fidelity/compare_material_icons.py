@@ -425,6 +425,11 @@ def main() -> int:
                 sc_chev['transform'] == 'none',
             )
 
+            # Park the pointer in a corner first: a tooltip left open by an
+            # earlier hover would otherwise swallow the click (in either app).
+            for page in (st_page, sc_page):
+                page.mouse.move(4, 4)
+                page.wait_for_timeout(400)
             st_page.click(ST_SELECTORS['popover_chevron'])
             sc_page.click(SC_SELECTORS['popover_chevron'])
             st_page.wait_for_timeout(500)

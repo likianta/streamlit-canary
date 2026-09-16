@@ -1123,10 +1123,13 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   // trigger is the info glyph next to a label, or the button itself (which
   // is how Streamlit wires `st.button`'s help).
   let scHelpTip = null;
+  let scHelpTimer = 0;
   function scHelpTooltipEl() {
     if (scHelpTip) return scHelpTip;
     scHelpTip = document.createElement('div');
-    scHelpTip.className = 'st-help-tooltip';
+    // `st-md` brings the markdown styling (tables, code, lists, spacing) with
+    // it, exactly as it does for a `.st-md-block` placeholder.
+    scHelpTip.className = 'st-help-tooltip st-md';
     scHelpTip.setAttribute('role', 'tooltip');
     scHelpTip.hidden = true;
     document.body.appendChild(scHelpTip);
@@ -1153,17 +1156,50 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     tip.style.left = Math.max(4, left) + 'px';
   }
   function scHideHelp() {
+    if (scHelpTimer) {
+      clearTimeout(scHelpTimer);
+      scHelpTimer = 0;
+    }
     if (scHelpTip) scHelpTip.hidden = true;
+  }
+  // Leaving the glyph does not hide the tooltip right away: the pointer needs
+  // a moment to cross the gap onto the pane, and arriving there cancels the
+  // pending hide. Without the delay the pane closes on the way and can never
+  // be entered.
+  function scScheduleHelpHide() {
+    if (scHelpTimer) clearTimeout(scHelpTimer);
+    scHelpTimer = setTimeout(() => {
+      scHelpTimer = 0;
+      if (scHelpTip) scHelpTip.hidden = true;
+    }, 200);
   }
   function scHelpTrigger(node) {
     return node && node.closest ? node.closest('[data-help]') : null;
   }
+  // The pane is interactive (links, tables, selectable text), so hovering it
+  // has to count as "still on the help".
+  function scInstallHelpTooltipHandlers() {
+    const tip = scHelpTooltipEl();
+    tip.addEventListener('mouseenter', () => {
+      if (scHelpTimer) {
+        clearTimeout(scHelpTimer);
+        scHelpTimer = 0;
+      }
+    });
+    tip.addEventListener('mouseleave', scScheduleHelpHide);
+  }
+  scInstallHelpTooltipHandlers();
   document.addEventListener('mouseover', (e) => {
     const t = scHelpTrigger(e.target);
-    if (t) scShowHelp(t);
+    if (!t) return;
+    if (scHelpTimer) {
+      clearTimeout(scHelpTimer);
+      scHelpTimer = 0;
+    }
+    scShowHelp(t);
   });
   document.addEventListener('mouseout', (e) => {
-    if (scHelpTrigger(e.target)) scHideHelp();
+    if (scHelpTrigger(e.target)) scScheduleHelpHide();
   });
   document.addEventListener('focusin', (e) => {
     const t = scHelpTrigger(e.target);
