@@ -29,7 +29,9 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-width: 768px;
+    /* Streamlit's main block container is 46rem (736px) *including* its
+       1rem horizontal padding, so its content column is 704px wide. */
+    max-width: 736px;
     margin: 0 auto;
     /* Vertical rhythm of Streamlit's main block container. */
     padding: 96px 16px 160px;
@@ -115,13 +117,13 @@
     font-size: 0.85em;
     padding: 1px 5px;
     border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: var(--st-code-background-color);
   }
   .st-md pre {
     margin: 0 0 8px;
     padding: 10px 12px;
     border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.06);
+    background-color: var(--st-code-background-color);
     overflow-x: auto;
   }
   .st-md pre code {
@@ -164,8 +166,8 @@
     display: flex;
     align-items: center;
     min-height: 40px;
-    background-color: rgba(61, 213, 109, 0.2);
-    color: #5ce488;
+    background-color: var(--st-green-background-color);
+    color: var(--st-green-text-color);
     border-radius: 8px;
     padding: 4px 12px;
   }
@@ -176,12 +178,12 @@
   }
   /* Alert variants: the base colours above are the success palette. */
   .st-alert-warning .st-alert-container {
-    background-color: rgba(255, 189, 69, 0.2);
-    color: #ffbd45;
+    background-color: var(--st-orange-background-color);
+    color: var(--st-orange-text-color);
   }
   .st-alert-info .st-alert-container {
-    background-color: rgba(61, 157, 243, 0.2);
-    color: #3d9df3;
+    background-color: var(--st-blue-background-color);
+    color: var(--st-blue-text-color);
   }
 
   /* Spinner */
@@ -309,7 +311,7 @@
     border-radius: 8px;
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.15);
     font-family: var(--st-font);
     font-size: 13px;
     font-weight: 400;
@@ -431,28 +433,61 @@
     cursor: pointer;
   }
   .st-number-step:hover {
-    background-color: rgba(172, 177, 195, 0.15);
+    background-color: var(--st-hover-background-color);
     color: var(--st-text-color);
   }
 
-  /* Table (mirrors Streamlit's `st.table`) */
+  /* Table (mirrors Streamlit's `st.table`): a key column rendered as
+     `<th scope="row">` plus a value column, inside a bordered, scrollable
+     box. The rules inside are horizontal only, and the last row has none. */
   .st-table {
-    overflow: clip;
     margin-bottom: 8px;
   }
+  /* `width='content'`: hug the contents instead of filling the column. */
+  .st-table--content,
+  .st-table--content .st-table-scroll {
+    width: fit-content;
+  }
+  .st-table--content .st-table-table {
+    width: auto;
+  }
+  .st-table-scroll {
+    overflow: auto;
+    border: 0.8px solid var(--st-dataframe-border-color);
+  }
   .st-table-table {
+    display: inline-table;
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
     color: var(--st-text-color);
     font-family: var(--st-font);
-    font-size: 16px;
+    font-size: 14px;
+  }
+  .st-table-key {
+    padding: 4px 6px 4px 8px;
+    border-right: 0.8px solid var(--st-dataframe-border-color);
+    /* Streamlit renders the key column in the muted text colour at the
+       same weight as the values. */
+    color: var(--st-gray-color);
+    font-weight: 400;
+    text-align: start;
   }
   .st-table-cell {
     padding: 4px 6px;
     text-align: left;
-    vertical-align: middle;
   }
+  .st-table-key,
+  .st-table-cell {
+    vertical-align: middle;
+    border-bottom: 0.8px solid var(--st-dataframe-border-color);
+    /* Streamlit's cells use a tighter 1.5 leading than the 1.6 body. */
+    line-height: 1.5;
+  }
+  .st-table-table > tbody > tr:last-child > * {
+    border-bottom: none;
+  }
+  .st-table-key p,
   .st-table-cell p {
     margin: 0;
   }
@@ -462,7 +497,7 @@
     position: relative;
     margin-bottom: 8px;
     border-radius: 8px;
-    background-color: #1a1c24;
+    background-color: var(--st-code-background-color);
     overflow: hidden;
   }
   .st-code pre {
@@ -474,7 +509,7 @@
     font-family: 'Source Code Pro', monospace;
     font-size: 14px;
     line-height: 1.6;
-    color: #fafafa;
+    color: var(--st-text-color);
     white-space: pre;
   }
   .st-code-toolbar {
@@ -499,7 +534,7 @@
     height: 30.4px;
     padding: 4px;
     border-radius: 8px;
-    background-color: #131720;
+    background-color: var(--st-code-toolbar-background-color);
   }
   .st-code-copy {
     display: flex;
@@ -511,11 +546,11 @@
     border: none;
     border-radius: 8px;
     background-color: transparent;
-    color: #fafafa;
+    color: var(--st-text-color);
     cursor: pointer;
   }
   .st-code-copy:hover {
-    background-color: rgba(172, 177, 195, 0.15);
+    background-color: var(--st-hover-background-color);
   }
   .st-code-copy svg {
     width: 14.4px;
@@ -571,17 +606,17 @@
   .st-btn-secondary {
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
-    border-color: rgba(250, 250, 250, 0.2);
+    border-color: var(--st-border-color);
   }
   .st-btn-secondary:hover {
-    background-color: rgba(172, 177, 195, 0.15);
+    background-color: var(--st-hover-background-color);
   }
   .st-btn-secondary:active {
-    background-color: rgba(172, 177, 195, 0.25);
+    background-color: var(--st-active-background-color);
   }
   .st-btn-primary {
     background-color: var(--st-primary-color);
-    color: #ffffff;
+    color: var(--st-on-primary-color);
     border-color: var(--st-primary-color);
   }
   /* Hover darkens both the background and the border; pressing keeps the
@@ -626,7 +661,7 @@
   .st-selectbox-trigger:focus {
     outline: none;
     border-color: var(--st-primary-color);
-    box-shadow: 0 0 0 2px rgba(255, 75, 75, 0.2);
+    box-shadow: 0 0 0 2px rgba(var(--st-primary-color-rgb), 0.2);
   }
   .st-selectbox-value {
     flex: 1;
@@ -654,7 +689,7 @@
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     background-color: var(--st-secondary-background-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.4);
     padding: 4px 0;
   }
   .st-selectbox-option {
@@ -756,7 +791,7 @@
     user-select: none;
   }
   .st-radio-item:has(input:focus-visible) {
-    background-color: rgba(172, 177, 195, 0.25);
+    background-color: var(--st-active-background-color);
   }
   /* The real <input> is visually hidden; the indicator is drawn with divs. */
   .st-radio-input-wrap {
@@ -789,7 +824,7 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background-color: rgba(250, 250, 250, 0.2);
+    background-color: var(--st-border-color);
   }
   .st-radio-dot {
     width: 14px;
@@ -803,7 +838,7 @@
   .st-radio-item:has(input:checked) .st-radio-dot {
     width: 6px;
     height: 6px;
-    background-color: #ffffff;
+    background-color: var(--st-on-primary-color);
   }
   .st-radio-markdown {
     display: block;
@@ -852,7 +887,7 @@
     width: 16px;
     height: 16px;
     margin-top: 2px;
-    border: 1px solid rgba(250, 250, 250, 0.2);
+    border: 1px solid var(--st-border-color);
     border-radius: 4px;
     background-color: transparent;
   }
@@ -860,7 +895,7 @@
     width: 9.35px;
     height: 9.35px;
     fill: none;
-    stroke: #ffffff;
+    stroke: var(--st-on-primary-color);
     stroke-width: 2.5;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -910,7 +945,7 @@
     width: 40px;
     height: 22px;
     border-radius: 11px;
-    background-color: rgba(250, 250, 250, 0.2);
+    background-color: var(--st-border-color);
     transition: background-color 0.2s ease;
   }
   .st-toggle-thumb {
@@ -920,7 +955,7 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background-color: #ffffff;
+    background-color: var(--st-on-primary-color);
     transition: transform 0.2s ease;
   }
   .st-toggle-label:has(input:checked) .st-toggle-track {
@@ -975,7 +1010,7 @@
     gap: 16px;
     min-width: 320px;
     padding: 23px;
-    border: 0.8px solid rgba(250, 250, 250, 0.2);
+    border: 0.8px solid var(--st-border-color);
     border-radius: 12px;
     background-color: var(--st-background-color);
   }
@@ -1037,7 +1072,7 @@
     border: 0.8px solid var(--st-border-color);
     border-radius: 8px;
     background-color: var(--st-secondary-background-color);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 6px 20px rgba(var(--st-shadow-rgb), 0.45);
     font-family: var(--st-font);
     font-size: var(--st-base-font-size);
     line-height: 1.3;
@@ -1077,7 +1112,7 @@
     border: none;
     border-radius: var(--st-button-radius);
     background-color: var(--st-primary-color);
-    color: #ffffff;
+    color: var(--st-on-primary-color);
     font-family: var(--st-font);
     font-size: 14px;
     cursor: pointer;
@@ -1097,7 +1132,7 @@
     cursor: pointer;
   }
   .st-rerun-close:hover {
-    background-color: rgba(172, 177, 195, 0.15);
+    background-color: var(--st-hover-background-color);
     color: var(--st-text-color);
   }
   /* -- Tabs (mirrors Streamlit's `st.tabs`) -- */
@@ -1176,7 +1211,7 @@
     align-items: center;
     justify-content: center;
     padding: 32px;
-    background-color: rgba(0, 0, 0, 0.6);
+    background-color: var(--st-overlay-color);
   }
   .st-dialog-backdrop[hidden] { display: none; }
   .st-dialog {
@@ -1188,7 +1223,7 @@
     border: 1px solid var(--st-border-color);
     border-radius: var(--st-base-radius);
     background-color: var(--st-background-color);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(var(--st-shadow-rgb), 0.5);
     overflow: hidden;
   }
   .st-dialog-header {
@@ -1251,7 +1286,7 @@
     width: 100%;
     height: 8px;
     border-radius: 999px;
-    background-color: rgba(255, 255, 255, 0.14);
+    background-color: var(--st-secondary-background-color);
     overflow: hidden;
   }
   .st-progress-bar {
@@ -1330,7 +1365,7 @@
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     background-color: var(--st-secondary-background-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.4);
   }
   .st-multiselect-dropdown[hidden] { display: none; }
   .st-multiselect-option {

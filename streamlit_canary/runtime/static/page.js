@@ -199,7 +199,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         const fmt = window.scRenderMarkup;
         tbody.innerHTML = (msg.value || []).map(r =>
           '<tr>' +
-          '<td class="st-table-cell"><p>' + fmt(String(r[0])) + '</p></td>' +
+          '<th class="st-table-key" scope="row"><p>' + fmt(String(r[0])) +
+          '</p></th>' +
           '<td class="st-table-cell"><p>' + fmt(String(r[1])) + '</p></td>' +
           '</tr>'
         ).join('');
@@ -578,10 +579,24 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     folder:'📁', folder_open:'📂', description:'📄', location_on:'📍',
     home:'⌂', undo:'↶', info:'ⓘ', warning:'⚠'
   };
+  // Streamlit renders the `:color[..]` extension with the theme's
+  // `--st-<name>-text-color`, so read that instead of hardcoding -- it is
+  // what makes the coloured text follow the light / dark theme.
+  function scThemeColor(name, fallback) {
+    const value = getComputedStyle(document.documentElement)
+      .getPropertyValue('--st-' + name + '-text-color').trim();
+    return value || fallback;
+  }
   const scColors = {
-    red:'#ff6c6c', orange:'#ffbd45', yellow:'#ffffc2', blue:'#3d9df3',
-    green:'#5ce488', violet:'#b27eff', gray:'rgba(250, 250, 250, 0.6)',
-    grey:'rgba(250, 250, 250, 0.6)', rainbow:null
+    red: scThemeColor('red', '#ff6c6c'),
+    orange: scThemeColor('orange', '#ffbd45'),
+    yellow: scThemeColor('yellow', '#ffffc2'),
+    blue: scThemeColor('blue', '#3d9df3'),
+    green: scThemeColor('green', '#5ce488'),
+    violet: scThemeColor('violet', '#b27eff'),
+    gray: scThemeColor('gray', 'rgba(250, 250, 250, 0.4)'),
+    grey: scThemeColor('gray', 'rgba(250, 250, 250, 0.4)'),
+    rainbow: null
   };
   function scColorOpen(color) {
     const css = scColors[color];

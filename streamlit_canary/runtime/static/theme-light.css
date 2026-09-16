@@ -1,25 +1,76 @@
 :root {
-    --st-background-color: #ffffff;
-    --st-secondary-background-color: #f6f8fa;
-    --st-text-color: #1f2328;
-    --st-heading-color: #1f2328;
-    --st-primary-color: #ff4b4b;
+    /* Streamlit's built-in "Light" theme, token for token.
+       Values come from the frontend theme definition plus the derived
+       tokens it computes from them (see the notes on each group). */
+    --st-background-color: #ffffff;                    /* bgColor     */
+    --st-secondary-background-color: #f0f2f6;          /* secondaryBg */
+    --st-text-color: #31333f;                          /* bodyText    */
+    --st-heading-color: #31333f;                       /* = bodyText  */
+    --st-primary-color: #ff4b4b;                       /* primary     */
     /* Streamlit's primary *button* hover background/border (measured on
        Streamlit 1.63, dark theme): `#ff4b4b` resolves to `#ff0000`. */
     --st-primary-color-hover: #ff0000;
-    --st-border-color: #d0d7de;
-    --st-border-color-light: #eaeef2;
-    --st-widget-border-color: #d0d7de;
-    --st-base-radius: 8px;
-    --st-button-radius: 8px;
+    --st-link-color: #0054a3;                          /* = blueTextColor */
+    /* Border tokens. Streamlit derives them from the text colour:
+       `borderColor = fadedText10` = rgba(bodyText, 0.2),
+       `borderColorLight = fadedText05` = rgba(bodyText, 0.1). */
+    --st-border-color: rgba(49, 51, 63, 0.2);
+    --st-border-color-light: rgba(49, 51, 63, 0.1);
+    /* Streamlit leaves `widgetBorderColor` unset (CCv2 falls back to
+       `transparent`) because its inputs are filled with the secondary
+       background. We draw a real outline, so reuse `borderColor`. */
+    --st-widget-border-color: rgba(49, 51, 63, 0.2);
+    /* `codeBackgroundColor = bgMix` = mix(bgColor, secondaryBg, 50%). */
+    --st-code-background-color: #f8f9fb;
+    --st-code-text-color: #158237;                     /* = greenTextColor */
+    --st-dataframe-border-color: rgba(49, 51, 63, 0.1);
+    --st-dataframe-header-background-color: #f8f9fb;   /* = bgMix */
+    --st-base-radius: 8px;                             /* radii.default */
+    --st-button-radius: 8px;                           /* radii.button  */
     --st-font: "Source Sans", sans-serif;
     --st-heading-font: "Source Sans", sans-serif;
     --st-code-font: "Source Code Pro", "SF Mono", monospace;
-    --st-base-font-size: 14px;
+    --st-base-font-size: 16px;
     --st-base-font-weight: 400;
-    --st-green-color: #1a7f37;
-    --st-orange-color: #bf8700;
-    --st-red-color: #cf222e;
-    --st-blue-color: #0969da;
-    --st-gray-color: #57606a;
-  }
+    /* Muted text. This is Streamlit's `fadedText60` = rgba(bodyText, 0.6),
+       which is what its captions / secondary labels render as -- *not* the
+       `grayColor` palette entry (#a3a8b8), which nothing consumes. */
+    --st-gray-color: rgba(49, 51, 63, 0.6);
+    --st-gray-text-color: rgba(49, 51, 63, 0.4);
+    /* Status palette: `<name>-color` is the light-theme accent, and
+       `<name>-text-color` is what `:red[..]`-style markdown text uses. */
+    --st-red-color: #ff4b4b;
+    --st-red-text-color: #bd4043;
+    --st-orange-color: #ffa421;
+    --st-orange-text-color: #e2660c;
+    --st-yellow-color: #faca2b;
+    --st-yellow-text-color: #926c05;
+    --st-blue-color: #1c83e1;
+    --st-blue-text-color: #0054a3;
+    --st-green-color: #21c354;
+    --st-green-text-color: #158237;
+    --st-violet-color: #803df5;
+    --st-violet-text-color: #583f84;
+    /* Marks drawn on top of the primary colour (button labels, the
+       checkbox tick, the radio dot, the toggle knob) are white in both
+       themes. */
+    --st-on-primary-color: #ffffff;
+    /* Channel form of `--st-primary-color`, for translucent derivations
+       such as the focus ring. */
+    --st-primary-color-rgb: 255, 75, 75;
+    /* Overlay / mix constants that Streamlit keeps as translucent values;
+       only the base colour differs between the themes. */
+    --st-hover-background-color: rgba(151, 166, 195, 0.15);
+    --st-active-background-color: rgba(151, 166, 195, 0.25);
+    --st-overlay-color: rgba(0, 0, 0, 0.4);
+    --st-shadow-rgb: 0, 0, 0;
+    /* The copy chip sitting on top of a code block. */
+    --st-code-toolbar-background-color: #eef1f5;
+    /* Alert backgrounds: the light accent at 90% transparency. */
+    --st-red-background-color: rgba(255, 43, 43, 0.1);
+    --st-orange-background-color: rgba(255, 164, 33, 0.1);
+    --st-yellow-background-color: rgba(255, 255, 18, 0.1);
+    --st-blue-background-color: rgba(28, 131, 255, 0.1);
+    --st-green-background-color: rgba(33, 195, 84, 0.1);
+    --st-violet-background-color: rgba(154, 93, 255, 0.1);
+}

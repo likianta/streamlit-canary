@@ -1198,6 +1198,8 @@ class Table(Component):
     Args:
         rows: an iterable of `(key, value)` pairs. Both cells accept the
             same `:color[..]` markup as `v3.Text`. Bindable.
+        width: "stretch" (Streamlit's default) fills the parent column;
+            "content" hugs the cell contents; an int is a pixel width.
 
     Properties:
         rows: list[tuple[str, str]] — the table body.
@@ -1206,9 +1208,13 @@ class Table(Component):
     def __init__(
         self,
         rows: tp.Iterable[tp.Tuple[str, str]] | Property | None = None,
+        *,
+        width: tp.Union[int, tp.Literal['content', 'stretch']] = 'stretch',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
+        # `width` is static config, not reactive Property.
+        self._width = width
         self.rows = Property([])
         if isinstance(rows, Property):
             self.rows.bind(rows)

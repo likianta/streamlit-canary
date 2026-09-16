@@ -467,16 +467,25 @@ def _render_code(comp: Code) -> str:
 
 
 def _render_table(comp: Table) -> str:
+    """Render `st.table`'s shape: an `<th scope="row">` key column plus a
+    value column, wrapped in a bordered, scrollable box."""
     body = ''.join(
         '<tr>'
-        f'<td class="st-table-cell"><p>{render_markup(str(key))}</p></td>'
+        f'<th class="st-table-key" scope="row">'
+        f'<p>{render_markup(str(key))}</p></th>'
         f'<td class="st-table-cell"><p>{render_markup(str(value))}</p></td>'
         '</tr>'
         for key, value in (comp.rows.get() or [])
     )
+    cls = 'st-table'
+    if getattr(comp, '_width', 'stretch') == 'content':
+        cls += ' st-table--content'
     return (
-        f'<div class="st-table" data-id="{comp.id}">'
+        f'<div class="{cls}" data-id="{comp.id}"'
+        f'{_style_width(getattr(comp, "_width", "stretch"))}>'
+        f'<div class="st-table-scroll">'
         f'<table class="st-table-table"><tbody>{body}</tbody></table>'
+        f'</div>'
         f'</div>'
     )
 
