@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import html
 import json
-import re
 import typing as tp
 
 from lk_utils import fs
@@ -25,88 +24,55 @@ from ..components_v3.widgets import Cell
 from ..components_v3.widgets import Checkbox
 from ..components_v3.widgets import Code
 from ..components_v3.widgets import Column
+from ..components_v3.widgets import Dialog
 from ..components_v3.widgets import Expander
 from ..components_v3.widgets import Grid
+from ..components_v3.widgets import Info
+from ..components_v3.widgets import Multiselect
 from ..components_v3.widgets import NumberInput
 from ..components_v3.widgets import Popover
 from ..components_v3.widgets import Progress
 from ..components_v3.widgets import Radio
 from ..components_v3.widgets import Row
+from ..components_v3.widgets import SelectSlider
 from ..components_v3.widgets import Selectbox
 from ..components_v3.widgets import Spinner
 from ..components_v3.widgets import Success
 from ..components_v3.widgets import Table
 from ..components_v3.widgets import Tabs
 from ..components_v3.widgets import Text
+from ..components_v3.widgets import TextArea
 from ..components_v3.widgets import TextInput
 from ..components_v3.widgets import Title
+from ..components_v3.widgets import Toggle
+from ..components_v3.widgets import Warning
 from ..components_v3.widgets import _TabPanel
+from ..kernel.property import Property
 
 # ---------------------------------------------------------------------------
-# Streamlit-style markup: `:color[text]` and `:material/icon`
+# Markdown: parsed in the browser (see `page.js` and the bundled markdown-it)
 # ---------------------------------------------------------------------------
-
-_COLOR_RE = re.compile(r':([a-zA-Z]+)\[([^\]]*)\]')
-_MATERIAL_RE = re.compile(r':material/([a-zA-Z_]+):')
-_BOLD_RE = re.compile(r'\*\*([^*]+)\*\*')
-_ITALIC_RE = re.compile(r'\*([^*]+)\*')
-
-_MATERIAL_MAP = {
-    'autorenew': '\u21bb',
-    'refresh': '\u21bb',
-    'delete': '\u2715',
-    'add': '+',
-    'check': '\u2713',
-    'close': '\u2715',
-    'edit': '\u270e',
-    'search': '\U0001f50d',
-    'settings': '\u2699',
-    'download': '\u2b07',
-    'upload': '\u2b06',
-}
-
-# Streamlit's "basic color palette" *text* colors for the dark theme (see
-# `config.py: *_TextColor`). This is what `:orange[..]`, `:green[..]`, etc.
-# resolve to inside markdown, radios, captions, ...
-_COLOR_CSS = {
-    'red': '#ff6c6c',
-    'orange': '#ffbd45',
-    'yellow': '#ffffc2',
-    'blue': '#3d9df3',
-    'green': '#5ce488',
-    'violet': '#b27eff',
-    'gray': 'rgba(250, 250, 250, 0.6)',
-    'grey': 'rgba(250, 250, 250, 0.6)',
-    'rainbow': None,
-}
 
 
 def render_markup(text: str) -> str:
-    """Convert Streamlit-style markup to HTML-safe spans."""
-    # Typographer (matches Streamlit's markdown): '->' renders as an arrow.
-    text = text.replace('->', '\u2192')
-    text = html.escape(text)
+    """Emit an inline markdown placeholder for the browser to render.
 
-    def _mat(m: re.Match) -> str:
-        name = m.group(1)
-        glyph = _MATERIAL_MAP.get(name, '\u25a1')
-        return f'<span class="st-icon">{glyph}</span>'
+    Streamlit parses markdown client-side (react-markdown); we mirror that
+    with the bundled markdown-it. The server only transports the source in
+    `data-md`; `page.js` fills the placeholder on load and again on every
+    delta patch, so the full markdown syntax works everywhere markdown is
+    accepted -- `Text` / `Caption` / `Title`, widget labels, radio options,
+    alerts, button labels and `help` tooltips.
 
-    text = _MATERIAL_RE.sub(_mat, text)
-
-    def _col(m: re.Match) -> str:
-        color = m.group(1)
-        inner = m.group(2)
-        css = _COLOR_CSS.get(color)
-        if css is None:
-            return f'<span class="st-text-{color}">{inner}</span>'
-        return f'<span style="color:{css}">{inner}</span>'
-
-    text = _COLOR_RE.sub(_col, text)
-    # inline emphasis: **bold** then *italic* (matches markdown)
-    text = _BOLD_RE.sub(r'<strong>\1</strong>', text)
-    text = _ITALIC_RE.sub(r'<em>\1</em>', text)
-    return text
+    Inline context: no `<p>` wrapper is implied (use `_render_paragraphs`
+    for multi-paragraph bodies). Streamlit's own `:color[..]` and
+    `:material/..:` extensions are applied by `page.js` as well.
+    """
+    raw = str(text)
+    if raw == '':
+        return ''
+    escaped = html.escape(raw, quote=True)
+    return f'<span class="st-md" data-md="{escaped}"></span>'
 
 
 # ---------------------------------------------------------------------------
@@ -148,31 +114,66 @@ def _render(comp: Component) -> str:
         border_cls = (
             ' st-container--border' if getattr(comp, '_border', False) else ''
         )
-        width_style = ''
+        rules: list[str] = []
         w = getattr(comp, '_width', None)
+        weight = getattr(comp, '_weight', None)
         if isinstance(w, int):
             # Fixed-width column: opt out of `.st-row > * { flex: 1 }` so the
             # explicit width is honored and the sibling column fills the rest.
-            width_style = f' style="flex:0 0 {w}px;width:{w}px"'
+            rules.append(f'flex:0 0 {w}px')
+            rules.append(f'width:{w}px')
+            rules.append('min-width:0')
+        elif weight is not None:
+            # Weighted columns, e.g. `st.columns((5, 2))`.
+            rules.append(f'flex:{weight} 1 0%')
+            # A flex item's automatic minimum is its min-content width, which
+            # lets a wide child (a chart, a nowrap row of labels) push the
+            # column past its share and wrap the row onto two lines. Pinning
+            # the minimum to 0 keeps the weight authoritative.
+            rules.append('min-width:0')
+        height = getattr(comp, '_height', None)
+        if isinstance(height, int):
+            # Fixed-height container: the content scrolls once it overflows.
+            rules.append(f'height:{height}px')
+            rules.append('overflow:auto')
+        style = f' style="{";".join(rules)}"' if rules else ''
+        hidden = '' if comp.visible.get() else ' hidden'
+        reveal_cls = ' st-reveal' if getattr(comp, '_animated', False) else ''
         return (
-            f'<div class="st-container{border_cls}" data-id="{comp.id}"'
-            f'{width_style}>{children}</div>'
+            f'<div class="st-container{border_cls}{reveal_cls}"'
+            f' data-id="{comp.id}"'
+            f'{style}{hidden}>{children}</div>'
         )
     if isinstance(comp, Tabs):
         return _render_tabs(comp)
     if isinstance(comp, _TabPanel):
         return _render_tab_panel(comp)
+    if isinstance(comp, Dialog):
+        return _render_dialog(comp)
     if isinstance(comp, Expander):
         return _render_expander(comp)
     if isinstance(comp, Title):
         text = render_markup(str(comp.text.get()))
-        return f'<h1 class="st-title" data-id="{comp.id}">{text}</h1>'
+        help_text = _help_text(comp)
+        help_html = _help_icon_html(help_text) if help_text else ''
+        return (
+            f'<h1 class="st-title" data-id="{comp.id}">{text}{help_html}</h1>'
+        )
     if isinstance(comp, Caption):
         text = render_markup(str(comp.text.get()))
-        return f'<div class="st-caption" data-id="{comp.id}">{text}</div>'
+        help_text = _help_text(comp)
+        help_html = _help_icon_html(help_text) if help_text else ''
+        return (
+            f'<div class="st-caption" data-id="{comp.id}">'
+            f'{text}{help_html}</div>'
+        )
     if isinstance(comp, Text):
         text = render_markup(str(comp.text.get()))
-        return f'<div class="st-text" data-id="{comp.id}">{text}</div>'
+        help_text = _help_text(comp)
+        help_html = _help_icon_html(help_text) if help_text else ''
+        return (
+            f'<div class="st-text" data-id="{comp.id}">{text}{help_html}</div>'
+        )
     if isinstance(comp, Spinner):
         children = ''.join(_render(c) for c in comp.children)
         hidden = '' if comp.visible.get() else ' hidden'
@@ -183,26 +184,34 @@ def _render(comp: Component) -> str:
             f'<span class="st-spinner-text">{text}</span>'
             f'{children}</div>'
         )
-    if isinstance(comp, Success):
-        return _render_success(comp)
+    if isinstance(comp, (Success, Warning, Info)):
+        return _render_alert(comp)
     if isinstance(comp, Popover):
         return _render_popover(comp)
     if isinstance(comp, Progress):
         return _render_progress(comp)
     if isinstance(comp, AltairChart):
         return _render_altair_chart(comp)
+    if isinstance(comp, Toggle):
+        return _render_toggle(comp)
     if isinstance(comp, Checkbox):
         return _render_checkbox(comp)
     if isinstance(comp, Button):
         return _render_button(comp)
     if isinstance(comp, NumberInput):
         return _render_number_input(comp)
+    if isinstance(comp, TextArea):
+        return _render_text_area(comp)
     if isinstance(comp, TextInput):
         return _render_text_input(comp)
     if isinstance(comp, Table):
         return _render_table(comp)
     if isinstance(comp, Code):
         return _render_code(comp)
+    if isinstance(comp, Multiselect):
+        return _render_multiselect(comp)
+    if isinstance(comp, SelectSlider):
+        return _render_select_slider(comp)
     if isinstance(comp, Selectbox):
         return _render_selectbox(comp)
     if isinstance(comp, Radio):
@@ -211,16 +220,17 @@ def _render(comp: Component) -> str:
 
 
 def _render_paragraphs(text: str) -> str:
-    """Render markdown-style paragraphs: blank lines split into `<p>`.
+    """Emit a block markdown placeholder for the browser to render.
 
-    Matches Streamlit's markdown behavior, where a blank line starts a new
-    paragraph (a single newline inside a paragraph becomes a soft break).
+    Block-context counterpart of `render_markup`: markdown-it wraps each
+    block in `<p>`, matching Streamlit's behavior (a blank line starts a new
+    paragraph, a single newline inside one is a soft break).
     """
-    text = text.strip('\n')
-    if text == '':
+    raw = str(text).strip('\n')
+    if raw == '':
         return ''
-    parts = re.split(r'\n[ \t]*\n', text)
-    return ''.join(f'<p>{render_markup(p)}</p>' for p in parts)
+    escaped = html.escape(raw, quote=True)
+    return f'<div class="st-md st-md-block" data-md="{escaped}"></div>'
 
 
 def _render_tabs(comp: Tabs) -> str:
@@ -263,6 +273,27 @@ def _render_tab_panel(comp: _TabPanel) -> str:
     )
 
 
+def _render_dialog(comp: Dialog) -> str:
+    """Render a modal dialog: a fixed backdrop plus a centred panel."""
+    title = render_markup(str(comp.text.get()))
+    children = ''.join(_render(c) for c in comp.children)
+    hidden = '' if comp.visible.get() else ' hidden'
+    width = getattr(comp, '_width', None)
+    style = f' style="width:{width}px"' if isinstance(width, int) else ''
+    return (
+        f'<div class="st-dialog-backdrop" data-id="{comp.id}"{hidden}'
+        f' onclick="scDialogBackdropClick(event, this)">'
+        f'<div class="st-dialog"{style} role="dialog" aria-modal="true">'
+        f'<div class="st-dialog-header">'
+        f'<div class="st-dialog-title">{title}</div>'
+        f'<button type="button" class="st-dialog-close" aria-label="Close"'
+        f' onclick="scCloseDialog(this)">\u2715</button>'
+        f'</div>'
+        f'<div class="st-dialog-body">{children}</div>'
+        f'</div></div>'
+    )
+
+
 def _render_expander(comp: Expander) -> str:
     """Render a collapsible section (mirrors Streamlit's `st.expander`)."""
     label = _render_paragraphs(str(comp.label.get()))
@@ -271,8 +302,9 @@ def _render_expander(comp: Expander) -> str:
     state = 'true' if expanded else 'false'
     cls = 'st-expander is-expanded' if expanded else 'st-expander'
     hidden = '' if expanded else ' hidden'
+    comp_hidden = '' if comp.visible.get() else ' hidden'
     return (
-        f'<div class="{cls}" data-id="{comp.id}">'
+        f'<div class="{cls}" data-id="{comp.id}"{comp_hidden}>'
         f'<div class="st-expander-header" role="button" tabindex="0"'
         f' aria-expanded="{state}" onclick="scToggleExpander(this)">'
         f'<span class="st-expander-icon">{_EXPANDER_ICON}</span>'
@@ -285,16 +317,52 @@ def _render_expander(comp: Expander) -> str:
     )
 
 
-def _render_success(comp: Success) -> str:
-    """Render a green alert box (mirrors Streamlit's `st.success`)."""
+def _render_alert(comp: Component) -> str:
+    """Render a coloured alert box (success / warning / info)."""
     hidden = '' if comp.visible.get() else ' hidden'
+    kind = getattr(comp, '_kind', 'success')
     return (
-        f'<div class="st-alert" data-id="{comp.id}"{hidden}>'
+        f'<div class="st-alert st-alert-{kind}" data-id="{comp.id}"{hidden}>'
         f'<div class="st-alert-container" role="status">'
         f'<div class="st-alert-content">'
         f'<div class="st-alert-text">'
         f'{_render_paragraphs(str(comp.text.get()))}'
         f'</div></div></div></div>'
+    )
+
+
+def _help_text(comp: Component) -> str:
+    """Return a component's current `help` markdown, or '' when unset."""
+    prop = getattr(comp, 'help', None)
+    if isinstance(prop, Property):
+        value = prop.get()
+        return '' if value is None else str(value)
+    return ''
+
+
+def _escape_help(help_text: tp.Any) -> str:
+    """Escape a `help` string for use in a `data-help` attribute.
+
+    The markdown source is kept verbatim (only HTML-escaped); `page.js`
+    renders it into the tooltip, so markdown syntax must survive.
+    """
+    return html.escape(str(help_text), quote=True)
+
+
+def _help_icon_html(help_text: tp.Any) -> str:
+    """Render the trailing info glyph that triggers a `help` tooltip.
+
+    Mirrors Streamlit's `stTooltipIcon`: the glyph is the hover / focus
+    target, and the markdown source rides along in `data-help`.
+    """
+    return (
+        '<span class="st-widget-help" role="img" aria-label="Help" '
+        f'data-help="{_escape_help(help_text)}">'
+        '<svg viewBox="0 0 24 24" width="16" height="16" '
+        'fill="currentColor" aria-hidden="true" focusable="false">'
+        '<path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 '
+        '10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59'
+        '-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path></svg></span>'
     )
 
 
@@ -304,12 +372,14 @@ def _render_button(comp: Button) -> str:
     # Streamlit: type="secondary" is default, "primary" is the accent button.
     st_type = 'primary' if btn_type == 'primary' else 'secondary'
     cls = f'st-btn st-btn-{st_type}'
+    if getattr(comp, '_icon_only', False):
+        cls += ' st-btn-icon'
     width_style = _style_width(getattr(comp, '_width', None))
     disabled = '' if comp.enabled.get() else ' disabled'
     help_attr = ''
-    if getattr(comp, '_help', None):
-        help_text = html.escape(str(comp._help))
-        help_attr = f' title="{help_text}"'
+    help_text = _help_text(comp)
+    if help_text:
+        help_attr = f' data-help="{_escape_help(help_text)}"'
     return (
         f'<button class="{cls}" data-id="{comp.id}" type="button"{disabled} '
         f'onclick="scSendClick(this)"{width_style}{help_attr}>'
@@ -324,6 +394,8 @@ def _widget_label_html(comp: Component) -> str:
         visible   : shown normally.
         hidden    : hidden, but still occupies its space.
         collapsed : hidden and removed from the layout.
+
+    A widget's `help` text is attached to a trailing info glyph.
     """
     visibility = getattr(comp, '_label_visibility', 'visible')
     cls = 'st-widget-label'
@@ -331,9 +403,10 @@ def _widget_label_html(comp: Component) -> str:
         cls += ' st-widget-label--hidden'
     elif visibility == 'collapsed':
         cls += ' st-widget-label--collapsed'
-    return (
-        f'<label class="{cls}">{render_markup(str(comp.label.get()))}</label>'
-    )
+    label = render_markup(str(comp.label.get()))
+    help_text = _help_text(comp)
+    help_html = _help_icon_html(help_text) if help_text else ''
+    return f'<label class="{cls}">{label}{help_html}</label>'
 
 
 # Material icons: "content_copy" and "check" (same paths Streamlit uses).
@@ -484,15 +557,37 @@ def _render_number_input(comp: NumberInput) -> str:
     )
 
 
+def _render_text_area(comp: TextArea) -> str:
+    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    disabled = '' if comp.enabled.get() else ' disabled'
+    height = getattr(comp, '_height', 200)
+    style = _style_width(getattr(comp, '_width', None))
+    if style:
+        style = f'{style[:-1]};height:{height}px"'
+    else:
+        style = f' style="height:{height}px"'
+    return (
+        f'<div class="st-text-area" data-id="{comp.id}">'
+        f'{_widget_label_html(comp)}'
+        f'<textarea class="st-text-area-box" data-comp-id="{comp.id}"'
+        f'{style} placeholder="{placeholder}"{disabled}'
+        f' onchange="scSendChange(this)">'
+        f'{html.escape(str(comp.value.get()))}</textarea>'
+        f'</div>'
+    )
+
+
 def _render_text_input(comp: TextInput) -> str:
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    disabled = '' if comp.enabled.get() else ' disabled'
+    width_style = _style_width(getattr(comp, '_width', None))
     return (
-        f'<div class="st-text-input" data-id="{comp.id}">'
+        f'<div class="st-text-input" data-id="{comp.id}"{width_style}>'
         f'{_widget_label_html(comp)}'
         f'<input class="st-text-input-box" type="text" '
         f'data-comp-id="{comp.id}" '
         f'value="{html.escape(str(comp.value.get()))}" '
-        f'placeholder="{placeholder}" '
+        f'placeholder="{placeholder}"{disabled} '
         f'onchange="scSendChange(this)"/>'
         f'</div>'
     )
@@ -544,12 +639,14 @@ def _render_selectbox(comp: Selectbox) -> str:
     root_attrs = f' data-id="{comp.id}"'
     if accept_new:
         root_attrs += ' data-accept-new="1"'
+    disabled = '' if comp.enabled.get() else ' disabled'
     return (
         f'<div class="st-selectbox"{root_attrs}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-selectbox-control">'
         f'<button type="button" class="st-selectbox-trigger" '
-        f'data-comp-id="{comp.id}" onclick="scToggleSelectbox(this)">'
+        f'data-comp-id="{comp.id}"{disabled} '
+        f'onclick="scToggleSelectbox(this)">'
         f'<span class="st-selectbox-value">{display_text}</span>'
         f'{arrow_svg}'
         f'</button>'
@@ -559,16 +656,108 @@ def _render_selectbox(comp: Selectbox) -> str:
     )
 
 
+def _render_multiselect(comp: Multiselect) -> str:
+    """Render a multi-select: a summary trigger plus a checkbox dropdown."""
+    options = list(comp.options.get() or [])
+    selected = list(comp.value.get() or [])
+    fmt = comp.format_func
+    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+
+    summary: list[str] = []
+    items: list[str] = []
+    for i, option in enumerate(options):
+        is_on = option in selected
+        if is_on:
+            summary.append(fmt(option))
+        items.append(
+            f'<div class="st-multiselect-option'
+            f'{" is-checked" if is_on else ""}"'
+            f' role="option"'
+            f' data-value="{html.escape(str(option))}" data-index="{i}"'
+            f' onclick="scToggleMultiselectOption(this)">'
+            f'<span class="st-multiselect-check">✓</span>'
+            f'<div class="st-multiselect-option-label">'
+            f'{render_markup(fmt(option))}</div>'
+            f'</div>'
+        )
+
+    if summary:
+        body = (
+            f'<div class="st-multiselect-values">'
+            f'{render_markup(", ".join(summary))}</div>'
+        )
+    else:
+        body = (
+            f'<div class="st-multiselect-values is-placeholder">'
+            f'{placeholder}</div>'
+        )
+
+    return (
+        f'<div class="st-multiselect" data-id="{comp.id}"'
+        f' data-placeholder="{placeholder}">'
+        f'{_widget_label_html(comp)}'
+        f'<div class="st-multiselect-trigger"'
+        f' onclick="scToggleMultiselect(this)">'
+        f'{body}'
+        f'<span class="st-multiselect-arrow">▾</span>'
+        f'</div>'
+        f'<div class="st-multiselect-dropdown" hidden>'
+        f'{"".join(items)}'
+        f'</div>'
+        f'</div>'
+    )
+
+
+def _render_select_slider(comp: SelectSlider) -> str:
+    """Render a discrete slider: a rail plus one tick per option."""
+    options = list(comp.options.get() or [])
+    value = comp.value.get()
+    fmt = comp.format_func
+    active_index = 0
+    ticks: list[str] = []
+    n = len(options)
+    for i, option in enumerate(options):
+        is_active = option == value
+        if is_active:
+            active_index = i
+        left = 0.0 if n <= 1 else round(i / (n - 1) * 100, 4)
+        ticks.append(
+            f'<div class="st-select-slider-tick'
+            f'{" is-active" if is_active else ""}"'
+            f' style="left:{left}%"'
+            f' data-value="{html.escape(str(option))}" data-index="{i}">'
+            f'<div class="st-select-slider-dot"></div>'
+            f'<div class="st-select-slider-tick-label">'
+            f'{render_markup(fmt(option))}</div>'
+            f'</div>'
+        )
+    fill = 0.0 if n <= 1 else round(active_index / (n - 1) * 100, 4)
+    return (
+        f'<div class="st-select-slider" data-id="{comp.id}">'
+        f'{_widget_label_html(comp)}'
+        f'<div class="st-select-slider-track" data-comp-id="{comp.id}"'
+        f' onmousedown="scSelectSliderStart(event, this)"'
+        f' onclick="scSelectSliderClick(event, this)">'
+        f'<div class="st-select-slider-rail">'
+        f'<div class="st-select-slider-fill" style="width:{fill}%"></div>'
+        f'</div>'
+        f'<div class="st-select-slider-ticks">{"".join(ticks)}</div>'
+        f'</div>'
+        f'</div>'
+    )
+
+
 def _render_radio(comp: Radio) -> str:
     options = comp.options.get() or []
     value = comp.value.get()
     fmt = comp.format_func
+    disabled = '' if comp.enabled.get() else ' disabled'
     items = ''.join(
         f'<label class="st-radio-item">'
         f'<span class="st-radio-input-wrap">'
         f'<input type="radio" name="radio_{comp.id}" '
         f'value="{html.escape(str(o))}" '
-        f'{"checked" if o == value else ""} '
+        f'{"checked" if o == value else ""}{disabled} '
         f'onchange="scSendChange(this)" '
         f'data-comp-id="{comp.id}"/></span>'
         f'<div class="st-radio-item-body">'
@@ -583,10 +772,18 @@ def _render_radio(comp: Radio) -> str:
     root_cls = 'st-radio'
     if getattr(comp, '_horizontal', False):
         root_cls += ' st-radio--horizontal'
+    if not comp.enabled.get():
+        root_cls += ' is-disabled'
+    max_height = getattr(comp, '_max_height', None)
+    group_style = (
+        f' style="max-height:{max_height}px;overflow-y:auto"'
+        if isinstance(max_height, int)
+        else ''
+    )
     return (
         f'<div class="{root_cls}" data-id="{comp.id}">'
         f'{_widget_label_html(comp)}'
-        f'<div class="st-radio-group">{items}</div>'
+        f'<div class="st-radio-group"{group_style}>{items}</div>'
         f'</div>'
     )
 
@@ -608,19 +805,46 @@ def _render_checkbox(comp: Checkbox) -> str:
     )
 
 
+def _render_toggle(comp: Toggle) -> str:
+    checked = ' checked' if comp.value.get() else ''
+    return (
+        f'<div class="st-toggle" data-id="{comp.id}">'
+        f'<label class="st-toggle-label">'
+        f'<span class="st-toggle-input-wrap">'
+        f'<input type="checkbox" data-comp-id="{comp.id}" '
+        f'{checked} onchange="scSendCheck(this)"/></span>'
+        f'<div class="st-toggle-track"><div class="st-toggle-thumb"></div></div>'
+        f'<div class="st-toggle-text">'
+        f'{render_markup(str(comp.label.get()))}</div>'
+        f'</label></div>'
+    )
+
+
 def _render_popover(comp: Popover) -> str:
     label = _render_paragraphs(str(comp.text.get()))
     children = ''.join(_render(c) for c in comp.children)
     width_style = _style_width(getattr(comp, '_width', None))
+    hidden = '' if comp.visible.get() else ' hidden'
+    help_attr = ''
+    help_text = _help_text(comp)
+    if help_text:
+        help_attr = f' data-help="{_escape_help(help_text)}"'
+    panel_cls = 'st-popover-panel'
+    panel_style = ''
+    if getattr(comp, '_panel_align', 'trigger') == 'row':
+        panel_cls += ' st-popover-panel--row'
+    max_height = getattr(comp, '_panel_max_height', None)
+    if isinstance(max_height, int):
+        panel_style = f' style="max-height:{max_height}px"'
     return (
-        f'<div class="st-popover" data-id="{comp.id}">'
+        f'<div class="st-popover" data-id="{comp.id}"{hidden}>'
         f'<button class="st-btn st-btn-secondary st-popover-trigger" '
         f'type="button" aria-haspopup="dialog" aria-expanded="false"'
-        f'{width_style} onclick="scTogglePopover(this)">'
+        f'{width_style}{help_attr} onclick="scTogglePopover(this)">'
         f'<span class="st-btn-text st-popover-trigger-label">{label}</span>'
         f'<span class="st-popover-icon">{_CHEVRON_DOWN}</span>'
         f'</button>'
-        f'<div class="st-popover-panel" role="dialog" hidden>'
+        f'<div class="{panel_cls}" role="dialog"{panel_style} hidden>'
         f'{children}'
         f'</div>'
         f'</div>'
@@ -706,6 +930,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <div id="app"{app_attr}>{body}</div>
+<script src="/static/markdown-it.js"></script>
 <script>
 {page_js}
 </script>

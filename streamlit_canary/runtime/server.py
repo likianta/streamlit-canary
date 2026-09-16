@@ -42,6 +42,12 @@ _FONT_PATH = (
 _CODE_FONT_PATH = (
     Path(__file__).resolve().parent / 'static' / 'SourceCodeVF-Upright.woff2'
 )
+# Bundled markdown renderer (MIT). Streamlit renders markdown in the
+# browser too; serving it separately keeps the page HTML lean and lets the
+# browser cache it across reloads.
+_MARKDOWN_PATH = (
+    Path(__file__).resolve().parent / 'static' / 'markdown-it.min.js'
+)
 
 
 class WebSocketClient:
@@ -88,6 +94,11 @@ def create_app(runtime: Runtime) -> Starlette:
             return Response(status_code=404)
         return FileResponse(_CODE_FONT_PATH, media_type='font/woff2')
 
+    async def markdown_endpoint(request: Request) -> Response:
+        if not _MARKDOWN_PATH.is_file():
+            return Response(status_code=404)
+        return FileResponse(_MARKDOWN_PATH, media_type='text/javascript')
+
     async def healthz(request: Request) -> Response:
         # Polled by the browser while a rerun is in flight; the response
         # lets the page know the process is back and it can reload.
@@ -132,6 +143,7 @@ def create_app(runtime: Runtime) -> Starlette:
             Route('/healthz', healthz),
             Route('/fonts/source-sans.woff2', font_endpoint),
             Route('/fonts/source-code.woff2', code_font_endpoint),
+            Route('/static/markdown-it.js', markdown_endpoint),
             WebSocketRoute('/ws', ws_endpoint),
         ]
     )

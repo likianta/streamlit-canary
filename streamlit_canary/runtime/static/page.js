@@ -7,36 +7,56 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const el = document.querySelector(`[data-id="${msg.id}"]`);
     if (!el) return;
     if (msg.prop === 'text' || msg.prop === 'label') {
-      // For selectbox/radio, label is in .st-widget-label, not the root
-      if (el.classList.contains('st-selectbox') || el.classList.contains('st-radio')) {
-        const labelEl = el.querySelector('.st-widget-label');
-        if (labelEl) labelEl.innerHTML = window.scRenderMarkup(msg.value);
-      } else if (el.classList.contains('st-btn')) {
-        el.innerHTML = window.scRenderButtonText(msg.value);
-      } else if (el.classList.contains('st-spinner')) {
-        const textEl = el.querySelector('.st-spinner-text');
-        if (textEl) textEl.innerHTML = window.scRenderMarkup(msg.value);
-      } else if (el.classList.contains('st-code')) {
-        const codeEl = el.querySelector('code');
-        if (codeEl) codeEl.textContent = msg.value;
-      } else if (el.classList.contains('st-alert')) {
-        const textEl = el.querySelector('.st-alert-text');
-        if (textEl) textEl.innerHTML = window.scRenderParagraphs(msg.value);
-      } else if (el.classList.contains('st-popover')) {
-        const labelEl = el.querySelector('.st-popover-trigger-label');
-        if (labelEl) labelEl.innerHTML = window.scRenderParagraphs(msg.value);
-      } else if (el.classList.contains('st-progress')) {
-        const textEl = el.querySelector('.st-progress-text');
-        if (textEl) textEl.innerHTML = window.scRenderMarkup(msg.value);
-      } else {
-        el.innerHTML = window.scRenderMarkup(msg.value);
+      scPatchText(el, msg.value);
+    }
+    if (msg.prop === 'help') {
+      // `help` is reactive: a widget's tooltip may depend on state (e.g. an
+      // ON/OFF suffix). Update the markdown carried by whichever element
+      // triggers the tooltip (the root itself for buttons, else a glyph).
+      const holder = el.hasAttribute('data-help')
+        ? el
+        : el.querySelector('[data-help]');
+      if (holder) {
+        if (msg.value) {
+          holder.setAttribute('data-help', msg.value);
+        } else {
+          holder.removeAttribute('data-help');
+        }
       }
+      window.scHideHelp();
     }
     if (msg.prop === 'enabled') {
-      if (el.classList.contains('st-btn')) el.disabled = !msg.value;
+      if (el.classList.contains('st-btn')) {
+        el.disabled = !msg.value;
+      } else if (
+        el.classList.contains('st-selectbox') ||
+        el.classList.contains('st-radio') ||
+        el.classList.contains('st-select-slider') ||
+        el.classList.contains('st-multiselect')
+      ) {
+        // Option widgets: grey out the visual and stop clicks. The selectbox
+        // and multiselect triggers are real controls, the rest are div-drawn,
+        // so set both the class and the `disabled` attribute.
+        el.classList.toggle('is-disabled', !msg.value);
+        const trigger = el.querySelector(
+          '.st-selectbox-trigger, .st-multiselect-trigger'
+        );
+        if (trigger) trigger.disabled = !msg.value;
+        el.querySelectorAll('input, textarea').forEach(box => {
+          box.disabled = !msg.value;
+        });
+      } else {
+        const box = el.querySelector('input, textarea');
+        if (box) box.disabled = !msg.value;
+      }
     }
     if (msg.prop === 'visible') {
-      el.hidden = !msg.value;
+      if (el.classList.contains('st-reveal')) {
+        // Server-driven reveal: reuse the expander's height animation.
+        scAnimateExpanderBody(el, !!msg.value);
+      } else {
+        el.hidden = !msg.value;
+      }
     }
     if (msg.prop === 'options') {
       if (el.classList.contains('st-selectbox')) {
@@ -49,6 +69,12 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         const valEl = el.querySelector('.st-selectbox-value');
         if (valEl) valEl.innerHTML = selIdx >= 0 ? fmt(labels[selIdx]) : '';
       }
+      if (el.classList.contains('st-multiselect')) {
+        // Options grew (e.g. new chart results are available): rebuild the
+        // list, then re-apply the current selection.
+        const labels = msg.formatted || msg.value.map(x => x);
+        scRenderMultiselectOptions(el, msg.value, labels);
+      }
       if (el.classList.contains('st-radio')) {
         const group = el.querySelector('.st-radio-group');
         const id = msg.id;
@@ -58,8 +84,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         group.innerHTML = msg.value.map((o, i) =>
           `<label class="st-radio-item">` +
           `<span class="st-radio-input-wrap">` +
-          `<input type="radio" name="radio_${id}" value="${o}" ` +
-          `${o === currentVal ? 'checked' : ''} ` +
+          `<input type="radio" name="radio_${id}" value="${scOptionAttr(o)}" ` +
+          `${scOptionKey(o) === scOptionKey(currentVal) ? 'checked' : ''} ` +
           `onchange="scSendChange(this)" data-comp-id="${id}"/></span>` +
           `<div class="st-radio-item-body">` +
           `<div class="st-radio-item-row">` +
@@ -95,12 +121,19 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       }
       if (el.classList.contains('st-radio')) {
         el._scValue = msg.value;
+        // `input.value` is always a string while `msg.value` keeps the
+        // option's real type (e.g. the int 48, or the tuple ('f', 'x')), so
+        // compare via `scOptionKey` (mirrors the server's `str(o)`).
+        const wanted = scOptionKey(msg.value);
         el.querySelectorAll('input').forEach(r => {
-          r.checked = (r.value === msg.value);
+          r.checked = (r.value === wanted);
         });
       }
-      if (el.classList.contains('st-text-input')) {
-        const box = el.querySelector('.st-text-input-box');
+      if (
+        el.classList.contains('st-text-input') ||
+        el.classList.contains('st-text-area')
+      ) {
+        const box = el.querySelector('.st-text-input-box, .st-text-area-box');
         // Don't clobber what the user is currently typing.
         if (box && box.value !== msg.value) box.value = msg.value;
       }
@@ -113,9 +146,33 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         // text (which may be formatted, e.g. hex).
         if (box) box.dataset.value = String(msg.value);
       }
-      if (el.classList.contains('st-checkbox')) {
+      if (
+        el.classList.contains('st-checkbox') ||
+        el.classList.contains('st-toggle')
+      ) {
         const box = el.querySelector('input[type="checkbox"]');
         if (box) box.checked = !!msg.value;
+      }
+      if (el.classList.contains('st-multiselect')) {
+        // `input.value` style comparison does not apply here: the selection
+        // is a list, so compare the option values as strings.
+        el._scValue = msg.value || [];
+        const wanted = el._scValue.map(String);
+        el.querySelectorAll('.st-multiselect-option').forEach(o => {
+          o.classList.toggle('is-checked', wanted.indexOf(o.dataset.value) >= 0);
+        });
+        scRefreshMultiselectSummary(el);
+      }
+      if (el.classList.contains('st-select-slider')) {
+        const track = el.querySelector('.st-select-slider-track');
+        if (track) {
+          const wanted = String(msg.value);
+          let idx = 0;
+          track.querySelectorAll('.st-select-slider-tick').forEach((t, i) => {
+            if (t.dataset.value === wanted) idx = i;
+          });
+          scSelectSliderApply(track, idx, false);
+        }
       }
       if (el.classList.contains('st-progress')) {
         const bar = el.querySelector('.st-progress-bar');
@@ -184,6 +241,22 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   function scSendChange(input) {
     const id = input.dataset.compId;
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.value}));
+  }
+  // Serialize an option value the way the server does (`str(o)`), so a
+  // non-scalar option such as the tuple `('f', 'x')` survives the round
+  // trip. JSON turns a Python tuple into a JS array whose native toString()
+  // is `"f,x"`, which would not match the server-rendered `"('f', 'x')"`
+  // (breaking both the checked comparison and the server's `_coerce_value`).
+  function scOptionKey(o) {
+    if (Array.isArray(o)) {
+      return '(' + o
+        .map(x => (typeof x === 'string' ? "'" + x + "'" : String(x)))
+        .join(', ') + ')';
+    }
+    return String(o);
+  }
+  function scOptionAttr(o) {
+    return scOptionKey(o).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
   // -- Selectbox options rendering -----------------------------------------
   // Shared by the initial render's patch path: rebuilding the dropdown must
@@ -300,6 +373,104 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     // Send change event to backend.
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
   }
+  // -- Dialog (modal) --
+  // Dismissing on the client (✕ / backdrop / Esc) also tells the server, so
+  // the `visible` property stays in sync with what the user sees.
+  function scCloseDialogEl(backdrop) {
+    if (!backdrop || backdrop.hidden) return;
+    backdrop.hidden = true;
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: backdrop.dataset.id,
+      event: 'close',
+    }));
+  }
+  function scCloseDialog(btn) {
+    scCloseDialogEl(btn.closest('.st-dialog-backdrop'));
+  }
+  function scDialogBackdropClick(event, backdrop) {
+    if (event.target === backdrop) scCloseDialogEl(backdrop);
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const open = Array.from(
+      document.querySelectorAll('.st-dialog-backdrop:not([hidden])')
+    );
+    if (open.length) scCloseDialogEl(open[open.length - 1]);
+  });
+
+  // -- Custom multiselect dropdown interaction --
+  function scRenderMultiselectOptions(root, values, labels) {
+    const dropdown = root.querySelector('.st-multiselect-dropdown');
+    if (!dropdown) return;
+    const fmt = window.scRenderMarkup;
+    const esc = (s) => String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const wanted = (root._scValue || []).map(String);
+    dropdown.innerHTML = values.map((v, i) => {
+      const checked = wanted.indexOf(String(v)) >= 0 ? ' is-checked' : '';
+      return `<div class="st-multiselect-option${checked}" role="option" ` +
+        `data-value="${esc(v)}" data-index="${i}" ` +
+        `onclick="scToggleMultiselectOption(this)">` +
+        `<span class="st-multiselect-check">✓</span>` +
+        `<div class="st-multiselect-option-label">${fmt(labels[i])}</div>` +
+        `</div>`;
+    }).join('');
+    scRefreshMultiselectSummary(root);
+  }
+  function scCloseMultiselects(except) {
+    document.querySelectorAll('.st-multiselect-dropdown:not([hidden])').forEach(d => {
+      const root = d.closest('.st-multiselect');
+      if (root === except) return;
+      d.hidden = true;
+      const t = root.querySelector('.st-multiselect-trigger');
+      if (t) t.removeAttribute('aria-expanded');
+    });
+  }
+  function scToggleMultiselect(trigger) {
+    const root = trigger.closest('.st-multiselect');
+    const dropdown = root.querySelector('.st-multiselect-dropdown');
+    const isOpen = !dropdown.hidden;
+    scCloseMultiselects(root);
+    dropdown.hidden = isOpen;
+    if (isOpen) trigger.removeAttribute('aria-expanded');
+    else trigger.setAttribute('aria-expanded', 'true');
+  }
+  // The trigger summarises the ticked options, so it is rebuilt from the
+  // option labels rather than from any server-provided text.
+  function scRefreshMultiselectSummary(root) {
+    const valuesEl = root.querySelector('.st-multiselect-values');
+    if (!valuesEl) return;
+    const labels = Array.prototype.map.call(
+      root.querySelectorAll('.st-multiselect-option.is-checked'),
+      o => o.querySelector('.st-multiselect-option-label').textContent.trim()
+    );
+    if (labels.length) {
+      valuesEl.textContent = labels.join(', ');
+      valuesEl.classList.remove('is-placeholder');
+    } else {
+      valuesEl.textContent = root.dataset.placeholder || 'Choose an option';
+      valuesEl.classList.add('is-placeholder');
+    }
+  }
+  function scToggleMultiselectOption(option) {
+    option.classList.toggle('is-checked');
+    const root = option.closest('.st-multiselect');
+    scRefreshMultiselectSummary(root);
+    // The whole selection is sent on every toggle.
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: root.dataset.id,
+      event: 'change',
+      value: Array.prototype.map.call(
+        root.querySelectorAll('.st-multiselect-option.is-checked'),
+        o => o.dataset.value
+      ),
+    }));
+  }
   // -- Custom popover interaction (toggle is client-only; no rerun) --
   function scClosePopovers(except) {
     document.querySelectorAll('.st-popover-panel:not([hidden])').forEach(p => {
@@ -327,6 +498,22 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     }
     panel.style.left = left + 'px';
   }
+  // Row-aligned panel: span from the surrounding row's text input's left
+  // edge to the row's right edge (offsets are relative to the popover,
+  // which is the panel's positioned ancestor).
+  function scAlignPopoverToRow(panel) {
+    const pop = panel.closest('.st-popover');
+    const row = pop ? pop.closest('.st-row') : null;
+    if (!row) return;
+    const input = row.querySelector('.st-text-input');
+    const popRect = pop.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const start = input
+      ? input.getBoundingClientRect().left
+      : rowRect.left;
+    panel.style.left = (start - popRect.left) + 'px';
+    panel.style.width = (rowRect.right - start) + 'px';
+  }
   function scTogglePopover(trigger) {
     const root = trigger.closest('.st-popover');
     const panel = root.querySelector('.st-popover-panel');
@@ -338,7 +525,11 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     } else {
       panel.hidden = false;
       trigger.setAttribute('aria-expanded', 'true');
-      scPositionPopover(panel);
+      if (panel.classList.contains('st-popover-panel--row')) {
+        scAlignPopoverToRow(panel);
+      } else {
+        scPositionPopover(panel);
+      }
     }
   }
   // -- Checkbox: send the boolean checked state --
@@ -358,58 +549,216 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     if (!e.target.closest('.st-popover')) {
       scClosePopovers(null);
     }
+    if (!e.target.closest('.st-multiselect')) {
+      scCloseMultiselects(null);
+    }
   });
   // Close popovers on Escape.
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') scClosePopovers(null);
   });
-  // expose markup renderer for WS patches
-  window.scRenderMarkup = function(text) {
-    // typographer: '->' renders as an arrow (matches Streamlit markdown)
-    let s = String(text).replace(/->/g, '→');
-    // escape
-    s = s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    // :material/icon:
-    const matMap = {autorenew:'↻',refresh:'↻',delete:'✕',add:'+',check:'✓',close:'✕',edit:'✎',search:'🔍',settings:'⚙',download:'⬇',upload:'⬆'};
-    s = s.replace(/:material\/([a-zA-Z_]+):/g, (m,n) => `<span class="st-icon">${matMap[n]||'□'}</span>`);
-    // :color[text]
-    const colMap = {red:'#ff6c6c',orange:'#ffbd45',yellow:'#ffffc2',blue:'#3d9df3',green:'#5ce488',violet:'#b27eff',gray:'rgba(250, 250, 250, 0.6)',grey:'rgba(250, 250, 250, 0.6)'};
-    s = s.replace(/:([a-zA-Z]+)\[([^\]]*)\]/g, (m,c,t) => {
-      const css = colMap[c];
-      return css ? `<span style="color:${css}">${t}</span>` : `<span class="st-text-${c}">${t}</span>`;
+  // Keep an open row-aligned panel in sync with its row on resize.
+  window.addEventListener('resize', () => {
+    document.querySelectorAll('.st-popover-panel--row:not([hidden])')
+      .forEach(scAlignPopoverToRow);
+  });
+  // -- Markdown ----------------------------------------------------------
+  // Streamlit parses markdown in the browser (react-markdown); we mirror
+  // that with the bundled markdown-it. The server only ships the *source*
+  // in `data-md` placeholders, which `scRenderMarkdown()` fills on load and
+  // the delta handlers replace in place afterwards.
+  const scMd = window.markdownit({ linkify: true });
+  // Streamlit's own inline extensions: `:material/<name>:` and `:color[..]`.
+  const scMaterial = {
+    autorenew:'↻', refresh:'↻', restart_alt:'↻', settings_backup_restore:'↺',
+    delete:'✕', add:'+', check:'✓', close:'✕', edit:'✎', save:'💾',
+    search:'🔍', settings:'⚙', adjust:'⚙', download:'⬇', upload:'⬆',
+    arrow_right:'→', arrow_back:'←', arrow_forward:'→', arrow_upward:'↑',
+    keyboard_arrow_up:'▴', keyboard_arrow_down:'▾', create_new_folder:'➕',
+    folder:'📁', folder_open:'📂', description:'📄', location_on:'📍',
+    home:'⌂', undo:'↶', info:'ⓘ', warning:'⚠'
+  };
+  const scColors = {
+    red:'#ff6c6c', orange:'#ffbd45', yellow:'#ffffc2', blue:'#3d9df3',
+    green:'#5ce488', violet:'#b27eff', gray:'rgba(250, 250, 250, 0.6)',
+    grey:'rgba(250, 250, 250, 0.6)', rainbow:null
+  };
+  function scColorOpen(color) {
+    const css = scColors[color];
+    if (css === null) {
+      return '<span class="st-text-rainbow">';
+    }
+    return css
+      ? '<span style="color:' + css + '">'
+      : '<span class="st-text-' + color + '">';
+  }
+  // Inline rules (rather than a post-pass) so the extensions never fire
+  // inside code spans / fenced blocks.
+  scMd.inline.ruler.before('emphasis', 'st_markup', function (state, silent) {
+    const rest = state.src.slice(state.pos);
+    let m = /^:material\/([a-zA-Z_]+):/.exec(rest);
+    if (m !== null) {
+      if (!silent) {
+        const token = state.push('st_material', '', 0);
+        token.meta = { name: m[1] };
+      }
+      state.pos += m[0].length;
+      return true;
+    }
+    m = /^:([a-zA-Z]+)\[([^\]]*)\]/.exec(rest);
+    if (m === null) {
+      return false;
+    }
+    if (!silent) {
+      const open = state.push('st_color_open', '', 1);
+      open.meta = { color: m[1] };
+      // The wrapped text is markdown itself, e.g. `:blue[**Connect**]`.
+      state.md.inline.parse(m[2], state.md, state.env, state.tokens);
+      state.push('st_color_close', '', -1);
+    }
+    state.pos += m[0].length;
+    return true;
+  });
+  scMd.renderer.rules.st_material = function (tokens, idx) {
+    const glyph = scMaterial[tokens[idx].meta.name] || '□';
+    return '<span class="st-icon">' + glyph + '</span>';
+  };
+  scMd.renderer.rules.st_color_open = function (tokens, idx) {
+    return scColorOpen(tokens[idx].meta.color);
+  };
+  scMd.renderer.rules.st_color_close = function () {
+    return '</span>';
+  };
+  // Streamlit's typographer (a remark plugin in StreamlitMarkdown): a few
+  // ASCII combos become symbols, but only when whitespace-anchored and
+  // never inside link text -- e.g. `a -> b` renders as `a → b` while
+  // `a->b` is left alone.
+  const scTypographer = [
+    [/(^|\s)<->(\s|$)/g, '$1↔$2'],
+    [/(^|\s)->(\s|$)/g, '$1→$2'],
+    [/(^|\s)<-(\s|$)/g, '$1←$2'],
+    [/(^|\s)--(\s|$)/g, '$1—$2'],
+    [/(^|\s)>=(\s|$)/g, '$1≥$2'],
+    [/(^|\s)<=(\s|$)/g, '$1≤$2'],
+    [/(^|\s)~=(\s|$)/g, '$1≈$2']
+  ];
+  scMd.core.ruler.after('inline', 'st_typographer', function (state) {
+    state.tokens.forEach(function (block) {
+      if (block.type !== 'inline' || !block.children) return;
+      const children = block.children;
+      let linkDepth = 0;
+      let i = 0;
+      while (i < children.length) {
+        const token = children[i];
+        if (token.type === 'link_open') { linkDepth++; i++; continue; }
+        if (token.type === 'link_close') { linkDepth--; i++; continue; }
+        if (token.type !== 'text' || linkDepth > 0) { i++; continue; }
+        // markdown-it splits text at chars like `-` and `>`, so join the
+        // run of adjacent text tokens before applying the patterns.
+        let j = i + 1;
+        while (j < children.length && children[j].type === 'text') j++;
+        const value = children
+          .slice(i, j)
+          .map(function (t) { return t.content; })
+          .join('');
+        let next = value;
+        scTypographer.forEach(function (pair) {
+          next = next.replace(pair[0], pair[1]);
+        });
+        if (next === value) {
+          i = j;
+          continue;
+        }
+        const merged = new state.Token('text', '', 0);
+        merged.content = next;
+        children.splice(i, j - i, merged);
+        i++;
+      }
     });
-    // inline emphasis: **bold** then *italic* (matches the Python side)
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    return s;
+  });
+  // Raw renderers (no holder): used when filling an existing `.st-md`
+  // placeholder in place.
+  function scMdInline(text) { return scMd.renderInline(String(text)); }
+  function scMdBlock(text) { return scMd.render(String(text)).trim(); }
+  // Public renderers return standalone markup *including* the `.st-md`
+  // holder, because callers assign the result via `innerHTML`; the holder is
+  // what the markdown styles in page.css are scoped to.
+  window.scRenderMarkup = function (text) {
+    return '<span class="st-md">' + scMdInline(text) + '</span>';
   };
-  // expose paragraph renderer: one <p> per blank-line-separated block,
-  // mirroring the Python-side `_render_paragraphs`.
-  window.scRenderParagraphs = function(text) {
-    const NL = String.fromCharCode(10);
-    const parts = String(text).trim().split(NL + NL).map(p => p.trim()).filter(p => p.length > 0);
-    return parts.map(p => '<p>' + window.scRenderMarkup(p) + '</p>').join('');
+  window.scRenderParagraphs = function (text) {
+    return '<div class="st-md st-md-block">' + scMdBlock(text) + '</div>';
   };
-
-  // expose button-text renderer: one <p> per blank-line-separated block,
-  // mirroring the Python-side `_render_paragraphs`.
-  window.scRenderButtonText = function(text) {
-    const NL = String.fromCharCode(10);
-    const parts = String(text).split(NL + NL).map(p => p.trim()).filter(p => p.length > 0);
-    return '<span class="st-btn-text">' + parts.map(p => '<p>' + window.scRenderMarkup(p) + '</p>').join('') + '</span>';
-  };
+  // Fill every server-emitted `data-md` placeholder under `root`.
+  function scRenderMarkdown(root) {
+    (root || document).querySelectorAll('.st-md[data-md]').forEach((el) => {
+      const src = el.getAttribute('data-md') || '';
+      el.innerHTML = el.classList.contains('st-md-block')
+        ? scMdBlock(src)
+        : scMdInline(src);
+    });
+  }
+  // Find the markdown holder of an element: the placeholder itself, or a
+  // *direct* child placeholder (keeps sibling content such as the help
+  // glyph intact).
+  function scMarkdownHolder(el) {
+    if (el.classList.contains('st-md')) return el;
+    return el.querySelector(':scope > .st-md');
+  }
+  // Render `value` into the markdown holder of `el` (inline or block,
+  // whichever the server used), falling back to `el` itself.
+  function scSetMarkdown(el, value) {
+    if (!el) return;
+    const holder = scMarkdownHolder(el);
+    const target = holder || el;
+    if (holder) holder.setAttribute('data-md', String(value));
+    target.innerHTML =
+      holder && holder.classList.contains('st-md-block')
+        ? scMdBlock(value)
+        : scMdInline(value);
+  }
+  // Route a `text` / `label` delta to the element that holds the markdown.
+  function scPatchText(el, value) {
+    if (
+      el.classList.contains('st-selectbox') ||
+      el.classList.contains('st-radio')
+    ) {
+      scSetMarkdown(el.querySelector('.st-widget-label'), value);
+    } else if (el.classList.contains('st-btn')) {
+      scSetMarkdown(el.querySelector('.st-btn-text') || el, value);
+    } else if (el.classList.contains('st-spinner')) {
+      scSetMarkdown(el.querySelector('.st-spinner-text'), value);
+    } else if (el.classList.contains('st-code')) {
+      const codeEl = el.querySelector('code');
+      if (codeEl) codeEl.textContent = value;
+    } else if (el.classList.contains('st-alert')) {
+      scSetMarkdown(el.querySelector('.st-alert-text'), value);
+    } else if (el.classList.contains('st-popover')) {
+      scSetMarkdown(el.querySelector('.st-popover-trigger-label'), value);
+    } else if (el.classList.contains('st-progress')) {
+      scSetMarkdown(el.querySelector('.st-progress-text'), value);
+    } else {
+      scSetMarkdown(el, value);
+    }
+  }
 
   // -- Tabs / Expander / NumberInput stepper (client-side UI state) --
   function scSelectTab(btn) {
     const root = btn.closest('.st-tabs');
     if (!root) return;
     const label = btn.dataset.tab;
+    // Scope to *this* tab group. The selectors below are descendant
+    // selectors, so without the guard they would also match a nested
+    // `Tabs` (e.g. one inside a popover in a panel), clearing its active
+    // tab and hiding all of its panels.
     root.querySelectorAll('.st-tabs-bar > .st-tab').forEach(b => {
+      if (b.closest('.st-tabs') !== root) return;
       const on = b === btn;
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     root.querySelectorAll('.st-tabs-panels > .st-tab-panel').forEach(p => {
+      if (p.closest('.st-tabs') !== root) return;
       p.hidden = p.dataset.tab !== label;
     });
     // Keep the server-side `active` property in sync.
@@ -480,6 +829,64 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     scSendChange(input);
   }
 
+  // -- SelectSlider: pick the tick nearest the pointer (click or drag) --
+  function scSelectSliderNearest(track, clientX) {
+    const dots = track.querySelectorAll('.st-select-slider-dot');
+    let best = 0;
+    let bestDist = Infinity;
+    dots.forEach((dot, i) => {
+      const rect = dot.getBoundingClientRect();
+      const dist = Math.abs(rect.left + rect.width / 2 - clientX);
+      if (dist < bestDist) { bestDist = dist; best = i; }
+    });
+    return best;
+  }
+  function scSelectSliderApply(track, index, commit) {
+    const ticks = track.querySelectorAll('.st-select-slider-tick');
+    ticks.forEach((t, i) => t.classList.toggle('is-active', i === index));
+    const n = ticks.length;
+    const fill = track.querySelector('.st-select-slider-fill');
+    if (fill) fill.style.width = (n <= 1 ? 0 : (index / (n - 1)) * 100) + '%';
+    if (!commit) return;
+    const id = track.dataset.compId;
+    const value = ticks[index] ? ticks[index].dataset.value : null;
+    if (id && value !== null) {
+      ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
+    }
+  }
+  function scSelectSliderStart(ev, track) {
+    ev.preventDefault();
+    track._scIndex = scSelectSliderNearest(track, ev.clientX);
+    scSelectSliderApply(track, track._scIndex, false);
+    const move = (e) => {
+      const idx = scSelectSliderNearest(track, e.clientX);
+      if (idx !== track._scIndex) {
+        track._scIndex = idx;
+        scSelectSliderApply(track, idx, false);
+      }
+    };
+    const up = () => {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      // A mouse press is always followed by `click`; flag it so the click
+      // handler does not commit the same change a second time.
+      track._scDragCommitted = true;
+      scSelectSliderApply(track, track._scIndex, true);
+    };
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  }
+  // A plain click (no press, e.g. a synthetic `.click()`) still selects.
+  function scSelectSliderClick(ev, track) {
+    if (track._scDragCommitted) {
+      track._scDragCommitted = false;
+      return;
+    }
+    scSelectSliderApply(
+      track, scSelectSliderNearest(track, ev.clientX), true
+    );
+  }
+
   // -- AltairChart: draw Vega-Lite specs with vega-embed (lazy CDN load) --
   // `vega`, `vega-lite` and `vega-embed` are pulled in on first use and
   // cached for the lifetime of the page. vega-embed expects both globals to
@@ -506,6 +913,34 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       .catch(() => null);
     return scVegaEmbedPromise;
   }
+  // Vega-Lite's built-in config is light. Feed it the app's theme tokens so
+  // the chart follows the page (dark chart on a dark page), the way
+  // Streamlit's `st.altair_chart` does.
+  function scVegaThemeConfig() {
+    const css = getComputedStyle(document.documentElement);
+    const token = (name, fallback) => {
+      const value = css.getPropertyValue(name).trim();
+      return value || fallback;
+    };
+    const background = token('--st-background-color', '#ffffff');
+    const axisColor = token('--st-heading-color', '#1f2328');
+    const gridColor = token('--st-border-color', '#d0d7de');
+    const titleColor = token('--st-text-color', '#1f2328');
+    return {
+      background,
+      axis: {
+        labelColor: axisColor,
+        titleColor: axisColor,
+        domainColor: gridColor,
+        tickColor: gridColor,
+        gridColor,
+        labelFontSize: 12,
+        titleFontSize: 14,
+      },
+      legend: { labelColor: axisColor, titleColor: axisColor },
+      title: { color: titleColor, fontSize: 14, fontWeight: 'bold' },
+    };
+  }
   function scRenderVegaLite(el, spec) {
     const canvas = el.querySelector('.st-altair-canvas');
     if (!canvas) return;
@@ -518,7 +953,11 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       if (!embed) return;
       // vega-embed replaces the container's content; a stale render is
       // discarded so rapid `chart` patches don't interleave.
-      embed(canvas, spec, { actions: false, renderer: 'canvas' })
+      embed(canvas, spec, {
+        actions: false,
+        config: scVegaThemeConfig(),
+        renderer: 'svg',
+      })
         .then(() => { el.setAttribute('data-sc-rendered', '1'); })
         .catch(() => {});
     });
@@ -610,6 +1049,68 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     setTimeout(poll, 400);
   }
 
-  // Draw any charts that were part of the initial server-rendered page.
-  // The script tag sits at the end of <body>, so the DOM is already parsed.
+  // Fill the markdown placeholders that the server rendered, then draw any
+  // charts that were part of the initial page. The script tag sits at the
+  // end of <body>, so the DOM is already parsed.
+  scRenderMarkdown(document);
   scInitAltairCharts();
+
+  // -- Help tooltips -----------------------------------------------------
+  // Widget `help` text is markdown (mirrors Streamlit). A native `title=`
+  // attribute cannot render markdown, so any element carrying a `data-help`
+  // attribute gets a custom tooltip built from `scRenderParagraphs`. The
+  // trigger is the info glyph next to a label, or the button itself (which
+  // is how Streamlit wires `st.button`'s help).
+  let scHelpTip = null;
+  function scHelpTooltipEl() {
+    if (scHelpTip) return scHelpTip;
+    scHelpTip = document.createElement('div');
+    scHelpTip.className = 'st-help-tooltip';
+    scHelpTip.setAttribute('role', 'tooltip');
+    scHelpTip.hidden = true;
+    document.body.appendChild(scHelpTip);
+    return scHelpTip;
+  }
+  function scShowHelp(target) {
+    const md = target.getAttribute('data-help');
+    if (!md) return;
+    const tip = scHelpTooltipEl();
+    tip.innerHTML = window.scRenderParagraphs(md);
+    tip.hidden = false;
+    const rect = target.getBoundingClientRect();
+    const box = tip.getBoundingClientRect();
+    // Prefer below the trigger; flip above when it would overflow.
+    let top = rect.bottom + 8;
+    if (top + box.height > window.innerHeight - 4) {
+      top = rect.top - box.height - 8;
+    }
+    let left = rect.left;
+    if (left + box.width > window.innerWidth - 4) {
+      left = window.innerWidth - box.width - 4;
+    }
+    tip.style.top = Math.max(4, top) + 'px';
+    tip.style.left = Math.max(4, left) + 'px';
+  }
+  function scHideHelp() {
+    if (scHelpTip) scHelpTip.hidden = true;
+  }
+  function scHelpTrigger(node) {
+    return node && node.closest ? node.closest('[data-help]') : null;
+  }
+  document.addEventListener('mouseover', (e) => {
+    const t = scHelpTrigger(e.target);
+    if (t) scShowHelp(t);
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (scHelpTrigger(e.target)) scHideHelp();
+  });
+  document.addEventListener('focusin', (e) => {
+    const t = scHelpTrigger(e.target);
+    if (t) scShowHelp(t);
+  });
+  document.addEventListener('focusout', scHideHelp);
+  // A tooltip pinned to the viewport goes stale as soon as the page moves.
+  document.addEventListener('scroll', scHideHelp, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') scHideHelp();
+  });

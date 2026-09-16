@@ -3,8 +3,9 @@ v3 widgets: the built-in component library.
 
 Public widgets (in alphabetical order):
     AltairChart, Button, Caption, Cell, Checkbox, Code, Column, Container,
-    Expander, Grid, NumberInput, Popover, Progress, Radio, Row, Selectbox,
-    Spinner, Success, Table, Tabs, Text, TextInput, Title.
+    Dialog, Expander, Grid, IconButton, Info, Multiselect, NumberInput,
+    Popover, Progress, Radio, Row, SelectSlider, Selectbox, Spinner, Success,
+    Table, Tabs, Text, TextArea, TextInput, Title, Toggle, Warning.
 
 They are built on a few shared private bases (defined first):
     _HasText       — a single bindable `text` field.
@@ -68,6 +69,13 @@ def _check_number_arg(arg: tp.Any, is_float: bool, name: str) -> int | float:
             f'NumberInput {name} must be an int for an int widget, got {arg!r}'
         )
     return arg
+
+
+def _as_list(source: tp.Any) -> tp.Any:
+    """`_prop` takes a list or a Property; accept any sequence as well."""
+    if isinstance(source, Property):
+        return source
+    return list(source or ())
 
 
 def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
@@ -137,13 +145,38 @@ def _to_vega_lite_spec(chart: tp.Any) -> dict:
 class _HasText(Component):
     """Shared base for components carrying a single bindable `text` field.
 
-    Used by Button, Caption, Code, Popover, Text and Title. The text is the
-    first positional argument and accepts a plain value or a `Property`.
+    Used by Button, Code and Popover, and (through `_HelpText`) by Caption,
+    Text and Title. The text is the first positional argument and accepts a
+    plain value or a `Property`.
     """
 
     def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
         super().__init__(**kwargs)
         self.text = _prop('', text)
+
+
+class _HelpText(_HasText):
+    """Shared base for text elements that also carry a `help` tooltip.
+
+    Mirrors Streamlit, whose text and heading elements (`st.text`,
+    `st.caption`, `st.title`) all accept `help`. Used by Caption, Text and
+    Title.
+
+    Fields:
+        text: Property[str] — the displayed text (bindable).
+        help: Property[str] — markdown tooltip shown next to the text
+            (bindable; bind it when the text depends on state).
+    """
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        help: str | Property = '',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, **kwargs)
+        self.help = _prop('', help)
 
 
 class _Labeled(Component):
@@ -152,6 +185,8 @@ class _Labeled(Component):
     Fields:
         label: Property[str]   — the widget label (bindable).
         _label_visibility: str — "visible" | "hidden" | "collapsed".
+        help: Property[str]    — markdown tooltip shown next to the label
+            (bindable; bind it when the text depends on state).
     """
 
     def __init__(
@@ -159,11 +194,13 @@ class _Labeled(Component):
         label: str | Property = '',
         *,
         label_visibility: str = 'visible',
+        help: str | Property = '',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self.label = _prop('', label)
         self._label_visibility = label_visibility
+        self.help = _prop('', help)
 
 
 class _OptionsWidget(_Labeled):
@@ -173,6 +210,7 @@ class _OptionsWidget(_Labeled):
         options: Property[list] — the raw choices (bindable).
         index:   Property[int]  — the selected position (bindable).
         value:   Property[any]  — the raw selected value (bindable).
+        enabled: Property[bool] — whether the widget accepts input (bindable).
         format_func: Callable[[Any], str] — raw value → display string.
 
     `index` and `value` mirror each other, so either one may be set: `index`
@@ -190,6 +228,7 @@ class _OptionsWidget(_Labeled):
         value: tp.Any = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         format_func: tp.Callable[[tp.Any], str] | None = None,
+        enabled: bool | Property = True,
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
@@ -197,6 +236,7 @@ class _OptionsWidget(_Labeled):
         self.options = Property([])
         self.index = Property(0)
         self.value = Property('')
+        self.enabled = _prop(True, enabled)
         self._format = format
         self.format_func: tp.Callable[[tp.Any], str] = self._make_format(
             format, format_func
@@ -333,7 +373,14 @@ class AltairChart(Component):
 
     def set_chart(self, chart: tp.Any) -> None:
         """Set the chart from an Altair object or a Vega-Lite spec dict."""
-        self.chart.set(_to_vega_lite_spec(chart))
+        spec = _to_vega_lite_spec(chart)
+        if spec is not None and self._width == 'stretch':
+            # The spec usually carries its own pixel `width`; make it follow
+            # the widget instead, otherwise a wide chart overflows a narrower
+            # parent (Streamlit does the same for `width='stretch'`).
+            spec['width'] = 'container'
+            spec['autosize'] = {'type': 'fit', 'contains': 'padding'}
+        self.chart.set(spec)
 
 
 class Button(_HasText):
@@ -343,7 +390,8 @@ class Button(_HasText):
         label:   button text (stored in the reactive `text` Property).
         type:    "secondary" (default) | "primary".
         width:   "content" (default) | "stretch" — stretch fills parent width.
-        help:    tooltip text.
+        help:    markdown tooltip text; a plain string or a bound value
+            (`sc.bind(...)`) when the text depends on state.
         enabled: bool (default True) | bound value (`sc.bind(...)`).
 
     Signals:
@@ -356,7 +404,7 @@ class Button(_HasText):
         label: str | Property = '',
         *,
         type: str = 'secondary',
-        help: str | None = None,
+        help: str | Property | None = None,
         width: tp.Union[int, tp.Literal['content', 'stretch']] = 'content',
         enabled: bool | Property = True,
         on_click: tp.Callable[[], None] | None = None,
@@ -366,9 +414,11 @@ class Button(_HasText):
         # `enabled` is reactive so a button can be disabled dynamically,
         # e.g. `btn.enabled.bind(state.dep, lambda x: not x['is_latest'])`.
         self.enabled = _prop(True, enabled)
-        # `type` / `help` / `width` are static config, not reactive Property.
+        # `help` is reactive too: Streamlit recomputes it on every rerun, so
+        # a no-rerun port needs a bound Property to reach the same effect.
+        self.help = _prop('', '' if help is None else help)
+        # `type` / `width` are static config, not reactive Property.
         self._type = type
-        self._help = help
         self._width = width
         # `Signal(owner_factory=...)` mirrors `Property.on_change`, so
         # `@btn.on_click.partial(sc._self)` hands the handler this button.
@@ -377,8 +427,13 @@ class Button(_HasText):
             self.on_click.connect(on_click)
 
 
-class Caption(_HasText):
-    """A small caption / helper text."""
+class Caption(_HelpText):
+    """A small caption / helper text (mirrors Streamlit's `st.caption`).
+
+    Args:
+        text: the caption content (bindable).
+        help: optional markdown tooltip shown next to the text.
+    """
 
 
 class Cell(Component):
@@ -446,23 +501,87 @@ class Column(Component):
 
     Args:
         width:  fixed width (int px or CSS length) | None (fill parent).
+        weight: flex-grow ratio when laid out inside a `Row`, e.g. a
+            `(5, 2)` split is `Column(weight=5)` + `Column(weight=2)`;
+            None keeps the default equal share.
         border: whether to draw a bordered container around the children.
+        height: fixed height in px; the content scrolls when it overflows
+            (mirrors `st.container(height=...)`).
+        visible: bool (default True, bindable) — hidden containers keep their
+            place in the tree but are not rendered.
+        animated: transition the height when `visible` flips, instead of
+            appearing/disappearing instantly (mirrors an expander body). Use
+            it for blocks that a button reveals, e.g.
+            `Column(visible=state.show, animated=True)`.
     """
 
     def __init__(
         self,
         *,
         width: int | str | None = None,
+        weight: float | None = None,
         border: bool = False,
+        height: int | None = None,
+        visible: bool | Property = True,
+        animated: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self._width = width
+        self._weight = weight
         self._border = border
+        self._height = height
+        self._animated = animated
+        self.visible = _prop(True, visible)
 
 
 Container = Column
 #   alias of `Column`, mirroring Streamlit's `st.container`.
+
+
+class Dialog(Component):
+    """A modal dialog (mirrors Streamlit's `st.dialog`).
+
+        with v3.Dialog('Select a file', visible=state.browsing, width=800):
+            ...
+
+    `st.dialog` decorates a function that Streamlit re-runs every time the
+    dialog opens.  A v3 dialog is an ordinary container built once, so its
+    `visible` Property is what opens and closes it.  The client can also
+    dismiss it (the close button, a click on the backdrop, or Esc), which
+    sets `visible` back to False and emits `on_close`.
+
+    Args:
+        text:    the dialog title.
+        visible: bool (default True, bindable) — whether it is open.
+        width:   panel width in px (None keeps the default).
+
+    Properties:
+        text: str  — the title.
+        visible: bool — open/closed.
+
+    Signals:
+        on_close: emitted when the client dismisses the dialog.
+    """
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        visible: bool | Property = True,
+        width: int | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.text = _prop('', text)
+        self.visible = _prop(True, visible)
+        self._width = width
+        self.on_close: Signal = Signal(owner_factory=lambda: self)
+
+    def _on_close(self, _value: tp.Any = None) -> None:
+        """Handle a client-side dismissal (✕ / backdrop / Esc)."""
+        self.visible.set(False)
+        self.on_close.emit()
 
 
 class Expander(Component):
@@ -471,6 +590,7 @@ class Expander(Component):
     Args:
         label: the header text (bindable).
         expanded: whether the body starts open.
+        visible: whether the expander is shown (default True, bindable).
 
     Children render inside the body:
 
@@ -482,6 +602,7 @@ class Expander(Component):
 
     Properties:
         label: str — the header text.
+        visible: bool — whether the expander is shown.
     """
 
     def __init__(
@@ -489,10 +610,12 @@ class Expander(Component):
         label: str | Property = '',
         *,
         expanded: bool = False,
+        visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self.label = _prop('', label)
+        self.visible = _prop(True, visible)
         # Initial state only; the client owns it from then on.
         self._expanded = expanded
 
@@ -566,6 +689,115 @@ class Grid(Component):
                 stack.pop()
             self._cells[(row, col)] = cell
         return cell
+
+
+class IconButton(Button):
+    """An icon-only button — a `Button` with a square, icon-sized frame.
+
+        v3.IconButton('refresh', help='Refresh tree')
+
+    Args:
+        icon: a material icon name (e.g. "refresh"), or any short label;
+            a bare name is wrapped as `:material/<name>:`.
+        help: tooltip text — recommended, since an icon alone is cryptic.
+        type / width / enabled / on_click: see `Button`.
+    """
+
+    def __init__(
+        self, icon: str = '', *, help: str | None = None, **kwargs: tp.Any
+    ) -> None:
+        if icon and not icon.startswith(':'):
+            icon = ':material/{}:'.format(icon)
+        super().__init__(icon, help=help, **kwargs)
+        self._icon_only = True
+
+
+class Info(_TextVisible):
+    """A blue informational alert box (mirrors Streamlit's `st.info`).
+
+    Properties:
+        text:    str  — the message (bindable; `:color[..]` markup allowed)
+        visible: bool — whether the alert is shown (bindable)
+    """
+
+    _kind = 'info'
+
+
+class Multiselect(_Labeled):
+    """A dropdown for choosing several options (mirrors `st.multiselect`).
+
+        with v3.Multiselect(
+            'Select chart results',
+            options=('Droop', 'PSD', 'SNDR'),
+            value=('Droop', 'PSD'),
+        ):
+            pass
+
+    The trigger summarises the selection; opening it shows every option with
+    a tick box. Each toggle reports the whole selection back to the server.
+
+    Args:
+        label: the widget label (bindable).
+        options: the choices (bindable).
+        value: the initial selection, a list drawn from `options` (bindable).
+        format: callable (value -> text) or a label sequence parallel to
+            `options`.
+        format_func: raw option value -> display string.
+        placeholder: shown on the trigger while nothing is selected.
+
+    Properties:
+        label: str — the widget label.
+        options: list — the choices.
+        value: list — the selected options; the client sends the whole list
+            on each toggle.
+
+    Signals:
+        on_value (via `ms['on_value']` or `ms.value.on_change`)
+    """
+
+    format_func: tp.Callable[[tp.Any], str]
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        options: tp.Sequence[tp.Any] | Property | None = None,
+        *,
+        value: tp.Sequence[tp.Any] | Property | None = None,
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
+        format_func: tp.Callable[[tp.Any], str] | None = None,
+        placeholder: str = 'Choose an option',
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.options = _prop([], _as_list(options))
+        self.value = _prop([], _as_list(value))
+        if format is not None:
+            if callable(format):
+                self.format_func = tp.cast(tp.Callable[[tp.Any], str], format)
+            else:
+                labels = list(format)
+
+                def _by_index(x: tp.Any) -> str:
+                    return labels[list(self.options.get()).index(x)]
+
+                self.format_func = _by_index
+        elif format_func is not None:
+            self.format_func = format_func
+        else:
+            self.format_func = lambda x: str(x)
+        self._placeholder = placeholder
+
+    def _coerce_value(self, values: tp.Any) -> list:
+        """Map the client's raw strings back onto the real options."""
+        options = list(self.options.get())
+        out = []
+        for raw in values or ():
+            for option in options:
+                if str(option) == str(raw):
+                    out.append(option)
+                    break
+        return out
 
 
 class NumberInput(_Labeled):
@@ -676,9 +908,18 @@ class Popover(_HasText):
         label: the trigger label (bindable).
         width: `int` (px) | 'content' | 'stretch' | None (default) — width
             of the trigger button.
+        visible: whether the popover is shown (default True, bindable).
+        help: markdown tooltip text shown on the trigger button; a plain
+            string or a bound value (`sc.bind(...)`).
+        panel_align: `'trigger'` (default) anchors the panel under the
+            trigger; `'row'` stretches it across the surrounding `Row`,
+            from that row's text input's left edge to the row's right edge.
+        panel_max_height: optional max height (px) of the panel; content
+            taller than this scrolls (bindable is not supported).
 
     Properties:
         text: str — the trigger label (bindable).
+        visible: bool — whether the popover is shown.
     """
 
     def __init__(
@@ -686,10 +927,18 @@ class Popover(_HasText):
         label: str | Property = '',
         *,
         width: int | tp.Literal['content', 'stretch'] | None = None,
+        visible: bool | Property = True,
+        help: str | Property = '',
+        panel_align: tp.Literal['trigger', 'row'] = 'trigger',
+        panel_max_height: int | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, **kwargs)
+        self.visible = _prop(True, visible)
+        self.help = _prop('', help)
         self._width = width
+        self._panel_align = panel_align
+        self._panel_max_height = panel_max_height
 
 
 class Progress(_HasText):
@@ -731,6 +980,8 @@ class Radio(_OptionsWidget):
     Args:
         label:     the widget label (bindable).
         horizontal: lay the options out in a row instead of a column.
+        max_height: cap the list height in px and scroll past it (useful for
+            long option lists such as a folder listing).
 
     Properties:
         label, options, value — see `_OptionsWidget`.
@@ -751,6 +1002,7 @@ class Radio(_OptionsWidget):
         format_func: tp.Callable[[tp.Any], str] | None = None,
         label_visibility: str = 'visible',
         horizontal: bool = False,
+        max_height: int | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -760,6 +1012,7 @@ class Radio(_OptionsWidget):
             **kwargs,
         )
         self._horizontal = horizontal
+        self._max_height = max_height
 
 
 class Row(Component):
@@ -777,6 +1030,37 @@ class Row(Component):
     ) -> None:
         super().__init__(**kwargs)
         self._vertical_alignment = vertical_alignment
+
+
+class SelectSlider(_OptionsWidget):
+    """A slider over a fixed set of options (mirrors `st.select_slider`).
+
+        with v3.SelectSlider(
+            'Start level',
+            options=range(15, 0, -1),
+            value=15,
+            format_func=lambda x: 'Lv.{}'.format(x),
+        ):
+            pass
+
+    Every option is a tick on one track; clicking or dragging to a tick
+    selects it. The interaction is client-side; the result is reported back
+    as a `change` event.
+
+    Args:
+        label: the widget label (bindable).
+        options: the discrete choices, laid out left to right (bindable).
+        index / value: the initial selection (defaults to the first option).
+        format: callable (value -> text) or a label sequence parallel to
+            `options`.
+        format_func: raw option value -> display string.
+
+    Properties:
+        label, options, index, value — see `_OptionsWidget`.
+
+    Signals:
+        on_value (via `slider['on_value']` or `slider.value.on_change`)
+    """
 
 
 class Selectbox(_OptionsWidget):
@@ -905,6 +1189,8 @@ class Success(_TextVisible):
         visible: bool — whether the alert is shown (bindable)
     """
 
+    _kind = 'success'
+
 
 class Table(Component):
     """A static table (mirrors Streamlit's `st.table`).
@@ -1004,22 +1290,33 @@ class Tabs(Component):
             self.active.set(label)
 
 
-class Text(_HasText):
-    """A text display component."""
+class Text(_HelpText):
+    """A text display component (mirrors Streamlit's `st.text`).
+
+    Args:
+        text: the text content (bindable).
+        help: optional markdown tooltip shown next to the text.
+    """
 
 
-class TextInput(_Labeled):
-    """A single-line text input (mirrors Streamlit's `st.text_input`).
+class TextArea(_Labeled):
+    """A multi-line text box (mirrors Streamlit's `st.text_area`).
 
     Args:
         label: the widget label.
         value: initial text (bindable).
         placeholder: hint shown while the box is empty.
+        height: box height in px; the text scrolls once it overflows.
+        enabled: bool (default True, bindable) — a disabled box is greyed
+            out and cannot be edited.
+        width: int px | 'content' | 'stretch' | None (fill parent).
+        help: optional tooltip shown next to the label.
 
     Properties:
         label: str — rendered above the box.
         value: str — the current text; the client sends a `change` event
-            (fired on blur / Enter), which sets this property.
+            (fired on blur), which sets this property.
+        enabled: bool — whether the box accepts input.
 
     Signals:
         on_value: emitted when `value` changes.
@@ -1031,13 +1328,112 @@ class TextInput(_Labeled):
         *,
         value: str | Property = '',
         placeholder: str = '',
+        height: int = 200,
+        enabled: bool | Property = True,
+        width: int | tp.Literal['content', 'stretch'] | None = None,
+        help: str = '',
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(
+            label, help=help, label_visibility=label_visibility, **kwargs
+        )
+        self.value = _prop('', value)
+        self.enabled = _prop(True, enabled)
+        self._placeholder = placeholder
+        self._height = height
+        self._width = width
+
+
+class TextInput(_Labeled):
+    """A single-line text input (mirrors Streamlit's `st.text_input`).
+
+    Args:
+        label: the widget label.
+        value: initial text (bindable).
+        placeholder: hint shown while the box is empty.
+        enabled: bool (default True, bindable) — a disabled box is greyed
+            out and cannot be edited.
+        width: int px | 'content' | 'stretch' | None (fill parent).
+        help: optional tooltip shown next to the label.
+
+    Properties:
+        label: str — rendered above the box.
+        value: str — the current text; the client sends a `change` event
+            (fired on blur / Enter), which sets this property.
+        enabled: bool — whether the box accepts input.
+
+    Signals:
+        on_value: emitted when `value` changes.
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        value: str | Property = '',
+        placeholder: str = '',
+        enabled: bool | Property = True,
+        width: int | tp.Literal['content', 'stretch'] | None = None,
+        help: str = '',
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(
+            label, help=help, label_visibility=label_visibility, **kwargs
+        )
+        self.value = _prop('', value)
+        self.enabled = _prop(True, enabled)
+        self._placeholder = placeholder
+        self._width = width
+
+
+class Title(_HelpText):
+    """A title (heading) component (mirrors Streamlit's `st.title`).
+
+    Args:
+        text: the title content (bindable).
+        help: optional markdown tooltip shown next to the text.
+    """
+
+
+class Toggle(_Labeled):
+    """An on/off switch (mirrors Streamlit's `st.toggle`).
+
+    Same fields as `Checkbox`; only the visual differs (a sliding switch
+    instead of a tick box).
+
+    Args:
+        label: the widget label (bindable).
+        value: the switch state (default False, bindable).
+
+    Properties:
+        label: str  — the widget label.
+        value: bool — the switch state; the client sends a `change` event
+            (boolean), which sets this property.
+
+    Signals:
+        on_value (via `tg['on_value']` or `tg.value.on_change`)
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        value: bool | Property = False,
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
-        self.value = _prop('', value)
-        self._placeholder = placeholder
+        self.value = _prop(False, value)
 
 
-class Title(_HasText):
-    """A title (heading) component."""
+class Warning(_TextVisible):
+    """A yellow warning alert box (mirrors Streamlit's `st.warning`).
+
+    Properties:
+        text:    str  — the message (bindable; `:color[..]` markup allowed)
+        visible: bool — whether the alert is shown (bindable)
+    """
+
+    _kind = 'warning'

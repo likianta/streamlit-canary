@@ -40,7 +40,7 @@ streamlit-canary/
 │   │   ├── runtime.py        # Runtime: 持久组件树 + 事件路由 + delta 广播
 │   │   ├── render.py         # 组件树 → HTML
 │   │   ├── server.py         # Starlette 应用 + WebSocket 端点
-│   │   └── static/           # 前端资源: page.css / page.js / theme-*.css / 字体
+│   │   └── static/           # 前端资源: page.css / page.js / markdown-it.min.js / theme-*.css / 字体
 │   ├── components/           # v1 组件 (基于 Streamlit)
 │   ├── components_v2/        # v2 组件 (过渡版本)
 │   ├── session.py            # v1 session state 管理 (init_state / init_state_v2)
@@ -224,7 +224,8 @@ when mouse.click(sel):
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
 - **`references/` 只读**: `references/` 目录 (含其中以软链接形式挂载的参考项目) 对 agent 是**只读**的, 不要修改其中的任何文件; 只可读取作为参考.
 - **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/widgets.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
-- **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`page.css` / `page.js` / `theme-*.css`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此**改动这些文件后必须重启服务**.
+- **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`page.css` / `page.js` / `markdown-it.min.js` / `theme-*.css`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此**改动这些文件后必须重启服务**.
+- **Markdown 在前端渲染**: 服务器只把 markdown 源文写进 `.st-md` / `.st-md-block` 占位符的 `data-md` 属性, 真正的解析由 `page.js` + 打包的 `markdown-it` 在浏览器完成 (与 Streamlit 的 react-markdown 一致). 因此 `render_markup` (行内) / `_render_paragraphs` (块级) 只负责出占位符; 新增承载 markdown 的元素时, 必须带上 `st-md` (或 `st-md-block`) 类, 否则 delta patch 与样式都会失配. Streamlit 自有的 `:color[..]` / `:material/..:` 扩展和 typographer (` -> ` → `→` 等) 也在 `page.js` 里以插件形式实现.
 - **Web 服务**: 用 Starlette + Uvicorn (HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
 - **Web 服务器非阻塞**: 必须非阻塞启动, 可用 StopCommand 停止.
 - **Python 3.12**: 使用现代语法 (`type | type` 联合, `match` 等).

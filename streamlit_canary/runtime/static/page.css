@@ -66,6 +66,85 @@
      anyway, and hiding it keeps it out of a parent flex container's `gap`. */
   .st-text:empty { display: none; }
 
+  /* Markdown (parsed client-side by markdown-it): `page.js` fills the
+     `.st-md` holders the server emits, so the element styles below are
+     scoped to that holder. Component-specific rules (e.g. `.st-alert-text
+     p`) are more specific and still win. */
+  .st-md a {
+    color: var(--st-primary-color);
+    text-decoration: underline;
+  }
+  .st-md p {
+    margin: 0 0 8px;
+  }
+  .st-md p:last-child {
+    margin-bottom: 0;
+  }
+  .st-md ul,
+  .st-md ol {
+    margin: 0 0 8px;
+    padding-left: 22px;
+  }
+  .st-md li {
+    margin: 2px 0;
+  }
+  .st-md blockquote {
+    margin: 0 0 8px;
+    padding: 2px 0 2px 12px;
+    border-left: 3px solid var(--st-border-color);
+    color: var(--st-gray-color);
+  }
+  .st-md h1,
+  .st-md h2,
+  .st-md h3,
+  .st-md h4,
+  .st-md h5,
+  .st-md h6 {
+    margin: 16px 0 8px;
+    font-family: var(--st-heading-font);
+    color: var(--st-heading-color);
+    line-height: 1.3;
+  }
+  .st-md hr {
+    border: none;
+    border-top: 1px solid var(--st-border-color);
+    margin: 12px 0;
+  }
+  .st-md code {
+    font-family: var(--st-code-font);
+    font-size: 0.85em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+  .st-md pre {
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.06);
+    overflow-x: auto;
+  }
+  .st-md pre code {
+    padding: 0;
+    background-color: transparent;
+  }
+  .st-md table {
+    border-collapse: collapse;
+    margin: 0 0 8px;
+  }
+  .st-md th,
+  .st-md td {
+    border: 1px solid var(--st-border-color);
+    padding: 4px 10px;
+    text-align: left;
+  }
+  .st-md th {
+    background-color: var(--st-secondary-background-color);
+  }
+  .st-md img {
+    max-width: 100%;
+  }
+
   .st-caption {
     font-size: 14px;
     color: var(--st-gray-color);
@@ -94,6 +173,15 @@
     margin: 0;
     font-size: 16px;
     color: inherit;
+  }
+  /* Alert variants: the base colours above are the success palette. */
+  .st-alert-warning .st-alert-container {
+    background-color: rgba(255, 189, 69, 0.2);
+    color: #ffbd45;
+  }
+  .st-alert-info .st-alert-container {
+    background-color: rgba(61, 157, 243, 0.2);
+    color: #3d9df3;
   }
 
   /* Spinner */
@@ -135,6 +223,14 @@
   }
   .st-row > * { flex: 1; }
   .st-row > .st-btn-secondary { flex: 0 0 auto; }
+  /* A `width='stretch'` widget fills its parent on its own. Inside a row that
+  would give it a 100% flex basis, so it would claim the whole line and push
+  its siblings onto the next one (two stretch buttons never sit side by side).
+  Sharing the free space instead keeps both on one line. */
+  .st-row > *[style*="width:100%"] {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
   /* Stretchy widgets take the remaining space, so they must be allowed to
   shrink below their min-content width. Otherwise a wide widget pushes its
   sibling (e.g. the refresh icon button) onto the next line. Buttons are
@@ -154,6 +250,7 @@
     border-radius: var(--st-base-radius);
     padding: 16px;
   }
+  .st-container[hidden] { display: none; }
 
   /* Layout: Grid */
   .st-grid {
@@ -187,6 +284,47 @@
   .st-widget-label--collapsed {
     display: none;
   }
+  .st-widget-label .st-widget-help {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 4px;
+    color: var(--st-text-color);
+    opacity: 0.4;
+    cursor: help;
+  }
+  .st-widget-label .st-widget-help:hover {
+    opacity: 0.9;
+  }
+
+  /* Help tooltip: markdown-capable replacement for the native `title`.
+     Positioned in viewport coordinates by `scShowHelp` in page.js. */
+  .st-help-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    max-width: 320px;
+    padding: 8px 12px;
+    border: 1px solid var(--st-border-color);
+    border-radius: 8px;
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-family: var(--st-font);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    pointer-events: none;
+  }
+  .st-help-tooltip[hidden] {
+    display: none;
+  }
+  .st-help-tooltip p {
+    margin: 0 0 8px;
+  }
+  .st-help-tooltip p:last-child {
+    margin-bottom: 0;
+  }
 
   /* Text input (mirrors Streamlit's `st.text_input`) */
   .st-text-input {
@@ -212,6 +350,39 @@
   .st-text-input-box:focus {
     outline: none;
     border-color: var(--st-gray-color);
+  }
+  .st-text-input-box:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
+  }
+
+  /* Multi-line text box (mirrors Streamlit's `st.text_area`). Shares the
+     single-line box's frame; `height` comes from the inline style. */
+  .st-text-area { margin-bottom: 8px; }
+  .st-text-area-box {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    line-height: 1.6;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  .st-text-area-box::placeholder {
+    color: var(--st-gray-color);
+  }
+  .st-text-area-box:focus {
+    outline: none;
+    border-color: var(--st-gray-color);
+  }
+  .st-text-area-box:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
   }
 
   /* Number input (mirrors Streamlit's `st.number_input`).
@@ -484,6 +655,21 @@
   .st-selectbox-option:hover > .st-selectbox-option-inner {
     background-color: var(--st-border-color);
   }
+  .st-selectbox-trigger:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  /* Disabled option widgets: `is-disabled` is toggled by the `enabled` patch. */
+  .st-radio.is-disabled,
+  .st-select-slider.is-disabled,
+  .st-multiselect.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .st-radio.is-disabled .st-radio-item {
+    cursor: not-allowed;
+  }
   .st-selectbox-option[data-selected] .st-selectbox-option-inner {
     color: var(--st-primary-color);
   }
@@ -676,11 +862,73 @@
     color: var(--st-text-color);
   }
 
+  /* Toggle switch (mirrors Streamlit's `st.toggle`). Same markup shape as the
+     checkbox: a visually hidden <input> plus div-drawn visuals. */
+  .st-toggle { margin-bottom: 8px; }
+  .st-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  /* The real <input> is visually hidden; the switch is drawn with divs.
+     Same pattern as the checkbox, so clicks are handled by the label's
+     activation behavior (which also keeps it reachable for assistive tech). */
+  .st-toggle-input-wrap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .st-toggle-track {
+    position: relative;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background-color: rgba(250, 250, 250, 0.2);
+    transition: background-color 0.2s ease;
+  }
+  .st-toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #ffffff;
+    transition: transform 0.2s ease;
+  }
+  .st-toggle-label:has(input:checked) .st-toggle-track {
+    background-color: var(--st-primary-color);
+  }
+  .st-toggle-label:has(input:checked) .st-toggle-thumb {
+    transform: translateX(18px);
+  }
+  .st-toggle-text {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--st-text-color);
+  }
+  /* Switches keep their intrinsic width in a row (like buttons), so a row of
+     them packs left instead of spreading apart. */
+  .st-row > .st-toggle { flex: 0 0 auto; }
+
   /* Popover (mirrors Streamlit's `st.popover`) */
   .st-popover {
     position: relative;
     display: inline-block;
     margin-bottom: 8px;
+  }
+  .st-popover[hidden] {
+    display: none;
   }
   /* In a Row the popover keeps its intrinsic width, like buttons. */
   .st-row > .st-popover { flex: 0 0 auto; }
@@ -724,6 +972,34 @@
   .st-popover-panel > .st-table,
   .st-popover-panel > .st-title,
   .st-popover-panel > .st-text { margin-bottom: 0; }
+  /* Row-aligned panel (`Popover(panel_align='row')`, used by
+     `SimpleTreeSelect`): the frontend sizes it from the surrounding row's
+     text input to the row's right edge.  It scrolls once its content
+     exceeds `max-height`, and its last row (the icon-button bar) sticks to
+     the bottom so a long listing never pushes it out of view. */
+  .st-popover-panel--row {
+    padding: 0;
+    gap: 0;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .st-popover-panel--row > .st-caption {
+    margin: 0;
+    padding: 12px 16px 6px;
+  }
+  .st-popover-panel--row > .st-radio {
+    padding: 0 16px 12px;
+  }
+  .st-popover-panel--row > .st-row:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 8px 16px;
+    background-color: var(--st-background-color);
+    border-top: 1px solid var(--st-border-color);
+  }
   /* Reserve room for the rerun notice so it never covers app content.
      The rule is scoped to `body.sc-rerun-visible`, which the frontend
      toggles together with the notice: with nothing to show, the layout
@@ -872,6 +1148,80 @@
   }
   .st-expander-body-inner > * { margin-bottom: 0; }
   .st-expander-body[hidden] { display: none; }
+  .st-expander[hidden] { display: none; }
+
+  /* -- Dialog (mirrors Streamlit's `st.dialog`) -- */
+  .st-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+  .st-dialog-backdrop[hidden] { display: none; }
+  .st-dialog {
+    display: flex;
+    flex-direction: column;
+    width: 640px;
+    max-width: 100%;
+    max-height: 90vh;
+    border: 1px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    background-color: var(--st-background-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+  .st-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 16px 16px 8px;
+  }
+  .st-dialog-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--st-heading-color);
+  }
+  .st-dialog-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    border: none;
+    border-radius: var(--st-button-radius);
+    background: transparent;
+    color: var(--st-gray-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .st-dialog-close:hover {
+    background-color: var(--st-border-color);
+    color: var(--st-text-color);
+  }
+  .st-dialog-body {
+    padding: 8px 16px 16px;
+    overflow: auto;
+  }
+
+  /* -- Icon-only button (`v3.IconButton`) -- */
+  .st-btn.st-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    padding: 4px 8px;
+  }
+  .st-btn.st-btn-icon .st-btn-text p { margin: 0; }
+  /* Icon buttons keep their intrinsic width in a row (like switches) so a nav
+     bar of them packs left instead of spreading apart. */
+  .st-row > .st-btn-icon { flex: 0 0 auto; }
 
   /* -- Progress bar (mirrors Streamlit's `st.progress`) -- */
   .st-progress {
@@ -917,6 +1267,140 @@
   .st-altair-canvas { width: 100%; }
   .st-altair-canvas .vega-embed { display: block; }
   .st-altair-canvas .vega-actions { display: none; }
+
+  /* -- Multiselect (mirrors Streamlit's `st.multiselect`) -- */
+  .st-multiselect {
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .st-multiselect-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 38px;
+    padding: 4px 12px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  .st-multiselect-values {
+    font-size: 14px;
+    line-height: 1.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st-multiselect-values.is-placeholder {
+    color: var(--st-gray-color);
+  }
+  .st-multiselect-arrow {
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--st-gray-color);
+  }
+  .st-multiselect-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 4px 0;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  .st-multiselect-dropdown[hidden] { display: none; }
+  .st-multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 13px;
+    color: var(--st-text-color);
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+  .st-multiselect-option:hover {
+    background-color: var(--st-border-color);
+  }
+  .st-multiselect-check {
+    flex: 0 0 12px;
+    opacity: 0;
+    color: var(--st-primary-color);
+  }
+  .st-multiselect-option.is-checked .st-multiselect-check {
+    opacity: 1;
+  }
+  .st-multiselect-option.is-checked .st-multiselect-option-label {
+    color: var(--st-primary-color);
+  }
+
+  /* -- SelectSlider (discrete slider, mirrors `st.select_slider`) -- */
+  .st-select-slider { margin-bottom: 8px; }
+  .st-select-slider-track {
+    position: relative;
+    height: 40px;
+    padding: 0 10px;
+    touch-action: none;
+    user-select: none;
+    cursor: pointer;
+  }
+  .st-select-slider-rail {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 8px;
+    height: 4px;
+    border-radius: 2px;
+    background-color: var(--st-border-color);
+  }
+  .st-select-slider-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+    background-color: var(--st-primary-color);
+  }
+  .st-select-slider-ticks {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: 0;
+    height: 100%;
+  }
+  .st-select-slider-tick {
+    position: absolute;
+    top: 6px;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .st-select-slider-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--st-border-color);
+  }
+  .st-select-slider-tick.is-active .st-select-slider-dot {
+    background-color: var(--st-primary-color);
+  }
+  .st-select-slider-tick-label {
+    margin-top: 14px;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--st-text-color);
+  }
+  .st-select-slider-tick.is-active .st-select-slider-tick-label {
+    color: var(--st-primary-color);
+  }
 
   /* ---- Vertical rhythm -------------------------------------------------
      A flex/grid container owns the spacing between its stacked children via
