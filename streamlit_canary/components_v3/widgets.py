@@ -862,10 +862,13 @@ class NumberInput(_Labeled):
         min_value / max_value: optional inclusive bounds. An int widget
             requires ints; a float widget also accepts ints and converts
             them to float.
-        step: increment used by the stepper (+/-) gadgets. `None` (the
-            default) shows **no stepper at all** — set it explicitly to get
-            one. An int widget requires an int step; a float widget accepts
-            int or float (converted to float). Must be > 0.
+        step: increment used by the stepper (+/-) gadgets. `0` (the
+            default) shows **no stepper at all** — pass a positive number to
+            get one. An int widget requires an int step; a float widget
+            accepts int or float (converted to float). Must be >= 0.
+            A stepper that does not fit the widget's width degrades: it turns
+            into a vertical (+ above, - below) gadget, and is dropped when
+            even that does not fit (see `page.css`).
         format: optional display formatter, e.g. `hex` (int widgets only).
         width: `int` (px) | 'content' | 'stretch' | None (default).
         placeholder: hint shown while the box is empty.
@@ -884,7 +887,7 @@ class NumberInput(_Labeled):
         TypeError: `value` is not a number, or `min_value` / `max_value` /
             `step` do not match the widget's numeric type.
         ValueError: `value` falls outside `[min_value, max_value]`, or
-            `step` is not > 0.
+            `step` is negative.
     """
 
     _default_width = 'stretch'
@@ -895,7 +898,7 @@ class NumberInput(_Labeled):
         value: int | float | Property = 0,
         min_value: int | float | None = None,
         max_value: int | float | None = None,
-        step: int | float | None = None,
+        step: int | float = 0,
         *,
         format: tp.Callable[[tp.Any], str] | None = None,
         width: Width | None = None,
@@ -924,12 +927,11 @@ class NumberInput(_Labeled):
                 f'NumberInput value {number!r} is above max_value '
                 f'{max_value!r}.'
             )
-        if step is not None:
-            step = _check_number_arg(step, is_float, 'step')
-            if step <= 0:
-                raise ValueError(f'NumberInput step must be > 0, got {step!r}.')
+        step = _check_number_arg(step, is_float, 'step')
+        if step < 0:
+            raise ValueError(f'NumberInput step must be >= 0, got {step!r}.')
 
-        # `None` stays `None`: no stepper is rendered in that case.
+        # `0` keeps `_step` falsy: no stepper is rendered in that case.
         self.value = _prop(tp.cast(tp.Any, number), tp.cast(tp.Any, value))
         self.format = format
         self._min = min_value

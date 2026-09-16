@@ -56,7 +56,7 @@ streamlit-canary/
 │   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2206
 │   ├── streamlit/            # Streamlit 源码
 │   └── ...                   # 截图, 参考图等
-├── .trae/documents/          # 设计与路线图文档 (event_driven_streamlit_roadmap.md)
+├── .trae/documents/          # 设计/路线图文档 (event_driven_streamlit_roadmap.md) 与像素对比差异说明 (pixel_fidelity_caveats.md)
 ├── pyproject.toml            # 项目配置
 ├── readme.md                 # 简要说明 (session state / v3 用法)
 └── changelog.md              # 变更记录
@@ -188,6 +188,12 @@ when mouse.click(sel):
    - `runtime/static/page.css` -- 样式
    - `runtime/static/page.js` -- 前端交互 (事件回传 / delta patch)
 5. **重新验证**: 重启服务 (前端资源在启动时读入, 改动后必须重启), 再次采集数据, 确认所有 assert 通过
+
+### 4.4 像素对比测试前必读
+
+在跑 `./test/pixel_fidelity/` 下的任何对比测试之前 (以及在据其结果判断 "这算不算 bug" 之前), 先读一遍 `.trae/documents/pixel_fidelity_caveats.md`.
+
+该文档列出我们**有意为之**的差异 (例如: SelectBox 展开后, 用主题色高亮当前已选项; NumberInput 变窄时 stepper 转为 "上加下减" 的竖排布局), 以及**待对齐**的问题 (条目带 `TODO:` 前缀). 与 Streamlit 不一致的地方都先在这里对号入座: 不要把预期差异当成 bug 去 "修", 也不要把待对齐项当成预期差异而放过.
 
 ## 5. 工具链
 

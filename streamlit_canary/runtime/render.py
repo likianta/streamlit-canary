@@ -590,7 +590,7 @@ def _format_number(comp: NumberInput, value: tp.Any) -> str:
 def _render_number_input(comp: NumberInput) -> str:
     value = comp.value.get()
     text = _format_number(comp, value)
-    step = getattr(comp, '_step', None)
+    step = getattr(comp, '_step', 0) or 0
     min_value = getattr(comp, '_min', None)
     max_value = getattr(comp, '_max', None)
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
@@ -598,15 +598,17 @@ def _render_number_input(comp: NumberInput) -> str:
     # `data-value` carries the raw (unformatted) number, which is what the
     # stepper does its arithmetic on.
     data = f' data-value="{html.escape(str(value))}"'
-    if step is not None:
+    if step > 0:
         data += f' data-step="{step}"'
     if min_value is not None:
         data += f' data-min="{min_value}"'
     if max_value is not None:
         data += f' data-max="{max_value}"'
-    # A float widget without an explicit `step` shows no stepper.
+    # A `step` of 0 asks for no stepper at all. The gadget is a single markup
+    # for every width: `page.css` stacks it vertically when the box gets
+    # narrow, and hides it when even that does not fit.
     stepper = ''
-    if step is not None:
+    if step > 0:
         # Sitting on a bound disables the arrow that would leave the range,
         # exactly like Streamlit does.
         numeric = isinstance(value, (int, float))
@@ -632,8 +634,16 @@ def _render_number_input(comp: NumberInput) -> str:
             f'{_ICON_PLUS}</button>'
             '</span>'
         )
+    # A `width='content'` wrapper is sized from the box, so `page.css` keeps
+    # the box out of its container queries (containment would collapse it).
+    modifier = (
+        ' st-number-input--content-width'
+        if getattr(comp, '_width', None) == 'content'
+        else ''
+    )
     return (
-        f'<div class="st-number-input" data-id="{comp.id}"{width_style}>'
+        f'<div class="st-number-input{modifier}" data-id="{comp.id}"'
+        f'{width_style}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-number-box">'
         f'<input class="st-text-input-box" type="text" '

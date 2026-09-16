@@ -448,6 +448,14 @@
     background-color: var(--st-secondary-background-color);
     box-sizing: border-box;
   }
+  /* The box measures its own width for the stepper's responsive layout (see
+     the container queries below). A `width='content'` wrapper is sized *from*
+     the box, and containment -- which hides the contents from that
+     calculation -- would collapse it, so such a wrapper is left out; it hugs
+     its own (always wide) content instead. */
+  .st-number-input:not(.st-number-input--content-width) .st-number-box {
+    container-type: inline-size;
+  }
   .st-number-box:focus-within {
     border-color: var(--st-gray-color);
   }
@@ -462,7 +470,8 @@
   .st-number-stepper {
     display: flex;
     flex: none;
-    /* Streamlit stacks the two arrows side by side on the right. */
+    /* Wide enough: the two arrows sit side by side on the right, like
+       Streamlit's. */
     flex-direction: row;
   }
   .st-number-step {
@@ -485,6 +494,23 @@
   .st-number-step:disabled {
     color: var(--st-gray-text-color);
     cursor: not-allowed;
+  }
+  /* Narrow: Streamlit drops the stepper once the widget is thinner than its
+     `hideNumberInputControls` breakpoint (7.5rem) because the horizontal
+     gadget no longer fits. We keep it and stack the arrows vertically
+     instead -- "+" above, "-" below -- which only needs one arrow's width.
+     The queries measure the box' content box, while Streamlit measures the
+     whole widget, hence the 0.1rem taken off each limit (the 0.8px border on
+     both sides). */
+  @container (width < 7.4rem) {
+    .st-number-stepper { flex-direction: column-reverse; }
+    .st-number-step { flex: 1 1 0; }
+  }
+  /* Too narrow even for the stacked gadget: it is then dropped, like
+     Streamlit does. The vertical gadget is one arrow (2rem) narrower than
+     the horizontal one, so this limit sits 2rem below the one above. */
+  @container (width < 5.4rem) {
+    .st-number-stepper { display: none; }
   }
 
   /* Table (mirrors Streamlit's `st.table`): a key column rendered as
@@ -705,13 +731,15 @@
     font-size: 14px;
     line-height: 1.4;
     cursor: pointer;
-    transition: border-color 0.15s;
+    /* No transition here: Streamlit turns the border red as soon as the
+       control is focused, so a fading (translucent) red in between would be
+       a visible artifact. */
   }
-  /* No border-color change on hover — matches Streamlit's behavior. */
+  /* No border-color change on hover — matches Streamlit's behavior. The focus
+     border is the only decoration: Streamlit adds no focus ring. */
   .st-selectbox-trigger:focus {
     outline: none;
     border-color: var(--st-primary-color);
-    box-shadow: 0 0 0 2px rgba(var(--st-primary-color-rgb), 0.2);
   }
   .st-selectbox-value {
     flex: 1;
@@ -738,24 +766,39 @@
     overflow-y: auto;
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
-    background-color: var(--st-secondary-background-color);
+    /* Streamlit paints the popup with the app background, not the secondary
+       one, and the rows carry the whole 40px height -- hence no padding. */
+    background-color: var(--st-background-color);
     box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.4);
-    padding: 4px 0;
+    padding: 0;
   }
   .st-selectbox-option {
+    display: flex;
+    align-items: center;
+    height: 40px;
     padding: 0 5px;
+    font-size: 14px;
     color: var(--st-text-color);
     cursor: pointer;
   }
   .st-selectbox-option-inner {
-    padding: 8px 8px;
+    display: flex;
+    align-items: center;
+    /* Streamlit lets the highlight box fill the row and clips a label that is
+       too long for it, so the items keep a constant pitch. */
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 28px;
+    padding: 0 8px;
     font-size: 14px;
-    line-height: 1.4;
-    border-radius: 4px;
-    transition: background-color 0.1s;
+    white-space: nowrap;
+    overflow: hidden;
+    border-radius: 6px;
+    /* No transition: the highlight has to land on the very first frame, so
+       the pointer never sees the background fade in. */
   }
   .st-selectbox-option:hover > .st-selectbox-option-inner {
-    background-color: var(--st-border-color);
+    background-color: var(--st-hover-background-color);
   }
   .st-selectbox-trigger:disabled {
     color: var(--st-gray-color);
