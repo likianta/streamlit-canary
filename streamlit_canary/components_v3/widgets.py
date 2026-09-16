@@ -467,9 +467,9 @@ class Button(_HasText):
         # `type` is static config, not a reactive Property (`width` is
         # collected by the base class).
         self._type = type
-        # `Signal(owner_factory=...)` mirrors `Property.on_change`, so
+        # `Signal(_owner_factory=...)` mirrors `Property.on_change`, so
         # `@btn.on_click.partial(sc._self)` hands the handler this button.
-        self.on_click: Signal = Signal(owner_factory=lambda: self)
+        self.on_click: Signal = Signal(_owner_factory=lambda: self)
         if on_click is not None:
             self.on_click.connect(on_click)
 
@@ -640,7 +640,7 @@ class Dialog(Component):
         else:
             _validate_size(width, 'width')
             self._width = width
-        self.on_close: Signal = Signal(owner_factory=lambda: self)
+        self.on_close: Signal = Signal(_owner_factory=lambda: self)
 
     def _on_close(self, _value: tp.Any = None) -> None:
         """Handle a client-side dismissal (✕ / backdrop / Esc)."""

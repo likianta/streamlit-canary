@@ -462,7 +462,7 @@ class TreeSelect(Column):
                             with Popover(':material/location_on:'):
                                 Text('Current location:')
                                 self._location_info = Info(nav.directory)
-            self.on_confirm: Signal = Signal(owner_factory=lambda: self)
+            self.on_confirm: Signal = Signal(_owner_factory=lambda: self)
 
         # -- handlers -------------------------------------------------------
 

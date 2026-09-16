@@ -1,10 +1,25 @@
 """
 Pure-Python signal implementation (no Qt dependency).
 
-A Signal is a publish/subscribe primitive:
-    sig = Signal()
+A Signal is a publish/subscribe primitive. Its parameters are declared up
+front, as the types of whatever `emit()` will carry:
+
+    sig = Signal(int)
     sig.connect(handler)
     sig.emit(42)            # calls handler(42)
+
+`*args` declares positional-only parameters, `**kwargs` named ones. A named
+parameter is also accepted in position order, so a signal can be emitted in
+whichever form reads better:
+
+    state_changed = Signal(bool, reason=str)
+    state_changed.emit(True, reason='User clicks connect button.')
+    state_changed.emit(True, 'User clicks connect button.')   # same thing
+
+Declaring no parameter leaves the signal free-form: `emit()` hands whatever it
+is given over untouched. That is what the payload-less signals the framework
+defines itself (`Property.on_change`, `Button.on_click`, ...) rely on, and it
+is also the fastest path.
 
 It can also be used as a decorator to register a handler:
     @sig
@@ -26,12 +41,48 @@ provides; the `_self` / `_value` markers resolve to the owner at emit time:
 
 from __future__ import annotations
 
+import inspect
 import typing as tp
 
 from .special_value import _self
 from .special_value import _value
 
 _H = tp.TypeVar('_H', bound=tp.Callable)
+
+
+def _type_name(annotation: tp.Any) -> str:
+    """Readable name of a declared parameter type, for `repr()`."""
+    return getattr(annotation, '__name__', None) or repr(annotation)
+
+
+def _build_signature(
+    args: tuple[tp.Any, ...], kwargs: dict[str, tp.Any]
+) -> inspect.Signature | None:
+    """Turn declared parameter types into something `emit()` can bind.
+
+    Positional types become positional-only parameters (they have no name, so
+    there is nothing to pass them by), while the named ones stay
+    positional-or-keyword -- which is exactly what makes `emit(v, 'why')` and
+    `emit(v, why='...')` the same call. A signal that declares nothing returns
+    None, and is then left free-form.
+    """
+    if not args and not kwargs:
+        return None
+    parameters = [
+        inspect.Parameter(
+            'arg{}'.format(index),
+            inspect.Parameter.POSITIONAL_ONLY,
+            annotation=annotation,
+        )
+        for index, annotation in enumerate(args)
+    ]
+    parameters += [
+        inspect.Parameter(
+            name, inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=annotation
+        )
+        for name, annotation in kwargs.items()
+    ]
+    return inspect.Signature(parameters)
 
 
 class _Partial:
@@ -90,13 +141,27 @@ class _Partial:
 
 class Signal:
     def __init__(
-        self, owner_factory: tp.Callable[[], tp.Any] | None = None
+        self,
+        *args: type,
+        _owner_factory: tp.Callable[[], tp.Any] | None = None,
+        **kwargs: type,
     ) -> None:
+        self._args = args
+        self._kwargs = kwargs
+        self._signature = _build_signature(args, kwargs)
         self._handlers: list[tp.Callable] = []
         # Optional owner provider. When set, `_resolve(_self)` returns the
         # owner and `_resolve(_value)` returns `owner.get()`. Only used by
         # `.partial(...)`; `emit()` never passes the owner automatically.
-        self._owner_factory = owner_factory
+        self._owner_factory = _owner_factory
+
+    def __repr__(self) -> str:
+        declared = [_type_name(annotation) for annotation in self._args]
+        declared += [
+            '{}: {}'.format(name, _type_name(annotation))
+            for name, annotation in self._kwargs.items()
+        ]
+        return 'sc.Signal({})'.format(', '.join(declared))
 
     # -- connection -------------------------------------------------------
 
@@ -110,10 +175,22 @@ class Signal:
     # -- emit ------------------------------------------------------------
 
     def emit(self, *args: tp.Any, **kwargs: tp.Any) -> None:
+        if self._signature is None:
+            # No declared parameter: free-form, hand the payload over as given.
+            payload_args, payload_kwargs = args, kwargs
+        else:
+            try:
+                bound = self._signature.bind(*args, **kwargs)
+            except TypeError as exc:
+                raise TypeError('{!r}: {}'.format(self, exc)) from None
+            # Binding up front is what lets a named parameter be passed by name
+            # or in position order; handlers always receive one positional
+            # payload, in declaration order.
+            payload_args, payload_kwargs = bound.args, bound.kwargs
         # iterate over a copy so handlers that disconnect themselves during
         # emission do not break the loop.
         for handler in list(self._handlers):
-            handler(*args, **kwargs)
+            handler(*payload_args, **payload_kwargs)
 
     # -- decorator support ------------------------------------------------
 
@@ -135,6 +212,8 @@ class Signal:
 
         The immediate emit passes no arguments (the owner is not injected).
         To receive the owner or its value, use `.partial(...).emit_now`.
+        Only a signal that declares no parameter can be emitted this way --
+        for the others there would be nothing to pass.
         """
 
         def decorator(func: _H) -> _H:

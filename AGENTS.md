@@ -232,6 +232,7 @@ when mouse.click(sel):
 ## 8. Kernel 事件约定 (Property / Signal)
 
 - **`on_change` 不默认传参**: `Property.set()` 触发时调用 `Signal.emit()`, **不会**把 Property 自身作为第一个参数传给 handler.
+- **Signal 的参数声明**: 构造 `Signal` 时用类型声明 `emit()` 的载荷 -- `*args` 是位置参数, `**kwargs` 是命名参数 (命名参数也可以按位置顺序传入). 例如 `Signal(bool, reason=str)` 的 `emit(ok, reason='...')` 和 `emit(ok, '...')` 等价; handler 收到的始终是按声明顺序排列的位置参数. 不声明参数则是自由形式, `emit()` 原样透传 (内置的 `Signal()` 都是这种, 因为它们不携带载荷). 声明之后, 参数缺失 / 多传 / 拼错关键字都会在 `emit()` 处立即抛 `TypeError`.
 - **按需注入 owner**: 用 `Signal.partial(...)` 绑定特殊标记来拿到 owner:
   - `sc._self` → handler 收到 owner (触发变更的 Property handle)
   - `sc._value` → handler 收到 owner 的当前值 (`owner.get()`)

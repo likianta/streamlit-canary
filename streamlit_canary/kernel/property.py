@@ -46,7 +46,7 @@ class Property(tp.Generic[_T]):
     def __init__(self, default: _T | _Undefined = _undefined) -> None:
         self.default = default
         self.value = default
-        self.on_change = Signal(owner_factory=lambda: self)
+        self.on_change = Signal(_owner_factory=lambda: self)
 
     def __bool__(self) -> bool:
         return bool(self.value)
