@@ -398,7 +398,9 @@
     align-items: stretch;
     width: 100%;
     min-height: 40px;
-    border: 1px solid var(--st-widget-border-color);
+    /* Streamlit fills its inputs instead of outlining them, so the border
+       is the same colour as the fill. */
+    border: 0.8px solid var(--st-secondary-background-color);
     border-radius: var(--st-button-radius);
     background-color: var(--st-secondary-background-color);
     box-sizing: border-box;
@@ -417,24 +419,29 @@
   .st-number-stepper {
     display: flex;
     flex: none;
-    flex-direction: column;
-    border-left: 1px solid var(--st-widget-border-color);
+    /* Streamlit stacks the two arrows side by side on the right. */
+    flex-direction: row;
   }
   .st-number-step {
     display: flex;
-    flex: 1 1 50%;
+    flex: none;
     align-items: center;
     justify-content: center;
-    width: 28px;
+    width: 32px;
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--st-gray-color);
+    color: var(--st-text-color);
     cursor: pointer;
   }
-  .st-number-step:hover {
-    background-color: var(--st-hover-background-color);
-    color: var(--st-text-color);
+  .st-number-step:not(:disabled):hover {
+    background-color: var(--st-primary-color);
+    color: var(--st-on-primary-color);
+  }
+  /* Sitting on a bound: the arrow is inert and dimmed. */
+  .st-number-step:disabled {
+    color: var(--st-gray-text-color);
+    cursor: not-allowed;
   }
 
   /* Table (mirrors Streamlit's `st.table`): a key column rendered as

@@ -145,6 +145,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         // The stepper does arithmetic on the raw value, not on the display
         // text (which may be formatted, e.g. hex).
         if (box) box.dataset.value = String(msg.value);
+        // Keep the arrows' enabled state in sync with the clamped value.
+        if (box) scSyncNumberStepper(box);
       }
       if (
         el.classList.contains('st-checkbox') ||
@@ -820,6 +822,24 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       body.hidden = !expanded;
     });
   }
+  // Enable/disable the stepper arrows from the current value, mirroring
+  // Streamlit: sitting on a bound disables the arrow pointing out of it.
+  function scSyncNumberStepper(input) {
+    const box = input.closest('.st-number-box');
+    if (!box) return;
+    // Markup order is [decrease, increase].
+    const steps = box.querySelectorAll('.st-number-step');
+    if (steps.length < 2) return;
+    const value = parseFloat(input.dataset.value);
+    if (!isFinite(value)) return;
+    const min = input.dataset.min;
+    const max = input.dataset.max;
+    steps[0].disabled =
+      min !== undefined && min !== '' && value <= parseFloat(min);
+    steps[1].disabled =
+      max !== undefined && max !== '' && value >= parseFloat(max);
+  }
+
   function scStepNumber(btn, direction) {
     const box = btn.closest('.st-number-box');
     const input = box ? box.querySelector('input') : null;
@@ -841,6 +861,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const text = decimals ? value.toFixed(decimals) : String(value);
     input.dataset.value = text;
     input.value = text;
+    scSyncNumberStepper(input);
     scSendChange(input);
   }
 

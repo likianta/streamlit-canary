@@ -9,6 +9,8 @@ import streamlit as st
 def main():
     st.button('Start eye monitor', type='primary')
 
+    st.number_input('Channel', min_value=0, max_value=3, value=0, step=1)
+
     st.table(
         {
             'Link status': ':green[ON]',

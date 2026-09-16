@@ -433,16 +433,17 @@ _EXPANDER_ICON = (
     'aria-hidden="true" focusable="false">'
     '<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg>'
 )
-# Stepper glyphs for NumberInput (material `remove` / `add`).
+# Stepper glyphs for NumberInput. Drawn on an 8x8 grid so that they render
+# at the same weight as Streamlit's own 8x8 stepper icons.
 _ICON_MINUS = (
-    '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" '
+    '<svg viewBox="0 0 8 8" width="8" height="8" fill="currentColor" '
     'aria-hidden="true" focusable="false">'
-    '<path d="M19 13H5v-2h14v2z"></path></svg>'
+    '<path d="M0 3h8v2H0z"></path></svg>'
 )
 _ICON_PLUS = (
-    '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" '
+    '<svg viewBox="0 0 8 8" width="8" height="8" fill="currentColor" '
     'aria-hidden="true" focusable="false">'
-    '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>'
+    '<path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z"></path></svg>'
 )
 
 
@@ -543,13 +544,28 @@ def _render_number_input(comp: NumberInput) -> str:
     # A float widget without an explicit `step` shows no stepper.
     stepper = ''
     if step is not None:
+        # Sitting on a bound disables the arrow that would leave the range,
+        # exactly like Streamlit does.
+        numeric = isinstance(value, (int, float))
+        at_min = (
+            numeric
+            and isinstance(min_value, (int, float))
+            and value <= min_value
+        )
+        at_max = (
+            numeric
+            and isinstance(max_value, (int, float))
+            and value >= max_value
+        )
         stepper = (
             '<span class="st-number-stepper">'
-            f'<button class="st-number-step" type="button" tabindex="-1" '
-            f'title="Decrease" onclick="scStepNumber(this, -1)">'
+            '<button class="st-number-step" type="button" tabindex="-1" '
+            f'title="Decrease"{" disabled" if at_min else ""} '
+            'onclick="scStepNumber(this, -1)">'
             f'{_ICON_MINUS}</button>'
-            f'<button class="st-number-step" type="button" tabindex="-1" '
-            f'title="Increase" onclick="scStepNumber(this, 1)">'
+            '<button class="st-number-step" type="button" tabindex="-1" '
+            f'title="Increase"{" disabled" if at_max else ""} '
+            'onclick="scStepNumber(this, 1)">'
             f'{_ICON_PLUS}</button>'
             '</span>'
         )

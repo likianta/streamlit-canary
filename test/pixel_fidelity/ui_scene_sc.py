@@ -8,6 +8,10 @@ import streamlit_canary as sc
 
 def main():
     sc.v3.Button('Start eye monitor', type='primary')
+    
+    sc.v3.NumberInput('Channel', 0, 0, 3, 1)
+    #   positional arguments: label, value, min_value, max_value, step
+
     sc.v3.Table(
         (
             ('Link status', ':green[ON]'),
