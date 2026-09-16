@@ -28,6 +28,7 @@ from ..components_v3.widgets import Dialog
 from ..components_v3.widgets import Expander
 from ..components_v3.widgets import Grid
 from ..components_v3.widgets import Info
+from ..components_v3.widgets import Markdown
 from ..components_v3.widgets import Multiselect
 from ..components_v3.widgets import NumberInput
 from ..components_v3.widgets import Popover
@@ -207,6 +208,17 @@ def _render(comp: Component) -> str:
             f'<div class="st-text" data-id="{comp.id}"{_size_style(comp)}>'
             f'{text}{help_html}</div>'
         )
+    if isinstance(comp, Markdown):
+        # A block placeholder, so markdown-it wraps the source in `<p>` the
+        # way Streamlit does.
+        text = _render_paragraphs(str(comp.text.get()))
+        help_text = _help_text(comp)
+        help_html = _help_icon_html(help_text) if help_text else ''
+        return (
+            f'<div class="st-markdown" data-id="{comp.id}"'
+            f'{_size_style(comp)}>'
+            f'{text}{help_html}</div>'
+        )
     if isinstance(comp, Spinner):
         children = ''.join(_render(c) for c in comp.children)
         hidden = '' if comp.visible.get() else ' hidden'
@@ -340,7 +352,8 @@ def _render_expander(comp: Expander) -> str:
         f'<div class="{cls}" data-id="{comp.id}"{comp_hidden}>'
         f'<div class="st-expander-header" role="button" tabindex="0"'
         f' aria-expanded="{state}" onclick="scToggleExpander(this)">'
-        f'<span class="st-expander-icon">{_EXPANDER_ICON}</span>'
+        f'<span class="st-icon st-expander-icon" translate="no">'
+        f'{_EXPANDER_CHEVRON_CLOSED}</span>'
         f'<span class="st-expander-label">{label}</span>'
         f'</div>'
         f'<div class="st-expander-body"{hidden}>'
@@ -451,21 +464,14 @@ _COPY_ICON = (
 _CHECK_ICON = (
     '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path>'
 )
-# Chevron-down used by the popover trigger (Streamlit's `expand_more`).
-_CHEVRON_DOWN = (
-    '<svg class="st-popover-chevron" viewBox="0 0 24 24" width="20" '
-    'height="20" fill="currentColor" aria-hidden="true" focusable="false">'
-    '<path fill="none" d="M0 0h24v24H0V0z"></path>'
-    '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z">'
-    '</path></svg>'
-)
-# Expander header chevron (material `keyboard_arrow_right`); CSS rotates it
-# to point down while the section is expanded.
-_EXPANDER_ICON = (
-    '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" '
-    'aria-hidden="true" focusable="false">'
-    '<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg>'
-)
+# The popover trigger's and the expander header's chevrons are icon-font
+# glyphs, exactly like Streamlit's: they are *swapped* between two names when
+# the section opens (never rotated). `page.js` swaps the name, `page.css` owns
+# the box.
+_POPOVER_CHEVRON_CLOSED = 'expand_more'
+_POPOVER_CHEVRON_OPEN = 'expand_less'
+_EXPANDER_CHEVRON_CLOSED = 'keyboard_arrow_right'
+_EXPANDER_CHEVRON_OPEN = 'keyboard_arrow_down'
 # Stepper glyphs for NumberInput. Drawn on an 8x8 grid so that they render
 # at the same weight as Streamlit's own 8x8 stepper icons.
 _ICON_MINUS = (
@@ -941,7 +947,9 @@ def _render_popover(comp: Popover) -> str:
         f'type="button" aria-haspopup="dialog" aria-expanded="false"'
         f'{width_style}{help_attr} onclick="scTogglePopover(this)">'
         f'<span class="st-btn-text st-popover-trigger-label">{label}</span>'
-        f'<span class="st-popover-icon">{_CHEVRON_DOWN}</span>'
+        f'<span class="st-popover-icon">'
+        f'<span class="st-icon st-popover-chevron" translate="no">'
+        f'{_POPOVER_CHEVRON_CLOSED}</span></span>'
         f'</button>'
         f'<div class="{panel_cls}" role="dialog"{panel_style} hidden>'
         f'{children}'

@@ -773,6 +773,23 @@ class Info(_TextVisible):
     _kind = 'info'
 
 
+class Markdown(_HelpText):
+    """A markdown block (mirrors Streamlit's `st.markdown`).
+
+        v3.Markdown('Press :material/play_arrow: to **start**.')
+
+    The source is parsed in the browser, just like Streamlit's, so the
+    Streamlit-only extensions (`:material/..:` icons, `:color[..]` spans) work
+    here as well. A blank line starts a new paragraph.
+
+    Args:
+        text: the markdown source (bindable).
+        help: optional markdown tooltip shown next to the text.
+        width: `int` px | 'stretch' | 'content' | 'auto' (default; see
+            `_HelpText`).
+    """
+
+
 class Multiselect(_Labeled):
     """A dropdown for choosing several options (mirrors `st.multiselect`).
 

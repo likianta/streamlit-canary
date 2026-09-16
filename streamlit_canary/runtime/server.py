@@ -4,6 +4,7 @@ Routes:
     GET  /                        → render the component tree as HTML
     GET  /fonts/source-sans.woff2 → the bundled "Source Sans" UI font
     GET  /fonts/source-code.woff2 → the bundled "Source Code Pro" code font
+    GET  /fonts/material-symbols.woff2 → the bundled Material Symbols font
     WS   /ws                      → bidirectional channel for client events
 """
 
@@ -41,6 +42,11 @@ _FONT_PATH = (
 )
 _CODE_FONT_PATH = (
     Path(__file__).resolve().parent / 'static' / 'SourceCodeVF-Upright.woff2'
+)
+# 'Material Symbols Rounded' draws every `:material/..:` icon, exactly as it
+# does in Streamlit (see `page.css` and the markdown renderer in `page.js`).
+_ICON_FONT_PATH = (
+    Path(__file__).resolve().parent / 'static' / 'MaterialSymbols-Rounded.woff2'
 )
 # Bundled markdown renderer (MIT). Streamlit renders markdown in the
 # browser too; serving it separately keeps the page HTML lean and lets the
@@ -94,6 +100,11 @@ def create_app(runtime: Runtime) -> Starlette:
             return Response(status_code=404)
         return FileResponse(_CODE_FONT_PATH, media_type='font/woff2')
 
+    async def icon_font_endpoint(request: Request) -> Response:
+        if not _ICON_FONT_PATH.is_file():
+            return Response(status_code=404)
+        return FileResponse(_ICON_FONT_PATH, media_type='font/woff2')
+
     async def markdown_endpoint(request: Request) -> Response:
         if not _MARKDOWN_PATH.is_file():
             return Response(status_code=404)
@@ -143,6 +154,7 @@ def create_app(runtime: Runtime) -> Starlette:
             Route('/healthz', healthz),
             Route('/fonts/source-sans.woff2', font_endpoint),
             Route('/fonts/source-code.woff2', code_font_endpoint),
+            Route('/fonts/material-symbols.woff2', icon_font_endpoint),
             Route('/static/markdown-it.js', markdown_endpoint),
             WebSocketRoute('/ws', ws_endpoint),
         ]

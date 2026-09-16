@@ -19,6 +19,7 @@ from .widgets import Expander
 from .widgets import Grid
 from .widgets import IconButton
 from .widgets import Info
+from .widgets import Markdown
 from .widgets import Multiselect
 from .widgets import NumberInput
 from .widgets import Popover
@@ -56,6 +57,7 @@ __all__ = [
     'Grid',
     'IconButton',
     'Info',
+    'Markdown',
     'Multiselect',
     'NumberInput',
     'Popover',

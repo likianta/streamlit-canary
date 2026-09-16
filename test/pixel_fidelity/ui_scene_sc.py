@@ -18,6 +18,14 @@ def main():
         with v3.Popover(':material/adjust:', help='Line calibration'):
             with v3.Container(width=540):
                 _line_calibration()
+
+    v3.Markdown(
+        'Material icons: '
+        ':material/adjust: '
+        ':material/settings_backup_restore: '
+        ':orange[:material/brightness_auto:]'
+    )
+
     _table()
 
 

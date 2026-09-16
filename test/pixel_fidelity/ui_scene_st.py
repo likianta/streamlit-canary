@@ -16,6 +16,14 @@ def main():
         with st.popover(':material/adjust:', help='Line calibration'):
             with st.container(width=540):
                 _line_calibration()
+
+    st.markdown(
+        'Material icons: '
+        ':material/adjust: '
+        ':material/settings_backup_restore: '
+        ':orange[:material/brightness_auto:]'
+    )
+
     _table()
 
 

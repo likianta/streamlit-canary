@@ -16,6 +16,17 @@
     font-display: swap;
     src: url('/fonts/source-code.woff2') format('woff2');
   }
+  /* 'Material Symbols Rounded' (the same file Streamlit bundles) turns an
+     icon *name* into its glyph through the font's ligatures, e.g. the text
+     "adjust" draws the slider icon. `font-display: block` matters: with
+     `swap` the raw name would show for a moment before the font lands. */
+  @font-face {
+    font-family: 'Material Symbols Rounded';
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+    src: url('/fonts/material-symbols.woff2') format('woff2');
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: var(--st-font);
@@ -67,6 +78,13 @@
      to stay in the DOM so its text can be patched later). It renders nothing
      anyway, and hiding it keeps it out of a parent flex container's `gap`. */
   .st-text:empty { display: none; }
+  /* A `v3.Markdown()` block: same rhythm as `.st-text`, but it keeps the
+     body font size (Streamlit's markdown is `st.markdown`, not `st.text`). */
+  .st-markdown {
+    color: var(--st-text-color);
+    margin-bottom: 8px;
+  }
+  .st-markdown:empty { display: none; }
 
   /* Markdown (parsed client-side by markdown-it): `page.js` fills the
      `.st-md` holders the server emits, so the element styles below are
@@ -706,7 +724,17 @@
     background-color: var(--st-primary-color);
     border-color: var(--st-primary-color-hover);
   }
-  .st-icon { font-size: 16px; line-height: 1; }
+  /* `:material/..:` icons draw the icon *name* in the Material Symbols font,
+     where a ligature turns it into the glyph. The metrics are the font's, so
+     the size stays inherited (a 14px label gets a 14px icon) and the span is
+     an inline-block pinned to the bottom of the line -- exactly the box
+     Streamlit produces. */
+  .st-icon {
+    display: inline-block;
+    vertical-align: bottom;
+    font-family: 'Material Symbols Rounded';
+    font-weight: 400;
+  }
 
   /* Selectbox (custom dropdown — no native <select>) */
   .st-selectbox { margin-bottom: 8px; }
@@ -751,10 +779,8 @@
   .st-selectbox-arrow {
     color: var(--st-text-color);
     flex-shrink: 0;
-    transition: transform 0.2s;
-  }
-  .st-selectbox-trigger[aria-expanded="true"] .st-selectbox-arrow {
-    transform: rotate(180deg);
+    /* Streamlit keeps this chevron as it is while the dropdown is open (the
+       panel itself is the open/closed signal); no rotation, no transition. */
   }
   .st-selectbox-dropdown {
     position: absolute;
@@ -1091,14 +1117,12 @@
     margin-right: -5px;
     color: var(--st-text-color);
   }
+  /* The chevron is an icon-font glyph, swapped (not rotated) by
+     `scTogglePopover`; 16px with a 16px line box is Streamlit's box. */
   .st-popover-chevron {
-    display: block;
-    width: 16px;
-    height: 16px;
-    transition: transform 0.2s;
-  }
-  .st-popover-trigger[aria-expanded="true"] .st-popover-chevron {
-    transform: rotate(180deg);
+    display: flex;
+    font-size: 16px;
+    line-height: 16px;
   }
   /* The floating panel is anchored below the trigger, left-aligned. */
   .st-popover-panel {
@@ -1273,12 +1297,12 @@
     color: var(--st-text-color);
     cursor: pointer;
   }
+  /* Same story as the popover chevron: an icon-font glyph, swapped between
+     `keyboard_arrow_right` and `keyboard_arrow_down` by `scToggleExpander`. */
   .st-expander-icon {
-    display: inline-flex;
-    transition: transform 0.15s ease;
-  }
-  .st-expander.is-expanded .st-expander-icon {
-    transform: rotate(90deg);
+    display: flex;
+    font-size: 16px;
+    line-height: 16px;
   }
   .st-expander-label p { margin: 0; }
   /* The body's padding and the divider under the header live on an inner

@@ -533,6 +533,12 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     panel.style.left = (start - popRect.left) + 'px';
     panel.style.width = (rowRect.right - start) + 'px';
   }
+  // The trigger's chevron is an icon-font glyph that Streamlit *swaps* when
+  // the panel opens (`expand_more` <-> `expand_less`), rather than rotating.
+  function scSwapChevron(host, selector, closed, open, isOpen) {
+    const glyph = host.querySelector(selector);
+    if (glyph) glyph.textContent = isOpen ? open : closed;
+  }
   function scTogglePopover(trigger) {
     const root = trigger.closest('.st-popover');
     const panel = root.querySelector('.st-popover-panel');
@@ -550,6 +556,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         scPositionPopover(panel);
       }
     }
+    scSwapChevron(
+      trigger, '.st-popover-chevron', 'expand_more', 'expand_less', !isOpen
+    );
   }
   // -- Checkbox: send the boolean checked state --
   function scSendCheck(input) {
@@ -588,15 +597,6 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   // the delta handlers replace in place afterwards.
   const scMd = window.markdownit({ linkify: true });
   // Streamlit's own inline extensions: `:material/<name>:` and `:color[..]`.
-  const scMaterial = {
-    autorenew:'↻', refresh:'↻', restart_alt:'↻', settings_backup_restore:'↺',
-    delete:'✕', add:'+', check:'✓', close:'✕', edit:'✎', save:'💾',
-    search:'🔍', settings:'⚙', adjust:'⚙', download:'⬇', upload:'⬆',
-    arrow_right:'→', arrow_back:'←', arrow_forward:'→', arrow_upward:'↑',
-    keyboard_arrow_up:'▴', keyboard_arrow_down:'▾', create_new_folder:'➕',
-    folder:'📁', folder_open:'📂', description:'📄', location_on:'📍',
-    home:'⌂', undo:'↶', info:'ⓘ', warning:'⚠'
-  };
   // Streamlit renders the `:color[..]` extension with the theme's
   // `--st-<name>-text-color`, so read that instead of hardcoding -- it is
   // what makes the coloured text follow the light / dark theme.
@@ -629,7 +629,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   // inside code spans / fenced blocks.
   scMd.inline.ruler.before('emphasis', 'st_markup', function (state, silent) {
     const rest = state.src.slice(state.pos);
-    let m = /^:material\/([a-zA-Z_]+):/.exec(rest);
+    // The name is `\w+` (letters, digits, underscore), as in Streamlit --
+    // e.g. `:material/settings_backup_restore:` or `:material/360:`.
+    let m = /^:material\/(\w+):/.exec(rest);
     if (m !== null) {
       if (!silent) {
         const token = state.push('st_material', '', 0);
@@ -653,8 +655,11 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     return true;
   });
   scMd.renderer.rules.st_material = function (tokens, idx) {
-    const glyph = scMaterial[tokens[idx].meta.name] || '□';
-    return '<span class="st-icon">' + glyph + '</span>';
+    // Ship the icon *name* and let the Material Symbols font's ligature draw
+    // it -- the same thing Streamlit does, so the glyph matches. `translate`
+    // is off to keep browser translators away from the name.
+    return '<span class="st-icon" translate="no">'
+      + tokens[idx].meta.name + '</span>';
   };
   scMd.renderer.rules.st_color_open = function (tokens, idx) {
     return scColorOpen(tokens[idx].meta.color);
@@ -810,6 +815,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     header.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     const body = root.querySelector('.st-expander-body');
     if (body) scAnimateExpanderBody(body, expanded);
+    scSwapChevron(
+      header, '.st-expander-icon',
+      'keyboard_arrow_right', 'keyboard_arrow_down', expanded
+    );
   }
   // Expand/collapse the body with a height animation. `hidden` still drives
   // the server-rendered state; while animating the height is set explicitly
