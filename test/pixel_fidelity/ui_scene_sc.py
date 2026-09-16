@@ -94,8 +94,7 @@ def _line_calibration() -> None:
                         """
                     ),
                 )
-            v3.Button('Calibrate')
-            with v3.Row('bottom'):
+                v3.Button('Calibrate')
                 v3.TextInput(
                     'Second line length',
                     '2m@ch1',
@@ -113,7 +112,7 @@ def _line_calibration() -> None:
                         """
                     ),
                 )
-            v3.Button('Calibrate')
+                v3.Button('Calibrate')
 
 
 def _table():

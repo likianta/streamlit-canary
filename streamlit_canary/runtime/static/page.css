@@ -1307,24 +1307,54 @@
     gap: 16px;
   }
   .st-tabs-bar {
+    /* Both the full-width line and the moving underline are positioned
+       against the bar. */
+    position: relative;
     display: flex;
-    gap: 24px;
-    border-bottom: 1px solid var(--st-border-color);
+    gap: 16px;
   }
+  /* Streamlit draws the line under the tabs with a pseudo-element (2px tall,
+     `fadeText05`) instead of a border, and its underline paints on top of it.
+     `::before` rather than `::after` keeps that order: generated content comes
+     before the tabs and the indicator, both of which are painted later. */
+  .st-tabs-bar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: var(--st-border-color-light);
+  }
+  /* A tab is exactly as wide as its label (no horizontal padding) and 40px
+     tall with the label centred, like Streamlit's. The 1.6 line box is
+     Streamlit's too (`22.4px` at 14px), so the baseline lands where its does. */
   .st-tab {
-    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0;
     border: none;
-    border-bottom: 2px solid transparent;
     background: transparent;
     color: var(--st-gray-color);
     font-family: var(--st-font);
-    font-size: var(--st-base-font-size);
+    font-size: var(--st-small-font-size);
+    line-height: 1.6;
     cursor: pointer;
   }
   .st-tab:hover { color: var(--st-text-color); }
-  .st-tab.is-active {
-    border-bottom-color: var(--st-primary-color);
-    color: var(--st-text-color);
+  .st-tab.is-active { color: var(--st-text-color); }
+  /* Streamlit's react-aria tabs keep one `SelectionIndicator` in the same 2px
+     strip as the line above. Moving it is animated from JS (see
+     `scSlideTabIndicator`), so no transition here -- parking the underline is
+     not the same motion as sliding it. */
+  .st-tabs-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: var(--st-primary-color);
   }
   .st-tab-panel[hidden] { display: none; }
 

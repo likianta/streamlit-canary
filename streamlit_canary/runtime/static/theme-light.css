@@ -32,6 +32,9 @@
     --st-code-font: "Source Code Pro", "SF Mono", monospace;
     --st-base-font-size: 16px;
     --st-base-font-weight: 400;
+    /* Tab labels. Streamlit renders them a notch smaller than the body text
+       (measured: 14px against its 16px `baseFontSize`). */
+    --st-small-font-size: 14px;
     /* Muted text. This is Streamlit's `fadedText60` = rgba(bodyText, 0.6),
        which is what its captions / secondary labels render as -- *not* the
        `grayColor` palette entry (#a3a8b8), which nothing consumes. */

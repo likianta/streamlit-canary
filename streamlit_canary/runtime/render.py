@@ -279,7 +279,12 @@ def _render_paragraphs(text: str) -> str:
 
 
 def _render_tabs(comp: Tabs) -> str:
-    """Render a tab bar plus one panel per label (only one is visible)."""
+    """Render a tab bar plus one panel per label (only one is visible).
+
+    The bar carries a single underline element rather than a per-tab border,
+    because only one element can *slide* between the tabs (the position comes
+    from `scSyncTabIndicator` in page.js).
+    """
     active = str(comp.active.get())
     buttons: list[str] = []
     panels: list[str] = []
@@ -302,7 +307,8 @@ def _render_tabs(comp: Tabs) -> str:
         )
     return (
         f'<div class="st-tabs" data-id="{comp.id}">'
-        f'<div class="st-tabs-bar" role="tablist">{"".join(buttons)}</div>'
+        f'<div class="st-tabs-bar" role="tablist">{"".join(buttons)}'
+        f'<span class="st-tabs-indicator"></span></div>'
         f'<div class="st-tabs-panels">{"".join(panels)}</div>'
         f'</div>'
     )
