@@ -6,13 +6,6 @@
 
 **Streamlit Canary** (`streamlit-canary`) 是对 Streamlit 的二次开发, 扩展了原版的组件库, 并实现了一套基于事件驱动的运行时. 开发者用纯 Python 写组件树, 运行时负责渲染 HTML, 路由事件, 推送 delta patch, 前端局部更新 DOM, 无需页面刷新.
 
-- **语言**: Python 3.12 及以上
-- **版本**: 0.4.0a10
-- **包管理**: uv
-- **代码风格**: ruff (line-length=80, single-quote, skip-magic-trailing-comma)
-- **类型检查**: ty check
-- **运行脚本**: `python ...` (已设置 `PYTHONPATH=.;src;lib;.venv/Lib/site-packages`)
-
 ### 核心理念
 
 传统 Streamlit 采用 "rerun" 模型 -- 每次交互都重新执行整个脚本. Streamlit Canary 的事件驱动运行时 (v3) 采用 **no-rerun** 模型:
@@ -29,36 +22,37 @@
 streamlit-canary/
 ├── streamlit_canary/         # 主包
 │   ├── kernel/               # 事件驱动内核 (无 Streamlit 依赖)
-│   │   ├── property.py       # Property: 带 get/set/on_change 的响应式属性
-│   │   ├── signal.py         # Signal: 事件信号 (partial / emit_now)
-│   │   ├── special_value.py  # sc._self / sc._value: Signal.partial 的特殊标记
-│   │   └── state.py          # PropertyHost / StateV2: 状态容器
+│   │   ├── property.py       # 响应式属性
+│   │   ├── signal.py         # 事件信号
+│   │   ├── special_value.py  # sc._self / sc._value 的特殊标记
+│   │   └── state.py          # 状态容器
 │   ├── components_v3/        # v3 事件驱动组件 (纯 Python, 无 Streamlit 依赖)
 │   │   ├── base.py           # Component 基类: 组件树, 上下文栈, 注册到 runtime
-│   │   └── widgets.py        # 内置组件 + 共享私有基类 (见 §3 组件清单)
+│   │   └── widgets.py        # 内置组件 + 共享私有基类
 │   ├── runtime/              # 事件驱动运行时
 │   │   ├── runtime.py        # Runtime: 持久组件树 + 事件路由 + delta 广播
 │   │   ├── render.py         # 组件树 → HTML
 │   │   ├── server.py         # Starlette 应用 + WebSocket 端点
-│   │   └── static/           # 前端资源: page.css / page.js / markdown-it.min.js / theme-*.css / 字体
+│   │   └── static/           # 前端资源
 │   ├── components/           # v1 组件 (基于 Streamlit)
 │   ├── components_v2/        # v2 组件 (过渡版本)
-│   ├── session.py            # v1 session state 管理 (init_state / init_state_v2)
+│   ├── session.py            # v1/v2 session state 管理
 │   └── runner.py             # 传统 Streamlit 子进程启动器 (legacy)
-├── test/                     # 测试与演示
+├── test/                     # 测试与演示 (你可以在本目录下根据需要创建新的测试脚本)
 │   ├── event_driven_system/        # v3 事件驱动测试
 │   │   ├── demo_click_counter.py   # 计数器 demo (最小可运行示例)
 │   │   ├── components_v3_demo.py   # 纯 Python 组件树 / 信号演示
-│   │   └── pyproject_manager_copy/ # pyproject-manager 的 v3 重写版 (软链接, 运行在 localhost:2207)
+│   │   └── ...
 │   ├── pixel_fidelity/       # UI 像素级对齐的试验脚本
 │   └── ...
 ├── references/               # 参考资源
+│   ├── asa_gui/              # 原版基于 Streamlit 的演示应用, 运行在 localhost:2204
 │   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2206
 │   ├── streamlit/            # Streamlit 源码
 │   └── ...                   # 截图, 参考图等
-├── .trae/documents/          # 设计/路线图文档 (event_driven_streamlit_roadmap.md) 与像素对比差异说明 (pixel_fidelity_caveats.md)
+├── .trae/documents/          # 设计/路线图文档与像素对比差异说明
 ├── pyproject.toml            # 项目配置
-├── readme.md                 # 简要说明 (session state / v3 用法)
+├── readme.md                 # 简要说明
 └── changelog.md              # 变更记录
 ```
 
@@ -90,9 +84,9 @@ python test/signal_test.py
 python test/event_driven_system/components_v3_demo.py
 ```
 
-> 注意: 全量 `ty check streamlit_canary/` 会对 v1 老模块报出若干**既存**问题
-> (`components/filelist.py`、`components/radio.py`、
-> `components/tree_select/wrappers.py`、`__main__.py`). 改动 v3 相关代码时,
+> 注意: 全量 `ty check streamlit_canary/` 会对 v1 老模块报出若干 **既存** 问题
+> (`components/filelist.py`, `components/radio.py`, 
+> `components/tree_select/wrappers.py`, `__main__.py`). 改动 v3 相关代码时,
 > 建议只检查目标包, 例如:
 > `ty check streamlit_canary/components_v3/ streamlit_canary/runtime/`
 
@@ -133,9 +127,9 @@ with sync_playwright() as p:
 
 ## 4. 伪代码驱动的 UI 验证方法
 
-在与 agent 交流 UI 交互和视觉要求时, **纯文字描述往往不够精确**. 推荐使用 **伪代码 (pseudo-code)** 来描述交互操作和断言.
+在与 Agent 交流 UI 交互和视觉要求时, **纯文字描述往往不够精确**. 推荐使用 **伪代码 (pseudo-code)** 来描述交互操作和断言.
 
-### 4.1 为什么用伪代码
+### 为什么用伪代码
 
 - 文字描述容易遗漏细节 (如 "hover 时背景应该是灰色" -- 哪个元素的灰色? 和谁对齐?)
 - 伪代码可以精确表达:
@@ -144,7 +138,7 @@ with sync_playwright() as p:
   - **断言条件**: 具体的 CSS 属性值, 几何关系
 - Agent 可以直接把伪代码翻译为浏览器自动化行为
 
-### 4.2 伪代码示例
+### 伪代码示例
 
 伪代码不需要可执行, 但需要描述测试意图和可被自动化实现的操作步骤:
 
@@ -176,9 +170,9 @@ when mouse.click(sel):
         assert children[1].background.horizontal_visual_margin > 0
 ```
 
-### 4.3 Agent 工作流
+### Agent 工作流
 
-当用户提供伪代码时, agent 应该:
+当用户提供伪代码时, Agent 应该:
 
 1. **解析伪代码**: 识别操作序列, 目标元素, 断言条件
 2. **采集数据**: 用 `browser_evaluate` 在原版 (`:2204` / `:2206`) 和副本 (`:2205` / `:2207`) 分别采集断言处的实际值
@@ -206,7 +200,7 @@ when mouse.click(sel):
 
 ## 6. 代码风格
 
-- 优先使用 `format` 而不是 `f-string`.
+- 优先使用 `<str>.format` 而不是 `f-string`.
 - 代码中使用全英文注释, 不要有中文注释.
 - 不需要在入口脚本的顶部添加 `sys.path.append(...)`. 因为我们已经设置好了环境变量 (`PYTHONPATH=.;src;lib;.venv/Lib/site-packages`).
 - 不要在代码中添加 `from __future__ import annotations`.
@@ -218,22 +212,20 @@ when mouse.click(sel):
 
 ## 7. 架构约束
 
-- **State 和 Components 统一读写风格**: `.get()` / `.set()` / `on_change` / `__set__` / `__setitem__`, 降低理解负担.
+- **State 和 Components 统一读写风格**: `.get()` / `.set()` / `__getitem__` / `__setitem__` / `on_change`, 降低理解负担.
 - **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`).
-- **width / height 统一 scheme**: 尺寸在 `Component` 基类收口 (对齐 Streamlit 的 `layout_utils.py`): 每个组件都接受 `width` / `height`, 取值是 `int` (px) 或 `'stretch'` / `'content'` / `'auto'`; `None` 表示"用组件自己的默认值". 组件通过类属性 `_default_width` / `_default_height` 声明默认 (如 `Button = 'content'`, `TextInput = 'stretch'`, `Text` / `Caption` / `Title` = `'auto'`), 设为 `None` 表示该组件不参与尺寸 scheme. 基类把最终值存到 `comp._width` / `comp._height`; 渲染层用 `render.py` 的 `_size_style(comp)` (输出 `style` 属性, 同时处理 width 与 height) 或 `_width_style(comp)` (只处理 width, 供 `TextArea` 这类把高度放在内层元素的组件使用). 需要特殊语义的组件 (如 `Dialog` 用 `small` / `medium` / `large` 语义尺寸, `Column` 用 flex weight) 自行在 `__init__` 里解析并覆盖 `self._width`.
-- **不使用 metaclass**: 因为 metaclass 会增加理解负担, 而且在当前实现中, 它的使用是不透明的.
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
 - **`references/` 只读**: `references/` 目录 (含其中以软链接形式挂载的参考项目) 对 agent 是**只读**的, 不要修改其中的任何文件; 只可读取作为参考.
 - **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/widgets.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
-- **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`page.css` / `page.js` / `markdown-it.min.js` / `theme-*.css`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此**改动这些文件后必须重启服务**.
+- **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`page.css` / `page.js` / `markdown-it.min.js` / `theme-*.css`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此 **改动这些文件后必须重启服务**.
 - **Markdown 在前端渲染**: 服务器只把 markdown 源文写进 `.st-md` / `.st-md-block` 占位符的 `data-md` 属性, 真正的解析由 `page.js` + 打包的 `markdown-it` 在浏览器完成 (与 Streamlit 的 react-markdown 一致). 因此 `render_markup` (行内) / `_render_paragraphs` (块级) 只负责出占位符; 新增承载 markdown 的元素时, 必须带上 `st-md` (或 `st-md-block`) 类, 否则 delta patch 与样式都会失配. Streamlit 自有的 `:color[..]` / `:material/..:` 扩展和 typographer (` -> ` → `→` 等) 也在 `page.js` 里以插件形式实现.
 - **Web 服务**: 用 Starlette + Uvicorn (HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
 - **Web 服务器非阻塞**: 必须非阻塞启动, 可用 StopCommand 停止.
-- **Python 3.12**: 使用现代语法 (`type | type` 联合, `match` 等).
+- **Python 3.12+**: 使用现代语法 (`type | type` 联合, `match` 等).
 
 ## 8. Kernel 事件约定 (Property / Signal)
 
-- **`on_change` 不默认传参**: `Property.set()` 触发时调用 `Signal.emit()`, **不会**把 Property 自身作为第一个参数传给 handler.
+- **`on_change` 不默认传参**: `Property.set()` 触发时调用 `Signal.emit()`, **不会** 把 Property 自身作为第一个参数传给 handler.
 - **Signal 的参数声明**: 构造 `Signal` 时用类型声明 `emit()` 的载荷 -- `*args` 是位置参数, `**kwargs` 是命名参数 (命名参数也可以按位置顺序传入). 例如 `Signal(bool, reason=str)` 的 `emit(ok, reason='...')` 和 `emit(ok, '...')` 等价; handler 收到的始终是按声明顺序排列的位置参数. 不声明参数则是自由形式, `emit()` 原样透传 (内置的 `Signal()` 都是这种, 因为它们不携带载荷). 声明之后, 参数缺失 / 多传 / 拼错关键字都会在 `emit()` 处立即抛 `TypeError`.
 - **按需注入 owner**: 用 `Signal.partial(...)` 绑定特殊标记来拿到 owner:
   - `sc._self` → handler 收到 owner (触发变更的 Property handle)
