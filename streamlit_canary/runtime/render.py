@@ -16,6 +16,7 @@ from lk_utils import fs
 
 from ..components_v3.base import Component
 from ..components_v3.widgets import AltairChart
+from ..components_v3.widgets import BottomContainer
 from ..components_v3.widgets import Button
 from ..components_v3.widgets import Caption
 from ..components_v3.widgets import Cell
@@ -43,6 +44,7 @@ from ..components_v3.widgets import Text
 from ..components_v3.widgets import TextArea
 from ..components_v3.widgets import TextInput
 from ..components_v3.widgets import Title
+from ..components_v3.widgets import Toast
 from ..components_v3.widgets import Toggle
 from ..components_v3.widgets import Warning
 from ..components_v3.widgets import _TabPanel
@@ -169,8 +171,11 @@ def _render(comp: Component) -> str:
         style = f' style="{";".join(rules)}"' if rules else ''
         hidden = '' if comp.visible.get() else ' hidden'
         reveal_cls = ' st-reveal' if getattr(comp, '_animated', False) else ''
+        bottom_cls = (
+            ' st-container--bottom' if isinstance(comp, BottomContainer) else ''
+        )
         return (
-            f'<div class="st-container{border_cls}{reveal_cls}"'
+            f'<div class="st-container{border_cls}{reveal_cls}{bottom_cls}"'
             f' data-id="{comp.id}"'
             f'{style}{hidden}>{children}</div>'
         )
@@ -259,6 +264,8 @@ def _render(comp: Component) -> str:
         return _render_selectbox(comp)
     if isinstance(comp, Radio):
         return _render_radio(comp)
+    if isinstance(comp, Toast):
+        return _render_toast(comp)
     return ''.join(_render(c) for c in comp.children)
 
 
@@ -510,25 +517,60 @@ def _render_code(comp: Code) -> str:
     )
 
 
+def _table_text(kind: str, text: str) -> str:
+    """A `Table`'s title / caption / footer line (empty text drops the line)."""
+    if not str(text):
+        return ''
+    return f'<div class="st-table-{kind}">{render_markup(text)}</div>'
+
+
+def _table_head(comp: Table) -> str:
+    """A `Table`'s optional column-label row (one `<th>` per column)."""
+    header = comp.header.get()
+    if not header:
+        return ''
+    cells = []
+    for i, label in enumerate(header):
+        cls = 'st-table-key' if i == 0 else 'st-table-cell'
+        cells.append(f'<th class="{cls}">{render_markup(str(label))}</th>')
+    return f'<thead class="st-table-head"><tr>{"".join(cells)}</tr></thead>'
+
+
+def _table_row(cells: tp.Sequence[tp.Any]) -> str:
+    """One body row: the first cell is the row header, every following cell
+    is a value column -- so an N-cell row makes an N-column table."""
+    out = []
+    for i, cell in enumerate(cells):
+        text = render_markup(str(cell))
+        if i == 0:
+            out.append(
+                f'<th class="st-table-key" scope="row"><p>{text}</p></th>'
+            )
+        else:
+            out.append(f'<td class="st-table-cell"><p>{text}</p></td>')
+    return f'<tr>{"".join(out)}</tr>'
+
+
 def _render_table(comp: Table) -> str:
-    """Render `st.table`'s shape: an `<th scope="row">` key column plus a
-    value column, wrapped in a bordered, scrollable box."""
-    body = ''.join(
-        '<tr>'
-        f'<th class="st-table-key" scope="row">'
-        f'<p>{render_markup(str(key))}</p></th>'
-        f'<td class="st-table-cell"><p>{render_markup(str(value))}</p></td>'
-        '</tr>'
-        for key, value in (comp.rows.get() or [])
-    )
+    """Render a `Table`: a row-header column plus one value column per extra
+    cell, wrapped in a bordered, scrollable box. The canary extras (title /
+    caption / footer / an optional column-label row) sit around the box: title
+    and caption above it, footer below it."""
+    body = ''.join(_table_row(row) for row in (comp.rows.get() or []))
     cls = 'st-table'
     if getattr(comp, '_width', 'stretch') == 'content':
         cls += ' st-table--content'
+    if comp._header_background:
+        cls += ' st-table--head-filled'
     return (
         f'<div class="{cls}" data-id="{comp.id}"{_size_style(comp)}>'
+        f'{_table_text("title", comp.title.get())}'
+        f'{_table_text("caption", comp.caption.get())}'
         f'<div class="st-table-scroll">'
-        f'<table class="st-table-table"><tbody>{body}</tbody></table>'
+        f'<table class="st-table-table">'
+        f'{_table_head(comp)}<tbody>{body}</tbody></table>'
         f'</div>'
+        f'{_table_text("footer", comp.footer.get())}'
         f'</div>'
     )
 
@@ -818,39 +860,40 @@ def _render_multiselect(comp: Multiselect) -> str:
 
 
 def _render_select_slider(comp: SelectSlider) -> str:
-    """Render a discrete slider: a rail plus one tick per option."""
+    """Render a discrete slider: a rail with a thumb, plus the current option
+    shown above the thumb (mirrors `st.select_slider`)."""
     options = list(comp.options.get() or [])
     value = comp.value.get()
     fmt = comp.format_func
     active_index = 0
-    ticks: list[str] = []
+    labels: list[str] = []
     n = len(options)
     for i, option in enumerate(options):
-        is_active = option == value
-        if is_active:
+        if option == value:
             active_index = i
-        left = 0.0 if n <= 1 else round(i / (n - 1) * 100, 4)
-        ticks.append(
-            f'<div class="st-select-slider-tick'
-            f'{" is-active" if is_active else ""}"'
-            f' style="left:{left}%"'
-            f' data-value="{html.escape(str(option))}" data-index="{i}">'
-            f'<div class="st-select-slider-dot"></div>'
-            f'<div class="st-select-slider-tick-label">'
+        labels.append(
+            f'<div class="st-select-slider-option"'
+            f' data-value="{html.escape(str(option))}">'
             f'{render_markup(fmt(option))}</div>'
-            f'</div>'
         )
-    fill = 0.0 if n <= 1 else round(active_index / (n - 1) * 100, 4)
+    pct = 0.0 if n <= 1 else round(active_index / (n - 1) * 100, 4)
+    active_label = render_markup(fmt(options[active_index])) if options else ''
     return (
         f'<div class="st-select-slider" data-id="{comp.id}"{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
+        f'<div class="st-select-slider-group">'
+        f'<div class="st-select-slider-value" style="left:{pct}%">'
+        f'{active_label}</div>'
         f'<div class="st-select-slider-track" data-comp-id="{comp.id}"'
+        f' data-index="{active_index}"'
         f' onmousedown="scSelectSliderStart(event, this)"'
         f' onclick="scSelectSliderClick(event, this)">'
         f'<div class="st-select-slider-rail">'
-        f'<div class="st-select-slider-fill" style="width:{fill}%"></div>'
+        f'<div class="st-select-slider-fill" style="width:{pct}%"></div>'
+        f'<div class="st-select-slider-thumb" style="left:{pct}%"></div>'
         f'</div>'
-        f'<div class="st-select-slider-ticks">{"".join(ticks)}</div>'
+        f'<div class="st-select-slider-options">{"".join(labels)}</div>'
+        f'</div>'
         f'</div>'
         f'</div>'
     )
@@ -1056,6 +1099,46 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </body>
 </html>
 """
+
+
+def _toast_item(message: tp.Mapping[str, tp.Any]) -> str:
+    """One toast of the stack.
+
+    Server-side twin of `scToastHtml` in page.js: a patched-in toast has to
+    end up with exactly the same markup, so the two must be kept in step.
+    """
+    icon = message.get('icon') or ''
+    icon_html = (
+        f'<span class="st-toast-icon">{render_markup(str(icon))}</span>'
+        if icon
+        else ''
+    )
+    text = render_markup(str(message.get('text', '')))
+    duration = message.get('duration')
+    dur_attr = f' data-duration="{duration}"' if duration else ''
+    return (
+        f'<div class="st-toast" data-id="{message.get("id", "")}"{dur_attr}>'
+        f'{icon_html}'
+        f'<span class="st-toast-body">{text}</span>'
+        f'<button type="button" class="st-toast-close" aria-label="Dismiss"'
+        f' onclick="scDismissToast(this)">&#10005;</button>'
+        f'</div>'
+    )
+
+
+def _render_toast(comp: Toast) -> str:
+    """Render the toast stack.
+
+    It is a fixed overlay, so it stays wherever the component was declared
+    and CSS pins it to the page corner. An empty stack is `hidden` (a fixed
+    element would otherwise keep a stray hit-area).
+    """
+    messages = comp.messages.get() or []
+    items = ''.join(_toast_item(m) for m in messages)
+    hidden = '' if messages else ' hidden'
+    return (
+        f'<div class="st-toast-stack" data-id="{comp.id}"{hidden}>{items}</div>'
+    )
 
 
 def render_page(

@@ -171,8 +171,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         if (track) {
           const wanted = String(msg.value);
           let idx = 0;
-          track.querySelectorAll('.st-select-slider-tick').forEach((t, i) => {
-            if (t.dataset.value === wanted) idx = i;
+          scSelectSliderOptions(track).forEach((o, i) => {
+            if (o.dataset.value === wanted) idx = i;
           });
           scSelectSliderApply(track, idx, false);
         }
@@ -207,6 +207,26 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           '<td class="st-table-cell"><p>' + fmt(String(r[1])) + '</p></td>' +
           '</tr>'
         ).join('');
+      }
+    }
+    if (
+      msg.prop === 'title' ||
+      msg.prop === 'caption' ||
+      msg.prop === 'footer'
+    ) {
+      if (el.classList.contains('st-table')) {
+        scPatchTableLine(el, msg.prop, msg.value);
+      }
+    }
+    if (msg.prop === 'header') {
+      if (el.classList.contains('st-table')) {
+        scPatchTableHead(el, msg.value);
+      }
+    }
+    if (msg.prop === 'messages') {
+      if (el.classList.contains('st-toast-stack')) {
+        scPatchToasts(el, msg.value);
+        el.hidden = !(msg.value && msg.value.length);
       }
     }
   };
@@ -804,6 +824,168 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       scSetMarkdown(el, value);
     }
   }
+  // Route a Table extra (`title` / `caption` / `footer`) delta. An emptied
+  // line is dropped, mirroring what the server would have rendered.
+  function scPatchTableLine(el, kind, value) {
+    let line = el.querySelector(':scope > .st-table-' + kind);
+    if (!String(value)) {
+      if (line) line.remove();
+      return;
+    }
+    if (!line) {
+      line = document.createElement('div');
+      line.className = 'st-table-' + kind;
+      const holder = document.createElement('span');
+      holder.className = 'st-md';
+      line.appendChild(holder);
+      if (kind === 'footer') {
+        el.appendChild(line);
+      } else {
+        el.insertBefore(line, el.querySelector('.st-table-scroll'));
+      }
+    }
+    scSetMarkdown(line, value);
+  }
+  // Rebuild a Table's optional column-label row.
+  function scPatchTableHead(el, value) {
+    const table = el.querySelector('.st-table-table');
+    if (!table) return;
+    let head = table.querySelector(':scope > thead');
+    if (!value) {
+      if (head) head.remove();
+      return;
+    }
+    if (!head) {
+      head = document.createElement('thead');
+      table.insertBefore(head, table.firstChild);
+    }
+    head.className = 'st-table-head';
+    const fmt = window.scRenderMarkup;
+    head.innerHTML =
+      '<tr>' +
+      value.map((label, i) => (
+        '<th class="' + (i === 0 ? 'st-table-key' : 'st-table-cell') + '">' +
+        fmt(String(label)) + '</th>'
+      )).join('') +
+      '</tr>';
+  }
+
+  // -- Toast stack (canary-only) ----------------------------------------
+  // Server-side twin of `_toast_item` in render.py: keep the markup identical
+  // so a patched-in toast is indistinguishable from a server-rendered one.
+  function scToastHtml(m) {
+    const fmt = window.scRenderMarkup;
+    const icon = m.icon
+      ? '<span class="st-toast-icon">' + fmt(m.icon) + '</span>'
+      : '';
+    return (
+      icon +
+      '<span class="st-toast-body">' + fmt(String(m.text)) + '</span>' +
+      '<button type="button" class="st-toast-close" aria-label="Dismiss"' +
+      ' onclick="scDismissToast(this)">\u2715</button>'
+    );
+  }
+  // Arm a toast's auto-dismiss countdown from its `data-duration` (seconds).
+  // The attribute is absent for an "infinite" toast, which stays put until the
+  // user dismisses it. Hovering the stack pauses every countdown so a message
+  // can be read (mirrors `st.toast`).
+  function scToastArm(node) {
+    scToastDisarm(node);
+    const raw = node.dataset.duration;
+    if (!raw) return;
+    const ms = Number(raw) * 1000;
+    node._scRemaining = ms;
+    node._scStartedAt = Date.now();
+    node._scTimer = setTimeout(() => scToastExpire(node), ms);
+  }
+  function scToastDisarm(node) {
+    if (node._scTimer) clearTimeout(node._scTimer);
+    node._scTimer = null;
+  }
+  function scToastPause(node) {
+    if (!node._scTimer) return;
+    const elapsed = Date.now() - node._scStartedAt;
+    scToastDisarm(node);
+    node._scRemaining = Math.max(0, node._scRemaining - elapsed);
+  }
+  function scToastResume(node) {
+    if (node._scTimer || node._scRemaining === undefined) return;
+    node._scStartedAt = Date.now();
+    node._scTimer = setTimeout(() => scToastExpire(node), node._scRemaining);
+  }
+  function scToastExpire(node) {
+    scToastDisarm(node);
+    scToastDismissNode(node);
+  }
+  // Drop one toast: tell the server, which removes it from `messages` and
+  // patches the stack back.
+  function scToastDismissNode(node) {
+    const stack = node.closest('.st-toast-stack');
+    if (!stack) return;
+    ws.send(JSON.stringify({
+      type: 'event', id: stack.dataset.id, event: 'dismiss',
+      value: node.dataset.id,
+    }));
+  }
+  function scToastListen(el) {
+    if (el.dataset.armed) return;
+    el.dataset.armed = '1';
+    el.addEventListener('mouseenter', () => {
+      el.querySelectorAll('.st-toast').forEach(scToastPause);
+    });
+    el.addEventListener('mouseleave', () => {
+      el.querySelectorAll('.st-toast').forEach(scToastResume);
+    });
+  }
+  // Arm the toasts the server rendered on the initial page; the ones that
+  // arrive later are armed by `scPatchToasts` as they are appended.
+  function scArmToasts(el) {
+    scToastListen(el);
+    el.querySelectorAll('.st-toast').forEach(scToastArm);
+  }
+  // Reconcile the stack with the server's `messages` list, keyed by each
+  // toast's stable id: append the new ones (a freshly created node plays the
+  // CSS entrance animation), drop the ones the server no longer lists, and
+  // rewrite a node only when its message really changed -- so an append never
+  // resets the spread transition already in flight.
+  function scPatchToasts(el, messages) {
+    const list = messages || [];
+    const seen = new Set();
+    const byId = new Map();
+    scToastListen(el);
+    Array.from(el.children).forEach((c) => {
+      if (c.classList.contains('st-toast')) byId.set(c.dataset.id, c);
+    });
+    list.forEach((m) => {
+      const id = String(m.id);
+      seen.add(id);
+      let node = byId.get(id);
+      if (!node) {
+        node = document.createElement('div');
+        node.className = 'st-toast';
+        node.dataset.id = id;
+        el.appendChild(node);
+      }
+      const sig = JSON.stringify(m);
+      if (node.dataset.sig !== sig) {
+        node.dataset.sig = sig;
+        if (m.duration) node.dataset.duration = String(m.duration);
+        else delete node.dataset.duration;
+        node.innerHTML = scToastHtml(m);
+        scToastArm(node);
+      }
+    });
+    byId.forEach((node, id) => {
+      if (!seen.has(id) && node.parentNode) {
+        scToastDisarm(node);
+        node.parentNode.removeChild(node);
+      }
+    });
+  }
+  function scDismissToast(btn) {
+    const node = btn.closest('.st-toast');
+    if (node) scToastDismissNode(node);
+  }
 
   // -- Tabs / Expander / NumberInput stepper (client-side UI state) --
   function scSelectTab(btn) {
@@ -984,30 +1166,58 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     scSendChange(input);
   }
 
-  // -- SelectSlider: pick the tick nearest the pointer (click or drag) --
-  function scSelectSliderNearest(track, clientX) {
-    const dots = track.querySelectorAll('.st-select-slider-dot');
-    let best = 0;
-    let bestDist = Infinity;
-    dots.forEach((dot, i) => {
-      const rect = dot.getBoundingClientRect();
-      const dist = Math.abs(rect.left + rect.width / 2 - clientX);
-      if (dist < bestDist) { bestDist = dist; best = i; }
-    });
-    return best;
+  // -- SelectSlider: pick the option nearest the pointer (click or drag) --
+  // The options themselves are hidden; only their values and labels matter
+  // (see `.st-select-slider-options`).
+  function scSelectSliderOptions(track) {
+    return Array.from(track.querySelectorAll('.st-select-slider-option'));
   }
+  function scSelectSliderNearest(track, clientX) {
+    const rail = track.querySelector('.st-select-slider-rail');
+    const n = scSelectSliderOptions(track).length;
+    if (!rail || n <= 1) return 0;
+    const rect = rail.getBoundingClientRect();
+    if (!rect.width) return 0;
+    const ratio = (clientX - rect.left) / rect.width;
+    return Math.max(0, Math.min(n - 1, Math.round(ratio * (n - 1))));
+  }
+  // Move the fill, the thumb and the value label onto `index`. The label is
+  // centred on the thumb, then nudged back inside the widget so it does not
+  // spill out at either end (as `st.select_slider` does). Nothing is committed
+  // until `commit` is set.
   function scSelectSliderApply(track, index, commit) {
-    const ticks = track.querySelectorAll('.st-select-slider-tick');
-    ticks.forEach((t, i) => t.classList.toggle('is-active', i === index));
-    const n = ticks.length;
+    const options = scSelectSliderOptions(track);
+    const n = options.length;
+    const pct = n <= 1 ? 0 : (index / (n - 1)) * 100;
+    track.dataset.index = String(index);
     const fill = track.querySelector('.st-select-slider-fill');
-    if (fill) fill.style.width = (n <= 1 ? 0 : (index / (n - 1)) * 100) + '%';
+    if (fill) fill.style.width = pct + '%';
+    const thumb = track.querySelector('.st-select-slider-thumb');
+    if (thumb) thumb.style.left = pct + '%';
+    const root = track.closest('.st-select-slider');
+    const label = root ? root.querySelector('.st-select-slider-value') : null;
+    if (label && options[index]) {
+      label.innerHTML = options[index].innerHTML;
+      scSelectSliderPlace(track, label, pct);
+    }
     if (!commit) return;
     const id = track.dataset.compId;
-    const value = ticks[index] ? ticks[index].dataset.value : null;
+    const value = options[index] ? options[index].dataset.value : null;
     if (id && value !== null) {
-      ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
+      ws.send(JSON.stringify({
+        type: 'event', id: id, event: 'change', value: value,
+      }));
     }
+  }
+  function scSelectSliderPlace(track, label, pct) {
+    const rail = track.querySelector('.st-select-slider-rail');
+    if (!rail) return;
+    const railRect = rail.getBoundingClientRect();
+    const trackRect = track.getBoundingClientRect();
+    const half = label.offsetWidth / 2;
+    const x = railRect.left - trackRect.left + (pct / 100) * railRect.width;
+    label.style.left =
+      Math.max(half, Math.min(x, trackRect.width - half)) + 'px';
   }
   function scSelectSliderStart(ev, track) {
     ev.preventDefault();
@@ -1271,6 +1481,13 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   scRenderMarkdown(document);
   scInitAltairCharts();
   document.querySelectorAll('.st-tabs').forEach(scObserveTabs);
+  document.querySelectorAll('.st-toast-stack').forEach(scArmToasts);
+  document.querySelectorAll('.st-select-slider').forEach((el) => {
+    const track = el.querySelector('.st-select-slider-track');
+    if (track) {
+      scSelectSliderApply(track, Number(track.dataset.index || 0), false);
+    }
+  });
 
   // -- Help tooltips -----------------------------------------------------
   // Widget `help` text is markdown (mirrors Streamlit). A native `title=`

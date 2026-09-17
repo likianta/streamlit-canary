@@ -589,6 +589,33 @@ Container = Column
 #   alias of `Column`, mirroring Streamlit's `st.container`.
 
 
+class BottomContainer(Column):
+    """A container that sticks to the bottom of its parent layout.
+
+    Used exactly like `Container` / `Column`, except that the layout pushes
+    it down, so a card can keep its actions at the bottom and a dialog can
+    pin a button to its base:
+
+        with v3.Container(height=320):
+            v3.Text('...')
+            with v3.BottomContainer():
+                v3.Button('Close')
+
+    Streamlit's `st.bottom` is only allowed at the root; this one works in
+    any layout (a canary-only difference, see
+    `.trae/documents/pixel_fidelity_caveats.md`).
+
+    Args:
+        see `Column`.
+
+    (Placed right after `Column` rather than in strict alphabetical order:
+    it subclasses `Column`, so its base has to be defined first.)
+    """
+
+    def __init__(self, **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+
+
 class Dialog(Component):
     """A modal dialog (mirrors Streamlit's `st.dialog`).
 
@@ -1384,24 +1411,40 @@ class Success(_TextVisible):
 
 
 class Table(Component):
-    """A static table (mirrors Streamlit's `st.table`).
+    """A static table (mirrors Streamlit's `st.table`, plus canary extras).
 
     Args:
-        rows: an iterable of `(key, value)` pairs. Both cells accept the
-            same `:color[..]` markup as `v3.Text`. Bindable.
+        rows: an iterable of rows. The first cell of each row is the row
+            header (`<th scope="row">`) and every following cell is a value
+            column, so an N-cell row yields an N-column table (the common
+            2-tuple form mirrors `st.table(dict)`). Cells accept the same
+            `:color[..]` markup as `v3.Text`. Bindable.
+        title:   optional heading drawn above the table (bindable).
+        caption: optional muted line drawn under the title (bindable).
+        footer:  optional muted line drawn under the table (bindable).
+        header:  optional column labels, one per column; when given, a
+            column-label row is drawn above the body (bindable).
+        header_background: fill the header row with the secondary background.
+            The canary only offers this limited knob (rather than a fully
+            customisable table) for the title / caption / footer / header row.
         width: "stretch" (Streamlit's default) fills the parent column;
             "content" hugs the cell contents; an int is a pixel width.
 
     Properties:
-        rows: list[tuple[str, str]] — the table body.
+        rows, title, caption, footer, header — see above.
     """
 
     _default_width = 'stretch'
 
     def __init__(
         self,
-        rows: tp.Iterable[tp.Tuple[str, str]] | Property | None = None,
+        rows: tp.Iterable[tp.Sequence[str]] | Property | None = None,
         *,
+        title: str | Property = '',
+        caption: str | Property = '',
+        footer: str | Property = '',
+        header: tp.Sequence[str] | Property | None = None,
+        header_background: bool = False,
         width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
@@ -1411,6 +1454,15 @@ class Table(Component):
             self.rows.bind(rows)
         elif rows is not None:
             self.rows.set(list(rows))
+        self.title = _prop('', title)
+        self.caption = _prop('', caption)
+        self.footer = _prop('', footer)
+        self.header: Property[list[str] | None] = Property(None)
+        if isinstance(header, Property):
+            self.header.bind(header)
+        elif header is not None:
+            self.header.set(list(header))
+        self._header_background = header_background
 
 
 class _TabPanel(Component):
@@ -1631,6 +1683,84 @@ class Title(_HelpText):
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
     """
+
+
+_TOAST_DURATIONS: dict[str, int | None] = {
+    'short': 4,
+    'long': 10,
+    'infinite': None,
+}
+
+
+def _toast_duration(value: tp.Any) -> int | None:
+    """Normalise a `Toast.show(duration=...)` value (mirrors `st.toast`)."""
+    if isinstance(value, str) and value in _TOAST_DURATIONS:
+        return _TOAST_DURATIONS[value]
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return value
+    raise ValueError(
+        'duration must be "short", "long", "infinite" or a positive '
+        'integer, got {!r}'.format(value)
+    )
+
+
+class Toast(Component):
+    """A stack of transient notifications, pinned to the page's bottom-right.
+
+        toast = v3.Toast()
+        ...
+        toast.show('Saved!', icon=':material/check:')
+
+    Messages accumulate (oldest first, capped at `_max_visible`). Collapsed,
+    the stack piles up: the newest sits in front and every older toast is
+    scaled down, peeking out from behind it. Hovering the pile fans it out
+    into an evenly spaced, readable list (a canary-only touch, modelled on the
+    "Pines" toast; Streamlit shows a single toast at a time).
+
+    Each message auto-dismisses after its `duration` (mirroring `st.toast`:
+    `'short'` 4s, `'long'` 10s, `'infinite'`, or a positive second count);
+    hovering the stack pauses the countdown. A toast can also be dismissed
+    early with its ✕.
+
+    Properties:
+        messages: list[dict] — the visible stack, oldest first. Each entry is
+            `{'id': int, 'text': str, 'icon': str, 'duration': int | None}`.
+            Bindable.
+    """
+
+    _max_visible = 5
+
+    def __init__(self, **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+        self.messages = Property([])
+
+    def show(
+        self, text: str, *, icon: str = '', duration: str | int = 'short'
+    ) -> None:
+        """Push a message (the oldest is dropped once the cap is reached)."""
+        messages = list(self.messages.get() or [])
+        next_id = 1 + max((m.get('id', 0) for m in messages), default=0)
+        messages.append(
+            {
+                'id': next_id,
+                'text': str(text),
+                'icon': str(icon),
+                'duration': _toast_duration(duration),
+            }
+        )
+        self.messages.set(messages[-self._max_visible :])
+
+    def clear(self) -> None:
+        """Drop every message (the stack disappears)."""
+        self.messages.set([])
+
+    def _on_dismiss(self, value: tp.Any) -> None:
+        """Handle a client ✕ (or an elapsed duration): drop that message."""
+        target = str(value)
+        messages = [
+            m for m in (self.messages.get() or []) if str(m.get('id')) != target
+        ]
+        self.messages.set(messages)
 
 
 class Toggle(_Labeled):

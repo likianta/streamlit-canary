@@ -7,6 +7,7 @@ dependency here — the frontend bridge is added in a later phase.
 
 from .base import Component
 from .widgets import AltairChart
+from .widgets import BottomContainer
 from .widgets import Button
 from .widgets import Caption
 from .widgets import Cell
@@ -36,6 +37,7 @@ from .widgets import Text
 from .widgets import TextArea
 from .widgets import TextInput
 from .widgets import Title
+from .widgets import Toast
 from .widgets import Toggle
 from .widgets import Warning
 from .tree_select import SimpleTreeSelect
@@ -44,6 +46,7 @@ from .tree_select import TreeSelectWithInput
 
 __all__ = [
     'AltairChart',
+    'BottomContainer',
     'Button',
     'Caption',
     'Cell',
@@ -75,6 +78,7 @@ __all__ = [
     'TextArea',
     'TextInput',
     'Title',
+    'Toast',
     'Toggle',
     'TreeSelect',
     'TreeSelectWithInput',

@@ -31,11 +31,63 @@ def main():
         ':orange[:material/brightness_auto:]'
     )
 
+    _radio()
+
+    _slider()
+
     _table()
+
+    _bottom_container()
+
+    _toast()
 
     _progress()
 
     _exception()
+
+
+def _radio():
+    v3.Radio('Radio', options=('Option A', 'Option B', 'Option C'))
+    with v3.Row():
+        with v3.Column(weight=2):
+            v3.Radio(
+                'Radio (horizontal, narrow)',
+                options=(7, 8, 9, 10, 11, 12),
+                index=3,
+                horizontal=True,
+            )
+        with v3.Column(weight=3):
+            v3.Caption('A horizontal radio wraps inside a narrow column.')
+
+
+def _slider():
+    v3.SelectSlider(
+        'Select slider',
+        options=tuple(range(15, 0, -1)),
+        value=15,
+        format_func=lambda x: 'Lv.{}'.format(x),
+    )
+
+
+def _bottom_container():
+    with v3.Container(height=200, border=True):
+        v3.Text('This card is 200px tall; the button is pinned to its bottom.')
+        with v3.BottomContainer():
+            v3.Button('Close')
+
+
+def _toast():
+    count = sc.Property(0)
+    toast = v3.Toast()
+    with v3.Button('Show toast') as btn:
+
+        @btn.on_click
+        def _():
+            n = count.get() + 1
+            count.set(n)
+            toast.show(
+                'Notification {}'.format(n), icon=':material/notifications:'
+            )
 
 
 def _exception():
@@ -153,6 +205,11 @@ def _table():
             ('Server connected', 'Fake device'),
         ),
         width='content',
+        title='Device status',
+        caption='Read from the last poll.',
+        footer='Updated 1s ago.',
+        header=('Field', 'Value'),
+        header_background=True,
     )
     v3.Table(
         (
@@ -161,6 +218,16 @@ def _table():
             ('MATLAB version', '7.3'),
         ),
         width='stretch',  # default
+    )
+    v3.Table(
+        (
+            ('Link status', 'ON', 'ok'),
+            ('PRBS error counter', '123', 'warn'),
+            ('Server connected', 'Fake device', 'info'),
+        ),
+        width='content',
+        header=('Field', 'Value', 'Detail'),
+        header_background=True,
     )
 
 

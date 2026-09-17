@@ -310,6 +310,12 @@
     padding: 16px;
   }
   .st-container[hidden] { display: none; }
+  /* Canary-only: a container pinned to the bottom of its parent (Streamlit's
+     `st.bottom` only works at the root). `margin-top: auto` absorbs whatever
+     free space the parent flex layout has, pushing the block down. */
+  .st-container--bottom {
+    margin-top: auto;
+  }
 
   /* Layout: Grid */
   .st-grid {
@@ -559,16 +565,16 @@
     font-size: 14px;
   }
   .st-table-key {
-    padding: 4px 6px 4px 8px;
-    border-right: 0.8px solid var(--st-dataframe-border-color);
-    /* Streamlit renders the key column in the muted text colour at the
-       same weight as the values. */
+    /* The row-header column reads in the muted text colour at the same
+       weight as the values (mirrors Streamlit). The horizontal inset comes
+       from the first / last cell rules below. */
+    padding: 4px 8px;
     color: var(--st-gray-color);
     font-weight: 400;
     text-align: start;
   }
   .st-table-cell {
-    padding: 4px 6px;
+    padding: 4px 8px;
     text-align: left;
   }
   .st-table-key,
@@ -578,12 +584,61 @@
     /* Streamlit's cells use a tighter 1.5 leading than the 1.6 body. */
     line-height: 1.5;
   }
+  /* Canary-only: roomier cells than Streamlit's tight padding. Every edge
+     against an inner divider sits 8px away, while the outermost cells carry
+     the wider 16px inset against the table's outer frame. Keyed on the
+     first / last cell, so it also holds for a wider table. */
+  .st-table-table tbody > tr > :first-child,
+  .st-table-table thead > tr > :first-child {
+    padding-left: 16px;
+  }
+  .st-table-table tbody > tr > :last-child,
+  .st-table-table thead > tr > :last-child {
+    padding-right: 16px;
+  }
+  /* The vertical divider belongs to every column but the last. */
+  .st-table-table tbody > tr > :not(:last-child),
+  .st-table-table thead > tr > :not(:last-child) {
+    border-right: 0.8px solid var(--st-dataframe-border-color);
+  }
   .st-table-table > tbody > tr:last-child > * {
     border-bottom: none;
   }
   .st-table-key p,
   .st-table-cell p {
     margin: 0;
+  }
+  /* Canary-only extras: a title / caption / footer wrapped around the box,
+     plus an optional column-label row. The header row is the one styling
+     knob (`header_background`) the canary offers, rather than a fully
+     customisable table. */
+  .st-table-title {
+    margin-bottom: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--st-heading-color);
+  }
+  .st-table-caption,
+  .st-table-footer {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-gray-color);
+  }
+  .st-table-caption {
+    margin-bottom: 4px;
+  }
+  .st-table-footer {
+    margin-top: 4px;
+  }
+  .st-table-head .st-table-key,
+  .st-table-head .st-table-cell {
+    color: var(--st-text-color);
+    font-weight: 500;
+  }
+  .st-table--head-filled .st-table-head .st-table-key,
+  .st-table--head-filled .st-table-head .st-table-cell {
+    background-color: var(--st-dataframe-header-background-color);
   }
 
   /* Code block (mirrors Streamlit's `st.code`) */
@@ -939,8 +994,14 @@
     cursor: pointer;
     user-select: none;
   }
-  .st-radio-item:has(input:focus-visible) {
-    background-color: var(--st-active-background-color);
+  /* Canary-only: hovering an option highlights its whole row, the way a
+     Selectbox item does (Streamlit only deepens the circle's colour). The
+     box overhangs its row -- `padding` and an equal, opposite `margin` -- so
+     the highlight gains breathing room while the option keeps Streamlit's
+     22.4px pitch, i.e. the resting layout is untouched. */
+  .st-radio-item:hover .st-radio-item-row,
+  .st-radio-item:has(input:focus-visible) .st-radio-item-row {
+    background-color: var(--st-hover-background-color);
   }
   /* The real <input> is visually hidden; the indicator is drawn with divs. */
   .st-radio-input-wrap {
@@ -964,6 +1025,10 @@
     display: flex;
     gap: 8px;
     align-items: center;
+    /* The hover / focus highlight box (see `.st-radio-item:hover` above). */
+    padding: 2px 8px;
+    margin: -2px -8px;
+    border-radius: 6px;
   }
   .st-radio-circle {
     display: flex;
@@ -998,9 +1063,12 @@
     line-height: 1.6;
     color: var(--st-text-color);
   }
-  /* Horizontal radio: options lay out in a row (mirrors `horizontal=True`). */
+  /* Horizontal radio: options lay out in a row and wrap onto the next line
+     once they no longer fit, rather than spilling past the container
+     (mirrors `st.radio(horizontal=True)`). */
   .st-radio--horizontal .st-radio-group {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
     gap: 16px;
     min-height: 40px;
@@ -1532,6 +1600,86 @@
      bar of them packs left instead of spreading apart. */
   .st-row > .st-btn-icon { flex: 0 0 auto; }
 
+  /* -- Toast stack (canary-only) -- */
+  /* A fixed overlay in the bottom-right corner. Collapsed, the toasts pile
+     up into a compact stack: the newest sits in front, and every older toast
+     is scaled down and tucked behind it (a negative `margin-top`), so only
+     its top edge peeks out. Hovering the stack swaps that overlap for a
+     normal gap and resets the scale, fanning the pile out into a readable
+     list -- `transition` animates both. The whole effect is CSS -- page.js
+     only appends / removes the items. (Modelled on the "Pines" toast.) */
+  .st-toast-stack {
+    --st-toast-overlap: -28px;  /* collapsed: each toast over the previous */
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .st-toast-stack[hidden] { display: none; }
+  .st-toast-stack:hover {
+    --st-toast-overlap: 15px;   /* expanded: a normal gap between toasts */
+  }
+  .st-toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 360px;
+    padding: 8px 12px;
+    margin-top: var(--st-toast-overlap);
+    transform: scale(var(--st-toast-scale, 1));
+    transform-origin: top right;
+    border: 1px solid var(--st-border-color-light);
+    border-radius: var(--st-base-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    font-size: var(--st-small-font-size);
+    line-height: 1.6;
+    box-shadow: 0 4px 16px rgba(var(--st-shadow-rgb), 0.3);
+    animation: st-toast-in 0.25s ease;
+    transition: margin-top 0.25s ease, transform 0.25s ease;
+  }
+  .st-toast:first-child { margin-top: 0; }
+  /* Depth from the newest toast (the last child): the further back it sits,
+     the smaller it reads -- that is what turns the stack into a "pile".
+     Hovering the stack resets every scale to 1. */
+  .st-toast:nth-last-child(2) { --st-toast-scale: 0.96; }
+  .st-toast:nth-last-child(3) { --st-toast-scale: 0.92; }
+  .st-toast:nth-last-child(4) { --st-toast-scale: 0.88; }
+  .st-toast:nth-last-child(5) { --st-toast-scale: 0.84; }
+  .st-toast-stack:hover .st-toast { --st-toast-scale: 1; }
+  .st-toast-icon {
+    display: inline-flex;
+    flex: none;
+  }
+  .st-toast-body { flex: 1 1 auto; }
+  .st-toast-close {
+    flex: none;
+    padding: 0 2px;
+    border: none;
+    background: none;
+    color: var(--st-gray-color);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+  }
+  .st-toast-stack:hover .st-toast-close { opacity: 1; }
+  .st-toast-close:hover { color: var(--st-text-color); }
+  @keyframes st-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(var(--st-toast-scale, 1));
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(var(--st-toast-scale, 1));
+    }
+  }
+
   /* -- Progress bar (mirrors Streamlit's `st.progress`) -- */
   /* Streamlit stacks the caption above the track, and neither the root nor
      the caption carries a margin of its own: the 8px gap below the caption
@@ -1660,20 +1808,38 @@
   }
 
   /* -- SelectSlider (discrete slider, mirrors `st.select_slider`) -- */
+  /* Matches `st.select_slider`'s look: a rail with a thumb, and the current
+     option shown above the thumb in the primary colour. The per-option labels
+     live in a hidden list (`.st-select-slider-options`) that page.js reads for
+     the values and the thumb label -- no tick is drawn per option. */
   .st-select-slider { margin-bottom: 8px; }
-  .st-select-slider-track {
+  .st-select-slider-group {
     position: relative;
     height: 40px;
-    padding: 0 10px;
+  }
+  .st-select-slider-value {
+    position: absolute;
+    top: -8px;
+    height: 22px;
+    line-height: 22px;
+    font-size: 14px;
+    color: var(--st-primary-color);
+    white-space: nowrap;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .st-select-slider-track {
+    position: absolute;
+    inset: 0;
     touch-action: none;
     user-select: none;
     cursor: pointer;
   }
   .st-select-slider-rail {
     position: absolute;
-    left: 10px;
-    right: 10px;
-    top: 8px;
+    left: 6px;
+    right: 6px;
+    top: 18px;
     height: 4px;
     border-radius: 2px;
     background-color: var(--st-border-color);
@@ -1686,39 +1852,16 @@
     border-radius: 2px;
     background-color: var(--st-primary-color);
   }
-  .st-select-slider-ticks {
+  .st-select-slider-thumb {
     position: absolute;
-    left: 10px;
-    right: 10px;
-    top: 0;
-    height: 100%;
-  }
-  .st-select-slider-tick {
-    position: absolute;
-    top: 6px;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .st-select-slider-dot {
-    width: 8px;
-    height: 8px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background-color: var(--st-border-color);
-  }
-  .st-select-slider-tick.is-active .st-select-slider-dot {
     background-color: var(--st-primary-color);
+    transform: translate(-50%, -50%);
   }
-  .st-select-slider-tick-label {
-    margin-top: 14px;
-    font-size: 12px;
-    white-space: nowrap;
-    color: var(--st-text-color);
-  }
-  .st-select-slider-tick.is-active .st-select-slider-tick-label {
-    color: var(--st-primary-color);
-  }
+  .st-select-slider-options { display: none; }
 
   /* ---- Vertical rhythm -------------------------------------------------
      A flex/grid container owns the spacing between its stacked children via

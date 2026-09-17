@@ -5,6 +5,7 @@ This script is hosting Streamlit app.
 
 from time import sleep
 
+import pandas as pd
 import streamlit as st
 
 
@@ -34,9 +35,34 @@ def main():
         ':orange[:material/brightness_auto:]'
     )
 
+    _radio()
+    _slider()
     _table()
     _progress()
     _exception()
+
+
+def _radio():
+    st.radio('Radio', ('Option A', 'Option B', 'Option C'))
+    cols = st.columns((2, 3))
+    with cols[0]:
+        st.radio(
+            'Radio (horizontal, narrow)',
+            (7, 8, 9, 10, 11, 12),
+            index=3,
+            horizontal=True,
+        )
+    with cols[1]:
+        st.caption('A horizontal radio wraps inside a narrow column.')
+
+
+def _slider():
+    st.select_slider(
+        'Select slider',
+        tuple(range(15, 0, -1)),
+        value=15,
+        format_func=lambda x: 'Lv.{}'.format(x),
+    )
 
 
 def _exception():
@@ -149,6 +175,16 @@ def _table():
             'MATLAB version': '7.3',
         },
         width='stretch',  # default
+    )
+    st.table(
+        pd.DataFrame(
+            {
+                'Value': ['ON', '123', 'Fake device'],
+                'Detail': ['ok', 'warn', 'info'],
+            },
+            index=['Link status', 'PRBS error counter', 'Server connected'],
+        ),
+        width='content',
     )
 
 

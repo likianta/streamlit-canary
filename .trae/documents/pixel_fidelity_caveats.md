@@ -6,8 +6,8 @@
 
 ## UI 差异一览
 
-- TODO: BottomContainer
-  - TODO: 我们的底部布局容器是贴着当前的父布局的底部的.
+- BottomContainer
+  - 我们的底部布局容器是贴着当前的父布局的底部的: 实现是给容器加 `margin-top: auto`, 所以只要父级 (垂直容器) 还有剩余空间, 它就会被压到底部, 不限定于根布局.
 
     原版行为: st.bottom 只允许在根布局中使用.
 
@@ -27,7 +27,7 @@
     原版行为: st.popover 的面板是瞬间出现的, 没有展开动画.
 
 - Radio
-  - TODO: 当鼠标悬浮在选项上时, 选项背景色高亮, 就像 Selectbox.expanded.item 一样.
+  - 当鼠标悬浮在选项上时, 选项整行背景高亮, 就像 Selectbox 展开后的选项一样: 高亮盒子用 `padding: 2px 8px` 配等量反向 `margin: -2px -8px` 撑开, 因此悬浮时盒子会向四周溢出一点, 但选项本身 22.4px 的行距不变 (静止态的排版与原版一致).
 
     原版行为: 鼠标略过时, 只有开头的圆圈形状的颜色会稍稍变深.
 
@@ -54,14 +54,18 @@
     原版行为: st.tab 的 tab indicator line 是简单的平移动画.
 
 - Table
-  - TODO: Table 的单元格带有一些 padding.
+  - 单元格带有比原版更明显的 padding, 且按 "贴哪条边框" 区分: 单元格到内部分隔线 (分隔两列的竖直边框) 的距离是 8px, 到表格外框的距离是 16px. 因此在 st.table(..., width='content') 时, 单元格的文字不会紧贴表格边框, 且贴着外框的一侧留白更宽.
 
-    原版行为: st.table 的单元格几乎没有 padding, 导致 st.table(..., width='content') 时, 单元格的文字内容几乎紧挨着表格边框了.
+    原版行为: st.table 的单元格有 padding, 但很小 (`th` 为 `4px 6px 4px 8px`, `td` 为 `4px 6px`, 上下只有 4px). 当 st.table(..., width='content') 时, 单元格的文字内容几乎紧挨着表格边框, 肉眼容易误以为它 "没有 padding".
 
-  - TODO: Table 支持自定义 title, caption, footer 以及 header row 样式 (注: 自定义样式不是高度自定义, 而是提供有限的样式参数来调整).
+  - Table 支持自定义 title, caption, footer 以及 header row 样式 (注: 自定义样式不是高度自定义, 而是提供有限的样式参数来调整): `title` / `caption` 渲染在表格上方, `footer` 渲染在表格下方; `header=(label, ...)` 增加一行列标题 (每列一个标签), `header_background=True` 给该行加表头底色. 这些字段都是 bindable 的, 变化时前端就地更新.
 
-- TODO: Toast
-  - TODO: 多个 toast 信息堆叠显示, 当鼠标进入时, 会展开成多条信息列表, 鼠标进入/离开伴随展开/堆叠动画.
+  - Table 的每一行可以是 N 个单元格 (第一个是行标题, 其余是数据列), 因此支持 N 列表格: 2 元组即 `st.table(dict)` 那种两列表格, 三元组即三列表格.
+
+- Toast
+  - 多个 toast 会在右下角堆叠成一小摞: 最新的一条在最前面完整显示, 更早的按离最新的层级逐层缩小 (0.96 / 0.92 / 0.88 / 0.84) 并从后方探出上边缘 (最多保留 5 条, 超出时丢弃最早的). 鼠标进入时这一摞会展开成等距 (15px) 的完整列表, 离开时收拢, 展开/收拢伴随动画. 效果完全由 CSS 实现: 折叠态用负的 `margin-top` 把每条 toast 叠到前一条上面, 缩放则用 `nth-last-child` 按层级递减; hover 时把间距和缩放都还原. 每条 toast 右侧有一个 ✕, 仅在 hover 时出现, 用于移除它. (参考了 "Pines" toast 的效果.)
+
+  - 每条 toast 都带 `duration` (参考 st.toast): `'short'` = 4 秒, `'long'` = 10 秒, `'infinite'` = 直到用户关闭, 或一个正整数秒数. 倒计时结束会自动移除; 鼠标进入这一摞时暂停计时, 离开后按剩余时间继续.
 
     原版行为: st.toast 只能显示一条信息, 且动效简单.
 
