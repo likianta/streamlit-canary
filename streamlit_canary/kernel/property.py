@@ -13,8 +13,13 @@ from .signal import Signal
 from .special_value import _undefined
 from .special_value import _Undefined
 
-_T = tp.TypeVar('_T')
-_S = tp.TypeVar('_S')
+
+class T:
+    P = tp.TypeVar('P')
+    Q = tp.TypeVar('Q')
+    SourceOrSequence = tp.Union['Property[P]', tp.Sequence['Property[P]']]
+    Transform = tp.Callable[[tp.Union[P, tp.Sequence[P]]], Q]
+
 
 # Properties whose notification was deferred by an `updating()` block. A
 # ContextVar (rather than a thread-local) scopes the transaction to the
@@ -24,7 +29,7 @@ _pending_updates: contextvars.ContextVar = contextvars.ContextVar(
 )
 
 
-class Property(tp.Generic[_T]):
+class Property(tp.Generic[T.Q]):
     """A reactive value container.
 
     The type parameter describes the value the property *holds*, so a type
@@ -35,7 +40,7 @@ class Property(tp.Generic[_T]):
         #   when the property may still hold nothing (`sc._undefined`).
 
     Note: `value` itself is kept as `tp.Any` on purpose, because a property
-    starts out as `sc._undefined` until the first `set()`. The declared `_T`
+    starts out as `sc._undefined` until the first `set()`. The declared `T.Q`
     is what callers see through `get()`.
     """
 
@@ -43,7 +48,7 @@ class Property(tp.Generic[_T]):
     on_change: Signal
     value: tp.Any
 
-    def __init__(self, default: _T | _Undefined = _undefined) -> None:
+    def __init__(self, default: T.Q | _Undefined = _undefined) -> None:
         self.default = default
         self.value = default
         self.on_change = Signal(_owner_factory=lambda: self)
@@ -51,10 +56,10 @@ class Property(tp.Generic[_T]):
     def __bool__(self) -> bool:
         return bool(self.value)
 
-    def get(self) -> _T:
-        return tp.cast(_T, self.value)
+    def get(self) -> T.Q:
+        return tp.cast(T.Q, self.value)
 
-    def set(self, value: _T, notify: tp.Optional[bool] = None) -> None:
+    def set(self, value: T.Q, notify: tp.Optional[bool] = None) -> None:
         """
         Args:
             notify:
@@ -77,11 +82,11 @@ class Property(tp.Generic[_T]):
 
     def bind(
         self,
-        source: 'Property[_S]',
-        transform: tp.Callable[[_S], _T] | None = None,
+        source: T.SourceOrSequence,
+        transform: tp.Optional[T.Transform] = None,
     ) -> None:
         """
-        Bind this property to a source property.
+        Bind this property to source property(s).
         When `source` changes, `transform(source.get())` is computed and set on
         this property. An immediate sync is also performed so that this property
         reflects the current source value right away.
@@ -91,18 +96,38 @@ class Property(tp.Generic[_T]):
         the immediate sync is skipped and we wait for the first change.
         """
 
-        def sync() -> None:
-            if transform is None:
-                self.set(tp.cast(_T, source.get()))
-            else:
-                self.set(transform(source.get()))
+        if isinstance(source, Property):
 
-        source.on_change.connect(sync)
-        # immediate sync so the bound property starts with the right value.
-        if source.get() is not _undefined:
-            sync()
+            def sync() -> None:
+                if transform is None:
+                    self.set(tp.cast(T.Q, source.get()))
+                else:
+                    self.set(transform(source.get()))
 
-    def set_or_bind(self, value: '_T | Property[_T]') -> None:
+            source.on_change.connect(sync)
+            # immediate sync so the bound property starts with the right value.
+            if source.get() is not _undefined:
+                sync()
+
+        else:
+            assert transform is not None
+
+            class SourceAccessor:
+                def __init__(self, source_factors):
+                    self.source_factors = source_factors
+
+                def __getitem__(self, index: int) -> T.P:
+                    return self.source_factors[index].get()
+
+            def any_trigger_to_sync():
+                self.set(
+                    transform(tp.cast(tp.Sequence[T.P], SourceAccessor(source)))
+                )
+
+            if all(x.get() is not _undefined for x in source):
+                any_trigger_to_sync()
+
+    def set_or_bind(self, value: 'T.Q | Property[T.Q]') -> None:
         """
         `set(value)`, unless `value` is itself a `Property`, in which case
         `self` is bound to it instead (mirroring it from now on).
@@ -123,8 +148,8 @@ class Property(tp.Generic[_T]):
 
 
 def bind(
-    source: Property[_S], transform: tp.Callable[[_S], _T] | None = None
-) -> Property[_T]:
+    source: T.SourceOrSequence, transform: tp.Optional[T.Transform] = None
+) -> Property[T.Q]:
     """
     Create an anonymous `Property` bound to `source`.
 
@@ -132,12 +157,12 @@ def bind(
         v3.Radio(sc.bind(state.project, lambda x: x['name']))
         v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))
     """
-    prop = Property[_T]()
+    prop = Property[T.Q]()
     prop.bind(source, transform)
     return prop
 
 
-class _BidiProperty(Property[_T]):
+class _BidiProperty(Property[T.Q]):
     """The `Property` returned by `bbind`, carrying its reverse target.
 
     `Property.set_or_bind` looks for `_bidi_target` and wires the reverse
@@ -145,13 +170,13 @@ class _BidiProperty(Property[_T]):
     back into the original one.
     """
 
-    def __init__(self, target: Property[_T]) -> None:
+    def __init__(self, target: Property[T.Q]) -> None:
         super().__init__()
-        self._bidi_target: Property[_T] = target
+        self._bidi_target: Property[T.Q] = target
         self.bind(target)
 
 
-def bbind(source: Property[_T]) -> Property[_T]:
+def bbind(source: Property[T.Q]) -> Property[T.Q]:
     """
     Create a property that binds *both ways* with `source`.
 
