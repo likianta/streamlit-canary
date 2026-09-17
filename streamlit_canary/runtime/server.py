@@ -117,7 +117,6 @@ def create_app(runtime: Runtime) -> Starlette:
         await ws.accept()
         client = WebSocketClient(ws)
         runtime.add_ws_client(client)
-        runtime.send_source_state(client)
         try:
             while True:
                 data = await ws.receive_text()
@@ -165,7 +164,10 @@ def serve(runtime: Runtime, port: int = 3001) -> None:
 
     runtime.build()
     app = create_app(runtime)
-    start_source_watcher(runtime)
+    # TODO or DELETE: file watcher & reload banner needs to be refactored or
+    # be deleted. The watcher is no longer started, so `mark_source_changed`
+    # and the "Source file changed" notice idle; a rerun is a manual action
+    # from the toolbar instead (see page.js).
     uvicorn.run(app, host='127.0.0.1', port=port, log_level='warning')
 
 

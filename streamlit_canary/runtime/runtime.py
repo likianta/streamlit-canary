@@ -175,6 +175,9 @@ class Runtime:
         for client in list(self._ws_clients):
             client.send_json(message)
 
+    # TODO or DELETE: file watcher & reload banner needs to be refactored or
+    # be deleted. Nothing reaches these any more: the watcher is not started
+    # (see server.serve) and the frontend ignores `source_changed`.
     # -- source watching / rerun -----------------------------------------
 
     @property

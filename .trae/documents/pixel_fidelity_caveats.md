@@ -83,6 +83,11 @@
 
     原版行为: st.toast 只能显示一条信息, 且动效简单.
 
+- Toolbar
+  - 右上角的 ⋮ 菜单是我们的开发者工具 (参考 Streamlit 主菜单做的简化版), 只有两项: 主题切换 (System / Light / Dark) 和 Rerun. 主题切换完全在浏览器端完成 (页面同时携带两套主题, 按 `html[data-theme]` 作用域), 选择会写进 localStorage, 选 System 时跟随操作系统的浅色/深色偏好; Rerun 会重新执行服务端进程, 这也是替代 file watcher 的主动手段.
+
+    原版行为: st 的主菜单项更多 (Rerun / Settings / Print / Record a screencast / About 等), 主题切换在 Settings 面板里; 源码变更时原版会在右上角弹出提示条.
+
 ## 后端关键差异一览
 
 - 我们使用 `enabled` 来控制组件可交互性, 而原版是 `disabled`.

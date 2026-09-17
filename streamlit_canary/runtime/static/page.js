@@ -1,7 +1,6 @@
 const ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'source_changed') { scShowRerunToast(msg.files || []); return; }
     if (msg.type === 'error') { scShowError(msg.message); return; }
     if (msg.type === 'reloading') { scWaitForServer(); return; }
     if (msg.type !== 'patch') return;
@@ -650,17 +649,23 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       .getPropertyValue('--st-' + name + '-text-color').trim();
     return value || fallback;
   }
-  const scColors = {
-    red: scThemeColor('red', '#ff6c6c'),
-    orange: scThemeColor('orange', '#ffbd45'),
-    yellow: scThemeColor('yellow', '#ffffc2'),
-    blue: scThemeColor('blue', '#3d9df3'),
-    green: scThemeColor('green', '#5ce488'),
-    violet: scThemeColor('violet', '#b27eff'),
-    gray: scThemeColor('gray', 'rgba(250, 250, 250, 0.4)'),
-    grey: scThemeColor('gray', 'rgba(250, 250, 250, 0.4)'),
-    rainbow: null
-  };
+  // Read once per theme: the toolbar rebuilds this when the theme switches,
+  // so `:color[..]` spans follow the palette instead of freezing the one that
+  // was live when the page loaded.
+  function scBuildColors() {
+    return {
+      red: scThemeColor('red', '#ff6c6c'),
+      orange: scThemeColor('orange', '#ffbd45'),
+      yellow: scThemeColor('yellow', '#ffffc2'),
+      blue: scThemeColor('blue', '#3d9df3'),
+      green: scThemeColor('green', '#5ce488'),
+      violet: scThemeColor('violet', '#b27eff'),
+      gray: scThemeColor('gray', 'rgba(250, 250, 250, 0.4)'),
+      grey: scThemeColor('gray', 'rgba(250, 250, 250, 0.4)'),
+      rainbow: null
+    };
+  }
+  let scColors = scBuildColors();
   function scColorOpen(color) {
     const css = scColors[color];
     if (css === null) {
@@ -1339,7 +1344,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     });
   }
 
-  // -- Source-change notice + rerun (dev-time convenience, like Streamlit) --
+  // -- Source-change notice (kept, no longer wired up) -------------------
+  // TODO or DELETE: file watcher & reload banner needs to be refactored or
+  // be deleted. Nothing calls these any more: the server stops watching its
+  // source files, and a rerun is a manual action from the toolbar.
   function scRerunToast() {
     let el = document.getElementById('sc-rerun-toast');
     if (el) return el;
@@ -1353,7 +1361,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       '<span class="st-rerun-title">Source file changed</span>' +
       '<span class="st-rerun-detail"></span></span>' +
       '<button class="st-rerun-btn" type="button" ' +
-      'onclick="scSendRerun()">Rerun</button>' +
+      'onclick="scRerun()">Rerun</button>' +
       '<button class="st-rerun-close" type="button" title="Dismiss" ' +
       'onclick="scDismissRerun()">\u2715</button>';
     document.body.appendChild(el);
@@ -1383,32 +1391,28 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     // rerun stays reachable.
     scSetRerunVisible(false);
   }
-  function scSendRerun() {
+  function scRerun(onTimeout) {
     try { ws.send(JSON.stringify({ type: 'rerun' })); } catch (e) {}
-    scWaitForServer();
+    scWaitForServer(onTimeout);
   }
-  // The rerun re-executes the server process; poll until it answers again,
-  // then reload the page so the fresh render is picked up.
-  function scWaitForServer() {
-    const el = scRerunToast();
-    scSetRerunVisible(true);
-    el.classList.add('is-reloading');
-    el.querySelector('.st-rerun-title').textContent = 'Reloading\u2026';
-    el.querySelector('.st-rerun-detail').textContent = 'waiting for the server';
-    el.querySelector('.st-rerun-btn').disabled = true;
+  // A rerun re-executes the server process (see reload.py); poll until it
+  // answers again, then reload the page so the fresh render is picked up.
+  // The caller owns the "waiting" feedback -- the toolbar and the exception
+  // panel each label their own Rerun button -- and learns from `onTimeout`
+  // that the process never came back.
+  let scServerPending = false;
+  function scWaitForServer(onTimeout) {
+    if (scServerPending) return;
+    scServerPending = true;
     let tries = 0;
     const poll = () => {
       tries += 1;
       fetch('/healthz?_=' + Date.now(), { cache: 'no-store' })
         .then(r => { if (!r.ok) throw new Error('not ready'); location.reload(); })
         .catch(() => {
-          if (tries >= 50) {
-            el.querySelector('.st-rerun-title').textContent = 'Server did not come back';
-            el.querySelector('.st-rerun-detail').textContent =
-              'check the terminal, then reload the page';
-            return;
-          }
-          setTimeout(poll, 400);
+          if (tries < 50) { setTimeout(poll, 400); return; }
+          scServerPending = false;
+          if (onTimeout) onTimeout();
         });
     };
     setTimeout(poll, 400);
@@ -1453,13 +1457,6 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const btn = el.querySelector('.st-rerun-btn');
     btn.textContent = 'Rerun';
     btn.disabled = false;
-    // The source-change notice owns the top-right corner too; step below it
-    // when it happens to be on screen (both can be up at the same time).
-    const toast = document.getElementById('sc-rerun-toast');
-    const below = toast && !toast.hidden
-      ? toast.getBoundingClientRect().height + 8
-      : 0;
-    el.style.top = 16 + below + 'px';
     el.hidden = false;
   }
   // The panel floats over the app, and the app stays usable after an error,
@@ -1472,12 +1469,120 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const btn = scErrorPanel().querySelector('.st-rerun-btn');
     btn.disabled = true;
     btn.textContent = 'Reloading\u2026';
-    scSendRerun();
+    scRerun(() => { btn.textContent = 'Server did not come back'; });
   }
+
+  // -- Developer toolbar: the ⋮ menu (theme + rerun) ---------------------
+  // A cut-down version of Streamlit's main menu. There is no source-file
+  // watcher any more (see the note above), so Rerun is how a developer picks
+  // up a code change -- and the theme switch needs no round trip, since the
+  // page carries both palettes (see `_THEMES_CSS` in render.py).
+  const scThemeMq = matchMedia('(prefers-color-scheme: dark)');
+  const scThemeChoices = [
+    ['system', 'System'],
+    ['light', 'Light'],
+    ['dark', 'Dark']
+  ];
+  function scThemePref() {
+    return document.documentElement.dataset.themePref || 'dark';
+  }
+  function scToolbar() {
+    let el = document.getElementById('sc-toolbar');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'sc-toolbar';
+    el.className = 'st-toolbar';
+    el.innerHTML =
+      '<button class="st-toolbar-btn" type="button" title="Menu"' +
+      ' aria-label="Menu" aria-haspopup="true" aria-expanded="false"' +
+      ' onclick="scToggleMenu()">\u22ee</button>' +
+      '<div class="st-menu" role="menu" hidden>' +
+      '<div class="st-menu-title">Theme</div>' +
+      scThemeChoices.map((choice) =>
+        `<label class="st-menu-item">` +
+        `<input type="radio" name="sc-theme" value="${choice[0]}"` +
+        ` onchange="scPickTheme(this)"/>` +
+        `<span>${choice[1]}</span></label>`
+      ).join('') +
+      '<div class="st-menu-sep"></div>' +
+      '<button class="st-menu-item st-menu-action" type="button"' +
+      ' role="menuitem" onclick="scMenuRerun(this)">Rerun</button>' +
+      '</div>';
+    document.body.appendChild(el);
+    return el;
+  }
+  function scSyncThemeRadios() {
+    const pref = scThemePref();
+    scToolbar().querySelectorAll('input[name="sc-theme"]').forEach((box) => {
+      box.checked = box.value === pref;
+    });
+  }
+  function scToggleMenu() {
+    const menu = scToolbar().querySelector('.st-menu');
+    const open = menu.hidden;
+    menu.hidden = !open;
+    scToolbar().querySelector('.st-toolbar-btn')
+      .setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) scSyncThemeRadios();
+  }
+  function scCloseMenu() {
+    const bar = document.getElementById('sc-toolbar');
+    if (!bar) return;
+    const menu = bar.querySelector('.st-menu');
+    if (menu.hidden) return;
+    menu.hidden = true;
+    bar.querySelector('.st-toolbar-btn').setAttribute('aria-expanded', 'false');
+  }
+  function scPickTheme(input) {
+    scApplyTheme(input.value);
+    scCloseMenu();
+  }
+  function scApplyTheme(pref) {
+    const root = document.documentElement;
+    root.dataset.themePref = pref;
+    root.dataset.theme = pref === 'system'
+      ? (scThemeMq.matches ? 'dark' : 'light')
+      : pref;
+    try { localStorage.setItem('sc-theme', pref); } catch (e) {}
+    // `scColors` and the charts snapshot the theme tokens when they are
+    // built, so rebuild both to make `:color[..]` spans and Altair charts
+    // follow the switch.
+    scColors = scBuildColors();
+    scRenderMarkdown(document);
+    scRestyleAltairCharts();
+  }
+  function scRestyleAltairCharts() {
+    document.querySelectorAll('.st-altair-chart').forEach((el) => {
+      const script = el.querySelector('.st-altair-spec');
+      if (!script) return;
+      try {
+        scRenderVegaLite(el, JSON.parse(script.textContent));
+      } catch (e) {}
+    });
+  }
+  function scMenuRerun(btn) {
+    btn.disabled = true;
+    btn.textContent = 'Reloading\u2026';
+    scRerun(() => { btn.textContent = 'Server did not come back'; });
+  }
+  // Following the OS while the preference is `system` is the reason the
+  // resolved theme lives in an attribute rather than in the stored value.
+  scThemeMq.addEventListener('change', () => {
+    if (scThemePref() === 'system') scApplyTheme('system');
+  });
+  document.addEventListener('click', (ev) => {
+    const bar = document.getElementById('sc-toolbar');
+    if (bar && !bar.contains(ev.target)) scCloseMenu();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') scCloseMenu();
+  });
 
   // Fill the markdown placeholders that the server rendered, then draw any
   // charts that were part of the initial page. The script tag sits at the
   // end of <body>, so the DOM is already parsed.
+  scToolbar();
+  scSyncThemeRadios();
   scRenderMarkdown(document);
   scInitAltairCharts();
   document.querySelectorAll('.st-tabs').forEach(scObserveTabs);

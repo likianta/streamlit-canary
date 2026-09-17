@@ -1075,21 +1075,54 @@ def _load_static(filename: str) -> str:
     return fs.load(fs.here('static/' + filename), 'plain').strip()
 
 
+def _theme_block(css: str, theme: str) -> str:
+    """Scope one theme file's tokens to `html[data-theme="<theme>"]`.
+
+    The theme files declare their tokens on `:root`, hence the rewrite of the
+    leading selector.
+    """
+    return css.replace(':root', f':root[data-theme="{theme}"]', 1)
+
+
 _DARK_THEME_VARS = _load_static('theme-dark.css')
 
 _LIGHT_THEME_VARS = _load_static('theme-light.css')
+
+# Both themes ride along in the page -- scoped by attribute -- so the toolbar
+# can switch between them without a round trip. `system` is not a block of its
+# own: it is resolved to one of the two before the first paint.
+_THEMES_CSS = '\n'.join(
+    [
+        _theme_block(_DARK_THEME_VARS, 'dark'),
+        _theme_block(_LIGHT_THEME_VARS, 'light'),
+    ]
+)
+
+# Inlined in <head>, ahead of the stylesheet, so a page whose remembered theme
+# differs from the app's default never paints in the wrong one. It has to stay
+# brace-free: the page template goes through `str.format`.
+_THEME_BOOT = """\
+var scThemePref = localStorage.getItem('sc-theme') || '{default_theme}';
+var scThemeDark = matchMedia('(prefers-color-scheme: dark)').matches;
+var scThemeRoot = document.documentElement;
+scThemeRoot.dataset.themePref = scThemePref;
+scThemeRoot.dataset.theme = scThemePref === 'system'
+  ? (scThemeDark ? 'dark' : 'light') : scThemePref;"""
 
 _PAGE_CSS = _load_static('page.css')
 
 _PAGE_JS = _load_static('page.js')
 
 PAGE_TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{theme}">
 <head>
 <meta charset="utf-8" />
 <title>{title}</title>
+<script>
+{theme_boot}
+</script>
 <style>
-{theme_vars}
+{themes}
 {page_css}
 </style>
 </head>
@@ -1150,15 +1183,17 @@ def render_page(
     default_theme: str = 'dark',
     layout: str = 'centered',
 ) -> str:
-    theme_vars = (
-        _DARK_THEME_VARS if default_theme == 'dark' else _LIGHT_THEME_VARS
-    )
+    # The OS preference behind `system` lives in the browser, so the attribute
+    # starts on dark and the boot script corrects it before the first paint.
+    theme = default_theme if default_theme in ('light', 'dark') else 'dark'
     app_attr = ' class="st-wide"' if layout == 'wide' else ''
     return PAGE_TEMPLATE.format(
         title=html.escape(title),
-        app_attr=app_attr,
-        theme_vars=theme_vars.strip(),
+        theme=theme,
+        theme_boot=_THEME_BOOT.format(default_theme=default_theme).strip(),
+        themes=_THEMES_CSS.strip(),
         page_css=_PAGE_CSS.strip(),
         page_js=_PAGE_JS.strip(),
         body=render_tree(roots),
+        app_attr=app_attr,
     )

@@ -1285,6 +1285,89 @@
     background-color: var(--st-background-color);
     border-top: 1px solid var(--st-border-color);
   }
+  /* -- Developer toolbar: the ⋮ menu (theme + rerun, see page.js) -- */
+  /* Streamlit's main menu, cut down to what a canary app needs. It floats
+     in the top-right corner, inside the 96px of `#app`'s top padding, so it
+     sits over empty space rather than over content. The exception panel
+     shares the corner and stacks above it (z-index 2100). */
+  .st-toolbar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 2000;
+  }
+  .st-toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--st-button-radius);
+    background: transparent;
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .st-toolbar-btn:hover {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-menu {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    padding: 6px;
+    border: 0.8px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    background-color: var(--st-secondary-background-color);
+    box-shadow: 0 6px 20px rgba(var(--st-shadow-rgb), 0.45);
+    font-family: var(--st-font);
+    font-size: var(--st-base-font-size);
+    line-height: 1.3;
+  }
+  .st-menu[hidden] { display: none; }
+  .st-menu-title {
+    padding: 6px 10px 4px;
+    color: var(--st-gray-color);
+    font-size: 12px;
+  }
+  /* One row: a theme radio label or the Rerun action. */
+  .st-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--st-text-color);
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .st-menu-item:hover {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-menu-item input {
+    accent-color: var(--st-primary-color);
+    cursor: pointer;
+  }
+  .st-menu-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .st-menu-sep {
+    height: 1px;
+    margin: 6px 4px;
+    background-color: var(--st-border-color);
+  }
   /* Reserve room for the rerun notice so it never covers app content.
      The rule is scoped to `body.sc-rerun-visible`, which the frontend
      toggles together with the notice: with nothing to show, the layout
