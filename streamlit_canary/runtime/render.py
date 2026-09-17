@@ -26,6 +26,7 @@ from ..components_v3.widgets import Code
 from ..components_v3.widgets import Column
 from ..components_v3.widgets import Dialog
 from ..components_v3.widgets import Expander
+from ..components_v3.widgets import FloatingContainer
 from ..components_v3.widgets import Grid
 from ..components_v3.widgets import Info
 from ..components_v3.widgets import Markdown
@@ -131,6 +132,14 @@ def _render(comp: Component) -> str:
         )
     if isinstance(comp, Space):
         return _render_space(comp)
+    # Checked before `Column`, which `FloatingContainer` subclasses.
+    if isinstance(comp, FloatingContainer):
+        children = ''.join(_render(c) for c in comp.children)
+        hidden = '' if comp.visible.get() else ' hidden'
+        return (
+            f'<div class="st-floating st-floating--{comp._position}"'
+            f' data-id="{comp.id}"{hidden}>{children}</div>'
+        )
     if isinstance(comp, Column):
         children = ''.join(_render(c) for c in comp.children)
         border_cls = (

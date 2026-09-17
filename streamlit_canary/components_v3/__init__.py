@@ -18,6 +18,8 @@ from .widgets import Column
 from .widgets import Container
 from .widgets import Dialog
 from .widgets import Expander
+from .widgets import Floating
+from .widgets import FloatingContainer
 from .widgets import Grid
 from .widgets import IconButton
 from .widgets import Info

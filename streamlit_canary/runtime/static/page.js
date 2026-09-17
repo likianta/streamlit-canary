@@ -66,6 +66,19 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         el.hidden = !msg.value;
       }
     }
+    // `Popover.close()`: a counter bump asking us to fold the panel away.
+    // The trigger stays put, so this is the close half of `scTogglePopover`.
+    if (msg.prop === '_close') {
+      const panel = el.querySelector('.st-popover-panel');
+      const trigger = el.querySelector('.st-popover-trigger');
+      if (panel) panel.hidden = true;
+      if (trigger) {
+        trigger.setAttribute('aria-expanded', 'false');
+        scSwapChevron(
+          trigger, '.st-popover-chevron', 'expand_more', 'expand_less', false
+        );
+      }
+    }
     if (msg.prop === 'options') {
       if (el.classList.contains('st-selectbox')) {
         // Custom dropdown: rebuild option items + update trigger label.

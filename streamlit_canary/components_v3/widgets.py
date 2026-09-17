@@ -3,7 +3,8 @@ v3 widgets: the built-in component library.
 
 Public widgets (in alphabetical order):
     AltairChart, Button, Caption, Cell, Checkbox, CheckGroup, Code, Column,
-    Container, Dialog, Expander, Grid, IconButton, Info, MenuButton,
+    Container, Dialog, Expander, Floating, FloatingContainer, Grid,
+    IconButton, Info, MenuButton,
     Multiselect, NumberInput, Popover, Progress, RadioGroup, ReducibleGroup,
     Row, SegmentedControl, SelectSlider, Selectbox, Space, Spinner, Success,
     Table, Tabs, Text, TextArea, TextInput, Title, Toggle, Warning.
@@ -864,6 +865,79 @@ class Expander(Component):
         self._expanded = expanded
 
 
+_FLOAT_POSITIONS = (
+    'top-left',
+    'top-center',
+    'top-right',
+    'bottom-left',
+    'bottom-center',
+    'bottom-right',
+)
+
+
+class FloatingContainer(Column):
+    """A container that sticks to a corner of the layout it sits in.
+
+        with v3.Popover('Browse', panel_max_height=420):
+            with v3.FloatingContainer('top-right'):
+                v3.IconButton('refresh')
+            v3.RadioGroup('Folder contents', options=...)
+            with v3.FloatingContainer('bottom-right'):
+                v3.Button('Confirm', type='primary')
+
+    Children lay out in a row -- a floating cluster is nearly always a few
+    buttons -- and the box hugs them.  It sticks to its corner of the parent's
+    *visible* area, so the parent's content scrolls underneath while the box
+    stays put: a toolbar that never scrolls away.  Because it keeps its place
+    in the layout as well (`position: sticky`, not an overlay), the parent
+    needs no compensating padding -- content can always be scrolled clear
+    of it.
+
+    Placement matters, because sticky can only offset a box *from its own
+    flow position*: author a `top-*` cluster as the parent's first child and a
+    `bottom-*` one as its last, so there is somewhere for the corner to be.
+    (A bottom cluster also gets `margin-top: auto`, so it drops to the end of
+    whatever room the parent has to spare.)  Between the two, everything else
+    the parent holds is reachable by scrolling.
+
+    Only a vertical layout may hold one -- a `Column` (or `Container`), a
+    `Popover`, a `Dialog`, or the app root -- since the corner's horizontal
+    half comes from `align-self`, which a `Row` would fight.  Anything else
+    raises `ValueError`.
+
+    Args:
+        position: the corner to stick to (required) -- `'top-left'`,
+            `'top-center'`, `'top-right'`, `'bottom-left'`,
+            `'bottom-center'`, or `'bottom-right'`.
+        **kwargs: see `Column`.
+
+    A floating box *is* a `Column` underneath, so `width` / `visible` and the
+    other container keywords still apply.
+    """
+
+    def __init__(self, position: str, **kwargs: tp.Any) -> None:
+        if position not in _FLOAT_POSITIONS:
+            raise ValueError(
+                'position must be one of {}, got {!r}'.format(
+                    ', '.join(repr(p) for p in _FLOAT_POSITIONS), position
+                )
+            )
+        super().__init__(**kwargs)
+        parent = self._parent
+        if parent is not None and not isinstance(
+            parent, (Column, Popover, Dialog)
+        ):
+            raise ValueError(
+                'FloatingContainer must sit in a Column, Popover, Dialog or '
+                'the app root, not in {}'.format(type(parent).__name__)
+            )
+        self._position = position
+
+
+Floating = FloatingContainer
+"""Alias of `FloatingContainer`."""
+
+
 class Grid(Component):
     """A grid layout container.
 
@@ -1199,6 +1273,9 @@ class Popover(_HasText):
             v3.Checkbox('Lock self', value=True)
 
     Opening/closing is handled entirely on the client, so it never reruns.
+    The one exception is `close()`: it asks the client to fold the panel away
+    while leaving the trigger in place, which a widget such as `TreeSelect`
+    uses to dismiss its own panel once the user confirms.
 
     Args:
         label: the trigger label (bindable).
@@ -1251,6 +1328,18 @@ class Popover(_HasText):
         self.help = _help_prop(help)
         self._panel_align = panel_align
         self._panel_max_height = panel_max_height
+        # The open/closed state lives in the browser -- the trigger toggles it
+        # and an outside click closes it -- so the server cannot read it. This
+        # counter is how it asks for a close instead: `close()` bumps it and
+        # the client folds the panel away on the patch.
+        self._close = Property(0)
+
+    def close(self) -> None:
+        """Fold the panel shut, the way an outside click would.
+
+        The trigger stays put; only the panel closes.
+        """
+        self._close.set(self._close.get() + 1)
 
 
 # Alphabetically this belongs before `Multiselect`, but it subclasses

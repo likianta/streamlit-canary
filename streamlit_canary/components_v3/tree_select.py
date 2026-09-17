@@ -49,6 +49,7 @@ from .widgets import Caption
 from .widgets import CheckGroup
 from .widgets import Column
 from .widgets import Dialog
+from .widgets import FloatingContainer
 from .widgets import IconButton
 from .widgets import Info
 from .widgets import Popover
@@ -57,7 +58,6 @@ from .widgets import ReducibleGroup
 from .widgets import Row
 from .widgets import SegmentedControl
 from .widgets import Selectbox
-from .widgets import Space
 from .widgets import Text
 from .widgets import TextInput
 
@@ -441,12 +441,18 @@ class TreeSelect(Column):
 
     Layout::
 
-        [               ] [refresh] [bucket] [mode]
+        [                ] [refresh] [bucket] [mode]  <- floats top-right
         /current/folder
         ..  (goto parent)
         .   (this folder)
         subfolder/
         another-file.txt                 <- scrolls past `height` px
+                                         [ Confirm ]  <- floats bottom-right
+
+    The toolbar and the Confirm button ride in `FloatingContainer`s, so they
+    stay put in their corners of the panel while the listing scrolls beneath
+    them -- and, being sticky, they keep their place in the flow, so no row
+    can end up hidden under either one for good.
 
     No arrow toolbar: every row is a click target, and what a click does
     depends on the row --
@@ -489,6 +495,9 @@ class TreeSelect(Column):
             refreshed -- a row click, a `_goto` from a wrapper, or the initial
             build. Anything derived from the current folder (a path input's
             candidate list, say) should be refreshed from here.
+        on_submit: emitted when the Confirm button in the bottom-right corner
+            is clicked. A wrapper such as `TreeSelectWithInput` listens for it
+            to dismiss the popover it opened.
 
     Call `reload()` to re-read the folder from disk, `select(path)` to add a
     path that is not in the listing, and `clear()` to drop the selection.
@@ -523,6 +532,7 @@ class TreeSelect(Column):
         )
         self.mode = Property(initial_mode)
         self.on_navigate: Signal = Signal(str)
+        self.on_submit: Signal = Signal()
 
         # only the modes that can cross folders get a bucket, and only `any`
         # gets the control that switches between them -- so `single` and
@@ -531,8 +541,10 @@ class TreeSelect(Column):
         switchable = select_mode == _MODE_ANY
 
         with self:
-            with Row('center'):
-                Space(width='stretch')
+            # The toolbar floats in the panel's top-right corner, so it stays
+            # reachable while the listing scrolls. Its own right edge is
+            # `align-self: flex-end` (see `.st-floating`); no `Space` needed.
+            with FloatingContainer('top-right'):
                 self._refresh_btn = IconButton('refresh', help='Refresh')
                 if crosses:
                     # The bucket holds the cross-folder haul. It rides in a
@@ -581,6 +593,11 @@ class TreeSelect(Column):
                     label_visibility='collapsed',
                     max_height=height,
                 )
+            # A Confirm button floats in the bottom-right corner. It is the
+            # panel's "done" action: a wrapper hooks `on_submit` to fold the
+            # popover away (the panel itself must not know about its parent).
+            with FloatingContainer('bottom-right'):
+                self._confirm_btn = Button('Confirm', type='primary')
 
         # -- handlers -------------------------------------------------------
 
@@ -620,6 +637,10 @@ class TreeSelect(Column):
         @self._refresh_btn.on_click
         def _on_refresh() -> None:
             self.reload()
+
+        @self._confirm_btn.on_click
+        def _on_confirm() -> None:
+            self.on_submit.emit()
 
         if crosses:
 
@@ -769,19 +790,22 @@ class TreeSelectWithInput(Column):
 
         [ path input .................. v ] [ Recent ] [ Browse v ]
         +-- "Browse" popover (spans the header row) ------------------+
-        | [             ] [refresh] [bucket] [mode]                   |
+        |                  [refresh] [bucket] [mode] <- floats top    |
         | /current/folder                                             |
         | ..        (goto parent)                                     |
         | .         (this folder)                                     |
         | subfolder/                                                  |
         | another-file.txt              <- scrolls past `height` px   |
+        |                              [ Confirm ]   <- floats bottom |
         +-------------------------------------------------------------+
 
     The panel is a `TreeSelect`; the popover stretches it from the path
     input's left edge to the header row's right edge.  The panel navigates by
-    clicking a row (no arrows), and its toolbar -- refresh, plus the bucket
-    and the mode control when `select_mode` calls for them -- rides at the top
-    of that panel.
+    clicking a row (no arrows); its toolbar -- refresh, plus the bucket and
+    the mode control when `select_mode` calls for them -- floats in the
+    top-right corner, and its Confirm button in the bottom-right one, so both
+    stay reachable while the listing scrolls.  Confirm folds this popover away
+    (through `TreeSelect.on_submit`).
 
     The path input also carries a candidate dropdown: every ancestor of the
     folder the panel shows, so any parent is one pick away. It follows the
@@ -889,6 +913,14 @@ class TreeSelectWithInput(Column):
             # that is what `_refresh_candidates` reads
             self._nav.directory = directory
             self._refresh_candidates()
+
+        @self._tree.on_submit
+        def _on_tree_submitted() -> None:
+            # the panel's Confirm is a "done" action: fold the popover away
+            # (the panel has no idea it lives in one; we own it, so we close
+            # it). The pick itself already sits in `_tree.value`, which
+            # `value` mirrors.
+            self._browse_popover.close()
 
         self._refresh_recent()
         self._refresh_candidates()

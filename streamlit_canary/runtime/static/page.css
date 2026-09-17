@@ -324,6 +324,45 @@
   .st-container--bottom {
     margin-top: auto;
   }
+  /* A `FloatingContainer`: a cluster pinned to a corner of the layout it sits
+     in. It is `position: sticky`, so the parent's content scrolls underneath
+     while the cluster stays put -- and because sticky also keeps the element's
+     place in the flow, nothing can hide under it for good (so the parent needs
+     no compensating padding). The corner's horizontal half is `align-self`,
+     which is why only a vertical layout may hold one. The surface colour
+     matches the panel / dialog behind it, so rows scrolling past do not show
+     through the cluster while it is stuck. */
+  .st-floating {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    z-index: 2;
+    width: fit-content;
+    max-width: 100%;
+    padding: 4px;
+    border-radius: 8px;
+    background-color: var(--st-background-color);
+  }
+  .st-floating--top-left { top: 4px; align-self: flex-start; }
+  .st-floating--top-center { top: 4px; align-self: center; }
+  .st-floating--top-right { top: 4px; align-self: flex-end; }
+  /* A sticky box can only be offset from its own flow position, so a bottom
+     cluster must *sit* at the end to be able to stick there. `margin-top:
+     auto` pushes it to the end whenever the parent has room to spare, which
+     covers a parent of fixed height; inside one that already overflows (a
+     scrolling listing) the cluster still has to be authored as the last
+     child -- see `FloatingContainer`'s docstring. */
+  .st-floating--bottom-left {
+    bottom: 4px; align-self: flex-start; margin-top: auto;
+  }
+  .st-floating--bottom-center {
+    bottom: 4px; align-self: center; margin-top: auto;
+  }
+  .st-floating--bottom-right {
+    bottom: 4px; align-self: flex-end; margin-top: auto;
+  }
+  .st-floating[hidden] { display: none; }
 
   /* Layout: Grid */
   .st-grid {
@@ -1643,6 +1682,20 @@
   /* A checkbox list used as a panel section keeps the panel's gutters. */
   .st-popover-panel--row > .st-container .st-checkbox {
     padding: 0 16px;
+  }
+  /* A floating cluster takes the panel's side gutters itself (the panel sets
+     none), so its corner is inset from the border rather than sitting on it.
+     The panel's 16px top padding already insets the top cluster; the bottom
+     one has no such padding, so it carries its own. */
+  .st-popover-panel--row > .st-container > .st-floating {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+  .st-popover-panel--row > .st-container > .st-floating--bottom-left,
+  .st-popover-panel--row > .st-container > .st-floating--bottom-center,
+  .st-popover-panel--row > .st-container > .st-floating--bottom-right {
+    bottom: 12px;
+    margin-bottom: 12px;
   }
   /* -- Developer toolbar: the ⋮ menu (theme + rerun, see page.js) -- */
   /* Streamlit's main menu, cut down to what a canary app needs. It floats
