@@ -194,7 +194,7 @@ when mouse.click(sel):
 
 在跑 `./test/pixel_fidelity/` 下的任何对比测试之前 (以及在据其结果判断 "这算不算 bug" 之前), 先读一遍 `.trae/documents/pixel_fidelity_caveats.md`.
 
-该文档列出我们**有意为之**的差异 (例如: SelectBox 展开后, 用主题色高亮当前已选项; NumberInput 变窄时 stepper 转为 "上加下减" 的竖排布局), 以及**待对齐**的问题 (条目带 `TODO:` 前缀). 与 Streamlit 不一致的地方都先在这里对号入座: 不要把预期差异当成 bug 去 "修", 也不要把待对齐项当成预期差异而放过.
+该文档列出了我们**有意为之**的差异. 与 Streamlit 不一致的地方都先在这里对号入座: 不要把预期差异当成 bug 去 "修".
 
 ## 5. 工具链
 
@@ -242,7 +242,7 @@ when mouse.click(sel):
 - **立即触发**: `@sig.emit_now` 注册 handler 并立刻 emit 一次; 若同时需要注入 owner, 用 `@sig.partial(sc._self).emit_now`.
 - **Property 可独立使用**: `count = sc.Property(0)` 是自包含的响应式值 (`get` / `set` / `on_change`).
 - **挂到 StateV2 / Component 上**: 在 `__init__` 里赋值成实例属性 (如 `self.count = sc.Property(0)`); `PropertyHost._iter_properties()` 通过扫描实例 `__dict__` 发现它们, 因此每个实例各持一份, 互不共享. (类属性写法也能用, 但会被该类所有实例共享, 只适合单实例场景.)
-- **按注解声明字段**: `PropertyHost` (StateV2 / Component) 在 `__init__` 时扫描类注解, 为每个 `sc.Property[...]` 注解的字段创建实例自己的 Property, 因此 `__init__` 里不必再写一遍 (仍可写, 后写的会覆盖). 只认 `Property` / `Property[T]`, 普通注解 (如 `current_scope: str`) 不参与; 类体内的同名值作为默认值 (`age: sc.Property[int] = 0`), 类级别的 `Property` 只贡献它的 default. 子类的 `__init__` 记得调用 `super().__init__()`.
+- **按注解声明字段**: `PropertyHost` (StateV2 / Component) 在 `__init__` 时扫描类注解, 为 `sc.Property[...]` / `sc.Signal[...]` 注解的字段分别创建实例自己的 Property / Signal, 因此 `__init__` 里不必再写一遍 (仍可写, 后写的会覆盖). 只认 `Property` / `Property[T]` 与 `Signal` / `Signal[T]`, 普通注解 (如 `current_scope: str`) 不参与; `Signal[T]` 等价于 `Signal(T)`, 多个位置参数写成 `Signal[T, U]`. 类体内的同名值给 `Property` 作默认值 (`age: sc.Property[int] = 0`), 给 `Signal` 则是声明它的参数 (`changed: sc.Signal = sc.Signal(bool, reason=str)`); 类级别的句柄只贡献声明部分 (default / 参数), 不会把句柄本身交给实例 (那会被所有实例共享). 子类的 `__init__` 记得调用 `super().__init__()`.
 - **值或绑定二选一**: 构造参数用 `p.set_or_bind(x)` 统一处理 -- `x` 是 `Property` 就 `bind` (此后跟随其变化), 否则 `set`. `sc.bind(source, transform)` 用于创建匿名绑定 Property, 例如 `v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
 
 示例:

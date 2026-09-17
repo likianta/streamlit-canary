@@ -16,73 +16,108 @@ handle for you -- one per instance, just like a hand-written one:
     class _State(sc.StateV2):
         name: sc.Property[str]
         age: sc.Property[int] = 0
+        clicked: sc.Signal[int]
 
     state = _State()
     state.name.get()         # sc._undefined, until something sets it
     state.age.get()          # 0
+    state.clicked.emit(1)    # a Signal(int)
 
-Only `Property` / `Property[T]` annotations are picked up (a plain
-`current_scope: str` is left to the `__init__` body), a class-body value of
-the same name becomes the default, and a class-level `Property` contributes
-its default. Subclasses have to call `super().__init__()` for this to run.
+Only `Property` / `Property[T]` and `Signal` / `Signal[T]` annotations are
+picked up (a plain `current_scope: str` is left to the `__init__` body). A
+class-body value of the same name is the default for a `Property` and the
+declared parameters for a `Signal`; a class-level handle contributes only its
+declaration, never the handle itself -- that one would be shared between
+instances. Subclasses have to call `super().__init__()` for this to run.
 """
 
 import functools
 import typing as tp
 
 from .property import Property
+from .signal import Signal
 from .special_value import _undefined
 
 
-def _is_property_annotation(annotation: tp.Any) -> bool:
-    """Whether an annotation declares a `Property` field.
+def _is_field_annotation(annotation: tp.Any) -> bool:
+    """Whether an annotation declares a field this host builds a handle for.
 
-    `Property` and `Property[T]` both count. The annotation is expected to be
-    the object itself: a string one (a module that opted into
-    `from __future__ import annotations`, which this project does not use) is
-    deliberately not recognised.
+    `Property` / `Property[T]` and `Signal` / `Signal[T]` all count. The
+    annotation is expected to be the object itself: a string one (a module
+    that opted into `from __future__ import annotations`, which this project
+    does not use) is deliberately not recognised.
     """
-    return annotation is Property or tp.get_origin(annotation) is Property
+    return (
+        annotation is Property
+        or tp.get_origin(annotation) is Property
+        or annotation is Signal
+        or tp.get_origin(annotation) is Signal
+    )
+
+
+def _field_factory(
+    annotation: tp.Any, declared: tp.Any
+) -> tp.Callable[[], tp.Any] | None:
+    """The factory that builds one instance's own handle for a field.
+
+    `declared` is the class-body value of the same name (`_undefined` when
+    there is none): it supplies a `Property`'s default, or a `Signal`'s
+    declared parameters. A class-level handle is never handed out as is,
+    because it would be shared between instances.
+    """
+    if annotation is Property or tp.get_origin(annotation) is Property:
+        if isinstance(declared, Property):
+            declared = declared.default
+        return lambda: Property(declared)
+    if annotation is Signal or tp.get_origin(annotation) is Signal:
+        if isinstance(declared, Signal):
+            args, kwargs = declared._args, declared._kwargs
+        else:
+            args, kwargs = tp.get_args(annotation), {}
+        return lambda: Signal(*args, **kwargs)
+    return None
 
 
 @functools.lru_cache(maxsize=None)
-def _annotated_fields(cls: type) -> tuple[tuple[str, tp.Any], ...]:
-    """`(name, default)` for every field `cls` annotates as a `Property`.
+def _annotated_fields(
+    cls: type,
+) -> tuple[tuple[str, tp.Callable[[], tp.Any]], ...]:
+    """`(name, factory)` for every field `cls` declares by annotation.
 
     Annotations are collected per class along the MRO, so a subclass may add
     or re-declare a field. Memoised, because every instance asks the same
     question and components are created by the hundred.
     """
     names: list[str] = []
+    found: list[tuple[str, tp.Any]] = []
     for base in reversed(cls.__mro__):
         # `__annotations__` is a descriptor that computes them on access (PEP
         # 649), so it is read with `getattr`: a class `__dict__` only holds
         # `__annotate_func__`, and a class without annotations answers `{}`.
         annotations = getattr(base, '__annotations__', None) or {}
         for name, annotation in annotations.items():
-            if name not in names and _is_property_annotation(annotation):
+            if name not in names and _is_field_annotation(annotation):
                 names.append(name)
+                found.append((name, annotation))
     fields = []
-    for name in names:
-        declared = getattr(cls, name, _undefined)
-        if isinstance(declared, Property):
-            # A class-level handle is shared between instances, so only its
-            # default is carried over -- the instance needs a handle of its own.
-            declared = declared.default
-        fields.append((name, declared))
+    for name, annotation in found:
+        make = _field_factory(annotation, getattr(cls, name, _undefined))
+        if make is not None:
+            fields.append((name, make))
     return tuple(fields)
 
 
 class PropertyHost:
     def __init__(self) -> None:
-        """Build a `Property` for every field declared by annotation.
+        """Build a handle for every field declared by annotation -- a
+        `Property` for `Property[T]`, a `Signal` for `Signal[T]`.
 
         A handle the instance already carries is left alone, so an `__init__`
         body that assigns before calling `super().__init__()` keeps its own.
         """
-        for name, default in _annotated_fields(type(self)):
+        for name, make in _annotated_fields(type(self)):
             if name not in vars(self):
-                setattr(self, name, Property(default))
+                setattr(self, name, make())
 
     def __getitem__(self, key: str) -> tp.Any:
         if key.startswith('on_'):

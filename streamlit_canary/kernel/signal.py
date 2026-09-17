@@ -21,6 +21,12 @@ is given over untouched. That is what the payload-less signals the framework
 defines itself (`Property.on_change`, `Button.on_click`, ...) rely on, and it
 is also the fastest path.
 
+The declaration can also be written by subscription, which is the form an
+annotated field uses (see `PropertyHost`): `Signal[int]` is `Signal(int)`,
+`Signal[bool, str]` declares two positional parameters, and a bare `Signal`
+stays free-form. Subscribing only *declares* the parameters -- connecting a
+handler is still `connect()` / `@sig`.
+
 It can also be used as a decorator to register a handler:
     @sig
     def handler(x): ...
@@ -46,6 +52,9 @@ from .special_value import _self
 from .special_value import _value
 
 _H = tp.TypeVar('_H', bound=tp.Callable)
+# A `Signal` declares any number of positional payload types, so the type
+# parameter is a tuple: `Signal[int, str]` is as valid as `Signal[int]`.
+_Ts = tp.TypeVarTuple('_Ts')
 
 
 def _type_name(annotation: tp.Any) -> str:
@@ -137,7 +146,7 @@ class _Partial:
         return decorator
 
 
-class Signal:
+class Signal(tp.Generic[*_Ts]):
     def __init__(
         self,
         *args: type,
