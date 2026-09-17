@@ -54,17 +54,26 @@ class Property(tp.Generic[_T]):
     def get(self) -> _T:
         return tp.cast(_T, self.value)
 
-    def set(self, value: _T, notify: bool = True) -> None:
+    def set(self, value: _T, notify: tp.Optional[bool] = None) -> None:
+        """
+        Args:
+            notify:
+                None: notify on demand (notify only if the value changes).
+                True: force notify.
+                False: do not notify.
+        """
         if self.value != value:
             self.value = value
-            if notify:
-                pending = _pending_updates.get()
-                if pending is None:
-                    self.on_change.emit()
-                else:
-                    # Deferred: `updating()` emits once per property when the
-                    # block ends, with the final value.
-                    pending.add(self)
+            if notify is None:
+                notify = True
+        if notify:
+            pending = _pending_updates.get()
+            if pending is None:
+                self.on_change.emit()
+            else:
+                # Deferred: `updating()` emits once per property when the
+                # block ends, with the final value.
+                pending.add(self)
 
     def bind(
         self,
