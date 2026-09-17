@@ -665,12 +665,20 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   //            entry animation unfolds upwards)
   //   --menu   hangs under the trigger, flipping above when there is no room
   //   default  hangs under the trigger, left-aligned, kept inside the app box
+  // The gap between a trigger and its panel is a design choice: a menu's rows
+  // are tightly bound to the trigger, so they sit close (4px, like
+  // `st.menu_button`); a general popover can host arbitrary content and gets a
+  // roomier 8px (see `pixel_fidelity_caveats.md`).
   const SC_PANEL_GAP = 8;
+  const SC_MENU_PANEL_GAP = 4;
   function scPositionPanel(panel) {
     const pop = panel.closest('.st-popover');
     const trigger = pop.querySelector('.st-popover-trigger');
     const t = trigger.getBoundingClientRect();
     const bounds = scPopoverBounds();
+    const gap = panel.classList.contains('st-popover-panel--menu')
+      ? SC_MENU_PANEL_GAP
+      : SC_PANEL_GAP;
     panel.style.left = '';
     panel.style.top = '';
     panel.style.bottom = '';
@@ -696,12 +704,12 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     // The panel's height has to come from `scrollHeight`: its entry animation
     // starts the box at height 0.
     const height = panel.scrollHeight;
-    let top = t.bottom + SC_PANEL_GAP;
+    let top = t.bottom + gap;
     if (
-      top + height > window.innerHeight - SC_PANEL_GAP &&
-      t.top - SC_PANEL_GAP - height > 0
+      top + height > window.innerHeight - gap &&
+      t.top - gap - height > 0
     ) {
-      top = t.top - SC_PANEL_GAP - height;
+      top = t.top - gap - height;
     }
     // Anchor to the trigger's left edge, shifting left when that would overflow
     // the app's content box (and back right when it would overflow the left).

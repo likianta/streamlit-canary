@@ -26,6 +26,11 @@
 
     原版行为: st.markdown 在内容为空时仍然渲染出一个空的块级容器 (占据它的 margin 高度).
 
+- MenuButton
+  - 菜单面板与触发器之间的间距是紧凑的 4px (和原版 `st.menu_button` 一致).
+
+    这是有意与 Popover 相反的取向: 菜单面板的元素 (选项列表) 样式固定、自定义程度低, 且选项列表与触发器紧密相关, 贴得近才让用户一眼看出它归属于这个触发器; 而 Popover 的面板里可以摆任意组件, 所以用了更宽松的 8px (见下面 Popover 一节).
+
 - NumberInput
   - 当 NumberInput.step = 0 时, 不显示 stepper (-/+); 当 NumberInput.step > 0 时, 显示 stepper, 但如果此时组件尺寸过小, 则分两种情况: 比较窄, 则将 stepper 改为垂直方向排列 (上加下减), 非常窄, 则强制隐藏 stepper.
 
@@ -36,9 +41,9 @@
 
     原版行为: st.popover 的面板是瞬间出现的, 没有展开动画.
 
-  - 面板与触发器之间的间距是 8px.
+  - 面板与触发器之间的间距是 8px (宽松).
 
-    原版行为: st.popover 的面板待在触发器下方 4px. 这个 8px 是我们的既定选择, `compare_popover_layout.py` 以 `TOP_MARGIN_SC = 8` / `TOP_MARGIN_ST = 4` 显式断言, 面板内部的纵向位置则统一按"相对面板顶边"的偏移来对比, 不受这 4px 影响.
+    原版行为: st.popover 的面板待在触发器下方 4px. 这个 8px 是我们的既定选择 -- popover 的面板里可以摆任意组件, 效果丰富, 离触发器太近会显得局促, 所以留了更宽松的间距. `compare_popover_layout.py` 以 `TOP_MARGIN_SC = 8` / `TOP_MARGIN_ST = 4` 显式断言, 面板内部的纵向位置则统一按"相对面板顶边"的偏移来对比, 不受这 4px 影响. (对比 MenuButton 的紧凑 4px, 见上面 `MenuButton` 一节.)
 
 - RadioGroup
   - 当鼠标悬浮在选项上时, 选项整行背景高亮, 就像 Selectbox 展开后的选项一样: 高亮盒子用 `padding: 2px 8px` 配等量反向 `margin: -2px -8px` 撑开, 因此悬浮时盒子会向四周溢出一点, 但选项本身 22.4px 的行距不变 (静止态的排版与原版一致).
@@ -99,4 +104,4 @@
 - `v3.Radio` 更名为 `v3.RadioGroup` (名字与 `v3.CheckGroup` 对称). `Radio` 作为别名指向 `RadioGroup`.
 - 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件.
 - 我们新增了 `v3.ReducibleGroup` (用 `v3.MenuButton` 选项行的样式, 但每行右侧多一个悬浮时才出现的 `x`, 点击即把该项从列表移除并发出 `on_reduce`); 原版没有对应组件.
-- `v3.MenuButton` 对齐 `st.menu_button`: 选项行 `min-width: 128px`, 行距 32px (28px 行高 + 4px 会折叠的 margin), 菜单面板 `padding: 2px 6px` / 圆角 12px / `z-index: 1000060`, 触发按钮的 chevron 比 `st.popover` 大一号 (20px vs 16px). 面板与触发器的间距沿用我们统一的 8px (原版 `st.menu_button` 是 4px, 见上面 Popover 一节).
+- `v3.MenuButton` 对齐 `st.menu_button`: 选项行 `min-width: 128px`, 行距 32px (28px 行高 + 4px 会折叠的 margin), 菜单面板 `padding: 2px 6px` / 圆角 12px / `z-index: 1000060`, 触发按钮的 chevron 比 `st.popover` 大一号 (20px vs 16px). 菜单面板与触发器的间距是紧凑的 4px (和原版一致), 刻意区别于 `v3.Popover` 的宽松 8px (见上面 `MenuButton` / `Popover` 两节).
