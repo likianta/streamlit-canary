@@ -67,7 +67,7 @@ def _slider():
         'Select slider',
         options=tuple(range(15, 0, -1)),
         value=15,
-        format_func=lambda x: 'Lv.{}'.format(x),
+        format=lambda x: 'Lv.{}'.format(x),
     )
 
 

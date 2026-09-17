@@ -234,7 +234,7 @@ class SimpleTreeSelect(Column):
                     self._list = Radio(
                         'Folder contents',
                         options=(),
-                        format_func=_entry_label,
+                        format=_entry_label,
                         label_visibility='collapsed',
                     )
                     with Row('center'):

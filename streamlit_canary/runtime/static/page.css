@@ -985,20 +985,24 @@
   .st-radio-group {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    /* `stretch`, so every option is as wide as the radio and the hover
+       highlight spans that width instead of hugging the option's own text.
+       The horizontal variant overrides this with `align-items: center`. */
+    align-items: stretch;
     gap: 0;
   }
   .st-radio-item {
     display: block;
-    padding: 0 2px 0 0;
+    padding: 0;
     cursor: pointer;
     user-select: none;
   }
   /* Canary-only: hovering an option highlights its whole row, the way a
      Selectbox item does (Streamlit only deepens the circle's colour). The
-     box overhangs its row -- `padding` and an equal, opposite `margin` -- so
-     the highlight gains breathing room while the option keeps Streamlit's
-     22.4px pitch, i.e. the resting layout is untouched. */
+     box spans the option and takes a little room on the left -- `padding`
+     against an equal, opposite `margin` -- so the circle keeps the label's x
+     while the highlight gains breathing room. The left padding is
+     deliberately smaller than the right one, which reads better. */
   .st-radio-item:hover .st-radio-item-row,
   .st-radio-item:has(input:focus-visible) .st-radio-item-row {
     background-color: var(--st-hover-background-color);
@@ -1026,8 +1030,8 @@
     gap: 8px;
     align-items: center;
     /* The hover / focus highlight box (see `.st-radio-item:hover` above). */
-    padding: 2px 8px;
-    margin: -2px -8px;
+    padding: 2px 8px 2px 4px;
+    margin: -2px 0 -2px -4px;
     border-radius: 6px;
   }
   .st-radio-circle {
@@ -1570,6 +1574,14 @@
     width: 0;
     height: 2px;
     background-color: var(--st-primary-color);
+  }
+  /* The panel owns the spacing between the tab's top-level blocks, the same
+     way `.st-container` / `.st-grid-cell` / `.st-popover-panel` do (see
+     "Vertical rhythm" for the matching `margin-bottom` reset). */
+  .st-tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
   .st-tab-panel[hidden] { display: none; }
 

@@ -10,7 +10,7 @@ Public widgets (in alphabetical order):
 They are built on a few shared private bases (defined first):
     _HasText       — a single bindable `text` field.
     _Labeled       — a `label` field plus `label_visibility`.
-    _OptionsWidget — `_Labeled` + `options` / `value` / `format_func`.
+    _OptionsWidget — `_Labeled` + `options` / `value` / `format`.
     _TextVisible   — `_HasText` + a bindable `visible` flag.
 
 Component visual fields are `Property` instances living on the component
@@ -287,7 +287,10 @@ class _OptionsWidget(_Labeled):
         index:   Property[int]  — the selected position (bindable).
         value:   Property[any]  — the raw selected value (bindable).
         enabled: Property[bool] — whether the widget accepts input (bindable).
-        format_func: Callable[[Any], str] — raw value → display string.
+        format:  Callable[[Any], str] | Sequence[str] — how an option is
+            rendered: a callable (raw value → display string), or a label
+            sequence parallel to `options`. The resolved callable is kept on
+            `format_func`.
 
     `index` and `value` mirror each other, so either one may be set: `index`
     is the position of `value` in `options`, and setting `index` selects
@@ -303,7 +306,6 @@ class _OptionsWidget(_Labeled):
         index: int | Property | None = None,
         value: tp.Any = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
-        format_func: tp.Callable[[tp.Any], str] | None = None,
         enabled: bool | Property = True,
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
@@ -313,10 +315,7 @@ class _OptionsWidget(_Labeled):
         self.index = Property(0)
         self.value = Property('')
         self.enabled = _prop(True, enabled)
-        self._format = format
-        self.format_func: tp.Callable[[tp.Any], str] = self._make_format(
-            format, format_func
-        )
+        self.format_func: tp.Callable[[tp.Any], str] = self._make_format(format)
         self.options.on_change.connect(self._auto_select)
         self.value.on_change.connect(self._sync_index)
         self.index.on_change.connect(self._sync_value)
@@ -328,20 +327,15 @@ class _OptionsWidget(_Labeled):
             self.index.set_or_bind(tp.cast(tp.Any, index))
 
     def _make_format(
-        self,
-        format: tp.Callable[[tp.Any], str] | tp.Sequence[str] | None,
-        format_func: tp.Callable[[tp.Any], str] | None,
+        self, format: tp.Callable[[tp.Any], str] | tp.Sequence[str] | None
     ) -> tp.Callable[[tp.Any], str]:
-        """Resolve the display formatter from `format_func` / `format`.
+        """Resolve the display formatter from `format`.
 
-        `format_func` wins when given. Otherwise `format` may be either a
-        callable (raw value -> display string) or a sequence parallel to
-        `options` (index -> display string). `format` is resolved lazily
-        against the *current* options, so it stays correct after
-        `options` changes.
+        `format` may be either a callable (raw value -> display string) or a
+        sequence parallel to `options` (index -> display string). A sequence
+        is resolved lazily against the *current* options, so it stays correct
+        after `options` changes.
         """
-        if format_func is not None:
-            return format_func
         if format is None:
             return str
         if callable(format):
@@ -920,7 +914,6 @@ class Multiselect(_Labeled):
         value: the initial selection, a list drawn from `options` (bindable).
         format: callable (value -> text) or a label sequence parallel to
             `options`.
-        format_func: raw option value -> display string.
         placeholder: shown on the trigger while nothing is selected.
 
     Properties:
@@ -944,7 +937,6 @@ class Multiselect(_Labeled):
         *,
         value: tp.Sequence[tp.Any] | Property | None = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
-        format_func: tp.Callable[[tp.Any], str] | None = None,
         placeholder: str = 'Choose an option',
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
@@ -952,20 +944,17 @@ class Multiselect(_Labeled):
         super().__init__(label, label_visibility=label_visibility, **kwargs)
         self.options = _prop([], _as_list(options))
         self.value = _prop([], _as_list(value))
-        if format is not None:
-            if callable(format):
-                self.format_func = tp.cast(tp.Callable[[tp.Any], str], format)
-            else:
-                labels = list(format)
-
-                def _by_index(x: tp.Any) -> str:
-                    return labels[list(self.options.get()).index(x)]
-
-                self.format_func = _by_index
-        elif format_func is not None:
-            self.format_func = format_func
-        else:
+        if format is None:
             self.format_func = lambda x: str(x)
+        elif callable(format):
+            self.format_func = tp.cast(tp.Callable[[tp.Any], str], format)
+        else:
+            labels = list(format)
+
+            def _by_index(x: tp.Any) -> str:
+                return labels[list(self.options.get()).index(x)]
+
+            self.format_func = _by_index
         self._placeholder = placeholder
 
     def _coerce_value(self, values: tp.Any) -> list:
@@ -1246,6 +1235,10 @@ class Radio(_OptionsWidget):
 
     Args:
         label:     the widget label (bindable).
+        options:   the choices, laid out top to bottom (bindable).
+        index / value: the initial selection (defaults to the first option).
+        format:    callable (value -> text) or a label sequence parallel to
+            `options`.
         horizontal: lay the options out in a row instead of a column.
         max_height: cap the list height in px and scroll past it (useful for
             long option lists such as a folder listing).
@@ -1267,8 +1260,11 @@ class Radio(_OptionsWidget):
     def __init__(
         self,
         label: str | Property = '',
+        options: tp.Sequence[tp.Any] | Property | None = None,
         *,
-        format_func: tp.Callable[[tp.Any], str] | None = None,
+        index: int | Property | None = None,
+        value: tp.Any = None,
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         label_visibility: str = 'visible',
         horizontal: bool = False,
         max_height: int | None = None,
@@ -1276,7 +1272,10 @@ class Radio(_OptionsWidget):
     ) -> None:
         super().__init__(
             label,
-            format_func=format_func,
+            options,
+            index=index,
+            value=value,
+            format=format,
             label_visibility=label_visibility,
             **kwargs,
         )
@@ -1308,7 +1307,7 @@ class SelectSlider(_OptionsWidget):
             'Start level',
             options=range(15, 0, -1),
             value=15,
-            format_func=lambda x: 'Lv.{}'.format(x),
+            format=lambda x: 'Lv.{}'.format(x),
         ):
             pass
 
@@ -1322,7 +1321,6 @@ class SelectSlider(_OptionsWidget):
         index / value: the initial selection (defaults to the first option).
         format: callable (value -> text) or a label sequence parallel to
             `options`.
-        format_func: raw option value -> display string.
 
     Properties:
         label, options, index, value — see `_OptionsWidget`.
@@ -1366,7 +1364,6 @@ class Selectbox(_OptionsWidget):
         index: int | Property | None = None,
         value: tp.Any = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
-        format_func: tp.Callable[[tp.Any], str] | None = None,
         accept_new_options: bool = False,
         format_new_option: tp.Callable[[str], tp.Any] | None = None,
         label_visibility: str = 'visible',
@@ -1378,7 +1375,6 @@ class Selectbox(_OptionsWidget):
             index=index,
             value=value,
             format=format,
-            format_func=format_func,
             label_visibility=label_visibility,
             **kwargs,
         )
