@@ -217,9 +217,10 @@ def _render(comp: Component) -> str:
         text = _render_paragraphs(str(comp.text.get()))
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
+        hidden = '' if comp.visible.get() else ' hidden'
         return (
             f'<div class="st-markdown" data-id="{comp.id}"'
-            f'{_size_style(comp)}>'
+            f'{_size_style(comp)}{hidden}>'
             f'{text}{help_html}</div>'
         )
     if isinstance(comp, Spinner):
@@ -498,8 +499,9 @@ _ICON_PLUS = (
 
 
 def _render_code(comp: Code) -> str:
+    hidden = '' if comp.visible.get() else ' hidden'
     return (
-        f'<div class="st-code" data-id="{comp.id}">'
+        f'<div class="st-code" data-id="{comp.id}"{hidden}>'
         f'<pre><code>{html.escape(str(comp.text.get()))}</code></pre>'
         f'<div class="st-code-toolbar">'
         f'<span class="st-code-copy-chip">'
@@ -562,8 +564,9 @@ def _render_table(comp: Table) -> str:
         cls += ' st-table--content'
     if comp._header_background:
         cls += ' st-table--head-filled'
+    hidden = '' if comp.visible.get() else ' hidden'
     return (
-        f'<div class="{cls}" data-id="{comp.id}"{_size_style(comp)}>'
+        f'<div class="{cls}" data-id="{comp.id}"{_size_style(comp)}{hidden}>'
         f'{_table_text("title", comp.title.get())}'
         f'{_table_text("caption", comp.caption.get())}'
         f'<div class="st-table-scroll">'

@@ -99,6 +99,39 @@ def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
     return prop
 
 
+def _is_blank(value: tp.Any) -> bool:
+    """Whether a data source draws nothing.
+
+    `None`, an empty sequence and a whitespace-only string all count, so a
+    `Code` / `Markdown` holding only spaces hides instead of leaving an empty
+    frame behind.
+    """
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return not value
+
+
+def _visible_when_filled(data: Property) -> Property[bool]:
+    """A `visible` flag that follows whether `data` holds anything.
+
+    `Table` / `Code` / `Markdown` have nothing to draw while their data is
+    blank, so rather than leaving an empty frame behind they hide -- and come
+    back as soon as the (possibly bound) value fills in.
+
+    `data` must already hold its value when this is called.
+    """
+    visible = Property(True)
+
+    def sync() -> None:
+        visible.set(not _is_blank(data.get()))
+
+    data.on_change.connect(sync)
+    sync()
+    return visible
+
+
 def _dedent_help(value: tp.Any) -> str:
     """Strip the common indentation from a `help` text.
 
@@ -526,6 +559,9 @@ class Checkbox(_Labeled):
 class Code(_HasText):
     """A code block with a hover-revealed "copy to clipboard" button.
 
+    A block with no code is hidden, so a bound source that is still empty
+    leaves no empty frame behind.
+
     Args:
         text: the code content (bindable).
         language: kept for parity with Streamlit's `st.code`; this
@@ -533,6 +569,7 @@ class Code(_HasText):
 
     Properties:
         text: str — the code content.
+        visible: bool — derived: false while `text` is blank.
     """
 
     _default_width = 'stretch'
@@ -546,6 +583,7 @@ class Code(_HasText):
     ) -> None:
         super().__init__(text, **kwargs)
         self._language = language
+        self.visible = _visible_when_filled(self.text)
 
 
 class Column(Component):
@@ -838,12 +876,29 @@ class Markdown(_HelpText):
     Streamlit-only extensions (`:material/..:` icons, `:color[..]` spans) work
     here as well. A blank line starts a new paragraph.
 
+    A block with no source is hidden, so a bound source that is still empty
+    leaves no gap behind.
+
     Args:
         text: the markdown source (bindable).
         help: optional markdown tooltip shown next to the text.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
+
+    Properties:
+        text: str — the markdown source.
+        visible: bool — derived: false while `text` is blank.
     """
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        help: str | Property = '',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, help=help, **kwargs)
+        self.visible = _visible_when_filled(self.text)
 
 
 class Multiselect(_Labeled):
@@ -1432,6 +1487,9 @@ class Table(Component):
 
     Properties:
         rows, title, caption, footer, header — see above.
+        visible: bool — derived: false while `rows` is empty, so a table with
+            nothing to show takes no space (and comes back as soon as the
+            bound rows arrive).
     """
 
     _default_width = 'stretch'
@@ -1463,6 +1521,7 @@ class Table(Component):
         elif header is not None:
             self.header.set(list(header))
         self._header_background = header_background
+        self.visible = _visible_when_filled(self.rows)
 
 
 class _TabPanel(Component):
