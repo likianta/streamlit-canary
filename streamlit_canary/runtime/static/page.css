@@ -1280,7 +1280,7 @@
     padding: 12px 16px 6px;
   }
   .st-popover-panel--row > .st-radio {
-    padding: 0 16px 12px;
+    padding: 12px 16px 12px;
   }
   .st-popover-panel--row > .st-row:last-child {
     position: sticky;
@@ -1290,6 +1290,29 @@
     padding: 8px 16px;
     background-color: var(--st-background-color);
     border-top: 1px solid var(--st-border-color);
+  }
+  /* `TreeSelectWithInput` renders its tree inside a container, and a custom
+     panel may group extra widgets in one too, so the rules above have to
+     reach one level deeper as well. */
+  .st-popover-panel--row > .st-container > .st-caption {
+    margin: 0;
+    padding: 12px 16px 6px;
+  }
+  .st-popover-panel--row > .st-container > .st-radio {
+    padding: 0 16px 12px;
+  }
+  .st-popover-panel--row > .st-container > .st-row:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 8px 16px;
+    background-color: var(--st-background-color);
+    border-top: 1px solid var(--st-border-color);
+  }
+  /* A checkbox list used as a panel section keeps the panel's gutters. */
+  .st-popover-panel--row > .st-container .st-checkbox {
+    padding: 0 16px;
   }
   /* -- Developer toolbar: the ⋮ menu (theme + rerun, see page.js) -- */
   /* Streamlit's main menu, cut down to what a canary app needs. It floats
