@@ -7,14 +7,14 @@ if tp.TYPE_CHECKING:
 
 
 class _PendingUpdates:
-    def __init__(self):
-        self.queue = {}  # {id: (source, order), ...}
-        self.is_pending = False
-        self._transaction_order = 0
+    queue: tp.Dict[int, tp.Tuple['Property', int]]
+    stage: tp.Literal['idle', 'pending', 'resolving']
+    _transaction_order: int
 
-    def add_to_queue(self, source: 'Property') -> None:
-        self._transaction_order += 1
-        self.queue[id(source)] = (source, self._transaction_order)
+    def __init__(self) -> None:
+        self.queue = {}  # {id: (source, order), ...}
+        self.stage = 'idle'
+        self._transaction_order = 0
 
     def __call__(self):
         """
@@ -29,14 +29,13 @@ class _PendingUpdates:
 
         @contextmanager
         def _pending():
-            if self.is_pending:
-                yield
-            else:
-                self.is_pending = True
+            if self.stage == 'idle':
+                self.stage = 'pending'
                 try:
                     yield
                 finally:
                     if self.queue:
+                        self.stage = 'resolving'
                         for source, _ in sorted(
                             self.queue.values(), key=lambda x: x[1]
                         ):
@@ -45,9 +44,23 @@ class _PendingUpdates:
                             except Exception:
                                 continue
                         self.queue.clear()
-                    self.is_pending = False
+                    self.stage = 'idle'
+            elif self.stage == 'pending':
+                yield
+            else:
+                raise Exception('Invalid state')
 
         return _pending
+
+    # def __contains__(self, source_id: int) -> bool:
+    #     return source_id in self.queue
+
+    def add_to_queue(self, source: 'Property') -> None:
+        self._transaction_order += 1
+        self.queue[id(source)] = (source, self._transaction_order)
+
+    def get_order(self, source: 'Property') -> int:
+        return self.queue[id(source)][1]
 
 
 pending_updates = _PendingUpdates()

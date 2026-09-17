@@ -6,6 +6,7 @@ Usage: See `test/on_property_test.py` and
 """
 
 import typing as tp
+from functools import partial
 
 from .pending_updates import pending_updates
 from .signal import Signal
@@ -16,9 +17,11 @@ from .special_value import _Undefined
 class T:
     P = tp.TypeVar('P')
     Q = tp.TypeVar('Q')
-    SourceOrSequence = tp.Union['Property[P]', tp.Sequence['Property[P]']]
-    # Transform = tp.Callable[[tp.Union[P, tp.Sequence[P]]], Q]
+    SourceOrMany = tp.Union['Property[P]', tp.Sequence['Property[P]']]
     Transform = tp.Union[tp.Callable[[P], Q], tp.Callable[[tp.Sequence[P]], Q]]
+
+
+_weakrefs = []
 
 
 class Property(tp.Generic[T.Q]):
@@ -48,9 +51,9 @@ class Property(tp.Generic[T.Q]):
     def __bool__(self) -> bool:
         return bool(self.value)
 
-    @property
-    def is_changed(self) -> bool:
-        return pending_updates.is_pending and id(self) in pending_updates.queue
+    # @property
+    # def is_changed(self) -> bool:
+    #     return pending_updates.is_pending and id(self) in pending_updates.queue
 
     def get(self) -> T.Q:
         return tp.cast(T.Q, self.value)
@@ -68,14 +71,14 @@ class Property(tp.Generic[T.Q]):
             if notify is None:
                 notify = True
         if notify:
-            if pending_updates.is_pending:
+            if pending_updates.stage == 'pending':
                 pending_updates.add_to_queue(self)
             else:
                 self.on_change.emit()
 
     def bind(
         self,
-        any_source: T.SourceOrSequence,
+        any_source: T.SourceOrMany,
         transform: tp.Optional[T.Transform] = None,
     ) -> None:
         """
@@ -108,21 +111,50 @@ class Property(tp.Generic[T.Q]):
             sources: tp.Sequence[Property] = any_source
 
             class SourceAccessor:
-                def __init__(self, sources: tp.Sequence[Property]) -> None:
-                    self._sources = sources
+                def __init__(
+                    self,
+                    sources: tp.Sequence[Property[T.P]],
+                    target: Property[T.Q],
+                    transform: T.Transform,
+                ) -> None:
+                    self._sources = tuple(sources)
+                    self._source_ids = tuple(id(x) for x in sources)
+                    self._target = target
+                    self._transform = transform
+
+                    for s in self._sources:
+                        s.on_change.connect(partial(self._lazy_sync, s))
 
                 def __getitem__(self, index: int) -> T.P:
-                    return self._sources[index].get()
+                    return self._sources[index].get()  # type: ignore
 
-            def any_trigger_to_sync() -> None:
-                self.set(
-                    transform(
-                        tp.cast(tp.Sequence[T.P], SourceAccessor(sources))
+                def _lazy_sync(self, source: Property) -> None:
+                    if pending_updates.stage == 'resolving':
+                        s_id = id(source)
+                        s_index = self._source_ids.index(s_id)
+                        assert s_id in pending_updates.queue
+                        for fid in self._source_ids[s_index + 1 :]:
+                            if fid in pending_updates.queue:
+                                # though `source` is changed, it won't trigger a
+                                # sync because its following sources are changed
+                                # too, thus we can skip this and wait til the
+                                # last one is asking to sync.
+                                return
+                        else:
+                            # the last one is asking to sync.
+                            self.sync()
+                    else:
+                        self.sync()
+
+                def sync(self) -> None:
+                    self._target.set(
+                        self._transform(tp.cast(tp.Sequence[T.P], self))
                     )
-                )
 
+            accessor = SourceAccessor(sources, self, transform)
+            _weakrefs.append(accessor)
             if all(x.get() is not _undefined for x in sources):
-                any_trigger_to_sync()
+                accessor.sync()
 
     def set_or_bind(self, value: 'T.Q | Property[T.Q]') -> None:
         """
@@ -145,7 +177,7 @@ class Property(tp.Generic[T.Q]):
 
 
 def bind(
-    source: T.SourceOrSequence, transform: tp.Optional[T.Transform] = None
+    source: T.SourceOrMany, transform: tp.Optional[T.Transform] = None
 ) -> Property[T.Q]:
     """
     Create an anonymous `Property` bound to `source`.
