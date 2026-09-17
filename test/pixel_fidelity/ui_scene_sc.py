@@ -31,28 +31,31 @@ def main():
         ':orange[:material/brightness_auto:]'
     )
 
+    v3.SegmentedControl(
+        'Segmented control', ('Option A', 'Option B', 'Option C')
+    )
+
+    v3.SegmentedControl(
+        'Segmented control', options=('Option A', 'Option B', 'Option C')
+    )
+
     _radio()
 
+    _check_group()
     _slider()
-
     _table()
-
     _bottom_container()
-
     _toast()
-
     _progress()
-
     _toggle()
-
     _exception()
 
 
 def _radio():
-    v3.Radio('Radio', options=('Option A', 'Option B', 'Option C'))
+    v3.RadioGroup('Radio', options=('Option A', 'Option B', 'Option C'))
     with v3.Row():
         with v3.Column(weight=2):
-            v3.Radio(
+            v3.RadioGroup(
                 'Radio (horizontal, narrow)',
                 options=(7, 8, 9, 10, 11, 12),
                 index=3,
@@ -60,6 +63,27 @@ def _radio():
             )
         with v3.Column(weight=3):
             v3.Caption('A horizontal radio wraps inside a narrow column.')
+
+
+def _check_group():
+    # `CheckGroup` is RadioGroup's twin (canary-only: Streamlit has no
+    # counterpart), so it rides along here to compare the two side by side --
+    # same spacing and hover highlight, square boxes, multi-selection.
+    v3.CheckGroup(
+        'Check group',
+        options=('Option A', 'Option B', 'Option C'),
+        value=('Option A', 'Option C'),
+    )
+    with v3.Row():
+        with v3.Column(weight=2):
+            v3.CheckGroup(
+                'Check group (horizontal, narrow)',
+                options=(7, 8, 9, 10, 11, 12),
+                value=(8, 10),
+                horizontal=True,
+            )
+        with v3.Column(weight=3):
+            v3.Caption('A horizontal check group wraps in a narrow column.')
 
 
 def _slider():

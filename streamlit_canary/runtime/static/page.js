@@ -31,6 +31,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       } else if (
         el.classList.contains('st-selectbox') ||
         el.classList.contains('st-radio') ||
+        el.classList.contains('st-check-group') ||
+        el.classList.contains('st-segmented') ||
         el.classList.contains('st-select-slider') ||
         el.classList.contains('st-multiselect')
       ) {
@@ -76,23 +78,43 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         scRenderMultiselectOptions(el, msg.value, labels);
       }
       if (el.classList.contains('st-radio')) {
-        const group = el.querySelector('.st-radio-group');
+        const currentVal = el._scValue || msg.value[0];
+        el.querySelector('.st-radio-group').innerHTML = scChoiceItemsHtml({
+          id: msg.id,
+          values: msg.value,
+          labels: msg.formatted || msg.value.map(x => x),
+          inputType: 'radio',
+          onchange: 'scSendChange',
+          isChecked: (o) => scOptionKey(o) === scOptionKey(currentVal),
+        });
+      }
+      if (el.classList.contains('st-check-group')) {
+        const wanted = new Set((el._scValue || []).map(scOptionKey));
+        el.querySelector('.st-radio-group').innerHTML = scChoiceItemsHtml({
+          id: msg.id,
+          values: msg.value,
+          labels: msg.formatted || msg.value.map(x => x),
+          inputType: 'checkbox',
+          onchange: 'scSendCheckGroup',
+          isChecked: (o) => wanted.has(scOptionKey(o)),
+          boxOnly: el.classList.contains('st-check-group--box-only'),
+        });
+      }
+      if (el.classList.contains('st-segmented')) {
+        const group = el.querySelector('.st-segmented-group');
         const id = msg.id;
         const currentVal = el._scValue || msg.value[0];
         const fmt = window.scRenderMarkup;
         const labels = msg.formatted || msg.value.map(x => x);
         group.innerHTML = msg.value.map((o, i) =>
-          `<label class="st-radio-item">` +
-          `<span class="st-radio-input-wrap">` +
-          `<input type="radio" name="radio_${id}" value="${scOptionAttr(o)}" ` +
+          `<label class="st-segmented-item">` +
+          `<input type="radio" name="seg_${id}" value="${scOptionAttr(o)}" ` +
           `${scOptionKey(o) === scOptionKey(currentVal) ? 'checked' : ''} ` +
-          `onchange="scSendChange(this)" data-comp-id="${id}"/></span>` +
-          `<div class="st-radio-item-body">` +
-          `<div class="st-radio-item-row">` +
-          `<div class="st-radio-circle"><div class="st-radio-dot"></div></div>` +
-          `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>` +
-          `</div></div></label>`
+          `onchange="scSendChange(this)" data-comp-id="${id}"/>` +
+          `<span class="st-segmented-item-label">${fmt(labels[i])}</span>` +
+          `</label>`
         ).join('');
+        scSyncSegmented(el);
       }
     }
     if (msg.prop === 'value') {
@@ -127,6 +149,23 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         const wanted = scOptionKey(msg.value);
         el.querySelectorAll('input').forEach(r => {
           r.checked = (r.value === wanted);
+        });
+      }
+      if (el.classList.contains('st-segmented')) {
+        // Same string-vs-real-type caveat as the radio above.
+        el._scValue = msg.value;
+        const wanted = scOptionKey(msg.value);
+        el.querySelectorAll('input').forEach(r => {
+          r.checked = (r.value === wanted);
+        });
+        scSyncSegmented(el);
+      }
+      if (el.classList.contains('st-check-group')) {
+        // A list value: tick every box whose option is in the selection.
+        el._scValue = msg.value || [];
+        const wanted = new Set(el._scValue.map(scOptionKey));
+        el.querySelectorAll('input').forEach(box => {
+          box.checked = wanted.has(box.value);
         });
       }
       if (
@@ -280,6 +319,61 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   }
   function scOptionAttr(o) {
     return scOptionKey(o).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  }
+  // The option-item shell shared by the RadioGroup and CheckGroup rebuilds
+  // (mirrors the server's `_choice_group_items_html`). The two differ only in
+  // the input's type, its checked test, the change handler and the box
+  // (the radio's circle vs the square box of `v3.Checkbox`). With `boxOnly`
+  // (`CheckGroup(full_body_click=False)`) the field rides inside its own
+  // label, so only the box selects an option.
+  function scChoiceItemsHtml(config) {
+    const { id, values, labels, inputType, onchange, isChecked } = config;
+    const boxOnly = !!config.boxOnly;
+    const name = inputType === 'radio' ? ` name="radio_${id}"` : '';
+    const fmt = window.scRenderMarkup;
+    const box =
+      inputType === 'checkbox'
+        ? `<div class="st-checkbox-box">` +
+          `<svg viewBox="0 0 10 8" aria-hidden="true">` +
+          `<polyline points="1 4 4 7 9 1"></polyline></svg></div>`
+        : `<div class="st-radio-circle"><div class="st-radio-dot"></div></div>`;
+    return values.map((o, i) => {
+      const field =
+        `<span class="st-radio-input-wrap">` +
+        `<input type="${inputType}"${name} value="${scOptionAttr(o)}" ` +
+        `${isChecked(o) ? 'checked' : ''} onchange="${onchange}(this)" ` +
+        `data-comp-id="${id}"/></span>`;
+      const onclick = boxOnly ? ' onclick="scHighlightChoice(this)"' : '';
+      const text =
+        `<div class="st-radio-markdown"${onclick}>` +
+        `<p>${fmt(labels[i])}</p></div>`;
+      if (boxOnly) {
+        return (
+          `<div class="st-radio-item"><div class="st-radio-item-body">` +
+          `<div class="st-radio-item-row">` +
+          `<label class="st-radio-box-label">${field}${box}</label>` +
+          text +
+          `</div></div></div>`
+        );
+      }
+      return (
+        `<label class="st-radio-item">${field}` +
+        `<div class="st-radio-item-body"><div class="st-radio-item-row">` +
+        box +
+        text +
+        `</div></div></label>`
+      );
+    }).join('');
+  }
+
+  // `CheckGroup(full_body_click=False)`: clicking an option's *text* only
+  // highlights its row (one row at a time); ticking is left to the box.
+  function scHighlightChoice(el) {
+    const item = el.closest('.st-radio-item');
+    if (!item) return;
+    item.parentElement.querySelectorAll('.st-radio-item').forEach((other) => {
+      other.classList.toggle('is-highlighted', other === item);
+    });
   }
   // -- Selectbox options rendering -----------------------------------------
   // Shared by the initial render's patch path: rebuilding the dropdown must
@@ -518,7 +612,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   // -- Custom popover interaction (toggle is client-only; no rerun) --
   function scClosePopovers(except) {
     document.querySelectorAll('.st-popover-panel:not([hidden])').forEach(p => {
-      if (p === except) return;
+      // Skip the panel being opened and any panel that *contains* it: a
+      // nested popover (e.g. the bucket sitting in the tree-select panel's
+      // toolbar) must not take its own ancestor down with it.
+      if (except && p.contains(except)) return;
       p.hidden = true;
       const root = p.closest('.st-popover');
       const t = root ? root.querySelector('.st-popover-trigger') : null;
@@ -580,6 +677,71 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     const glyph = host.querySelector(selector);
     if (glyph) glyph.textContent = isOpen ? open : closed;
   }
+  // Park the segmented control's sliding highlight under the checked pill.
+  // The pills size themselves from their text, so this has to be measured --
+  // and only once the control is actually laid out (a hidden panel reports
+  // zero widths), hence the call sites: page load, fonts ready, panel open,
+  // options / value patches and window resize.
+  function scSyncSegmented(root) {
+    const scope = root || document;
+    // `root` may be the control itself (a `value` / `options` patch) or any
+    // ancestor of it (a panel opening), so check both ways.
+    if (scope.classList && scope.classList.contains('st-segmented')) {
+      scPlaceSegmentedHighlight(scope);
+    }
+    scope.querySelectorAll('.st-segmented').forEach(scPlaceSegmentedHighlight);
+  }
+  function scPlaceSegmentedHighlight(seg) {
+    const highlight = seg.querySelector('.st-segmented-highlight');
+    if (!highlight) return;
+    const checked = seg.querySelector('.st-segmented-item input:checked');
+    if (!checked || seg.offsetParent === null) {
+      highlight.style.opacity = '0';
+      // The layout is unknown while hidden (the pills measure 0 wide), so the
+      // next placement has to be instant rather than a slide from nowhere.
+      delete highlight.dataset.placed;
+      return;
+    }
+    const item = checked.closest('.st-segmented-item');
+    // Only the very first placement is instant: afterwards the pending
+    // `transition` (see `.st-segmented-highlight`) animates the slide.
+    const instant = !highlight.dataset.placed;
+    if (instant) highlight.classList.add('is-instant');
+    highlight.style.width = item.offsetWidth + 'px';
+    highlight.style.transform = 'translateX(' + item.offsetLeft + 'px)';
+    if (instant) {
+      // Read back a layout value so the browser commits the jump before the
+      // transition is re-armed for the next change.
+      void highlight.offsetWidth;
+      highlight.classList.remove('is-instant');
+      highlight.dataset.placed = '1';
+    }
+    highlight.style.opacity = '1';
+  }
+  // A menu panel (`MenuButton`) is `position: fixed`, so unlike the other
+  // variants it escapes every scrollable ancestor and their `overflow`
+  // clipping. Anchor it under the trigger, flip it above when there is no room
+  // below, and keep it inside the app content box. Its height is read from
+  // `scrollHeight` because the entry animation starts the box at height 0.
+  function scPositionMenuPanel(panel) {
+    const root = panel.closest('.st-popover');
+    const trigger = root.querySelector('.st-popover-trigger');
+    const t = trigger.getBoundingClientRect();
+    const bounds = scPopoverBounds();
+    const gap = 8;
+    const height = panel.scrollHeight;
+    let top = t.bottom + gap;
+    if (top + height > window.innerHeight - gap && t.top - gap - height > 0) {
+      top = t.top - gap - height;
+    }
+    let left = t.left;
+    if (left + panel.offsetWidth > bounds.right) {
+      left = bounds.right - panel.offsetWidth;
+    }
+    if (left < bounds.left) left = bounds.left;
+    panel.style.left = Math.round(left) + 'px';
+    panel.style.top = Math.round(top) + 'px';
+  }
   function scTogglePopover(trigger) {
     const root = trigger.closest('.st-popover');
     const panel = root.querySelector('.st-popover-panel');
@@ -591,7 +753,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     } else {
       panel.hidden = false;
       trigger.setAttribute('aria-expanded', 'true');
-      if (panel.classList.contains('st-popover-panel--row')) {
+      if (panel.classList.contains('st-popover-panel--menu')) {
+        scPositionMenuPanel(panel);
+      } else if (panel.classList.contains('st-popover-panel--row')) {
         scAlignPopoverToRow(panel);
       } else {
         scPositionPopover(panel);
@@ -599,6 +763,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       // Measured after the placement pass, so a row-aligned panel is sized
       // from its final width. The chevron is swapped, not animated.
       scMeasureOpenHeight(panel, '--st-popover-open-height');
+      // A segmented control inside the panel only becomes measurable now.
+      scSyncSegmented(panel);
     }
     scSwapChevron(
       trigger, '.st-popover-chevron', 'expand_more', 'expand_less', !isOpen
@@ -608,6 +774,19 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   function scSendCheck(input) {
     const id = input.dataset.compId;
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.checked}));
+  }
+  // -- CheckGroup: tick / untick one option, then send the whole ticked set --
+  function scSendCheckGroup(input) {
+    const root = input.closest('.st-check-group');
+    const values = Array.from(
+      root.querySelectorAll('input:checked')
+    ).map(box => box.value);
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: root.dataset.id,
+      event: 'change',
+      value: values,
+    }));
   }
   // Close dropdown when clicking outside.
   document.addEventListener('click', (e) => {
@@ -633,13 +812,25 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   window.addEventListener('resize', () => {
     document.querySelectorAll('.st-popover-panel--row:not([hidden])')
       .forEach(scAlignPopoverToRow);
+    scSyncSegmented(document);
   });
+  // A fixed menu panel has to follow its trigger when anything scrolls.
+  document.addEventListener('scroll', () => {
+    document.querySelectorAll('.st-popover-panel--menu:not([hidden])')
+      .forEach(scPositionMenuPanel);
+  }, true);
   // -- Markdown ----------------------------------------------------------
   // Streamlit parses markdown in the browser (react-markdown); we mirror
   // that with the bundled markdown-it. The server only ships the *source*
   // in `data-md` placeholders, which `scRenderMarkdown()` fills on load and
   // the delta handlers replace in place afterwards.
   const scMd = window.markdownit({ linkify: true });
+  // A bare `readme.md` must stay plain text. linkify-it happily treats any
+  // IANA TLD -- `.md`, `.py`, `.io`, ... -- as a domain, which turned file
+  // names in prose (the tree listing, the option labels) into underlined
+  // links. Keep linking what carries an explicit scheme; emails are a
+  // separate switch and stay on.
+  scMd.linkify.set({ fuzzyLink: false });
   // Streamlit's own inline extensions: `:material/<name>:` and `:color[..]`.
   // Streamlit renders the `:color[..]` extension with the theme's
   // `--st-<name>-text-color`, so read that instead of hardcoding -- it is
@@ -1585,6 +1776,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   scSyncThemeRadios();
   scRenderMarkdown(document);
   scInitAltairCharts();
+  scSyncSegmented(document);
+  document.fonts.ready.then(() => scSyncSegmented(document));
   document.querySelectorAll('.st-tabs').forEach(scObserveTabs);
   document.querySelectorAll('.st-toast-stack').forEach(scArmToasts);
   document.querySelectorAll('.st-select-slider').forEach((el) => {

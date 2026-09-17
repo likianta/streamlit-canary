@@ -35,6 +35,10 @@ def main():
         ':orange[:material/brightness_auto:]'
     )
 
+    st.segmented_control(
+        'Segmented control', ('Option A', 'Option B', 'Option C')
+    )
+
     _radio()
     _slider()
     _table()

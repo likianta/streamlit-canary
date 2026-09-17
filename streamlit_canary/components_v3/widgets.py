@@ -2,10 +2,11 @@
 v3 widgets: the built-in component library.
 
 Public widgets (in alphabetical order):
-    AltairChart, Button, Caption, Cell, Checkbox, Code, Column, Container,
-    Dialog, Expander, Grid, IconButton, Info, Multiselect, NumberInput,
-    Popover, Progress, Radio, Row, SelectSlider, Selectbox, Spinner, Success,
-    Table, Tabs, Text, TextArea, TextInput, Title, Toggle, Warning.
+    AltairChart, Button, Caption, Cell, Checkbox, CheckGroup, Code, Column,
+    Container, Dialog, Expander, Grid, IconButton, Info, MenuButton,
+    Multiselect, NumberInput, Popover, Progress, RadioGroup, Row,
+    SegmentedControl, SelectSlider, Selectbox, Space, Spinner, Success, Table,
+    Tabs, Text, TextArea, TextInput, Title, Toggle, Warning.
 
 They are built on a few shared private bases (defined first):
     _HasText       — a single bindable `text` field.
@@ -280,7 +281,8 @@ class _Labeled(Component):
 
 
 class _OptionsWidget(_Labeled):
-    """Shared base for Selectbox / Radio.
+    """Shared base for the option-picking widgets (Selectbox / RadioGroup /
+    SegmentedControl / SelectSlider).
 
     Fields:
         options: Property[list] — the raw choices (bindable).
@@ -518,6 +520,100 @@ class Cell(Component):
         super().__init__(**kwargs)
         self._row = row
         self._col = col
+
+
+class CheckGroup(_Labeled):
+    """A group of tick boxes for choosing several options at once.
+
+    It is `RadioGroup`'s twin: same label handling, same option spacing, same
+    `format` / `horizontal` / `max_height` / `enabled` arguments, same hover
+    highlight, same material / markdown text rendering. It differs in exactly
+    two ways:
+
+    * every option draws a *square* box (RadioGroup draws a circle);
+    * clicking an option ticks / unticks it, so any number may be selected.
+
+        with v3.CheckGroup(
+            'Extras',
+            options=('Deps', 'Docs', 'Tests'),
+            value=('Deps', 'Tests'),
+        ):
+            pass
+
+    Args:
+        label: the widget label (bindable).
+        options: the choices, laid out top to bottom (bindable).
+        value: the initial selection, a list drawn from `options` (bindable).
+        format: callable (value -> text) or a label sequence parallel to
+            `options`.
+        horizontal: lay the options out in a row instead of a column.
+        max_height: cap the list height in px and scroll past it.
+        enabled: whether the widget accepts input (bindable).
+        full_body_click: whether clicking anywhere on the option selects it.
+            Set it to `False` to make only the box clickable: clicking the
+            option's text then merely highlights that row.
+
+    Properties:
+        label, options — see `_Labeled` / the fields below.
+        value: list — the ticked options; the client sends the whole list on
+            every toggle.
+
+    Attributes:
+        format_func: Callable[[Any], str] — raw option value -> display string
+        (default `str`; reassign it to change formatting).
+
+    Signals:
+        on_value (via `cg['on_value']` or `cg.value.on_change`)
+        on_options (via `cg['on_options']` or `cg.options.on_change`)
+    """
+
+    format_func: tp.Callable[[tp.Any], str]
+
+    _default_width = 'stretch'
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        options: tp.Sequence[tp.Any] | Property | None = None,
+        *,
+        value: tp.Sequence[tp.Any] | Property | None = None,
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
+        enabled: bool | Property = True,
+        label_visibility: str = 'visible',
+        horizontal: bool = False,
+        max_height: int | None = None,
+        full_body_click: bool = True,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.options = _prop([], _as_list(options))
+        self.value = _prop([], _as_list(value))
+        self.enabled = _prop(True, enabled)
+        if format is None:
+            self.format_func = lambda x: str(x)
+        elif callable(format):
+            self.format_func = tp.cast(tp.Callable[[tp.Any], str], format)
+        else:
+            labels = list(format)
+
+            def _by_index(x: tp.Any) -> str:
+                return labels[list(self.options.get()).index(x)]
+
+            self.format_func = _by_index
+        self._horizontal = horizontal
+        self._max_height = max_height
+        self._full_body_click = full_body_click
+
+    def _coerce_value(self, values: tp.Any) -> list:
+        """Map the client's raw strings back onto the real options."""
+        options = list(self.options.get())
+        out = []
+        for raw in values or ():
+            for option in options:
+                if str(option) == str(raw):
+                    out.append(option)
+                    break
+        return out
 
 
 class Checkbox(_Labeled):
@@ -1073,7 +1169,7 @@ class Popover(_HasText):
     Children render inside the panel (hidden until the trigger is clicked):
 
         with v3.Popover('Export requirements'):
-            v3.Radio('Mirror source', ...)
+            v3.RadioGroup('Mirror source', ...)
             v3.Checkbox('Lock self', value=True)
 
     Opening/closing is handled entirely on the client, so it never reruns.
@@ -1087,7 +1183,10 @@ class Popover(_HasText):
             string or a bound value (`sc.bind(...)`).
         panel_align: `'trigger'` (default) anchors the panel under the
             trigger; `'row'` stretches it across the surrounding `Row`,
-            from that row's text input's left edge to the row's right edge.
+            from that row's text input's left edge to the row's right edge;
+            `'above'` anchors it *above* the trigger instead, which is what a
+            trigger sitting at the bottom of a scrollable panel needs -- a
+            downward panel would be clipped by that panel's `overflow`.
         panel_max_height: optional max height (px) of the panel; content
             taller than this scrolls (bindable is not supported).
 
@@ -1113,7 +1212,7 @@ class Popover(_HasText):
         width: Width | None = None,
         visible: bool | Property = True,
         help: str | Property = '',
-        panel_align: tp.Literal['trigger', 'row'] = 'trigger',
+        panel_align: tp.Literal['trigger', 'row', 'above'] = 'trigger',
         panel_max_height: int | None = None,
         **kwargs: tp.Any,
     ) -> None:
@@ -1122,6 +1221,57 @@ class Popover(_HasText):
         self.help = _help_prop(help)
         self._panel_align = panel_align
         self._panel_max_height = panel_max_height
+
+
+# Alphabetically this belongs before `Multiselect`, but it subclasses
+# `Popover`, so it has to follow it.
+class MenuButton(Popover):
+    """A button that unfolds a menu panel (mirrors Streamlit's `st.menu_button`).
+
+    It shares `Popover`'s plumbing -- trigger, click-outside / Escape
+    handling, `label`, `visible`, `help`, `panel_max_height` -- but lays its
+    panel out as a *menu*: `position: fixed` with a z-index above every panel,
+    so it may spill past the edges of a scrollable ancestor (a nested
+    `Popover` panel is clipped by one). `panel_align` does not apply: the panel
+    hangs under the trigger, flips above when there is no room below, and is
+    kept inside the app's content box.
+
+    Put the menu's rows inside it with a `with` block, like `Popover`:
+
+        with v3.MenuButton(':material/bucket_check: 2'):
+            v3.Text('README.md')
+
+    Args:
+        label: the trigger label (bindable).
+        width: `int` (px) | 'content' | 'stretch' | None (default) — width
+            of the trigger button.
+        visible: whether the button is shown (default True, bindable).
+        help: markdown tooltip text shown on the trigger button.
+        panel_max_height: optional max height (px) of the menu; content
+            taller than this scrolls (bindable is not supported).
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        width: Width | None = None,
+        visible: bool | Property = True,
+        help: str | Property = '',
+        panel_max_height: int | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(
+            label,
+            width=width,
+            visible=visible,
+            help=help,
+            panel_max_height=panel_max_height,
+            **kwargs,
+        )
+        # `_render_popover` turns this into `st-popover-panel--menu`, which
+        # `scTogglePopover` then positions like a menu.
+        self._panel_align = 'menu'
 
 
 class Progress(_HasText):
@@ -1230,7 +1380,7 @@ class Progress(_HasText):
         self['visible'] = False
 
 
-class Radio(_OptionsWidget):
+class RadioGroup(_OptionsWidget):
     """A radio button group (mirrors Streamlit's `st.radio`).
 
     Args:
@@ -1283,6 +1433,9 @@ class Radio(_OptionsWidget):
         self._max_height = max_height
 
 
+Radio = RadioGroup  # alias
+
+
 class Row(Component):
     """Horizontal layout container.
 
@@ -1298,6 +1451,31 @@ class Row(Component):
     ) -> None:
         super().__init__(**kwargs)
         self._vertical_alignment = vertical_alignment
+
+
+class SegmentedControl(_OptionsWidget):
+    """A segmented control (mirrors Streamlit's `st.segmented_control`).
+
+    The options lay out as pills inside one rounded track; the selected pill
+    is raised. Only single selection is implemented (Streamlit's
+    `selection_mode='multi'` is not).
+
+    Args:
+        label: the widget label (bindable).
+        options: the choices, laid out left to right (bindable).
+        index / value: the initial selection (defaults to the first option).
+        format: callable (value -> text) or a label sequence parallel to
+            `options`.
+
+    Properties:
+        label, options, value — see `_OptionsWidget`.
+
+    The track hugs its options by default (the `content` sizing keyword emits
+    `flex: 0 1 auto`, so a `Row[Space(width='stretch'), SegmentedControl]`
+    parks it against the right edge). Pass `width='stretch'` to fill instead.
+    """
+
+    _default_width = 'content'
 
 
 class SelectSlider(_OptionsWidget):
@@ -1406,6 +1584,24 @@ class Selectbox(_OptionsWidget):
             self.options.set(options)
         # `_sync_index` mirrors the new position into `index`.
         self.value.set(new_value)
+
+
+class Space(Component):
+    """A flexible spacer (mirrors Streamlit's internal `st.space`).
+
+    Inside a `Row` it absorbs the leftover width, so whatever is laid out
+    after it is pushed to the right edge:
+
+        with v3.Row():
+            v3.IconButton('home')
+            v3.Space(width='stretch')
+            v3.Popover(':material/bucket_check: 0')
+
+    A vertical container has no leftover width to absorb, so there it simply
+    renders nothing.
+    """
+
+    _default_width = 'stretch'
 
 
 class Spinner(_TextVisible):

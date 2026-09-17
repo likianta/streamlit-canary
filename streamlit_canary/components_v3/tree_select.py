@@ -27,7 +27,7 @@ primitives, the v3 build uses:
 
     st.dialog         -> `Dialog` (✕ / backdrop / Esc also dismiss it)
     st.menu_button    -> a `Popover` holding a single-choice list
-    st.radio + st.container(height) -> `Radio(max_height=...)`
+    st.radio + st.container(height) -> `RadioGroup(max_height=...)`
     st.button(':material/...')      -> `IconButton`
 
     st.segmented_control (`node_type='both'`) is not implemented; only
@@ -50,7 +50,7 @@ from .widgets import Dialog
 from .widgets import IconButton
 from .widgets import Info
 from .widgets import Popover
-from .widgets import Radio
+from .widgets import RadioGroup
 from .widgets import Row
 from .widgets import Selectbox
 from .widgets import Text
@@ -257,7 +257,7 @@ class Recent(Popover):
         self.options = Property(initial)
         self.value = Property('')
         with self:
-            self._radio = Radio(
+            self._radio = RadioGroup(
                 label,
                 options=initial,
                 label_visibility='collapsed',
@@ -333,7 +333,7 @@ class TreeSelect(Column):
 
         with self:
             self._location = Caption(_location_label(nav.directory))
-            self._list = Radio(
+            self._list = RadioGroup(
                 'Folder contents',
                 options=(),
                 format=_entry_label,
@@ -618,7 +618,7 @@ class TreeSelectDualPane(Column):
                                 value='',
                                 label_visibility='collapsed',
                             )
-                        self._subdir_radio = Radio(
+                        self._subdir_radio = RadioGroup(
                             'Navigate to subfolder',
                             options=('.',),
                             max_height=height - 96,
@@ -629,13 +629,13 @@ class TreeSelectDualPane(Column):
                             border=True, visible=self._has_subfolder_preview
                         )
                         with self._preview_panel:
-                            self._preview_radio = Radio(
+                            self._preview_radio = RadioGroup(
                                 'Subfolders',
                                 options=(),
                                 label_visibility='collapsed',
                                 max_height=int(height / 2) - 40,
                             )
-                        self._file_radio = Radio(
+                        self._file_radio = RadioGroup(
                             'Select one file'
                             if node_type == 'file'
                             else 'Select one folder',

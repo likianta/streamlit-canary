@@ -18,10 +18,12 @@ Then run this comparison:
 
 Pseudo-code (the spec this script implements):
 
-    1. The panel is anchored just below the trigger. It is laid out inside
-       the app content box: a panel wider than the room left of the trigger
-       is shifted leftward so that it stays fully visible, and it never hugs
-       the window's right edge.
+    1. The panel is anchored just below the trigger -- 8px below it in the
+       canary, where Streamlit leaves 4px (a deliberate deviation, asserted
+       explicitly against `TOP_MARGIN_SC` / `TOP_MARGIN_ST`). It is laid out
+       inside the app content box: a panel wider than the room left of the
+       trigger is shifted leftward so that it stays fully visible, and it
+       never hugs the window's right edge.
     2. The panel wraps the expanded container: its height is the content
        height plus the panel padding and border, with no inner scrolling and
        nothing clipped.
@@ -29,6 +31,8 @@ Pseudo-code (the spec this script implements):
        weighted columns `(5, 2)` come first, then a button that keeps its
        intrinsic width.
     4. Every geometry above matches Streamlit's within a sub-pixel epsilon.
+       Positions *below* the panel's top edge are compared as offsets from it
+       (`RELATIVE_CHECKS`), so the top-margin deviation does not skew them.
 
 Only geometry is compared (sizes, spacing, alignment). Colours belong to the
 theme and are covered by `compare_primary_button_style.py`.
@@ -119,11 +123,17 @@ _READ_JS = """
 
 EPS = 0.6
 
+# The gap between the trigger's bottom edge and the panel's top edge. Ours is a
+# deliberate deviation: the canary hangs every panel 8px below its trigger,
+# Streamlit leaves 4px. It is measured explicitly below (and registered in
+# `.trae/documents/pixel_fidelity_caveats.md`).
+TOP_MARGIN_ST = 4.0
+TOP_MARGIN_SC = 8.0
+
 # Geometry that must match Streamlit exactly (addressed with a dotted path).
 EQUALITY_CHECKS = (
     'panel.width',
     'panel.height',
-    'panel.top',
     'panel.left',
     'panel.right',
     'panel.padding.top',
@@ -135,16 +145,22 @@ EQUALITY_CHECKS = (
     'container.left',
     'container.width',
     'container.height',
-    'container.bottom',
     'tabs.width',
     'tabs.height',
-    'tabs.bottom',
-    'row.bottom',
     'button.left',
     'button.width',
     'button.height',
-    'button.bottom',
     'trigger.right',
+)
+
+# Vertical positions *below* the panel's top edge are compared as offsets from
+# it, so the 4px difference in `TOP_MARGIN_*` does not skew them: everything
+# inside the panel sits exactly where Streamlit puts it.
+RELATIVE_CHECKS = (
+    'container.bottom',
+    'tabs.bottom',
+    'row.bottom',
+    'button.bottom',
 )
 
 
@@ -298,6 +314,24 @@ def compare(report: Report, st: dict, sc: dict) -> None:
         st['panel']['top'] >= st['trigger']['bottom'],
         sc['panel']['top'] >= sc['trigger']['bottom'],
     )
+    # The top margin is the one *intentional* difference: assert both apps
+    # against their own expected value (4px upstream, 8px ours).
+    report.add(
+        'panel top margin ({}px streamlit / {}px canary)'.format(
+            int(TOP_MARGIN_ST), int(TOP_MARGIN_SC)
+        ),
+        st['panel']['top'] - st['trigger']['bottom'],
+        sc['panel']['top'] - sc['trigger']['bottom'],
+        cmp=lambda a, b: (
+            abs(a - TOP_MARGIN_ST) <= EPS and abs(b - TOP_MARGIN_SC) <= EPS
+        ),
+    )
+    for path in RELATIVE_CHECKS:
+        report.add(
+            '{} - panel.top'.format(path),
+            value(st, path) - st['panel']['top'],
+            value(sc, path) - sc['panel']['top'],
+        )
 
     # -- 3. the row inside the tab panel: columns first, then the button --
     report.add_predicate(

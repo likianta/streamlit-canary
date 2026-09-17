@@ -95,7 +95,7 @@ class Runtime:
 
         Built-in events:
             click  — emit `on_click` (Button)
-            change — set the `value` Property (Selectbox / Radio / TextInput
+            change — set the `value` Property (Selectbox / RadioGroup / TextInput
                      / NumberInput), which in turn emits `on_value`
                      (= `value.on_change`).
 
@@ -128,7 +128,7 @@ class Runtime:
             hook(value)
             return
         if event == 'change':
-            # Selectbox / Radio / TextInput / NumberInput: set the value
+            # Selectbox / RadioGroup / TextInput / NumberInput: set the value
             # property, which triggers `on_value` and any bound handlers.
             # A component may expose `_coerce_value` to normalize the raw
             # client string (e.g. NumberInput parses `'0x29'` into an int).
@@ -148,7 +148,7 @@ class Runtime:
             'prop': prop_name,
             'value': value,
         }
-        # For Selectbox / Radio `options` patch, the frontend needs the
+        # For Selectbox / RadioGroup `options` patch, the frontend needs the
         # formatted labels (via `format_func`) because the raw values are
         # keys, not human-readable text. Without this, the JS rebuilds
         # radio items with raw keys instead of formatted labels.

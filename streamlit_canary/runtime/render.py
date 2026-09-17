@@ -20,6 +20,7 @@ from ..components_v3.widgets import BottomContainer
 from ..components_v3.widgets import Button
 from ..components_v3.widgets import Caption
 from ..components_v3.widgets import Cell
+from ..components_v3.widgets import CheckGroup
 from ..components_v3.widgets import Checkbox
 from ..components_v3.widgets import Code
 from ..components_v3.widgets import Column
@@ -32,10 +33,12 @@ from ..components_v3.widgets import Multiselect
 from ..components_v3.widgets import NumberInput
 from ..components_v3.widgets import Popover
 from ..components_v3.widgets import Progress
-from ..components_v3.widgets import Radio
+from ..components_v3.widgets import RadioGroup
 from ..components_v3.widgets import Row
+from ..components_v3.widgets import SegmentedControl
 from ..components_v3.widgets import SelectSlider
 from ..components_v3.widgets import Selectbox
+from ..components_v3.widgets import Space
 from ..components_v3.widgets import Spinner
 from ..components_v3.widgets import Success
 from ..components_v3.widgets import Table
@@ -125,6 +128,8 @@ def _render(comp: Component) -> str:
             f'<div class="st-row" data-id="{comp.id}" '
             f'style="align-items:{align}">{children}</div>'
         )
+    if isinstance(comp, Space):
+        return _render_space(comp)
     if isinstance(comp, Column):
         children = ''.join(_render(c) for c in comp.children)
         border_cls = (
@@ -263,8 +268,12 @@ def _render(comp: Component) -> str:
         return _render_select_slider(comp)
     if isinstance(comp, Selectbox):
         return _render_selectbox(comp)
-    if isinstance(comp, Radio):
-        return _render_radio(comp)
+    if isinstance(comp, RadioGroup):
+        return _render_radio_group(comp)
+    if isinstance(comp, CheckGroup):
+        return _render_check_group(comp)
+    if isinstance(comp, SegmentedControl):
+        return _render_segmented_control(comp)
     if isinstance(comp, Toast):
         return _render_toast(comp)
     return ''.join(_render(c) for c in comp.children)
@@ -902,31 +911,96 @@ def _render_select_slider(comp: SelectSlider) -> str:
     )
 
 
-def _render_radio(comp: Radio) -> str:
-    options = comp.options.get() or []
-    value = comp.value.get()
+def _choice_group_items_html(
+    comp: RadioGroup | CheckGroup,
+    values: tp.Sequence[tp.Any],
+    is_checked: tp.Callable[[tp.Any], bool],
+    *,
+    input_type: str,
+    on_change: str,
+    box_only: bool = False,
+) -> str:
+    """The option-item shell shared by `RadioGroup` and `CheckGroup`.
+
+    Both draw the very same row -- a box plus a markdown label, with the same
+    spacing and hover highlight -- and differ only in the input's type, its
+    checked test and the change handler: `RadioGroup` shows the radio circle,
+    `CheckGroup` the very same square box (border + checkmark) as
+    `v3.Checkbox`.
+
+    With `box_only` (`CheckGroup(full_body_click=False)`) the input and the box
+    ride inside their own `<label>`, so only the box selects the option; the
+    text then just highlights the row (see `scHighlightChoice`).
+    """
     fmt = comp.format_func
+    name = f' name="{input_type}_{comp.id}"' if input_type == 'radio' else ''
     disabled = '' if comp.enabled.get() else ' disabled'
-    items = ''.join(
-        f'<label class="st-radio-item">'
-        f'<span class="st-radio-input-wrap">'
-        f'<input type="radio" name="radio_{comp.id}" '
-        f'value="{html.escape(str(o))}" '
-        f'{"checked" if o == value else ""}{disabled} '
-        f'onchange="scSendChange(this)" '
-        f'data-comp-id="{comp.id}"/></span>'
-        f'<div class="st-radio-item-body">'
-        f'<div class="st-radio-item-row">'
-        f'<div class="st-radio-circle">'
-        f'<div class="st-radio-dot"></div></div>'
-        f'<div class="st-radio-markdown">'
-        f'<p>{render_markup(fmt(o))}</p>'
-        f'</div></div></div></label>'
-        for o in options
+    box = (
+        '<div class="st-checkbox-box">'
+        '<svg viewBox="0 0 10 8" aria-hidden="true">'
+        '<polyline points="1 4 4 7 9 1"></polyline></svg></div>'
+        if input_type == 'checkbox'
+        else '<div class="st-radio-circle">'
+        '<div class="st-radio-dot"></div></div>'
     )
-    root_cls = 'st-radio'
+    item_html = []
+    for option in values:
+        field = (
+            f'<span class="st-radio-input-wrap">'
+            f'<input type="{input_type}"{name} '
+            f'value="{html.escape(str(option))}" '
+            f'{"checked" if is_checked(option) else ""}{disabled} '
+            f'onchange="{on_change}(this)" '
+            f'data-comp-id="{comp.id}"/></span>'
+        )
+        onclick = ' onclick="scHighlightChoice(this)"' if box_only else ''
+        text = (
+            f'<div class="st-radio-markdown"{onclick}>'
+            f'<p>{render_markup(fmt(option))}</p></div>'
+        )
+        if box_only:
+            item_html.append(
+                f'<div class="st-radio-item">'
+                f'<div class="st-radio-item-body">'
+                f'<div class="st-radio-item-row">'
+                f'<label class="st-radio-box-label">{field}{box}</label>'
+                f'{text}'
+                f'</div></div></div>'
+            )
+        else:
+            item_html.append(
+                f'<label class="st-radio-item">{field}'
+                f'<div class="st-radio-item-body">'
+                f'<div class="st-radio-item-row">'
+                f'{box}{text}'
+                f'</div></div></label>'
+            )
+    return ''.join(item_html)
+
+
+def _render_choice_group(
+    comp: RadioGroup | CheckGroup,
+    *,
+    base_cls: str,
+    input_type: str,
+    on_change: str,
+    is_checked: tp.Callable[[tp.Any], bool],
+    box_only: bool = False,
+) -> str:
+    """Render an option list: the shared body of the two group widgets."""
+    items = _choice_group_items_html(
+        comp,
+        comp.options.get() or (),
+        is_checked,
+        input_type=input_type,
+        on_change=on_change,
+        box_only=box_only,
+    )
+    root_cls = base_cls
     if getattr(comp, '_horizontal', False):
-        root_cls += ' st-radio--horizontal'
+        root_cls += f' {base_cls}--horizontal'
+    if box_only:
+        root_cls += ' st-check-group--box-only'
     if not comp.enabled.get():
         root_cls += ' is-disabled'
     max_height = getattr(comp, '_max_height', None)
@@ -939,6 +1013,58 @@ def _render_radio(comp: Radio) -> str:
         f'<div class="{root_cls}" data-id="{comp.id}"{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-radio-group"{group_style}>{items}</div>'
+        f'</div>'
+    )
+
+
+def _render_radio_group(comp: RadioGroup) -> str:
+    value = comp.value.get()
+    return _render_choice_group(
+        comp,
+        base_cls='st-radio',
+        input_type='radio',
+        on_change='scSendChange',
+        is_checked=lambda o: o == value,
+    )
+
+
+def _render_check_group(comp: CheckGroup) -> str:
+    picked = list(comp.value.get() or ())
+    return _render_choice_group(
+        comp,
+        base_cls='st-check-group',
+        input_type='checkbox',
+        on_change='scSendCheckGroup',
+        is_checked=lambda o: o in picked,
+        box_only=not comp._full_body_click,
+    )
+
+
+def _render_segmented_control(comp: SegmentedControl) -> str:
+    options = comp.options.get() or []
+    value = comp.value.get()
+    fmt = comp.format_func
+    disabled = '' if comp.enabled.get() else ' disabled'
+    items = ''.join(
+        f'<label class="st-segmented-item">'
+        f'<input type="radio" name="seg_{comp.id}" '
+        f'value="{html.escape(str(o))}" '
+        f'{"checked" if o == value else ""}{disabled} '
+        f'onchange="scSendChange(this)" '
+        f'data-comp-id="{comp.id}"/>'
+        f'<span class="st-segmented-item-label">'
+        f'{render_markup(fmt(o))}</span></label>'
+        for o in options
+    )
+    root_cls = 'st-segmented'
+    if not comp.enabled.get():
+        root_cls += ' is-disabled'
+    return (
+        f'<div class="{root_cls}" data-id="{comp.id}"{_size_style(comp)}>'
+        f'{_widget_label_html(comp)}'
+        f'<div class="st-segmented-group" role="radiogroup">'
+        f'<div class="st-segmented-highlight"></div>'
+        f'{items}</div>'
         f'</div>'
     )
 
@@ -986,8 +1112,13 @@ def _render_popover(comp: Popover) -> str:
         help_attr = f' data-help="{_escape_help(help_text)}"'
     panel_cls = 'st-popover-panel'
     panel_style = ''
-    if getattr(comp, '_panel_align', 'trigger') == 'row':
+    panel_align = getattr(comp, '_panel_align', 'trigger')
+    if panel_align == 'row':
         panel_cls += ' st-popover-panel--row'
+    elif panel_align == 'above':
+        panel_cls += ' st-popover-panel--above'
+    elif panel_align == 'menu':
+        panel_cls += ' st-popover-panel--menu'
     max_height = getattr(comp, '_panel_max_height', None)
     if isinstance(max_height, int):
         panel_style = f' style="max-height:{max_height}px"'
@@ -1005,6 +1136,13 @@ def _render_popover(comp: Popover) -> str:
         f'{children}'
         f'</div>'
         f'</div>'
+    )
+
+
+def _render_space(comp: Space) -> str:
+    """A spacer carries no content; `page.css` gives it the row's slack."""
+    return (
+        f'<div class="st-space" data-id="{comp.id}"{_size_style(comp)}></div>'
     )
 
 

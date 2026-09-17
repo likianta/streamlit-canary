@@ -7,7 +7,7 @@ fk = Faker()
 
 def main():
     deps = sc.Property([fk.word() for _ in range(10)])
-    with v3.Radio(
+    with v3.RadioGroup(
         'Dependencies',
         sc.bind(deps),  # options
         format=lambda x: 'Dependency {}'.format(x),

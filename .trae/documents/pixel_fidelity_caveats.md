@@ -36,7 +36,11 @@
 
     原版行为: st.popover 的面板是瞬间出现的, 没有展开动画.
 
-- Radio
+  - 面板与触发器之间的间距是 8px.
+
+    原版行为: st.popover 的面板待在触发器下方 4px. 这个 8px 是我们的既定选择, `compare_popover_layout.py` 以 `TOP_MARGIN_SC = 8` / `TOP_MARGIN_ST = 4` 显式断言, 面板内部的纵向位置则统一按"相对面板顶边"的偏移来对比, 不受这 4px 影响.
+
+- RadioGroup
   - 当鼠标悬浮在选项上时, 选项整行背景高亮, 就像 Selectbox 展开后的选项一样: 高亮盒子用 `padding: 2px 8px` 配等量反向 `margin: -2px -8px` 撑开, 因此悬浮时盒子会向四周溢出一点, 但选项本身 22.4px 的行距不变 (静止态的排版与原版一致).
 
     原版行为: 鼠标略过时, 只有开头的圆圈形状的颜色会稍稍变深.
@@ -92,3 +96,6 @@
 
 - 我们使用 `enabled` 来控制组件可交互性, 而原版是 `disabled`.
 - NumberInput 的 stepper 需要显式设置 `step` 参数才会显示.
+- `v3.Radio` 更名为 `v3.RadioGroup` (名字与 `v3.CheckGroup` 对称). `Radio` 作为别名指向 `RadioGroup`.
+- 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件.
+- 我们新增了 `v3.MenuButton` (按钮拉开一个菜单面板, 面板用 `position: fixed` + 更高的 z-index, 因此可以溢出它所在的滚动面板); 已安装的 Streamlit (1.63) 没有对应组件.

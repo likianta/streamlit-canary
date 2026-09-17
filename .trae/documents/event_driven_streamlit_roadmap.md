@@ -182,7 +182,7 @@ UI 细节对齐** (以 `test/event_driven_system/pyproject_manager_copy/` 对照
 `references/pyproject_manager/`, 见 `AGENTS.md` §4/§5)。
 
 **产出**: 选定方案并实现最小可点击 demo (浏览器打开能看到 counter) — 已完成, 并在
-其之上持续扩展组件 (Code / Popover / Checkbox / Radio horizontal 等)。
+其之上持续扩展组件 (Code / Popover / Checkbox / RadioGroup horizontal 等)。
 
 ### Phase 5 — 迁移与清理 (待办)
 
