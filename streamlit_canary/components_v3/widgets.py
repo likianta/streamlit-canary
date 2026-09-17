@@ -557,6 +557,12 @@ class CheckGroup(_Labeled):
         label, options — see `_Labeled` / the fields below.
         value: list — the ticked options; the client sends the whole list on
             every toggle.
+        focused_index: int — the position of the row the client last
+            highlighted, or -1 while none is. Only a `full_body_click=False`
+            group highlights a row (clicking an option's text -- see
+            `scHighlightChoice`), so this stays -1 otherwise. Handy for a
+            "go into the focused node" button:
+            `btn.enabled = sc.bind(cg.focused_index, lambda i: i >= 0)`.
 
     Attributes:
         format_func: Callable[[Any], str] — raw option value -> display string
@@ -589,6 +595,10 @@ class CheckGroup(_Labeled):
         self.options = _prop([], _as_list(options))
         self.value = _prop([], _as_list(value))
         self.enabled = _prop(True, enabled)
+        self.focused_index = Property(-1)
+        # the rows are rebuilt whenever `options` change, so any index the
+        # client remembered points at the wrong row -- drop it.
+        self.options.on_change.connect(self._reset_focus)
         if format is None:
             self.format_func = lambda x: str(x)
         elif callable(format):
@@ -614,6 +624,22 @@ class CheckGroup(_Labeled):
                     out.append(option)
                     break
         return out
+
+    def _on_focus(self, value: tp.Any) -> None:
+        """Record the option row the client just highlighted.
+
+        Fired by a `focus` event (see `scHighlightChoice`); the payload is the
+        row's index.
+        """
+        try:
+            index = int(value)
+        except (TypeError, ValueError):
+            index = -1
+        self.focused_index.set(index)
+
+    def _reset_focus(self) -> None:
+        """Drop the highlight when the options are rebuilt (indices shift)."""
+        self.focused_index.set(-1)
 
 
 class Checkbox(_Labeled):
@@ -1996,6 +2022,14 @@ class TextInput(_Labeled):
             out and cannot be edited.
         width: `int` px | 'stretch' | 'content' | None (fill parent).
         help: optional tooltip shown next to the label.
+        candidates: optional suggestions (bindable), offered by a caret that
+            opens a Selectbox-styled panel; picking one fills the box in. The
+            text stays freely editable either way, so this is our take on
+            `st.selectbox(..., accept_new_options=True)`. `None` draws a plain
+            box with no caret, an empty sequence keeps the caret but disables
+            it, and a non-empty one opens a working panel. Whether the caret
+            exists is a build-time choice -- a later patch only swaps the
+            contents (any `None` sent afterwards reads as an empty list).
 
     Properties:
         label: str — rendered above the box.
@@ -2019,6 +2053,7 @@ class TextInput(_Labeled):
         width: Width | None = None,
         help: str = '',
         label_visibility: str = 'visible',
+        candidates: tp.Iterable[str] | Property | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -2031,6 +2066,14 @@ class TextInput(_Labeled):
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
         self._placeholder = placeholder
+        if candidates is None or isinstance(candidates, Property):
+            source = tp.cast(tp.Optional[tp.List[str]], candidates)
+        else:
+            # materialize, so a one-shot iterable does not go stale
+            source = list(candidates)
+        self.candidates = _prop(
+            tp.cast(tp.Optional[tp.List[str]], None), source
+        )
 
 
 class Title(_HelpText):

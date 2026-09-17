@@ -743,19 +743,67 @@ def _render_text_area(comp: TextArea) -> str:
     )
 
 
+def _chevron_svg() -> str:
+    """The 20px caret shared by `Selectbox` and a `TextInput`'s candidates."""
+    return (
+        '<svg class="st-selectbox-arrow" viewBox="0 0 24 24" '
+        'width="20" height="20" fill="currentColor">'
+        '<path fill="none" d="M0 0h24v24H0V0z"></path>'
+        '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 '
+        '1.41-1.41z"></path>'
+        '</svg>'
+    )
+
+
 def _render_text_input(comp: TextInput) -> str:
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
     disabled = '' if comp.enabled.get() else ' disabled'
     width_style = _size_style(comp)
-    return (
-        f'<div class="st-text-input" data-id="{comp.id}"{width_style}>'
-        f'{_widget_label_html(comp)}'
-        f'<input class="st-text-input-box" type="text" '
+    candidates = comp.candidates.get()
+    extra_cls = '' if candidates is None else ' st-text-input-candidates-input'
+    box = (
+        f'<input class="st-text-input-box{extra_cls}" type="text" '
         f'data-comp-id="{comp.id}" '
         f'value="{html.escape(str(comp.value.get()))}" '
         f'placeholder="{placeholder}"{disabled} '
-        f'onchange="scSendChange(this)"/>'
+        f'onchange="scSendChange(this)" '
+        f'onkeydown="scSubmitKey(event, this)"/>'
+    )
+    if candidates is None:
+        return (
+            f'<div class="st-text-input" data-id="{comp.id}"{width_style}>'
+            f'{_widget_label_html(comp)}{box}</div>'
+        )
+    # `candidates`: frame the box like a `Selectbox` trigger, and let a caret
+    # unfold the very same panel `Selectbox` draws.
+    caret_disabled = '' if candidates else ' disabled'
+    return (
+        f'<div class="st-text-input st-text-input-candidates" '
+        f'data-id="{comp.id}"{width_style}>'
+        f'{_widget_label_html(comp)}'
+        f'<div class="st-selectbox-control">'
+        f'<div class="st-selectbox-trigger st-text-input-candidates-box">'
+        f'{box}'
+        f'<button type="button" class="st-text-input-candidates-toggle" '
+        f'data-comp-id="{comp.id}" aria-label="Show candidates"'
+        f'{caret_disabled} onclick="scToggleCandidates(this)">'
+        f'{_chevron_svg()}</button>'
         f'</div>'
+        f'<div class="st-selectbox-dropdown" data-comp-id="{comp.id}" '
+        f'hidden>{_text_candidates_html(comp, candidates)}</div>'
+        f'</div></div>'
+    )
+
+
+def _text_candidates_html(comp: TextInput, candidates: tp.Sequence) -> str:
+    """The candidate rows of a `TextInput`, drawn like `Selectbox` options."""
+    return ''.join(
+        f'<div class="st-selectbox-option" role="option" '
+        f'data-value="{html.escape(str(candidate))}" '
+        f'data-comp-id="{comp.id}" onclick="scPickCandidate(this)">'
+        f'<div class="st-selectbox-option-inner">'
+        f'{render_markup(str(candidate))}</div></div>'
+        for candidate in candidates
     )
 
 
@@ -778,14 +826,7 @@ def _render_selectbox(comp: Selectbox) -> str:
     )
     # Display text for the trigger button.
     display_text = render_markup(fmt(value)) if value else '\u200b'
-    arrow_svg = (
-        '<svg class="st-selectbox-arrow" viewBox="0 0 24 24" '
-        'width="20" height="20" fill="currentColor">'
-        '<path fill="none" d="M0 0h24v24H0V0z"></path>'
-        '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 '
-        '1.41-1.41z"></path>'
-        '</svg>'
-    )
+    arrow_svg = _chevron_svg()
     # `accept_new_options`: an input row at the top of the dropdown lets the
     # user type a value that is not in the list yet.
     accept_new = bool(getattr(comp, '_accept_new_options', False))
@@ -914,6 +955,38 @@ def _render_select_slider(comp: SelectSlider) -> str:
     )
 
 
+def _choice_box_html(input_type: str) -> str:
+    """The option indicator: a square tick box, or the radio's circle.
+
+    `CheckGroup` reuses `v3.Checkbox`'s box; `RadioGroup` its own circle. The
+    empty-list placeholder draws the very same indicator (see
+    `_choice_group_empty_html`).
+    """
+    if input_type == 'checkbox':
+        return (
+            '<div class="st-checkbox-box">'
+            '<svg viewBox="0 0 10 8" aria-hidden="true">'
+            '<polyline points="1 4 4 7 9 1"></polyline></svg></div>'
+        )
+    return '<div class="st-radio-circle"><div class="st-radio-dot"></div></div>'
+
+
+def _choice_group_empty_html(input_type: str) -> str:
+    """The single placeholder row an empty option list draws.
+
+    Mirrors `st.radio`, which swaps its options for one disabled row -- an
+    (unchecked) indicator plus a faded "No options to select." line -- rather
+    than leaving the widget blank.
+    """
+    return (
+        '<div class="st-radio-empty">'
+        '<div class="st-radio-item-row">'
+        f'{_choice_box_html(input_type)}'
+        '<div class="st-radio-empty-label">No options to select.</div>'
+        '</div></div>'
+    )
+
+
 def _choice_group_items_html(
     comp: RadioGroup | CheckGroup,
     values: tp.Sequence[tp.Any],
@@ -933,19 +1006,15 @@ def _choice_group_items_html(
 
     With `box_only` (`CheckGroup(full_body_click=False)`) the input and the box
     ride inside their own `<label>`, so only the box selects the option; the
-    text then just highlights the row (see `scHighlightChoice`).
+    rest of the row then acts on the node instead -- a folder's body enters it
+    (see `scHighlightChoice`).
     """
+    if not values:
+        return _choice_group_empty_html(input_type)
     fmt = comp.format_func
     name = f' name="{input_type}_{comp.id}"' if input_type == 'radio' else ''
     disabled = '' if comp.enabled.get() else ' disabled'
-    box = (
-        '<div class="st-checkbox-box">'
-        '<svg viewBox="0 0 10 8" aria-hidden="true">'
-        '<polyline points="1 4 4 7 9 1"></polyline></svg></div>'
-        if input_type == 'checkbox'
-        else '<div class="st-radio-circle">'
-        '<div class="st-radio-dot"></div></div>'
-    )
+    box = _choice_box_html(input_type)
     item_html = []
     for option in values:
         field = (
@@ -956,16 +1025,16 @@ def _choice_group_items_html(
             f'onchange="{on_change}(this)" '
             f'data-comp-id="{comp.id}"/></span>'
         )
-        onclick = ' onclick="scHighlightChoice(this)"' if box_only else ''
         text = (
-            f'<div class="st-radio-markdown"{onclick}>'
+            f'<div class="st-radio-markdown">'
             f'<p>{render_markup(fmt(option))}</p></div>'
         )
         if box_only:
             item_html.append(
                 f'<div class="st-radio-item">'
                 f'<div class="st-radio-item-body">'
-                f'<div class="st-radio-item-row">'
+                f'<div class="st-radio-item-row" '
+                f'onclick="scHighlightChoice(event, this)">'
                 f'<label class="st-radio-box-label">{field}{box}</label>'
                 f'{text}'
                 f'</div></div></div>'

@@ -133,6 +133,17 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         menuItems.innerHTML = scMenuItemsHtml(msg.value, msg.formatted);
       }
     }
+    if (msg.prop === 'candidates') {
+      if (el.classList.contains('st-text-input-candidates')) {
+        // An empty list keeps the caret but greys it out (a `null` sent at
+        // runtime reads as empty -- the caret's presence is fixed at build).
+        const list = msg.value || [];
+        const dropdown = el.querySelector('.st-selectbox-dropdown');
+        const toggle = el.querySelector('.st-text-input-candidates-toggle');
+        if (dropdown) dropdown.innerHTML = scCandidatesHtml(list, msg.id);
+        if (toggle) toggle.disabled = list.length === 0;
+      }
+    }
     if (msg.prop === 'value') {
       if (el.classList.contains('st-selectbox')) {
         // Custom dropdown: update trigger display + selected marker.
@@ -353,20 +364,29 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           `<svg viewBox="0 0 10 8" aria-hidden="true">` +
           `<polyline points="1 4 4 7 9 1"></polyline></svg></div>`
         : `<div class="st-radio-circle"><div class="st-radio-dot"></div></div>`;
+    // An empty list shows upstream's disabled placeholder row (`st.radio`
+    // does the same); mirrors the server's `_choice_group_empty_html`.
+    if (!values.length) {
+      return (
+        '<div class="st-radio-empty"><div class="st-radio-item-row">' +
+        box +
+        '<div class="st-radio-empty-label">No options to select.</div>' +
+        '</div></div>'
+      );
+    }
     return values.map((o, i) => {
       const field =
         `<span class="st-radio-input-wrap">` +
         `<input type="${inputType}"${name} value="${scOptionAttr(o)}" ` +
         `${isChecked(o) ? 'checked' : ''} onchange="${onchange}(this)" ` +
         `data-comp-id="${id}"/></span>`;
-      const onclick = boxOnly ? ' onclick="scHighlightChoice(this)"' : '';
       const text =
-        `<div class="st-radio-markdown"${onclick}>` +
-        `<p>${fmt(labels[i])}</p></div>`;
+        `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>`;
       if (boxOnly) {
         return (
           `<div class="st-radio-item"><div class="st-radio-item-body">` +
-          `<div class="st-radio-item-row">` +
+          `<div class="st-radio-item-row" ` +
+          `onclick="scHighlightChoice(event, this)">` +
           `<label class="st-radio-box-label">${field}${box}</label>` +
           text +
           `</div></div></div>`
@@ -382,14 +402,29 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     }).join('');
   }
 
-  // `CheckGroup(full_body_click=False)`: clicking an option's *text* only
-  // highlights its row (one row at a time); ticking is left to the box.
-  function scHighlightChoice(el) {
+  // `CheckGroup(full_body_click=False)`: the box ticks the option; the rest
+  // of the row acts on the node instead (a folder's body enters it). That
+  // body click is also sent to the server as a `focus` event, which mirrors
+  // it on `CheckGroup.focused_index` so the app can act on the row.
+  function scHighlightChoice(event, el) {
+    // a click inside the box's own label is a tick, not a body click
+    if (event.target.closest('.st-radio-box-label')) return;
     const item = el.closest('.st-radio-item');
     if (!item) return;
-    item.parentElement.querySelectorAll('.st-radio-item').forEach((other) => {
+    const items = Array.from(
+      item.parentElement.querySelectorAll('.st-radio-item'));
+    items.forEach((other) => {
       other.classList.toggle('is-highlighted', other === item);
     });
+    const root = item.closest('.st-check-group, .st-radio');
+    if (root) {
+      ws.send(JSON.stringify({
+        type: 'event',
+        id: root.dataset.id,
+        event: 'focus',
+        value: items.indexOf(item),
+      }));
+    }
   }
   // -- Selectbox options rendering -----------------------------------------
   // Shared by the initial render's patch path: rebuilding the dropdown must
@@ -526,6 +561,62 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     }
     // Send change event to backend.
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
+  }
+  // -- TextInput `candidates`: a Selectbox-styled suggestion panel --
+  function scCandidatesHtml(values, id) {
+    const fmt = window.scRenderMarkup;
+    return values.map((v) =>
+      `<div class="st-selectbox-option" role="option" ` +
+      `data-value="${v}" data-comp-id="${id}" ` +
+      `onclick="scPickCandidate(this)">` +
+      `<div class="st-selectbox-option-inner">${fmt(v)}</div></div>`
+    ).join('');
+  }
+  function scToggleCandidates(toggle) {
+    const control = toggle.closest('.st-selectbox-control');
+    if (!control) return;
+    const dropdown = control.querySelector('.st-selectbox-dropdown');
+    const box = control.querySelector('.st-text-input-candidates-box');
+    const isOpen = !dropdown.hidden;
+    // Close any other open dropdown first (mirrors `scToggleSelectbox`).
+    document.querySelectorAll('.st-selectbox-dropdown:not([hidden])')
+      .forEach(d => {
+        if (d !== dropdown) {
+          d.hidden = true;
+          const t = d.closest('.st-selectbox-control')
+            .querySelector('.st-selectbox-trigger');
+          if (t) t.removeAttribute('aria-expanded');
+        }
+      });
+    if (isOpen) {
+      dropdown.hidden = true;
+      box.removeAttribute('aria-expanded');
+    } else {
+      dropdown.hidden = false;
+      // Same growth animation as the selectbox panel.
+      scMeasureOpenHeight(dropdown, '--st-selectbox-open-height');
+      box.setAttribute('aria-expanded', 'true');
+    }
+  }
+  function scPickCandidate(opt) {
+    const root = opt.closest('.st-text-input');
+    if (!root) return;
+    const input = root.querySelector('.st-text-input-box');
+    if (input) {
+      input.value = opt.dataset.value;
+      scSendChange(input);
+    }
+    const dropdown = root.querySelector('.st-selectbox-dropdown');
+    const box = root.querySelector('.st-text-input-candidates-box');
+    if (dropdown) dropdown.hidden = true;
+    if (box) box.removeAttribute('aria-expanded');
+  }
+  // Enter commits a TextInput right away; `change` alone would wait for the
+  // box to lose focus (`st.text_input` commits on Enter too).
+  function scSubmitKey(event, input) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    scSendChange(input);
   }
   // -- Dialog (modal) --
   // Dismissing on the client (✕ / backdrop / Esc) also tells the server, so
@@ -870,7 +961,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       document.querySelectorAll('.st-selectbox-dropdown:not([hidden])').forEach(d => {
         d.hidden = true;
         const t = d.closest('.st-selectbox-control').querySelector('.st-selectbox-trigger');
-        t.removeAttribute('aria-expanded');
+        if (t) t.removeAttribute('aria-expanded');
       });
     }
     if (!e.target.closest('.st-popover')) {

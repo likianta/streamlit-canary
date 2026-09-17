@@ -46,9 +46,13 @@
     原版行为: st.popover 的面板待在触发器下方 4px. 这个 8px 是我们的既定选择 -- popover 的面板里可以摆任意组件, 效果丰富, 离触发器太近会显得局促, 所以留了更宽松的间距. `compare_popover_layout.py` 以 `TOP_MARGIN_SC = 8` / `TOP_MARGIN_ST = 4` 显式断言, 面板内部的纵向位置则统一按"相对面板顶边"的偏移来对比, 不受这 4px 影响. (对比 MenuButton 的紧凑 4px, 见上面 `MenuButton` 一节.)
 
 - RadioGroup
-  - 当鼠标悬浮在选项上时, 选项整行背景高亮, 就像 Selectbox 展开后的选项一样: 高亮盒子用 `padding: 2px 8px` 配等量反向 `margin: -2px -8px` 撑开, 因此悬浮时盒子会向四周溢出一点, 但选项本身 22.4px 的行距不变 (静止态的排版与原版一致).
+  - 当鼠标悬浮在选项上时, 选项整行背景高亮, 就像 Selectbox 展开后的选项一样: 高亮盒子用 `padding: 0 8px 0 4px` 配反向 `margin-left: -4px` 撑开, 因此悬浮时盒子会向左侧溢出一点, 但选项本身 22.4px 的行距不变 (静止态的排版与原版一致). 盒子在竖直方向不超出选项 -- 这样上下相邻的高亮既不会重叠 (重叠会让半透明色叠加成更深的一条), 也不会让下面的选项抢走上面选项的点击.
 
     原版行为: 鼠标略过时, 只有开头的圆圈形状的颜色会稍稍变深.
+
+  - `CheckGroup(full_body_click=False)` 下, 当"被高亮的选项"和"被悬浮的选项"上下相邻时, 两者的高亮背景会 "融合" 成一个圆角矩形: 上面选项去掉底部圆角, 下面选项去掉顶部圆角, 共享边既没有圆角也没有颜色叠加 (原版没有这个效果).
+
+  - 选项列表为空时, 画一行灰色提示 "No options to select." (对齐 `st.radio`: 一个未勾选的指示器 + 14px 的 `fadedText40` 文案), 而不是留白.
 
 - Selectbox
   - Selectbox 在展开后, 会对当前已选择的选项的文字以主题色高亮显示.
@@ -102,6 +106,10 @@
 - 我们使用 `enabled` 来控制组件可交互性, 而原版是 `disabled`.
 - NumberInput 的 stepper 需要显式设置 `step` 参数才会显示.
 - `v3.Radio` 更名为 `v3.RadioGroup` (名字与 `v3.CheckGroup` 对称). `Radio` 作为别名指向 `RadioGroup`.
-- 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件.
+- 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件. 它还多一个 `focused_index` 属性 (被点击文本 "高亮" 的那一行的下标, -1 表示无), 便于 "进入高亮节点" 这类按钮: `btn.enabled = sc.bind(cg.focused_index, lambda i: i >= 0)`.
 - 我们新增了 `v3.ReducibleGroup` (用 `v3.MenuButton` 选项行的样式, 但每行右侧多一个悬浮时才出现的 `x`, 点击即把该项从列表移除并发出 `on_reduce`); 原版没有对应组件.
 - `v3.MenuButton` 对齐 `st.menu_button`: 选项行 `min-width: 128px`, 行距 32px (28px 行高 + 4px 会折叠的 margin), 菜单面板 `padding: 2px 6px` / 圆角 12px / `z-index: 1000060`, 触发按钮的 chevron 比 `st.popover` 大一号 (20px vs 16px). 菜单面板与触发器的间距是紧凑的 4px (和原版一致), 刻意区别于 `v3.Popover` 的宽松 8px (见上面 `MenuButton` / `Popover` 两节).
+- `v3.TextInput` 多一个 `candidates` 参数: 给出候选列表后, 文本框右侧出现一个 caret, 展开的面板与外框完全复用 `v3.Selectbox` 的样式, 选一项即写回文本框. 文本始终可自由输入, 所以它相当于 `st.selectbox(..., accept_new_options=True)`, 只是值不必是候选之一. `None` 无 caret, 空列表有 caret 但禁用 (是否有 caret 在构建时定下, 之后的 patch 只替换列表内容). `v3:TreeSelect:PathInput` 用它列出当前文件夹的所有祖先路径, 便于一步跳到任意上级; 列表在提交文本或面板导航后刷新. 另外 `v3.TextInput` 现在按 Enter 即提交 (原版 `st.text_input` 也是如此).
+- `v3.TreeSelect` 去掉了箭头工具栏, 改为"点行即导航": 列表头部固定两行 `..` (去父目录) 和 `.` (当前目录, 只选中不跳转), 其后才是文件夹 (名字带 `/`) 与文件. 上下移动都只需一次点击 (v1 的 `tree_select` 也是这套 `.` 设计), 单选列表每次重建都从"未选中"开始, 这样点任意一行都能生效.
+- `v3.TreeSelect:select_mode` 决定一次能选多少: `'single'` (单选节点, 默认), `'multiple'` (只勾选当前文件夹, 跳转会清空), `'multicross'` (跨文件夹累加进 bucket), `'any'` (三者在 SegmentedControl 里自由切换). 结果统一读 `.value` —— `single` 是 `str`, 其余是路径 `list`; `mode` 给出当前模式. 面板顶部工具栏随模式增减: refresh 恒有, bucket 只在 `multicross` / `any`, SegmentedControl 只在 `any`. 手输/选择文件夹路径 = 跳到该目录 (所以选中祖先候选即导航), 文件才进入选中.
+- `v3.CheckGroup(full_body_click=False)` 的"正文点击"覆盖整行 (box 自身除外), 不再只有文字: box = 勾选, 行的其余位置 = 交给应用 (例如点文件夹的正文进入该目录); 被点行的下标仍通过 `focused_index` 回传.

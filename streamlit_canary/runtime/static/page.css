@@ -982,6 +982,50 @@
     background-color: var(--st-border-color);
   }
 
+  /* TextInput `candidates`: an editable box framed exactly like a Selectbox
+     trigger, whose caret unfolds the very same panel above. Only the input's
+     own frame is neutralised -- the wrapping trigger draws the border,
+     background and focus ring -- so the two read as a single control. The
+     variable name is the input's; the `--box` wrapper is the frame. */
+  .st-text-input-candidates .st-text-input-candidates-input {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    cursor: text;
+    user-select: text;
+  }
+  .st-text-input-candidates .st-text-input-candidates-input:focus {
+    border: 0;
+  }
+  /* `st.selectbox(accept_new_options=True)` colours the frame's edge on
+     focus; the frame is a plain div, so `:focus-within` stands in. */
+  .st-text-input-candidates .st-selectbox-trigger:focus-within {
+    border-color: var(--st-primary-color);
+  }
+  .st-text-input-candidates .st-text-input-candidates-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  /* An empty candidate list keeps the caret, greyed out (see
+     `TextInput(candidates=...)`). */
+  .st-text-input-candidates .st-text-input-candidates-toggle:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
   /* RadioGroup (mirrors Streamlit's `stRadio` markup and metrics) */
   .st-radio {
     margin-bottom: 8px;
@@ -1012,7 +1056,13 @@
      box spans the option and takes a little room on the left -- `padding`
      against an equal, opposite `margin` -- so the circle keeps the label's x
      while the highlight gains breathing room. The left padding is
-     deliberately smaller than the right one, which reads better. */
+     deliberately smaller than the right one, which reads better.
+     The box never grows past the option vertically: it used to add `2px` of
+     padding against a `-2px` margin, which made stacked highlights overlap by
+     4px -- the overlap double-darkened the translucent colour and let the
+     lower row steal clicks from the option above it. The row is now exactly
+     as tall as the option, and two adjacent highlights fuse instead (see
+     `.st-radio-item.is-highlighted + .st-radio-item:hover` below). */
   .st-radio-item:hover .st-radio-item-row,
   .st-radio-item:has(input:focus-visible) .st-radio-item-row {
     background-color: var(--st-hover-background-color);
@@ -1040,8 +1090,8 @@
     gap: 8px;
     align-items: center;
     /* The hover / focus highlight box (see `.st-radio-item:hover` above). */
-    padding: 2px 8px 2px 4px;
-    margin: -2px 0 -2px -4px;
+    padding: 0 8px 0 4px;
+    margin: 0 0 0 -4px;
     border-radius: 6px;
   }
   /* `CheckGroup(full_body_click=False)`: the field rides inside this label, so
@@ -1053,6 +1103,22 @@
   }
   .st-radio-item.is-highlighted .st-radio-item-row {
     background-color: var(--st-hover-background-color);
+  }
+  /* Fuse two stacked highlights into one blob (canary-only). When the
+     highlighted row and the hovered row sit right next to each other, square
+     the edge they share -- the upper row drops its bottom radius, the lower
+     row its top radius -- so the pair reads as a single rounded rectangle
+     instead of two pills colliding. Either row may be the highlighted one, so
+     both orderings are covered. */
+  .st-radio-item.is-highlighted:has(+ .st-radio-item:hover) .st-radio-item-row,
+  .st-radio-item:hover:has(+ .st-radio-item.is-highlighted) .st-radio-item-row {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .st-radio-item.is-highlighted + .st-radio-item:hover .st-radio-item-row,
+  .st-radio-item:hover + .st-radio-item.is-highlighted .st-radio-item-row {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
   }
   .st-radio-circle {
     display: flex;
@@ -1087,6 +1153,18 @@
     line-height: 1.6;
     color: var(--st-text-color);
   }
+  /* Empty option list: mirror `st.radio`, which swaps its options for a
+     single disabled row -- an (unchecked) indicator plus this faded line --
+     instead of drawing nothing. The row reuses the option metrics, so the
+     hint sits exactly where the first option would have been. */
+  .st-radio-empty .st-checkbox-box {
+    margin-top: 0;
+  }
+  .st-radio-empty-label {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-gray-text-color);
+  }
   /* Horizontal radio: options lay out in a row and wrap onto the next line
      once they no longer fit, rather than spilling past the container
      (mirrors `st.radio(horizontal=True)`). */
@@ -1114,10 +1192,9 @@
   .st-check-group .st-radio-item .st-checkbox-box {
     margin-top: 0;
   }
-  /* Only the box is clickable when `full_body_click=False`. */
-  .st-check-group--box-only .st-radio-item {
-    cursor: default;
-  }
+  /* `full_body_click=False`: the box ticks the node and the rest of the row
+     acts on it (a folder's body enters it -- see `scHighlightChoice`), so the
+     item keeps the pointer cursor rather than falling back to `default`. */
   .st-check-group .st-radio-item:has(input:checked) .st-checkbox-box {
     border-color: var(--st-primary-color);
     background-color: var(--st-primary-color);
