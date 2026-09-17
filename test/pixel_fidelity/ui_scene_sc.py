@@ -43,6 +43,8 @@ def main():
 
     _progress()
 
+    _toggle()
+
     _exception()
 
 
@@ -112,6 +114,16 @@ def _progress():
                 sleep(0.03)
                 bar['value'] = i + 1
                 bar['text'] = '{}%'.format(i + 1)
+
+
+def _toggle():
+    # switches in a row pack onto one line; the asa_gui batch-script page
+    # relies on that (three toggles plus a bar in one row).
+    with v3.Row('center'):
+        v3.Toggle('Show index', value=True)
+        v3.Toggle('Show separator line')
+        v3.Toggle('Show full list')
+        v3.Progress(37, text='37%', visible=True)
 
 
 def _line_calibration() -> None:

@@ -39,6 +39,7 @@ def main():
     _slider()
     _table()
     _progress()
+    _toggle()
     _exception()
 
 
@@ -78,6 +79,16 @@ def _progress():
         for i in range(100):
             sleep(0.03)
             bar.progress(i + 1, '{}%'.format(i + 1))
+
+
+def _toggle():
+    # switches in a horizontal container pack onto one line; the asa_gui
+    # batch-script page relies on that (three toggles plus a bar in one row).
+    with st.container(horizontal=True, vertical_alignment='center'):
+        st.toggle('Show index', True)
+        st.toggle('Show separator line')
+        st.toggle('Show full list')
+        st.progress(37, '37%')
 
 
 def _line_calibration() -> None:

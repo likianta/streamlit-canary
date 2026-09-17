@@ -1158,19 +1158,19 @@
   }
   .st-toggle-track {
     position: relative;
-    flex: 0 0 40px;
-    width: 40px;
-    height: 22px;
-    border-radius: 11px;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 16px;
+    border-radius: 9999px;
     background-color: var(--st-border-color);
     transition: background-color 0.2s ease;
   }
   .st-toggle-thumb {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 16px;
-    height: 16px;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background-color: var(--st-on-primary-color);
     transition: transform 0.2s ease;
@@ -1179,16 +1179,18 @@
     background-color: var(--st-primary-color);
   }
   .st-toggle-label:has(input:checked) .st-toggle-thumb {
-    transform: translateX(18px);
+    transform: translateX(16px);
   }
   .st-toggle-text {
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.5;
     color: var(--st-text-color);
   }
   /* Switches keep their intrinsic width in a row (like buttons), so a row of
-     them packs left instead of spreading apart. */
-  .st-row > .st-toggle { flex: 0 0 auto; }
+     them packs left instead of spreading apart. The basis has to be
+     `fit-content`: with `auto` the switch would fall back to its own
+     `width: 100%` and take a whole line to itself. */
+  .st-row > .st-toggle { flex: 0 0 fit-content; }
 
   /* Popover (mirrors Streamlit's `st.popover`) */
   .st-popover {
