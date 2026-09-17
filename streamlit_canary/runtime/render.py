@@ -34,6 +34,7 @@ from ..components_v3.widgets import NumberInput
 from ..components_v3.widgets import Popover
 from ..components_v3.widgets import Progress
 from ..components_v3.widgets import RadioGroup
+from ..components_v3.widgets import ReducibleGroup
 from ..components_v3.widgets import Row
 from ..components_v3.widgets import SegmentedControl
 from ..components_v3.widgets import SelectSlider
@@ -272,6 +273,8 @@ def _render(comp: Component) -> str:
         return _render_radio_group(comp)
     if isinstance(comp, CheckGroup):
         return _render_check_group(comp)
+    if isinstance(comp, ReducibleGroup):
+        return _render_reducible_group(comp)
     if isinstance(comp, SegmentedControl):
         return _render_segmented_control(comp)
     if isinstance(comp, Toast):
@@ -1106,27 +1109,40 @@ def _render_popover(comp: Popover) -> str:
     children = ''.join(_render(c) for c in comp.children)
     width_style = _size_style(comp)
     hidden = '' if comp.visible.get() else ' hidden'
+    enabled = comp.enabled.get()
+    disabled = '' if enabled else ' disabled'
+    panel_align = getattr(comp, '_panel_align', 'trigger')
+    root_cls = 'st-popover' + ('' if enabled else ' is-disabled')
+    if panel_align == 'menu':
+        # `st.menu_button`'s chevron is 20px (a popover's is 16px); the extra
+        # class is what `page.css` hooks to swap it (see `.st-popover--menu`).
+        root_cls += ' st-popover--menu'
     help_attr = ''
     help_text = _help_text(comp)
     if help_text:
         help_attr = f' data-help="{_escape_help(help_text)}"'
     panel_cls = 'st-popover-panel'
     panel_style = ''
-    panel_align = getattr(comp, '_panel_align', 'trigger')
     if panel_align == 'row':
         panel_cls += ' st-popover-panel--row'
     elif panel_align == 'above':
         panel_cls += ' st-popover-panel--above'
     elif panel_align == 'menu':
         panel_cls += ' st-popover-panel--menu'
+        # `MenuButton` carries its rows in `options`, as plain HTML, so the
+        # client can rebuild them on an `options` patch (no child components).
+        children = (
+            f'<div class="st-menu-options">{_menu_items_html(comp)}</div>'
+            + children
+        )
     max_height = getattr(comp, '_panel_max_height', None)
     if isinstance(max_height, int):
         panel_style = f' style="max-height:{max_height}px"'
     return (
-        f'<div class="st-popover" data-id="{comp.id}"{hidden}>'
+        f'<div class="{root_cls}" data-id="{comp.id}"{hidden}>'
         f'<button class="st-btn st-btn-secondary st-popover-trigger" '
         f'type="button" aria-haspopup="dialog" aria-expanded="false"'
-        f'{width_style}{help_attr} onclick="scTogglePopover(this)">'
+        f'{disabled}{width_style}{help_attr} onclick="scTogglePopover(this)">'
         f'<span class="st-btn-text st-popover-trigger-label">{label}</span>'
         f'<span class="st-popover-icon">'
         f'<span class="st-icon st-popover-chevron" translate="no">'
@@ -1143,6 +1159,48 @@ def _render_space(comp: Space) -> str:
     """A spacer carries no content; `page.css` gives it the row's slack."""
     return (
         f'<div class="st-space" data-id="{comp.id}"{_size_style(comp)}></div>'
+    )
+
+
+def _menu_items_html(comp: tp.Any) -> str:
+    """The rows of a menu panel (`MenuButton`): one per option.
+
+    Plain HTML, not child components: the client rebuilds them on an `options`
+    patch (see `scMenuItemsHtml`), so the list is not bound to the static tree.
+    """
+    fmt = getattr(comp, 'format_func', str)
+    return ''.join(
+        f'<div class="st-menu-option" role="menuitem" '
+        f'data-value="{html.escape(str(o))}" onclick="scMenuPick(this)">'
+        f'<span class="st-menu-option-label">{render_markup(fmt(o))}</span>'
+        f'</div>'
+        for o in (comp.options.get() or ())
+    )
+
+
+def _render_reducible_group(comp: ReducibleGroup) -> str:
+    """A list of items, each with a hover-revealed remove button.
+
+    The rows reuse the menu rows' metrics; the trailing `x` sends a `reduce`
+    event that the widget turns into an `on_reduce` signal.
+    """
+    fmt = comp.format_func
+    items = ''.join(
+        f'<div class="st-menu-option st-menu-option--reducible" '
+        f'data-value="{html.escape(str(o))}">'
+        f'<span class="st-menu-option-label">{render_markup(fmt(o))}</span>'
+        f'<button class="st-menu-option-remove" type="button" '
+        f'aria-label="Remove" onclick="scReduceItem(this)">'
+        f'{render_markup(":material/close:")}</button>'
+        f'</div>'
+        for o in (comp.options.get() or ())
+    )
+    return (
+        f'<div class="st-reducible-group" data-id="{comp.id}"'
+        f'{_size_style(comp)}>'
+        f'{_widget_label_html(comp)}'
+        f'<div class="st-reducible-group-items">{items}</div>'
+        f'</div>'
     )
 
 

@@ -35,12 +35,9 @@ def main():
         'Segmented control', ('Option A', 'Option B', 'Option C')
     )
 
-    v3.SegmentedControl(
-        'Segmented control', options=('Option A', 'Option B', 'Option C')
-    )
+    v3.MenuButton('Menu button', options=('Option A', 'Option B', 'Option C'))
 
     _radio()
-
     _check_group()
     _slider()
     _table()

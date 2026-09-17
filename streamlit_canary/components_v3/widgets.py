@@ -4,9 +4,9 @@ v3 widgets: the built-in component library.
 Public widgets (in alphabetical order):
     AltairChart, Button, Caption, Cell, Checkbox, CheckGroup, Code, Column,
     Container, Dialog, Expander, Grid, IconButton, Info, MenuButton,
-    Multiselect, NumberInput, Popover, Progress, RadioGroup, Row,
-    SegmentedControl, SelectSlider, Selectbox, Space, Spinner, Success, Table,
-    Tabs, Text, TextArea, TextInput, Title, Toggle, Warning.
+    Multiselect, NumberInput, Popover, Progress, RadioGroup, ReducibleGroup,
+    Row, SegmentedControl, SelectSlider, Selectbox, Space, Spinner, Success,
+    Table, Tabs, Text, TextArea, TextInput, Title, Toggle, Warning.
 
 They are built on a few shared private bases (defined first):
     _HasText       — a single bindable `text` field.
@@ -1181,6 +1181,8 @@ class Popover(_HasText):
         visible: whether the popover is shown (default True, bindable).
         help: markdown tooltip text shown on the trigger button; a plain
             string or a bound value (`sc.bind(...)`).
+        enabled: whether the trigger accepts clicks (default True, bindable);
+            a disabled trigger is greyed out and inert.
         panel_align: `'trigger'` (default) anchors the panel under the
             trigger; `'row'` stretches it across the surrounding `Row`,
             from that row's text input's left edge to the row's right edge;
@@ -1212,12 +1214,14 @@ class Popover(_HasText):
         width: Width | None = None,
         visible: bool | Property = True,
         help: str | Property = '',
+        enabled: bool | Property = True,
         panel_align: tp.Literal['trigger', 'row', 'above'] = 'trigger',
         panel_max_height: int | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, width=width, **kwargs)
         self.visible = _prop(True, visible)
+        self.enabled = _prop(True, enabled)
         self.help = _help_prop(help)
         self._panel_align = panel_align
         self._panel_max_height = panel_max_height
@@ -1226,37 +1230,54 @@ class Popover(_HasText):
 # Alphabetically this belongs before `Multiselect`, but it subclasses
 # `Popover`, so it has to follow it.
 class MenuButton(Popover):
-    """A button that unfolds a menu panel (mirrors Streamlit's `st.menu_button`).
+    """A button that unfolds a menu of options (mirrors `st.menu_button`).
 
-    It shares `Popover`'s plumbing -- trigger, click-outside / Escape
-    handling, `label`, `visible`, `help`, `panel_max_height` -- but lays its
-    panel out as a *menu*: `position: fixed` with a z-index above every panel,
-    so it may spill past the edges of a scrollable ancestor (a nested
-    `Popover` panel is clipped by one). `panel_align` does not apply: the panel
-    hangs under the trigger, flips above when there is no room below, and is
-    kept inside the app's content box.
+    The trigger shows the label plus a chevron; the panel lists `options` as
+    menu rows. Picking one sets `value` and closes the menu -- a client-side
+    affair, so it never reruns.
 
-    Put the menu's rows inside it with a `with` block, like `Popover`:
+        menu = v3.MenuButton('Export', options=('CSV', 'JSON'))
+        @menu.value.on_change
+        def _picked(): ...
 
-        with v3.MenuButton(':material/bucket_check: 2'):
-            v3.Text('README.md')
+    The panel is `position: fixed` with a z-index above every panel, so it may
+    spill past the edges of a scrollable ancestor -- a plain `Popover` panel
+    would be clipped by one.
 
     Args:
         label: the trigger label (bindable).
-        width: `int` (px) | 'content' | 'stretch' | None (default) — width
-            of the trigger button.
-        visible: whether the button is shown (default True, bindable).
+        options: the choices (bindable).
+        value: the picked option (bindable; empty until something is picked).
+        format: callable (value -> text) or a label sequence parallel to
+            `options`.
+        width: `int` (px) | 'content' | 'stretch' | None (default) — width of
+            the trigger button.
+        visible / enabled: whether the button is shown / clickable (bindable).
         help: markdown tooltip text shown on the trigger button.
-        panel_max_height: optional max height (px) of the menu; content
-            taller than this scrolls (bindable is not supported).
+        panel_max_height: optional max height (px) of the menu; content taller
+            than this scrolls (bindable is not supported).
+
+    Properties:
+        text: str — the trigger label (bindable).
+        options: list — the choices.
+        value: the picked option; clicking a row sets it.
+
+    Signals:
+        on_value (via `mb['on_value']` or `mb.value.on_change`)
     """
+
+    format_func: tp.Callable[[tp.Any], str]
 
     def __init__(
         self,
         label: str | Property = '',
+        options: tp.Sequence[tp.Any] | Property | None = None,
         *,
+        value: tp.Any = '',
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         width: Width | None = None,
         visible: bool | Property = True,
+        enabled: bool | Property = True,
         help: str | Property = '',
         panel_max_height: int | None = None,
         **kwargs: tp.Any,
@@ -1265,13 +1286,34 @@ class MenuButton(Popover):
             label,
             width=width,
             visible=visible,
+            enabled=enabled,
             help=help,
             panel_max_height=panel_max_height,
             **kwargs,
         )
+        self.options = _prop([], _as_list(options))
+        self.value = _prop('', value)
+        if format is None:
+            self.format_func = lambda x: str(x)
+        elif callable(format):
+            self.format_func = tp.cast(tp.Callable[[tp.Any], str], format)
+        else:
+            labels = list(format)
+
+            def _by_index(x: tp.Any) -> str:
+                return labels[list(self.options.get()).index(x)]
+
+            self.format_func = _by_index
         # `_render_popover` turns this into `st-popover-panel--menu`, which
-        # `scTogglePopover` then positions like a menu.
+        # `scPositionPanel` places like a menu and `scMenuPick` drives.
         self._panel_align = 'menu'
+
+    def _coerce_value(self, value: tp.Any) -> tp.Any:
+        """Map the client's raw string back onto the real option."""
+        for option in self.options.get() or ():
+            if str(option) == str(value):
+                return option
+        return value
 
 
 class Progress(_HasText):
@@ -1434,6 +1476,72 @@ class RadioGroup(_OptionsWidget):
 
 
 Radio = RadioGroup  # alias
+
+
+class ReducibleGroup(_Labeled):
+    """A list of items, each droppable from its own trailing `x`.
+
+    The rows are laid out exactly like a `MenuButton`'s options; hovering one
+    reveals an `x` on its right, and clicking that `x` drops the item from the
+    group and emits `on_reduce`, so the owner can keep its own list in sync.
+
+        group = v3.ReducibleGroup(options=('a.txt', 'b.txt'))
+        @group.on_reduce
+        def _dropped(item): ...
+
+    Args:
+        label: optional label above the list.
+        options: the items (bindable).
+        format: callable (value -> text) or a label sequence parallel to
+            `options`.
+        label_visibility: 'visible' (default) | 'collapsed' | 'hidden'.
+
+    Properties:
+        label: str — the widget label.
+        options: list — the items still shown.
+
+    Signals:
+        on_reduce: emitted with the dropped item.
+        on_options (via `rg['on_options']` or `rg.options.on_change`)
+    """
+
+    format_func: tp.Callable[[tp.Any], str]
+
+    _default_width = 'stretch'
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        options: tp.Sequence[tp.Any] | Property | None = None,
+        *,
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
+        label_visibility: str = 'visible',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.options = _prop([], _as_list(options))
+        if format is None:
+            self.format_func = lambda x: str(x)
+        elif callable(format):
+            self.format_func = tp.cast(tp.Callable[[tp.Any], str], format)
+        else:
+            labels = list(format)
+
+            def _by_index(x: tp.Any) -> str:
+                return labels[list(self.options.get()).index(x)]
+
+            self.format_func = _by_index
+        self.on_reduce: Signal = Signal(tp.Any)
+
+    def _on_reduce(self, value: tp.Any) -> None:
+        """Drop the option whose key the client sent (an `x` click)."""
+        options = list(self.options.get() or ())
+        kept = [o for o in options if str(o) != str(value)]
+        if len(kept) == len(options):
+            return
+        dropped = [o for o in options if str(o) == str(value)][0]
+        self.options.set(kept)
+        self.on_reduce.emit(dropped)
 
 
 class Row(Component):

@@ -13,10 +13,9 @@ custom widget whose panel offers three selection modes:
                         then open the bucket to review the haul and remove
                         entries one by one (`v3.CheckGroup` + a bucket panel).
 
-The bucket is the only list whose rows cannot come from a component option
-list, so it is made of *pre-allocated* component slots whose `visible` flag is
-toggled as its content changes (the runtime builds the tree exactly once --
-there is no dynamic child support).
+The bucket is a `v3.ReducibleGroup`: its rows are plain HTML (written by the
+renderer, rebuilt by an `options` patch), so nothing here needs pre-allocated
+component slots -- the runtime builds the tree exactly once.
 
 Run it with:
 
@@ -38,10 +37,6 @@ v3 = sc.v3
 _SINGLE = 'Single select'
 _MULTI = 'Multi select'
 _CROSS = 'Multi-cross select'
-
-# how many rows the bucket pre-allocates (a demo-only cap: the tree is
-# static, so its rows cannot grow past the slots it was built with).
-_MAX_SLOTS = 48
 
 _Filter = tp.Optional[tp.Union[str, tp.Tuple[str, ...]]]
 
@@ -190,11 +185,13 @@ class MultiModeTreeSelect(v3.TreeSelectWithInput):
                 )
                 self._refresh_btn = v3.IconButton('refresh', help='Refresh')
                 # the bucket tucks into the same bar, pushed to its right edge
-                # by the spacer. It is a `MenuButton` (not a `Popover`) so its
-                # panel floats above the browse panel instead of being clipped
-                # by it.
+                # by the spacer. It stays a `Popover` -- a `MenuButton` is an
+                # options widget, not a container -- and every panel is placed
+                # with `position: fixed`, so this one floats above the browse
+                # panel instead of being clipped by it. Its trigger is inert
+                # while the bucket is empty.
                 v3.Space(width='stretch')
-                self._bucket_popover = v3.MenuButton(
+                self._bucket_popover = v3.Popover(
                     sc.bind(
                         self.bucket,
                         lambda picked: ':material/bucket_check: {}'.format(
@@ -202,27 +199,18 @@ class MultiModeTreeSelect(v3.TreeSelectWithInput):
                         ),
                     ),
                     visible=sc.bind(self.mode, lambda m: m == _CROSS),
+                    enabled=sc.bind(self.bucket, bool),
                     panel_max_height=240,
                 )
                 with self._bucket_popover:
-                    self._bucket_slots: list = []
-                    self._bucket_texts: list = []
-                    for index in range(_MAX_SLOTS):
-                        slot = v3.Column(visible=False)
-                        with slot:
-                            # the label hugs its text and the spacer pushes the
-                            # remove button to the row's right edge -- a
-                            # `width='stretch'` label would claim the whole row
-                            # and wrap the button onto a second line.
-                            with v3.Row('center'):
-                                txt = v3.Text('')
-                                v3.Space(width='stretch')
-                                btn = v3.IconButton(
-                                    'close', help='Remove from the bucket'
-                                )
-                        self._bucket_slots.append(slot)
-                        self._bucket_texts.append(txt)
-                        btn.on_click.partial(index)(self._on_bucket_removed)
+                    # `options` is bound to the bucket, so anything that changes
+                    # the bucket (a tick, or an `x` below) redraws this list.
+                    self._bucket_group = v3.ReducibleGroup(
+                        options=self.bucket,
+                        format=lambda path: _bucket_label(
+                            path, self._nav.start_directory
+                        ),
+                    )
 
         # -- handlers -------------------------------------------------------
         @self._mode_control.value.on_change
@@ -259,9 +247,16 @@ class MultiModeTreeSelect(v3.TreeSelectWithInput):
             # the bucket mirrors the ticks of every folder it was filled from
             bucket = [p for p in self.bucket.get() if p not in listed]
             bucket += self._ticked_paths(self._list_of_cross)
-            with sc.updating():
-                self.bucket.set(bucket)
-                self._fill_bucket_slots(bucket)
+            # the bucket panel's `options` are bound to `bucket`, so setting it
+            # is all it takes for the list to redraw
+            self.bucket.set(bucket)
+
+        @self._bucket_group.on_reduce
+        def _on_bucket_reduced(path: str) -> None:
+            """Drop the node the user removed from the bucket panel."""
+            self.bucket.set([p for p in self.bucket.get() if p != path])
+            # its tick in the cross listing follows the bucket
+            self._refresh_panel()
 
         @self._home_btn.on_click
         def _go_home() -> None:
@@ -387,28 +382,6 @@ class MultiModeTreeSelect(v3.TreeSelectWithInput):
             if isinstance(entry, tuple) and entry and entry[0] == 'd':
                 return self._nav.child(entry[1])
         return ''
-
-    def _on_bucket_removed(self, index: int) -> None:
-        picked = list(self.bucket.get())
-        if not (0 <= index < len(picked)):
-            return
-        picked.pop(index)
-        with sc.updating():
-            self.bucket.set(picked)
-            self._fill_bucket_slots(picked)
-
-    def _fill_bucket_slots(self, picked: list) -> None:
-        root = self._nav.start_directory
-        with sc.updating():
-            for index in range(_MAX_SLOTS):
-                slot = self._bucket_slots[index]
-                txt = self._bucket_texts[index]
-                if index < len(picked):
-                    slot.visible.set(True)
-                    txt.text.set(_bucket_label(picked[index], root))
-                else:
-                    slot.visible.set(False)
-                    txt.text.set('')
 
 
 def main() -> None:

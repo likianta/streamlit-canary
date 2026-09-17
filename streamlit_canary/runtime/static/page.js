@@ -28,6 +28,12 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     if (msg.prop === 'enabled') {
       if (el.classList.contains('st-btn')) {
         el.disabled = !msg.value;
+      } else if (el.classList.contains('st-popover')) {
+        // The patch targets the popover root, but the clickable element is the
+        // trigger button inside it (`Popover` / `MenuButton`).
+        el.classList.toggle('is-disabled', !msg.value);
+        const trigger = el.querySelector('.st-popover-trigger');
+        if (trigger) trigger.disabled = !msg.value;
       } else if (
         el.classList.contains('st-selectbox') ||
         el.classList.contains('st-radio') ||
@@ -115,6 +121,16 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           `</label>`
         ).join('');
         scSyncSegmented(el);
+      }
+      if (el.classList.contains('st-reducible-group')) {
+        el.querySelector('.st-reducible-group-items').innerHTML =
+          scReducibleItemsHtml(msg.value, msg.formatted);
+      }
+      // A `MenuButton`'s rows live inside its panel, but the patch targets the
+      // `.st-popover` root (that is where its `data-id` is).
+      const menuItems = el.querySelector('.st-menu-options');
+      if (menuItems) {
+        menuItems.innerHTML = scMenuItemsHtml(msg.value, msg.formatted);
       }
     }
     if (msg.prop === 'value') {
@@ -639,37 +655,63 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       right: rect.right - (parseFloat(cs.paddingRight) || 0),
     };
   }
-  // Keep the floating panel inside `scPopoverBounds()`: anchor it to the
-  // trigger's left edge, but shift it leftward when that would overflow the
-  // right edge (and back rightward when it would overflow the left edge).
-  function scPositionPopover(panel) {
-    panel.style.left = '0px';
-    const rect = panel.getBoundingClientRect();
-    const bounds = scPopoverBounds();
-    let left = 0;
-    if (rect.right > bounds.right) {
-      left -= rect.right - bounds.right;
-    }
-    if (rect.left + left < bounds.left) {
-      left += bounds.left - (rect.left + left);
-    }
-    panel.style.left = left + 'px';
-  }
-  // Row-aligned panel: span from the surrounding row's text input's left
-  // edge to the row's right edge (offsets are relative to the popover,
-  // which is the panel's positioned ancestor).
-  function scAlignPopoverToRow(panel) {
+  // Place a panel. Every panel is `position: fixed` and therefore lives in
+  // viewport coordinates, so it may spill past a scrollable ancestor's
+  // `overflow` -- which is how Streamlit's portalled overlays behave. The
+  // variant decides the anchoring:
+  //   --row    spans the surrounding row, from that row's text input's left
+  //            edge to the row's right edge
+  //   --above  hangs above the trigger (anchored by its bottom edge, so its
+  //            entry animation unfolds upwards)
+  //   --menu   hangs under the trigger, flipping above when there is no room
+  //   default  hangs under the trigger, left-aligned, kept inside the app box
+  const SC_PANEL_GAP = 8;
+  function scPositionPanel(panel) {
     const pop = panel.closest('.st-popover');
-    const row = pop ? pop.closest('.st-row') : null;
-    if (!row) return;
-    const input = row.querySelector('.st-text-input');
-    const popRect = pop.getBoundingClientRect();
-    const rowRect = row.getBoundingClientRect();
-    const start = input
-      ? input.getBoundingClientRect().left
-      : rowRect.left;
-    panel.style.left = (start - popRect.left) + 'px';
-    panel.style.width = (rowRect.right - start) + 'px';
+    const trigger = pop.querySelector('.st-popover-trigger');
+    const t = trigger.getBoundingClientRect();
+    const bounds = scPopoverBounds();
+    panel.style.left = '';
+    panel.style.top = '';
+    panel.style.bottom = '';
+    panel.style.width = '';
+    if (panel.classList.contains('st-popover-panel--row')) {
+      const row = pop.closest('.st-row');
+      if (row) {
+        const input = row.querySelector('.st-text-input');
+        const rowRect = row.getBoundingClientRect();
+        const start = input ? input.getBoundingClientRect().left : rowRect.left;
+        panel.style.left = Math.round(start) + 'px';
+        panel.style.width = Math.round(rowRect.right - start) + 'px';
+      }
+      panel.style.top = Math.round(t.bottom + SC_PANEL_GAP) + 'px';
+      return;
+    }
+    if (panel.classList.contains('st-popover-panel--above')) {
+      panel.style.left = Math.round(t.left) + 'px';
+      panel.style.bottom =
+        Math.round(window.innerHeight - t.top + SC_PANEL_GAP) + 'px';
+      return;
+    }
+    // The panel's height has to come from `scrollHeight`: its entry animation
+    // starts the box at height 0.
+    const height = panel.scrollHeight;
+    let top = t.bottom + SC_PANEL_GAP;
+    if (
+      top + height > window.innerHeight - SC_PANEL_GAP &&
+      t.top - SC_PANEL_GAP - height > 0
+    ) {
+      top = t.top - SC_PANEL_GAP - height;
+    }
+    // Anchor to the trigger's left edge, shifting left when that would overflow
+    // the app's content box (and back right when it would overflow the left).
+    let left = t.left;
+    if (left + panel.offsetWidth > bounds.right) {
+      left = bounds.right - panel.offsetWidth;
+    }
+    if (left < bounds.left) left = bounds.left;
+    panel.style.left = Math.round(left) + 'px';
+    panel.style.top = Math.round(top) + 'px';
   }
   // The trigger's chevron is an icon-font glyph that Streamlit *swaps* when
   // the panel opens (`expand_more` <-> `expand_less`), rather than rotating.
@@ -718,31 +760,63 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     }
     highlight.style.opacity = '1';
   }
-  // A menu panel (`MenuButton`) is `position: fixed`, so unlike the other
-  // variants it escapes every scrollable ancestor and their `overflow`
-  // clipping. Anchor it under the trigger, flip it above when there is no room
-  // below, and keep it inside the app content box. Its height is read from
-  // `scrollHeight` because the entry animation starts the box at height 0.
-  function scPositionMenuPanel(panel) {
-    const root = panel.closest('.st-popover');
+  // -- MenuButton / ReducibleGroup rows ---------------------------------
+  // The rows are plain HTML (the server writes them, an `options` patch
+  // rebuilds them), so they hook up through these globals rather than through
+  // component events.
+  function scMenuItemsHtml(values, formatted) {
+    const fmt = window.scRenderMarkup;
+    const labels = formatted || values.map(x => x);
+    return values.map((o, i) =>
+      `<div class="st-menu-option" role="menuitem" ` +
+      `data-value="${scOptionAttr(o)}" onclick="scMenuPick(this)">` +
+      `<span class="st-menu-option-label">${fmt(labels[i])}</span></div>`
+    ).join('');
+  }
+  function scReducibleItemsHtml(values, formatted) {
+    const fmt = window.scRenderMarkup;
+    const labels = formatted || values.map(x => x);
+    return values.map((o, i) =>
+      `<div class="st-menu-option st-menu-option--reducible" ` +
+      `data-value="${scOptionAttr(o)}">` +
+      `<span class="st-menu-option-label">${fmt(labels[i])}</span>` +
+      `<button class="st-menu-option-remove" type="button" aria-label="Remove" ` +
+      `onclick="scReduceItem(this)">${fmt(':material/close:')}</button></div>`
+    ).join('');
+  }
+  // Picking a menu option sets the widget's `value` and closes the menu.
+  function scMenuPick(item) {
+    const root = item.closest('.st-popover');
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: root.dataset.id,
+      event: 'change',
+      value: item.dataset.value,
+    }));
+    const panel = root.querySelector('.st-popover-panel');
+    panel.hidden = true;
     const trigger = root.querySelector('.st-popover-trigger');
-    const t = trigger.getBoundingClientRect();
-    const bounds = scPopoverBounds();
-    const gap = 8;
-    const height = panel.scrollHeight;
-    let top = t.bottom + gap;
-    if (top + height > window.innerHeight - gap && t.top - gap - height > 0) {
-      top = t.top - gap - height;
-    }
-    let left = t.left;
-    if (left + panel.offsetWidth > bounds.right) {
-      left = bounds.right - panel.offsetWidth;
-    }
-    if (left < bounds.left) left = bounds.left;
-    panel.style.left = Math.round(left) + 'px';
-    panel.style.top = Math.round(top) + 'px';
+    trigger.setAttribute('aria-expanded', 'false');
+    scSwapChevron(
+      trigger, '.st-popover-chevron', 'expand_more', 'expand_less', false
+    );
+  }
+  // Dropping an item sends a `reduce` event; the widget removes it from
+  // `options` and patches the list back.
+  function scReduceItem(button) {
+    const item = button.closest('.st-menu-option');
+    const group = item.closest('.st-reducible-group');
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: group.dataset.id,
+      event: 'reduce',
+      value: item.dataset.value,
+    }));
   }
   function scTogglePopover(trigger) {
+    // A disabled trigger is inert: the `disabled` attribute already swallows
+    // the click, this is the belt-and-braces guard.
+    if (trigger.disabled) return;
     const root = trigger.closest('.st-popover');
     const panel = root.querySelector('.st-popover-panel');
     const isOpen = !panel.hidden;
@@ -753,13 +827,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     } else {
       panel.hidden = false;
       trigger.setAttribute('aria-expanded', 'true');
-      if (panel.classList.contains('st-popover-panel--menu')) {
-        scPositionMenuPanel(panel);
-      } else if (panel.classList.contains('st-popover-panel--row')) {
-        scAlignPopoverToRow(panel);
-      } else {
-        scPositionPopover(panel);
-      }
+      scPositionPanel(panel);
       // Measured after the placement pass, so a row-aligned panel is sized
       // from its final width. The chevron is swapped, not animated.
       scMeasureOpenHeight(panel, '--st-popover-open-height');
@@ -808,16 +876,17 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') scClosePopovers(null);
   });
-  // Keep an open row-aligned panel in sync with its row on resize.
+  // Every panel is `position: fixed`, so it has to follow its trigger -- on
+  // resize, and whenever anything scrolls (the capture phase catches scrolls
+  // inside the app's own scroll containers, not just the window's).
   window.addEventListener('resize', () => {
-    document.querySelectorAll('.st-popover-panel--row:not([hidden])')
-      .forEach(scAlignPopoverToRow);
+    document.querySelectorAll('.st-popover-panel:not([hidden])')
+      .forEach(scPositionPanel);
     scSyncSegmented(document);
   });
-  // A fixed menu panel has to follow its trigger when anything scrolls.
   document.addEventListener('scroll', () => {
-    document.querySelectorAll('.st-popover-panel--menu:not([hidden])')
-      .forEach(scPositionMenuPanel);
+    document.querySelectorAll('.st-popover-panel:not([hidden])')
+      .forEach(scPositionPanel);
   }, true);
   // -- Markdown ----------------------------------------------------------
   // Streamlit parses markdown in the browser (react-markdown); we mirror

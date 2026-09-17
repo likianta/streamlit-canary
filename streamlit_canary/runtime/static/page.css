@@ -1376,12 +1376,21 @@
     font-size: 16px;
     line-height: 16px;
   }
-  /* The floating panel is anchored below the trigger, left-aligned. */
+  /* `st.menu_button`'s chevron is one size up (20px) from a popover's -- the
+     renderer marks a menu trigger `.st-popover--menu`. */
+  .st-popover--menu .st-popover-chevron {
+    font-size: 20px;
+    line-height: 20px;
+  }
+  /* The floating panel hangs below the trigger, left-aligned. It is
+     `position: fixed` and placed by `scPositionPanel` -- the way Streamlit's
+     portalled overlays are -- so it escapes a scrollable ancestor's `overflow`
+     clip instead of being cut off inside it. */
   .st-popover-panel {
-    position: absolute;
-    /* Our deliberate deviation: 8px of clearance under the trigger, where
-       Streamlit leaves 4px (`compare_popover_layout.py` asserts this). */
-    top: calc(100% + 8px);
+    position: fixed;
+    /* Fallbacks only: `scPositionPanel` writes the measured `left` / `top` in
+       the same task as the panel is shown, before anything is painted. */
+    top: 0;
     left: 0;
     z-index: 1000;
     display: flex;
@@ -1393,7 +1402,7 @@
     border-radius: 12px;
     background-color: var(--st-background-color);
     /* Grows to the height `scMeasureOpenHeight` measured, like the selectbox
-       dropdown -- `top` anchors the panel below the trigger, so it unfolds
+       dropdown -- the panel is anchored by its top edge, so it unfolds
        downwards. */
     animation: st-popover-panel-in var(--st-popover-anim) ease;
   }
@@ -1413,43 +1422,87 @@
   :root[data-theme='light'] .st-popover-panel {
     box-shadow: 0 4px 16px rgba(var(--st-shadow-rgb), 0.16);
   }
-  /* Upward panel (`Popover(panel_align='above')`): the trigger sits at the
-     bottom of a scrollable panel, where a downward panel would be clipped by
-     that panel's `overflow`. Anchoring to `bottom` also makes the entry
-     animation unfold upwards. */
+  /* Upward panel (`Popover(panel_align='above')`): `scPositionPanel` anchors it
+     to the viewport's bottom edge, which also makes the entry animation unfold
+     upwards. */
   .st-popover-panel--above {
     top: auto;
-    bottom: calc(100% + 8px);
-    /* It lives inside another panel's scroll box, so it caps its height and
-       scrolls instead of spilling past that box. */
     overflow-y: auto;
   }
-  /* A menu panel (`MenuButton`): `position: fixed` (placed by
-     `scPositionMenuPanel`) plus a z-index above every panel, so it escapes a
-     scrollable ancestor's `overflow` clip -- a nested `Popover` panel would be
-     clipped by it. */
+  /* A menu panel (`MenuButton`): a z-index above every panel, so it paints over
+     whatever it overlaps. The metrics mirror `st.menu_button`'s menu, measured
+     on Streamlit: `2px 6px` of panel padding, rows of 28px, and the very same
+     `shadows.popover` elevation as the other panels (light theme only -- see
+     the rule above). */
   .st-popover-panel--menu {
-    position: fixed;
-    z-index: 1100;
-    /* Sized to its rows (`max-content`) so a text-plus-button row keeps to one
-       line instead of wrapping. A row whose label is stretched (`width=100%`)
-       contributes no usable max-content, so the floor below is what actually
-       keeps such rows on one line; the cap keeps a long label in check. */
+    z-index: 1000060;
     width: max-content;
-    min-width: 240px;
     max-width: 360px;
-    padding: 4px;
+    min-width: 0;
+    padding: 2px 6px;
     gap: 0;
-    box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.4);
+    overflow-y: auto;
   }
-  /* Menu rows: a compact, hoverable strip (the widgets inside keep their own
-     metrics). */
-  .st-popover-panel--menu .st-row {
-    padding: 4px 8px;
+  /* The rows of a menu panel / reducible group stack in a plain block, so
+     their `4px 0` margins *collapse* -- `st.menu_button`'s surface is a block
+     too, which is why its rows sit 32px apart (28px + 4px), not 36px. */
+  .st-menu-options,
+  .st-reducible-group-items {
+    display: block;
+  }
+  /* A menu option row, shared by `MenuButton`'s options and `ReducibleGroup`'s
+     items: at least 128px wide (Streamlit's `min-width` on its menuitem),
+     28px tall with a 6px radius and 4px of vertical breathing room, which is
+     `st.menu_button`'s menuitem. (The name is distinct from the toolbar
+     dropdown's `.st-menu-item`, which has its own metrics.) */
+  .st-menu-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 128px;
+    height: 28px;
+    margin: 4px 0;
+    padding: 0 8px;
     border-radius: 6px;
+    color: var(--st-text-color);
+    cursor: pointer;
+    user-select: none;
   }
-  .st-popover-panel--menu .st-row:hover {
+  .st-menu-option:hover {
     background-color: var(--st-hover-background-color);
+  }
+  .st-menu-option-label {
+    /* Absorbs the slack so a trailing remove button sits at the right edge. */
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* `ReducibleGroup`: the trailing `x` shows only while its row is hovered. */
+  .st-menu-option-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--st-text-color);
+    font: inherit;
+    cursor: pointer;
+    opacity: 0;
+  }
+  .st-menu-option:hover .st-menu-option-remove {
+    opacity: 1;
+  }
+  .st-menu-option-remove:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--st-primary-color);
+  }
+  .st-reducible-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
   /* Child bottom margins are dropped by the shared vertical-rhythm rule at
      the end of this file, so the flex `gap` controls the spacing. */

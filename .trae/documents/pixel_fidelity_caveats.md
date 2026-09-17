@@ -98,4 +98,5 @@
 - NumberInput 的 stepper 需要显式设置 `step` 参数才会显示.
 - `v3.Radio` 更名为 `v3.RadioGroup` (名字与 `v3.CheckGroup` 对称). `Radio` 作为别名指向 `RadioGroup`.
 - 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件.
-- 我们新增了 `v3.MenuButton` (按钮拉开一个菜单面板, 面板用 `position: fixed` + 更高的 z-index, 因此可以溢出它所在的滚动面板); 已安装的 Streamlit (1.63) 没有对应组件.
+- 我们新增了 `v3.ReducibleGroup` (用 `v3.MenuButton` 选项行的样式, 但每行右侧多一个悬浮时才出现的 `x`, 点击即把该项从列表移除并发出 `on_reduce`); 原版没有对应组件.
+- `v3.MenuButton` 对齐 `st.menu_button`: 选项行 `min-width: 128px`, 行距 32px (28px 行高 + 4px 会折叠的 margin), 菜单面板 `padding: 2px 6px` / 圆角 12px / `z-index: 1000060`, 触发按钮的 chevron 比 `st.popover` 大一号 (20px vs 16px). 面板与触发器的间距沿用我们统一的 8px (原版 `st.menu_button` 是 4px, 见上面 Popover 一节).

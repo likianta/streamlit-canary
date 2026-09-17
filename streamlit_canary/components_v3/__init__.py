@@ -29,6 +29,7 @@ from .widgets import Popover
 from .widgets import Progress
 from .widgets import Radio
 from .widgets import RadioGroup
+from .widgets import ReducibleGroup
 from .widgets import Row
 from .widgets import SegmentedControl
 from .widgets import SelectSlider

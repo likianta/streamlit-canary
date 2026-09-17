@@ -39,6 +39,8 @@ def main():
         'Segmented control', ('Option A', 'Option B', 'Option C')
     )
 
+    st.menu_button('Menu button', ('Option A', 'Option B', 'Option C'))
+
     _radio()
     _slider()
     _table()
