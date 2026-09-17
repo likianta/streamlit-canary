@@ -40,47 +40,7 @@ from .widgets import Title
 from .widgets import Toast
 from .widgets import Toggle
 from .widgets import Warning
-from .tree_select import SimpleTreeSelect
 from .tree_select import TreeSelect
+from .tree_select import TreeSelectDualPane
+from .tree_select import TreeSelectDualPaneWithInput
 from .tree_select import TreeSelectWithInput
-
-__all__ = [
-    'AltairChart',
-    'BottomContainer',
-    'Button',
-    'Caption',
-    'Cell',
-    'Checkbox',
-    'Code',
-    'Column',
-    'Component',
-    'Container',
-    'Dialog',
-    'Expander',
-    'Grid',
-    'IconButton',
-    'Info',
-    'Markdown',
-    'Multiselect',
-    'NumberInput',
-    'Popover',
-    'Progress',
-    'Radio',
-    'Row',
-    'SelectSlider',
-    'Selectbox',
-    'SimpleTreeSelect',
-    'Spinner',
-    'Success',
-    'Table',
-    'Tabs',
-    'Text',
-    'TextArea',
-    'TextInput',
-    'Title',
-    'Toast',
-    'Toggle',
-    'TreeSelect',
-    'TreeSelectWithInput',
-    'Warning',
-]

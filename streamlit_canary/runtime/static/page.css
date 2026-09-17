@@ -1264,7 +1264,7 @@
   /* Child bottom margins are dropped by the shared vertical-rhythm rule at
      the end of this file, so the flex `gap` controls the spacing. */
   /* Row-aligned panel (`Popover(panel_align='row')`, used by
-     `SimpleTreeSelect`): the frontend sizes it from the surrounding row's
+     `TreeSelectWithInput`): the frontend sizes it from the surrounding row's
      text input to the row's right edge.  It scrolls once its content
      exceeds `max-height`, and its last row (the icon-button bar) sticks to
      the bottom so a long listing never pushes it out of view. */

@@ -1,27 +1,35 @@
 """Tree-style file selectors (v3).
 
-Ported from the v1 `streamlit_canary/components/tree_select/` package, which
-was written against Streamlit's rerun model.  Two selectors are provided:
+Two symmetric pairs.  Each one splits a browser *panel* from the "input +
+panel" wrapper that drives it:
 
-    SimpleTreeSelect     a single-column picker: a path input, a "Recent"
-                         dropdown, and a "Browse" button that reveals a
-                         listing of the current folder (with home / up /
-                         enter / refresh icon buttons).
+    TreeSelect / TreeSelectWithInput
+        the single-pane browser -- a folder listing with a home / up / enter
+        / refresh toolbar -- plus a path input whose "Browse" trigger opens
+        the panel in a `Popover`.
 
-    TreeSelectWithInput  the v1 `tree_select_with_input`: a path input, a
-                         "Recent" dropdown, and a "Browse" button that opens
-                         the two-column tree browser (`TreeSelect`) in a modal
-                         dialog.
+    TreeSelectDualPane / TreeSelectDualPaneWithInput
+        the two-column browser, plus a path input whose "Browse" trigger
+        opens the panel in a modal `Dialog`.
 
-Both drive their widgets through `Property` fields instead of a rerun, so a
+The two wrappers share the same pieces: `PathInput` (a text input that
+resolves what was typed into an existing path) and `Recent` (the "Recent"
+dropdown).  Only `TreeSelect` and `TreeSelectWithInput` are exported from
+`components_v3`; the rest are building blocks, importable from this module.
+
+Everything is driven through `Property` fields instead of a rerun, so a
 caller reads the picked path from `.value` at any time and can react to
-`on_confirm` (the dialog flow) or watch `value.on_change` (the inline flow).
+`value.on_change`.
 
-Where v1 needed Streamlit-only primitives, the v3 build uses:
+Ported from the v1 `streamlit_canary/components/tree_select/` package, which
+was written against Streamlit's rerun model.  Where v1 needed Streamlit-only
+primitives, the v3 build uses:
+
     st.dialog         -> `Dialog` (✕ / backdrop / Esc also dismiss it)
     st.menu_button    -> a `Popover` holding a single-choice list
     st.radio + st.container(height) -> `Radio(max_height=...)`
     st.button(':material/...')      -> `IconButton`
+
     st.segmented_control (`node_type='both'`) is not implemented; only
     `node_type='file'` and `'folder'` are supported.
 """
@@ -74,6 +82,17 @@ def _entry_label(entry: tp.Any) -> str:
     if kind == 'd':
         return ':material/folder: {}/'.format(escaped)
     return ':material/description: {}'.format(escaped)
+
+
+def _location_label(directory: str) -> str:
+    """Captain text for a folder path (`__` is escaped for markdown)."""
+    return ':gray[{}]'.format(directory.replace('__', '\\_\\_'))
+
+
+def _call(hook: tp.Optional[tp.Callable]) -> None:
+    """Run a v1-style `custom` builder hook, if given."""
+    if hook is not None:
+        hook()
 
 
 class _TreeNav:
@@ -134,122 +153,202 @@ class _TreeNav:
         self.recent.appendleft(path)
 
 
-class SimpleTreeSelect(Column):
-    """A single-column file selector (the simplified tree select).
+class PathInput(Column):
+    """A text input whose text is resolved into an existing path.
 
-        sel = v3.SimpleTreeSelect(
-            'Batch file', 'references/.../classic.txt', filter='.txt'
-        )
+        with PathInput('Batch file', 'references/.../classic.txt') as box:
+            ...
+        path = box.path.get()
+
+    `path` is the absolute, forward-slash form of what was typed, or '' when
+    the text is empty or names nothing that exists.  It is re-evaluated on
+    every keystroke, so a half-typed path is simply not a value yet.
+
+    Args:
+        label: the text input's label.
+        value: the initial text.
+        width: see `Column`.
+
+    Properties:
+        path: str — the resolved absolute path ('' when it does not exist).
+            Setting it re-writes the text, so callers can push a picked path
+            into the box without touching the input directly.
+
+    Signals:
+        on_path (via `box['on_path']` or `box.path.on_change`)
+    """
+
+    def __init__(
+        self,
+        label: str = '',
+        value: str = '',
+        *,
+        width: Width | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(width=width, **kwargs)
+
+        self.path = Property('')
+        with self:
+            self._input = TextInput(label, value=value, width='stretch')
+
+        @self._input.value.on_change
+        def _validate() -> None:
+            self.path.set(self._resolve(str(self._input['value'])))
+
+        @self.path.on_change
+        def _follow() -> None:
+            # Only a resolved path is written back: an empty one means the
+            # text is still incomplete, and must be left alone.
+            path = self.path.get()
+            if path and str(self._input['value']) != path:
+                self._input.value.set(path)
+
+        self.path.set(self._resolve(str(value)))
+
+    @staticmethod
+    def _resolve(raw: str) -> str:
+        text = str(raw).strip()
+        if not text:
+            return ''
+        path = _norm(text)
+        return path if fs.exist(path) else ''
+
+
+class Recent(Popover):
+    """The "Recent" dropdown: the last picked paths, newest first.
+
+        recent = Recent('Recent', options=[], visible=has_history)
         ...
-        path = sel.value.get()
+        @recent.value.on_change
+        def _on_pick(): ...
+
+    The caller owns the list: assign `options` to replace it (usually from its
+    own `_TreeNav`) and bind `visible` to whether there is any history.  A
+    pick mirrors into `value`.
+
+    Args:
+        label: the trigger's label.
+        options: the remembered paths (bindable).
+        max_height: cap in px on the list, after which it scrolls.
+        visible: whether the trigger is shown (default False — a history
+            dropdown has nothing to show until the caller fills it in).
+
+    Properties:
+        options: list — the remembered paths (bindable).
+        value: str — the picked path ('' while nothing is picked).
+
+    Signals:
+        on_value (via `recent['on_value']` or `recent.value.on_change`)
+    """
+
+    def __init__(
+        self,
+        label: str = 'Recent',
+        options: tp.Sequence[str] = (),
+        *,
+        max_height: int = 280,
+        visible: bool | Property = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, visible=visible, **kwargs)
+
+        initial = list(options)
+        self.options = Property(initial)
+        self.value = Property('')
+        with self:
+            self._radio = Radio(
+                label,
+                options=initial,
+                label_visibility='collapsed',
+                max_height=max_height,
+            )
+
+        @self.options.on_change
+        def _sync_options() -> None:
+            options_ = list(self.options.get() or [])
+            self._radio.options.set(options_)
+            if options_ and self._radio['value'] not in options_:
+                self._radio.value.set(options_[0])
+
+        @self._radio.value.on_change
+        def _sync_value() -> None:
+            self.value.set(str(self._radio['value']))
+
+        if initial:
+            self._radio.value.set(initial[0])
+
+
+class TreeSelect(Column):
+    """The single-pane tree browser: the folder listing plus its toolbar.
+
+        with Popover('Browse', panel_align='row', panel_max_height=500):
+            tree = v3.TreeSelect(filter='.txt')
+        ...
+        path = tree.value.get()
 
     Layout::
 
-        [ path input ..................... ] [ Recent ] [ Browse v ]
-        +-- "Browse" popover (spans the header row) ------------------+
-        | /current/folder                                             |
-        | (o) subfolder/                                              |
-        | ( ) another-file.txt          <- scrolls past `height` px   |
-        +-------------------------------------------------------------+
-        | [home] [up] [enter] [refresh]   <- pinned to the panel foot |
-        +-------------------------------------------------------------+
+        /current/folder
+        (o) subfolder/
+        ( ) another-file.txt          <- scrolls past `height` px
+        [home] [up] [enter] [refresh]
 
-    The "Browse" panel is a `Popover(panel_align='row')`: it stretches
-    from the path input's left edge to the header row's right edge, and
-    its icon-button bar sticks to the bottom.
-
-    Picking a folder row only highlights it — use "enter" to move into it
-    (or "up" to come back).  Picking a *file* row is what updates `value`.
+    Picking a *file* row is what updates `value`; a folder row is only
+    highlighted -- use "enter" to move into it (or "up" to come back), which
+    clears `value` again.  `TreeSelectWithInput` wires this panel to a path
+    input and a "Browse" trigger for you.
 
     Args:
-        label: the path input's label.
-        initial_path: the starting file or folder (default: the cwd).
+        start_directory: the folder to open (default: the cwd).
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
-        show_recent: keep a "Recent" dropdown of the picked paths.
-        height: max height of the "Browse" panel in px, after which the
-            listing scrolls (default 500).
+        height: optional cap in px on the listing, after which it scrolls.
+            Left `None` when an enclosing `Popover` does the scrolling.
         width: see `Column`.
 
     Properties:
         value: str — the picked file path ('' while nothing is picked).
 
     Signals:
-        on_value (via `sel['on_value']` or `sel.value.on_change`)
+        on_value (via `tree['on_value']` or `tree.value.on_change`)
     """
 
     def __init__(
         self,
-        label: str = '',
-        initial_path: str = '',
+        start_directory: str = '',
         *,
         filter: T.Filter = None,
-        show_recent: bool = True,
-        height: int = 500,
+        height: int | None = None,
         width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
 
         keeps = _filter_func(filter)
-        initial_is_file = bool(initial_path) and fs.isfile(initial_path)
-        nav = _TreeNav(
-            fs.parent(initial_path) if initial_is_file else initial_path
-        )
+        nav = _TreeNav(start_directory)
         self._nav = nav
         self._keeps = keeps
-        self._show_recent = show_recent
 
         self.value = Property('')
-        self._has_recent = Property(False)
-        if initial_is_file:
-            self.value.set(_norm(initial_path))
-            nav.remember(self.value.get())
 
         with self:
-            with Row('bottom'):
-                self._path_input = TextInput(
-                    label,
-                    value=initial_path if initial_path else nav.directory,
-                    width='stretch',
+            self._location = Caption(_location_label(nav.directory))
+            self._list = Radio(
+                'Folder contents',
+                options=(),
+                format=_entry_label,
+                label_visibility='collapsed',
+                max_height=height,
+            )
+            with Row('center'):
+                self._home_btn = IconButton(
+                    'home', help='Go to the initial folder'
                 )
-                self._recent_popover = Popover(
-                    'Recent', visible=self._has_recent
+                self._up_btn = IconButton('arrow_upward', help='Parent folder')
+                self._enter_btn = IconButton(
+                    'arrow_forward', help='Enter the highlighted folder'
                 )
-                with self._recent_popover:
-                    self._recent_radio = Radio(
-                        'Recent',
-                        options=(),
-                        label_visibility='collapsed',
-                        max_height=280,
-                    )
-                self._browse_popover = Popover(
-                    'Browse', panel_align='row', panel_max_height=height
-                )
-                with self._browse_popover:
-                    self._location = Caption(
-                        ':gray[{}]'.format(
-                            nav.directory.replace('__', '\\_\\_')
-                        )
-                    )
-                    self._list = Radio(
-                        'Folder contents',
-                        options=(),
-                        format=_entry_label,
-                        label_visibility='collapsed',
-                    )
-                    with Row('center'):
-                        self._home_btn = IconButton(
-                            'home', help='Go to the initial folder'
-                        )
-                        self._up_btn = IconButton(
-                            'arrow_upward', help='Parent folder'
-                        )
-                        self._enter_btn = IconButton(
-                            'arrow_forward', help='Enter the highlighted folder'
-                        )
-                        self._refresh_btn = IconButton(
-                            'refresh', help='Refresh the listing'
-                        )
+                self._refresh_btn = IconButton('refresh', help='Refresh')
 
         # -- handlers -------------------------------------------------------
 
@@ -261,11 +360,7 @@ class SimpleTreeSelect(Column):
             kind, name = selected
             if kind != 'f':
                 return
-            path = self._nav.child(name)
-            self.value.set(path)
-            self._path_input.value.set(path)
-            self._nav.remember(path)
-            self._refresh_recent()
+            self.value.set(self._nav.child(name))
 
         @self._home_btn.on_click
         def _go_home() -> None:
@@ -289,38 +384,15 @@ class SimpleTreeSelect(Column):
             self._nav.reload()
             self._refresh_listing()
 
-        @self._path_input.value.on_change
-        def _on_path_typed() -> None:
-            self._apply_path(str(self._path_input['value']))
-
-        @self._recent_radio.value.on_change
-        def _on_recent_picked() -> None:
-            self._apply_path(str(self._recent_radio['value']))
-
         self._refresh_listing()
-        self._refresh_recent()
 
     # -- internals ----------------------------------------------------------
 
-    def _apply_path(self, raw: str) -> None:
-        """Resolve a user-supplied path into the current folder + value."""
-        path = raw.strip()
-        if not path:
-            return
-        path = _norm(path)
-        if not fs.exist(path):
-            return
-        if fs.isdir(path):
-            self._nav.directory = path
-            self.value.set('')
-        else:
-            self._nav.directory = fs.parent(path)
-            self.value.set(path)
-            self._nav.remember(path)
-        self._location.text.set(
-            ':gray[{}]'.format(self._nav.directory.replace('__', '\\_\\_'))
-        )
-        self._refresh_recent()
+    def _goto(self, directory: str) -> None:
+        """Point the panel at a folder (used by the wrappers)."""
+        directory = _norm(directory) if directory else ''
+        if directory and fs.isdir(directory):
+            self._nav.directory = directory
         self._refresh_listing()
 
     def _refresh_listing(self) -> None:
@@ -330,22 +402,142 @@ class SimpleTreeSelect(Column):
             ('f', name) for name in nav.filenames() if self._keeps(name)
         ]
         self._list.options.set(options)
-        self._location.text.set(
-            ':gray[{}]'.format(nav.directory.replace('__', '\\_\\_'))
+        self._location.text.set(_location_label(nav.directory))
+
+
+class TreeSelectWithInput(Column):
+    """A path input plus the single-pane browser in a "Browse" popover.
+
+        sel = v3.TreeSelectWithInput(
+            'Batch file', 'references/.../classic.txt', filter='.txt'
         )
+        ...
+        path = sel.value.get()
+
+    Layout::
+
+        [ path input ..................... ] [ Recent ] [ Browse v ]
+        +-- "Browse" popover (spans the header row) ------------------+
+        | /current/folder                                             |
+        | (o) subfolder/                                              |
+        | ( ) another-file.txt          <- scrolls past `height` px   |
+        +-------------------------------------------------------------+
+        | [home] [up] [enter] [refresh]   <- pinned to the panel foot |
+        +-------------------------------------------------------------+
+
+    The panel is a `TreeSelect`; the popover stretches it from the path
+    input's left edge to the header row's right edge.
+
+    Typing a file path commits it; typing a folder points the panel there and
+    clears `value` (pick a file inside to commit again).  Picking a file in
+    the panel or from "Recent" fills the input back in.
+
+    Args:
+        label: the path input's label.
+        initial_path: the starting file or folder (default: the cwd).
+        filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
+        show_recent: keep a "Recent" dropdown of the picked paths.
+        height: max height of the "Browse" panel in px (default 500).
+        width: see `Column`.
+
+    Properties:
+        value: str — the committed file path ('' while nothing is committed).
+
+    Signals:
+        on_value (via `sel['on_value']` or `sel.value.on_change`)
+    """
+
+    def __init__(
+        self,
+        label: str = '',
+        initial_path: str = '',
+        *,
+        filter: T.Filter = None,
+        show_recent: bool = True,
+        height: int = 500,
+        width: Width | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(width=width, **kwargs)
+
+        first_path = initial_path or os.getcwd()
+        initial_is_file = bool(initial_path) and fs.isfile(first_path)
+        nav = _TreeNav(fs.parent(first_path) if initial_is_file else first_path)
+        self._nav = nav
+        self._keeps = _filter_func(filter)
+        self._show_recent = show_recent
+
+        self.value = Property('')
+        self._has_recent = Property(False)
+        if initial_is_file:
+            self.value.set(_norm(first_path))
+            nav.remember(self.value.get())
+
+        with self:
+            with Row('bottom'):
+                self._path_input = PathInput(label, first_path)
+                self._recent = Recent(
+                    'Recent', visible=self._has_recent, max_height=280
+                )
+                self._browse_popover = Popover(
+                    'Browse', panel_align='row', panel_max_height=height
+                )
+                with self._browse_popover:
+                    self._tree = TreeSelect(
+                        nav.directory, filter=filter, height=None
+                    )
+
+        # -- handlers -------------------------------------------------------
+
+        @self._path_input.path.on_change
+        def _on_path_typed() -> None:
+            path = self._path_input.path.get()
+            self._commit(path) if path else self.value.set('')
+
+        @self._tree.value.on_change
+        def _on_tree_picked() -> None:
+            self._commit(self._tree['value'])
+
+        @self._recent.value.on_change
+        def _on_recent_picked() -> None:
+            self._commit(str(self._recent['value']))
+
+        self._refresh_recent()
+
+    # -- internals ----------------------------------------------------------
+
+    def _commit(self, path: str) -> None:
+        """Resolve a path into `value` + the panel's folder."""
+        path = path.strip()
+        if not path:
+            self.value.set('')
+            return
+        path = _norm(path)
+        if not fs.exist(path):
+            # A half-typed path is not an error, just not a value yet.
+            self.value.set('')
+            return
+        if fs.isdir(path):
+            self._nav.directory = path
+            self.value.set('')
+        else:
+            self._nav.directory = fs.parent(path)
+            self.value.set(path)
+            self._nav.remember(path)
+        self._path_input.path.set(path)
+        self._tree._goto(self._nav.directory)
+        self._refresh_recent()
 
     def _refresh_recent(self) -> None:
         recent = list(self._nav.recent)
         self._has_recent.set(bool(recent) and self._show_recent)
-        if not recent:
-            return
-        self._recent_radio.options.set(recent)
-        if self._recent_radio['value'] not in recent:
-            self._recent_radio.value.set(recent[0])
+        self._recent.options.set(recent)
+        if recent and self._recent['value'] not in recent:
+            self._recent.value.set(recent[0])
 
 
-class TreeSelect(Column):
-    """The two-column tree browser (v1's `tree_select`).
+class TreeSelectDualPane(Column):
+    """The two-column tree browser.
 
     Left column navigates subfolders (back / forward / refresh / new folder);
     the right column lists the files, optionally previewing the highlighted
@@ -607,17 +799,18 @@ class TreeSelect(Column):
         self._after_move()
 
 
-class TreeSelectWithInput(Column):
-    """A path input plus a tree-browsing dialog (v1's `tree_select_with_input`).
+class TreeSelectDualPaneWithInput(Column):
+    """A path input plus the two-column browser in a modal dialog.
 
-        sel = v3.TreeSelectWithInput('Batch file', 'references/.../classic.txt')
+        sel = v3.TreeSelectDualPaneWithInput('Waveform file', 'a.mat')
         ...
         path = sel.value.get()
 
     Layout::
 
         [ path input ......... ] [ Recent ] [ Browse ]
-        (Browse opens a modal dialog holding the two-column `TreeSelect`)
+        (Browse opens a modal dialog holding the two-column
+        `TreeSelectDualPane`)
 
     Args:
         label: the path input's label.
@@ -629,9 +822,7 @@ class TreeSelectWithInput(Column):
         tree_panel_height: height of the tree's columns inside the dialog.
         custom: optional builder hooks, mirroring v1's customization points.
             Recognized keys: `'place0'`..`'place3'` are called (with no
-            arguments) around the path input / recent / browse buttons;
-            `'recent_button_width'` and `'browse_button_width'` are unused by
-            the v3 build (the buttons size themselves).
+            arguments) around the path input / recent / browse buttons.
         width: see `Column`.
 
     Properties:
@@ -685,20 +876,11 @@ class TreeSelectWithInput(Column):
         with self:
             with Row('bottom'):
                 _call(custom.get('place0'))
-                self._path_input = TextInput(
-                    label, value=first_path, width='stretch'
-                )
+                self._path_input = PathInput(label, first_path)
                 _call(custom.get('place1'))
-                self._recent_popover = Popover(
-                    'Recent', visible=self._has_recent
+                self._recent = Recent(
+                    'Recent', visible=self._has_recent, max_height=280
                 )
-                with self._recent_popover:
-                    self._recent_radio = Radio(
-                        'Recent',
-                        options=(),
-                        label_visibility='collapsed',
-                        max_height=280,
-                    )
                 _call(custom.get('place2'))
                 self._browse_btn = Button('Browse')
                 _call(custom.get('place3'))
@@ -708,7 +890,7 @@ class TreeSelectWithInput(Column):
             )
             self._dialog = Dialog(title, visible=self._browsing, width='large')
             with self._dialog:
-                self._tree = TreeSelect(
+                self._tree = TreeSelectDualPane(
                     nav.directory,
                     filter=filter,
                     height=tree_panel_height,
@@ -731,19 +913,20 @@ class TreeSelectWithInput(Column):
             self._commit(self._tree['value'])
             self._browsing.set(False)
 
-        @self._recent_radio.value.on_change
+        @self._recent.value.on_change
         def _on_recent_picked() -> None:
-            self._commit(str(self._recent_radio['value']), typed=False)
+            self._commit(str(self._recent['value']))
 
-        @self._path_input.value.on_change
+        @self._path_input.path.on_change
         def _on_path_typed() -> None:
-            self._commit(str(self._path_input['value']), typed=True)
+            path = self._path_input.path.get()
+            self._commit(path) if path else self.value.set('')
 
         self._refresh_recent()
 
     # -- internals ----------------------------------------------------------
 
-    def _commit(self, path: str, typed: bool = True) -> None:
+    def _commit(self, path: str) -> None:
         path = path.strip()
         if not path:
             self.value.set('')
@@ -751,7 +934,7 @@ class TreeSelectWithInput(Column):
         path = _norm(path)
         if not fs.exist(path):
             # A half-typed path is not an error, just not a value yet.
-            self.value.set('' if typed else self.value.get())
+            self.value.set('')
             return
         if self._node_type == 'file' and fs.isdir(path):
             self.value.set('')
@@ -760,21 +943,12 @@ class TreeSelectWithInput(Column):
             self.value.set(path)
             self._nav.remember(path)
             self._nav.directory = path if fs.isdir(path) else fs.parent(path)
-        if typed:
-            self._path_input.value.set(path)
+        self._path_input.path.set(path)
         self._refresh_recent()
 
     def _refresh_recent(self) -> None:
         recent = list(self._nav.recent)
         self._has_recent.set(bool(recent) and self._show_recent)
-        if not recent:
-            return
-        self._recent_radio.options.set(recent)
-        if self._recent_radio['value'] not in recent:
-            self._recent_radio.value.set(recent[0])
-
-
-def _call(hook: tp.Optional[tp.Callable]) -> None:
-    """Run a v1-style `custom` builder hook, if given."""
-    if hook is not None:
-        hook()
+        self._recent.options.set(recent)
+        if recent and self._recent['value'] not in recent:
+            self._recent.value.set(recent[0])
