@@ -5,10 +5,9 @@ Usage: See `test/on_property_test.py` and
 `test/event_driven_system/demo_click_counter.py`.
 """
 
-import contextlib
-import contextvars
 import typing as tp
 
+from .pending_updates import pending_updates
 from .signal import Signal
 from .special_value import _undefined
 from .special_value import _Undefined
@@ -18,15 +17,8 @@ class T:
     P = tp.TypeVar('P')
     Q = tp.TypeVar('Q')
     SourceOrSequence = tp.Union['Property[P]', tp.Sequence['Property[P]']]
-    Transform = tp.Callable[[tp.Union[P, tp.Sequence[P]]], Q]
-
-
-# Properties whose notification was deferred by an `updating()` block. A
-# ContextVar (rather than a thread-local) scopes the transaction to the
-# logical context, which also covers handlers run via `asyncio.to_thread`.
-_pending_updates: contextvars.ContextVar = contextvars.ContextVar(
-    'sc_pending_updates', default=None
-)
+    # Transform = tp.Callable[[tp.Union[P, tp.Sequence[P]]], Q]
+    Transform = tp.Union[tp.Callable[[P], Q], tp.Callable[[tp.Sequence[P]], Q]]
 
 
 class Property(tp.Generic[T.Q]):
@@ -56,6 +48,10 @@ class Property(tp.Generic[T.Q]):
     def __bool__(self) -> bool:
         return bool(self.value)
 
+    @property
+    def is_changed(self) -> bool:
+        return pending_updates.is_pending and id(self) in pending_updates.queue
+
     def get(self) -> T.Q:
         return tp.cast(T.Q, self.value)
 
@@ -72,17 +68,14 @@ class Property(tp.Generic[T.Q]):
             if notify is None:
                 notify = True
         if notify:
-            pending = _pending_updates.get()
-            if pending is None:
-                self.on_change.emit()
+            if pending_updates.is_pending:
+                pending_updates.add_to_queue(self)
             else:
-                # Deferred: `updating()` emits once per property when the
-                # block ends, with the final value.
-                pending.add(self)
+                self.on_change.emit()
 
     def bind(
         self,
-        source: T.SourceOrSequence,
+        any_source: T.SourceOrSequence,
         transform: tp.Optional[T.Transform] = None,
     ) -> None:
         """
@@ -96,7 +89,8 @@ class Property(tp.Generic[T.Q]):
         the immediate sync is skipped and we wait for the first change.
         """
 
-        if isinstance(source, Property):
+        if isinstance(any_source, Property):
+            source: Property = any_source
 
             def sync() -> None:
                 if transform is None:
@@ -111,20 +105,23 @@ class Property(tp.Generic[T.Q]):
 
         else:
             assert transform is not None
+            sources: tp.Sequence[Property] = any_source
 
             class SourceAccessor:
-                def __init__(self, source_factors):
-                    self.source_factors = source_factors
+                def __init__(self, sources: tp.Sequence[Property]) -> None:
+                    self._sources = sources
 
                 def __getitem__(self, index: int) -> T.P:
-                    return self.source_factors[index].get()
+                    return self._sources[index].get()
 
-            def any_trigger_to_sync():
+            def any_trigger_to_sync() -> None:
                 self.set(
-                    transform(tp.cast(tp.Sequence[T.P], SourceAccessor(source)))
+                    transform(
+                        tp.cast(tp.Sequence[T.P], SourceAccessor(sources))
+                    )
                 )
 
-            if all(x.get() is not _undefined for x in source):
+            if all(x.get() is not _undefined for x in sources):
                 any_trigger_to_sync()
 
     def set_or_bind(self, value: 'T.Q | Property[T.Q]') -> None:
@@ -193,41 +190,3 @@ def bbind(source: Property[T.Q]) -> Property[T.Q]:
                 state.eye_channel.set(new_channel)
     """
     return _BidiProperty(source)
-
-
-@contextlib.contextmanager
-def updating() -> tp.Iterator[None]:
-    """Batch property notifications until the block exits.
-
-    Inside the block, `Property.set()` updates the value but does *not*
-    emit `on_change`. Every property that changed then emits exactly once,
-    carrying its final value, so a burst of intermediate updates collapses
-    into a single notification per property:
-
-        with sc.updating():
-            state.count.set(1)
-            state.count.set(2)
-            state.count.set(3)
-        # `on_change` fires once, with count == 3
-
-    This matters for the delta protocol: each notification becomes a
-    websocket frame pushed to the browser, so squashing them also trims
-    traffic. `Property.set(notify=False)` still never notifies.
-
-    Nested blocks join the outermost one, and an exception raised in the
-    block still flushes whatever had already changed.
-    """
-    txn = _pending_updates.get()
-    if txn is not None:
-        yield  # join the enclosing transaction
-        return
-    txn = set()
-    token = _pending_updates.set(txn)
-    try:
-        yield
-    finally:
-        # Reset first, so that a handler which `set()`s other properties
-        # during the flush notifies normally instead of being deferred.
-        _pending_updates.reset(token)
-        for prop in list(txn):
-            prop.on_change.emit()

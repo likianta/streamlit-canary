@@ -28,8 +28,8 @@ from .kernel import _undefined
 from .kernel import _value
 from .kernel import bbind
 from .kernel import bind
-from .kernel import updating
 from .keygen import generate_keygen
+from .kernel import pending_updates
 from .opener import open_file
 from .opener import open_folder
 from .page import pages
@@ -45,6 +45,14 @@ from .session import init_state as get_state
 from .session import init_state_v2
 from .session import is_session_init
 from .session import shared_data
-from .text import *
+from .text import blue
+from .text import bold
+from .text import dim
+from .text import gray
+from .text import green
+from .text import magenta
+from .text import orange
+from .text import red
+from .text import yellow
 
 __version__ = '0.4.0'
