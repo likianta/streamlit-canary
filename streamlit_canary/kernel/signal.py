@@ -51,10 +51,13 @@ import typing as tp
 from .special_value import _self
 from .special_value import _value
 
-_H = tp.TypeVar('_H', bound=tp.Callable)
-# A `Signal` declares any number of positional payload types, so the type
-# parameter is a tuple: `Signal[int, str]` is as valid as `Signal[int]`.
-_Ts = tp.TypeVarTuple('_Ts')
+
+class T:
+    Function = tp.TypeVar('Function', bound=tp.Callable)
+    # A `Signal` declares any number of positional payload types, so the type
+    # parameter is a tuple: `Signal[int, str]` is as valid as `Signal[int]`.
+    SignalGuardedTypes = tp.TypeVarTuple('SignalGuardedTypes')
+    AnyEventHandler = tp.Union[Function, 'Signal']
 
 
 def _type_name(annotation: tp.Any) -> str:
@@ -132,13 +135,13 @@ class _Partial:
 
         return wrapper
 
-    def __call__(self, func: _H) -> _H:
+    def __call__(self, func: T.Function) -> T.Function:
         self._signal.connect(self._wrap(func))
         return func
 
     @property
-    def emit_now(self) -> tp.Callable[[_H], _H]:
-        def decorator(func: _H) -> _H:
+    def emit_now(self) -> tp.Callable[T.Function, T.Function]:
+        def decorator(func: T.Function) -> T.Function:
             self._signal.connect(self._wrap(func))
             self._signal.emit()
             return func
@@ -146,7 +149,7 @@ class _Partial:
         return decorator
 
 
-class Signal(tp.Generic[*_Ts]):
+class Signal(tp.Generic[*T.SignalGuardedTypes]):
     def __init__(
         self,
         *args: type,
@@ -172,12 +175,15 @@ class Signal(tp.Generic[*_Ts]):
 
     # -- connection -------------------------------------------------------
 
-    def connect(self, handler: tp.Callable) -> tp.Callable:
-        self._handlers.append(handler)
+    def connect(self, handler: T.AnyEventHandler) -> tp.Callable:
+        self._handlers.append(
+            handler.emit if isinstance(handler, Signal) else handler
+        )
         return handler
 
-    def disconnect(self, handler: tp.Callable) -> None:
-        self._handlers = [h for h in self._handlers if h is not handler]
+    def disconnect(self, handler: T.AnyEventHandler) -> None:
+        real_handler = handler.emit if isinstance(handler, Signal) else handler
+        self._handlers = [h for h in self._handlers if h is not real_handler]
 
     # -- emit ------------------------------------------------------------
 
@@ -201,7 +207,7 @@ class Signal(tp.Generic[*_Ts]):
 
     # -- decorator support ------------------------------------------------
 
-    def __call__(self, func: _H) -> _H:
+    def __call__(self, func: T.Function) -> T.Function:
         """Allow `@signal` to register a handler."""
         self.connect(func)
         return func
@@ -209,7 +215,7 @@ class Signal(tp.Generic[*_Ts]):
     # -- register + emit immediately --------------------------------------
 
     @property
-    def emit_now(self) -> tp.Callable[[_H], _H]:
+    def emit_now(self) -> tp.Callable[T.Function, T.Function]:
         """
         Decorator: register the handler and immediately emit once.
 
@@ -223,7 +229,7 @@ class Signal(tp.Generic[*_Ts]):
         for the others there would be nothing to pass.
         """
 
-        def decorator(func: _H) -> _H:
+        def decorator(func: T.Function) -> T.Function:
             self.connect(func)
             self.emit()
             return func
