@@ -7,6 +7,7 @@ import psutil
 import pyapp_window
 import streamlit as st
 from lk_utils import fs
+from lk_utils import now
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
 
@@ -26,7 +27,7 @@ def run(
         (streamlit_process, window_process)
     """
     if callable(target):  # v3 entrance
-        print(':ds')
+        print(':dsv', now('h:n:s'))
         print(
             'application is running at:\n  - {}\n  - {}'.format(
                 'http://localhost:{}'.format(port),

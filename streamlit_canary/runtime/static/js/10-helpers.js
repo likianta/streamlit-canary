@@ -90,10 +90,12 @@
     }
     return values.map((o, i) => {
       const off = frozen.has(i) ? ' disabled' : '';
+      // `isChecked` is handed the index as well, because a flag-mode
+      // CheckGroup reads its ticks by position (see `st-check-group--flags`).
       const field =
         `<span class="st-radio-input-wrap">` +
         `<input type="${inputType}"${name} value="${scOptionAttr(o)}" ` +
-        `${isChecked(o) ? 'checked' : ''}${off} onchange="${onchange}(this)" ` +
+        `${isChecked(o, i) ? 'checked' : ''}${off} onchange="${onchange}(this)" ` +
         `data-comp-id="${id}"/></span>`;
       const text =
         `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>`;

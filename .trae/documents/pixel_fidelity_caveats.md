@@ -53,9 +53,13 @@
     原版行为: st.number_input 的 stepper 只要组件宽度 <= 7.5rem (其前端常量 `hideNumberInputControls`) 就直接隐藏, 没有竖排这一步.
 
 - PdfViewer
-  - 我们把 PDF 交给浏览器自带的引擎绘制: 渲染出一个 `<embed type="application/pdf">`, `src` 是一条 `data:application/pdf;base64,...` URL. 服务器不做栅格化, 前端不打包任何 PDF 引擎.
+  - 我们把 PDF 交给浏览器自带的引擎绘制: 渲染出一个 `<embed type="application/pdf">`, `src` 指向运行时的 `/media/<内容哈希>#navpanes=0&zoom=page-width`. 服务器不做栅格化, 前端不打包任何 PDF 引擎.
 
-    原版行为: `st.pdf` 只是第三方 `streamlit-pdf` 包的薄封装, 参考应用 `pdf_watermaker` 预览用的是另一个第三方包 `streamlit_pdf_viewer.pdf_viewer`; 两者都要在 iframe 里装进一整套 pdf.js (约 2MB) 才能画出第一页.
+    为什么不直接内联成 `data:` URL: viewer 的"打开参数"只有 http(s) URL 才会被采纳 —— `data:` URL 本身就是整份文档, `#` 之后的内容会被整个丢掉 (实测确认). 所以 `PdfViewer` 把裁好的字节交给 `Runtime.publish_media` 发布, 再把发布后的 URL 交给前端; 令牌就是内容哈希, 因此同样的字节永远对应同一个 URL, 可以长期缓存 (响应带 `immutable`). 一条页范围几百 KB, 运行时最多留 64 条.
+
+    那两个参数 (`VIEW_PARAMS`) 就是"默认不展开侧边栏 + fit to viewport width". 浏览器自己的默认是 `fit to page`, 那会把整页连页边一起塞进通常很矮的盒子里, 字小到看不清.
+
+  - 原版行为: `st.pdf` 只是第三方 `streamlit-pdf` 包的薄封装, 参考应用 `pdf_watermaker` 预览用的是另一个第三方包 `streamlit_pdf_viewer.pdf_viewer`; 两者都要在 iframe 里装进一整套 pdf.js (约 2MB) 才能画出第一页, 且打开时的缩放是 pdf.js 自己的默认值.
 
   - `pages_to_render` 在**服务端**就把页面范围裁出来 (`pikepdf`), 因此浏览器只收到被要求的那几页; 不传则整份文档原样送出.
 
@@ -65,7 +69,7 @@
 
     原版行为: 那层外框属于 pdf.js, 是它自己那套工具栏和背景色.
 
-  - 前提是浏览器带 PDF 插件. playwright 默认拉的 `chromium_headless_shell` 没有插件, `<embed>` 在那里画不出任何内容 —— 因此 `compare_pdf_viewer.py` 用 `channel='chromium'` 拉起完整版 chromium (它才有插件).
+  - 前提是浏览器带 PDF 插件. playwright 默认拉的 `chromium_headless_shell` 没有插件, `<embed>` 在那里画不出任何内容 —— 因此 `pdf_viewer_vs.py` 用 `channel='chromium'` 拉起完整版 chromium (它才有插件).
 
 - Popover
   - Popover 的展开面板使用高度动画 (120ms), 跟 Selectbox 的展开面板是同一套做法: 从 0 高度展开到内容高度, 展开过程中内容被裁剪, 因此不会溢出, 也不会出现滚动条 (展开结束后若内容超过 max-height, 才恢复为可滚动).
@@ -148,13 +152,14 @@
 - 我们使用 `enabled` 来控制组件可交互性, 而原版是 `disabled`.
 - NumberInput 的 stepper 需要显式设置 `step` 参数才会显示.
 - `v3.Radio` 更名为 `v3.RadioGroup` (名字与 `v3.CheckGroup` 对称). `Radio` 作为别名指向 `RadioGroup`.
-- 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件. 它还多一个 `focused_index` 属性 (被点击文本 "高亮" 的那一行的下标, -1 表示无), 便于 "进入高亮节点" 这类按钮: `btn.enabled = sc.bind(cg.focused_index, lambda i: i >= 0)`.
+- 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件. 它还多一个 `focused_index` 属性 (被点击文本 "高亮" 的那一行的下标, -1 表示无), 便于 "进入高亮节点" 这类按钮: `btn.enabled = sc.bind(cg.focused_index, lambda i: i >= 0)`. 另外 `cg.on_change` 是 `cg.value.on_change` (即 `cg['on_value']`) 的简写 —— 组件上一个 `on_change` 属性, 免得写长串 (注意这是**组件级**的便利属性, 目前只有 `CheckGroup` 有; 别的组件还是走 `cg['on_value']`).
+- `v3.CheckGroup` 的 `options` 也接受 `dict[str, bool]`: 键直接充当选项文本, 值表示该选项初始是否勾选. 这种 (flag 模式) 下 `.value` 不再是 `options` 的子集, 而是与 `options` **平行的一串 bool** —— 客户端回报的仍然是勾选文本, 由 `_coerce_value` 翻译成这串 bool; 服务端渲染与前端补丁都靠 `st-check-group--flags` 这个类名按位置读勾选状态, 所以 `options` 变更时服务端要把当前 flags 一并塞进 options 补丁 (`msg.flags`), 否则重建出来的行会全部掉勾. 普通的 list / tuple 形式完全不受影响 (`value` 仍是选项的子集).
 - 我们新增了 `v3.ReducibleGroup` (用 `v3.MenuButton` 选项行的样式, 但每行右侧多一个悬浮时才出现的 `x`, 点击即把该项从列表移除并发出 `on_reduce`); 原版没有对应组件.
 - `v3.MenuButton` 对齐 `st.menu_button`: 选项行 `min-width: 128px`, 行距 32px (28px 行高 + 4px 会折叠的 margin), 菜单面板 `padding: 2px 6px` / 圆角 12px / `z-index: 1000060`, 触发按钮的 chevron 比 `st.popover` 大一号 (20px vs 16px). 菜单面板与触发器的间距是紧凑的 4px (和原版一致), 刻意区别于 `v3.Popover` 的宽松 8px (见上面 `MenuButton` / `Popover` 两节).
 - `v3.TextInput` 多一个 `candidates` 参数: 给出候选列表后, 文本框右侧出现一个 caret, 展开的面板与外框完全复用 `v3.Selectbox` 的样式, 选一项即写回文本框. 文本始终可自由输入, 所以它相当于 `st.selectbox(..., accept_new_options=True)`, 只是值不必是候选之一. `None` 无 caret, 空列表有 caret 但禁用 (是否有 caret 在构建时定下, 之后的 patch 只替换列表内容). 另外 `v3.TextInput` 现在按 Enter 即提交 (原版 `st.text_input` 也是如此). `v3:TreeSelect:PathInput` 也支持这个参数, 但默认关闭 (不传即 `None`, 是一个纯文本框): 祖先跳转改由面板顶部的 selectbox 承担 (见下一条), 两个入口是重复的.
 - `v3.TreeSelect` 去掉了箭头工具栏, 改为"点行勾选 + 箭头导航": 列表头部固定一行 `..` (去父目录), 其后才是文件夹 (名字带 `/`) 与文件. 点行只勾选/选中该行 (多选模式下整行都是 box 的 label, 所以点正文即勾选; 单选模式下点正文即选中); 进入某个文件夹不再靠双击, 而是悬停该行时在正文右侧浮出的 `->` 按钮 (见下一条). `..` 既不是可勾选的节点也不是文件夹: 它的 box 被冻结, 单击行正文即回到上级 (它不画箭头). 单选列表每次重建都从"未选中"开始, 这样点任意一行都能生效.
 - `v3.TreeSelect` 的文件夹导航由一个悬浮箭头承担: 若一行的选项能被 `navigable` 断言命中, 渲染时就多画一个 `<button class="st-row-open">` (`_row_enter_html` / `scRowEnterHtml`), 静止时 `opacity: 0`, 鼠标进入该行才浮现 (正文右侧, 间隔 32px = 行自身的 8px `gap` + 额外的 24px, 给"box + 名字"这块 tick 区留出呼吸空间), 浮现动画是"淡入 + 右移 4px"; 箭头用 `:blue[..]` 的颜色, 鼠标移到箭头上时正文出现 `:gray[..]` 色的下划线, 箭头自己的小方块背景转成 `:blue[..]` 的底色 `--st-blue-background-color` (它压在行的 hover 底色之上, 所以必须带蓝才分得开). 箭头右边还有 30px 容错区 (由 `::after` 撑出, 属于按钮本身): 悬停/点击都算"点箭头", 因为否则要瞄准一个 20px 的图标; 再往右 (far right) 才回到行自己的点击行为. 所有箭头落在同一个 x 上: `scAlignRowArrows` 把每个带箭头行的正文 `min-width` 设成"当前最长的 folder 名", 所以指针不用逐行重读也能瞄准. 这一步要重算三次 —— 首次渲染、字体加载完 (字宽会变), 以及**元素由隐藏变可见时** (popover 打开 / `visible` 翻转): `display: none` 的子树里一切宽度都量到 0, 隐藏时算出来的对齐是无效的. 另外, 一行的选项若能被 `body_opens` 断言命中 (`..`), 它的**整行点击**就走 `scOpenRow`, 和点箭头同一个手势 —— box 冻结了, 这次点击本来就没别的事可做 (所以 `..` 不画箭头, 单击它就是回到上级). 这两个手势都是 `TreeSelect` 私有基类 `_NavigationGroup` (及其两个子类 `_NavCheckGroup` / `_NavRadioGroup`) 提供的, 通用型 `CheckGroup` / `RadioGroup` 完全不知情.
-- `v3.TreeSelect:selection_mode` 决定一次能选多少: `'single'` (单选节点, 默认), `'multiple'` (只勾选当前文件夹, 跳转会清空), `'multicross'` (跨文件夹累加进 bucket), `'any'` (三者在 SegmentedControl 里自由切换). 结果统一读 `.value` —— `single` 是 `str`, 其余是路径 `list`; `mode` 给出当前模式. 面板顶部是一行工具栏: 最前面是一个 "Current location" selectbox, 列出当前文件夹的**所有祖先节点** (自身排在最后, 所以这串阶梯同时就是"你在哪"), 选中任意一级即跳转; 其后随模式增减 —— refresh 恒有, bucket 只在 `multicross` / `any`, SegmentedControl 只在 `any`. Confirm 按钮 (`type='primary'`) 的位置由 `_vendored` 决定: 独立的 `TreeSelect` 把它摆在列表正下方 (常规流内, 撑满面板宽度), 面板自带一圈边框 (`border`, 默认 `True`); 被包装器塞进 popover 的那种 (`TreeSelectWithInput` 传 `_vendored=True`) 则把按钮浮到右下角 (`FloatingContainer('bottom-right')`) 并 `border=False`, 免得在 popover 自己的框里再套一层. 点击发出 `TreeSelect.on_submit` —— 包装器 (`TreeSelectWithInput`) 监听它来收起自己的 Browse popover. 手输/选择文件夹路径 = 跳到该目录, 文件才进入选中.
+- `v3.TreeSelect:selection_mode` 决定一次能选多少: `'single'` (单选节点, 默认), `'multiple'` (只勾选当前文件夹, 跳转会清空), `'multicross'` (跨文件夹累加进 bucket); 也可以给一个元组/列表 (如 `('single', 'multicross')`), 意思是"就这几个模式, 用 SegmentedControl 切换", 并以**第一个**为初始模式 —— 顺序任你排. (早先那个 `'any'` 已按 TODO 移除, 它等价于给全三种.) 结果统一读 `.value` —— `single` 是 `str`, 其余是路径 `list`; `mode` 给出当前模式. 面板顶部是一行工具栏: 最前面是一个 "Current location" selectbox, 列出当前文件夹的**所有祖先节点** (自身排在最后, 所以这串阶梯同时就是"你在哪"), 选中任意一级即跳转; 其后随模式增减 —— refresh 恒有, bucket 只在这组模式含 `multicross` 时, SegmentedControl 只在给了不止一个模式时. Confirm 按钮 (`type='primary'`) 的位置由 `_vendored` 决定: 独立的 `TreeSelect` 把它摆在列表正下方 (常规流内, 撑满面板宽度), 面板自带一圈边框 (`border`, 默认 `True`); 被包装器塞进 popover 的那种 (`TreeSelectWithInput` 传 `_vendored=True`) 则把按钮浮到右下角 (`FloatingContainer('bottom-right')`) 并 `border=False`, 免得在 popover 自己的框里再套一层. 点击发出 `TreeSelect.on_submit` —— 包装器 (`TreeSelectWithInput`) 监听它来收起自己的 Browse popover. 手输/选择文件夹路径 = 跳到该目录, 文件才进入选中.
 - `v3.RadioGroup` / `v3.CheckGroup` 的选项行可以携带三个按行判定的谓词, 渲染时各算成类名/属性并通过 `options` 补丁以"命中下标列表"的形式推给前端 (JS 无法求值 Python 谓词, 和 `box_disabled` 同一机制): `box_disabled` 把命中的选项的 box 冻结 (字段 disabled + 行加 `.is-box-disabled`, 画得暗一些), `navigable` 让命中的行多出上面那个 `->` 箭头, `body_opens` 让命中的行把整行点击从"高亮"换成"进入" (走 `scOpenRow`). 另外 `RadioGroup` 也有 `focused_index` (和 `CheckGroup` 一致); 这份行状态 (点击高亮 + `focus` 事件回传) 抽到了私有基类 `_RowGestures`. 行上不再有任何双击手势: `on_open` 现在只在 `_NavigationGroup` 上定义, 由箭头 (或 `body_opens` 行的整行点击) 触发.
 - `TreeSelectWithInput` / `TreeSelectDualPaneWithInput` 的 "Recent" 下拉: 列表被替换时, 内部 radio 会自己 adopt 最新一条 (`_auto_select`), 而这次 adopt 看起来跟"用户挑了一项"一模一样 —— 以前包装器会因此跑一遍 `_commit`, 于是"面板里勾一个文件夹"会把面板一起带走. 现在 `Recent` 用与 `_auto_select` 相同的判据预先记下它将 adopt 哪一项, 回传时跳过它: 列表刷新不再伪装成挑选, 而真·下拉挑选仍照常 `_commit` (文件夹 → 面板跳过去, 文件 → 加入选中).
 - 我们新增了 `v3.FloatingContainer` (`v3.Floating` 是它的别名): 吸附在父布局某个角落的容器, 见上面 UI 差异一节的 `FloatingContainer`.

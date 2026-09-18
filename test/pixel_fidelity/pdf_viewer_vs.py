@@ -51,6 +51,7 @@ backdrop are Chrome's, while `streamlit_pdf_viewer` draws pdf.js' own.
 import base64
 import io
 import sys
+import urllib.request
 
 import pikepdf
 from lk_utils import fs
@@ -114,11 +115,26 @@ def same(a, b) -> bool:
     return str(a) == str(b)
 
 
-def page_count(url: str) -> int:
-    """The number of pages inside a `data:application/pdf` URL."""
+def viewer_bytes(url: str) -> bytes:
+    """The PDF a viewer was handed.
+
+    Canary publishes the range over HTTP -- a `data:` URL is the document
+    itself and drops the open parameters the viewer needs (see
+    `streamlit_canary.components_v3.media.VIEW_PARAMS`) -- while
+    `streamlit_pdf_viewer` still passes it inline, so both are understood.
+    """
+    if url.startswith('/media/'):
+        path = url.split('#', 1)[0]  # the `#` half is for the viewer only
+        with urllib.request.urlopen(SC_URL + path) as res:
+            return res.read()
     head, _, payload = url.partition(',')
     assert head.startswith('data:application/pdf'), head
-    with pikepdf.open(io.BytesIO(base64.b64decode(payload))) as pdf:
+    return base64.b64decode(payload)
+
+
+def page_count(url: str) -> int:
+    """The number of pages a viewer was actually handed."""
+    with pikepdf.open(io.BytesIO(viewer_bytes(url))) as pdf:
         return len(pdf.pages)
 
 
@@ -224,14 +240,18 @@ def main() -> int:
         report.add(
             'canary viewer 2 payload is smaller than viewer 1',
             True,
-            len(sc_src[1]) < len(sc_src[0]),
+            # measured on the bytes actually served, not on the URL: canary
+            # now hands out a short `/media/<hash>#...` either way
+            len(viewer_bytes(sc_src[1])) < len(viewer_bytes(sc_src[0])),
         )
         # The subsetting has to survive the same path the server uses, so the
         # check runs the converter directly as well.
         report.add(
             'offline subset of page {}'.format(list(PAGES)),
             len(PAGES),
-            page_count(media._to_url(SAMPLE, PAGES)),
+            # no runtime to publish with, so this exercises the inline
+            # fallback -- the subsetting itself is the same either way
+            page_count(media._to_url(SAMPLE, PAGES, None)),
         )
 
         report.print()

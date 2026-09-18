@@ -7,7 +7,7 @@ The reference `pdf_watermaker` app previews documents with
 `streamlit_pdf_viewer.pdf_viewer`, so that is the counterpart the canary
 `v3.PdfViewer` is compared against.
 
-Start this app, then `pdf_viewer_sc.py`, then run `compare_pdf_viewer.py`
+Start this app, then `pdf_viewer_sc.py`, then run `pdf_viewer_vs.py`
 (its docstring has the exact commands):
 
     python -m streamlit run --browser.gatherUsageStats false \\

@@ -1183,10 +1183,20 @@ def _render_radio_group(comp: RadioGroup) -> str:
 
 
 def _render_check_group(comp: CheckGroup) -> str:
-    picked = list(comp.value.get() or ())
+    if comp._flags:
+        # Flag mode (`options` arrived as a `dict`): `value` is a list of
+        # booleans parallel to `options`, so the ticked options are the ones
+        # the flags line up with. The extra class tells the frontend to read
+        # `value` the same way when it patches.
+        options = list(comp.options.get() or ())
+        picked = [o for o, on in zip(options, comp.value.get() or ()) if on]
+        base_cls = 'st-check-group st-check-group--flags'
+    else:
+        picked = list(comp.value.get() or ())
+        base_cls = 'st-check-group'
     return _render_choice_group(
         comp,
-        base_cls='st-check-group',
+        base_cls=base_cls,
         input_type='checkbox',
         on_change='scSendCheckGroup',
         is_checked=lambda o: o in picked,

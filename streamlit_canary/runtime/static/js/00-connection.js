@@ -126,6 +126,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         scAlignRowArrows(el);
       }
       if (el.classList.contains('st-check-group')) {
+        // Flag mode reads its ticks by position (see `st-check-group--flags`),
+        // and `msg.flags` carries the current value for a rebuilt row set.
+        const flags = el.classList.contains('st-check-group--flags');
+        const flagValues = flags ? (msg.flags || el._scValue || []) : null;
         const wanted = new Set((el._scValue || []).map(scOptionKey));
         el.querySelector('.st-radio-group').innerHTML = scChoiceItemsHtml({
           id: msg.id,
@@ -133,7 +137,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           labels: msg.formatted || msg.value.map(x => x),
           inputType: 'checkbox',
           onchange: 'scSendCheckGroup',
-          isChecked: (o) => wanted.has(scOptionKey(o)),
+          isChecked: flags
+            ? (o, i) => !!flagValues[i]
+            : (o) => wanted.has(scOptionKey(o)),
           boxDisabled: msg.box_disabled,
           navigable: msg.navigable,
           bodyOpens: msg.body_opens,
@@ -222,11 +228,13 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         scSyncSegmented(el);
       }
       if (el.classList.contains('st-check-group')) {
-        // A list value: tick every box whose option is in the selection.
+        // A list value: tick every box whose option is in the selection --
+        // or, in flag mode, the boxes the parallel booleans line up with.
         el._scValue = msg.value || [];
+        const flags = el.classList.contains('st-check-group--flags');
         const wanted = new Set(el._scValue.map(scOptionKey));
-        el.querySelectorAll('input').forEach(box => {
-          box.checked = wanted.has(box.value);
+        el.querySelectorAll('input').forEach((box, i) => {
+          box.checked = flags ? !!el._scValue[i] : wanted.has(box.value);
         });
       }
       if (

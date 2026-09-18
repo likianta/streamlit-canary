@@ -108,6 +108,21 @@ def create_app(runtime: Runtime) -> Starlette:
             return Response(status_code=404)
         return FileResponse(_MARKDOWN_PATH, media_type='text/javascript')
 
+    async def media_endpoint(request: Request) -> Response:
+        # what a `PdfViewer` published (see `Runtime.publish_media`) -- served
+        # over HTTP because a `data:` URL cannot carry the viewer's open
+        # parameters.
+        found = runtime.get_media(request.path_params['token'])
+        if found is None:
+            return Response(status_code=404)
+        media_type, body = found
+        return Response(
+            content=body,
+            media_type=media_type,
+            # the token *is* the content hash, so a body can never change
+            headers={'Cache-Control': 'public, max-age=31536000, immutable'},
+        )
+
     async def healthz(request: Request) -> Response:
         # Polled by the browser while a rerun is in flight; the response
         # lets the page know the process is back and it can reload.
@@ -153,6 +168,7 @@ def create_app(runtime: Runtime) -> Starlette:
             Route('/fonts/source-code.woff2', code_font_endpoint),
             Route('/fonts/material-symbols.woff2', icon_font_endpoint),
             Route('/static/markdown-it.js', markdown_endpoint),
+            Route('/media/{token}', media_endpoint),
             WebSocketRoute('/ws', ws_endpoint),
         ]
     )

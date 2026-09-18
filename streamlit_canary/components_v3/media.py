@@ -8,8 +8,9 @@ inside an iframe before a single page is drawn.
 
 A browser already has a PDF engine, and `<embed type="application/pdf">`
 reaches it directly. This viewer uses that: the server only hands the
-document over (as a `data:` URL, cut down to the asked-for pages) and the
-browser draws it. Nothing is rasterized, no engine is bundled, and the
+document over (cut down to the asked-for pages, and published under
+`/media/<hash>` -- see `VIEW_PARAMS` for why it cannot simply go inline) and
+the browser draws it. Nothing is rasterized, no engine is bundled, and the
 payload is exactly the page range an app asks for.
 """
 
@@ -20,6 +21,16 @@ import typing as tp
 from ._shared import _visible_when_filled
 from .base import Component
 from ..kernel import Property
+
+VIEW_PARAMS = '#navpanes=0&zoom=page-width'
+"""How the built-in viewer opens a document: the bookmarks panel stays shut,
+and the page is fitted to the *width* of the box instead of to the whole
+page. `zoom=page-fit` -- the viewer's own default -- letterboxes a page into
+what is usually a short box, which leaves the text unreadably small.
+
+The viewer only reads these off an http(s) URL. A `data:` URL *is* the
+document, and everything after its `#` is dropped, so the bytes are published
+by the runtime instead of inlined (see `Runtime.publish_media`)."""
 
 
 def _normalize_pages(pages: tp.Any) -> tp.Tuple[int, ...]:
@@ -68,27 +79,47 @@ def _subset(data: bytes, pages: tp.Tuple[int, ...]) -> bytes:
         return buffer.getvalue()
 
 
-def _to_url(src: tp.Any, pages: tp.Tuple[int, ...]) -> str:
-    """A source (path / bytes / ready URL) as a browser-loadable `data:` URL.
+def _decode_data_url(url: str) -> bytes:
+    """The bytes behind a base64 `data:` URL (`b''` when it is malformed)."""
+    _, _, payload = url.partition(',')
+    try:
+        return base64.b64decode(payload, validate=False)
+    except (ValueError, TypeError):
+        return b''
+
+
+def _to_url(src: tp.Any, pages: tp.Tuple[int, ...], runtime: tp.Any) -> str:
+    """A source (path / bytes / ready URL) as a URL the browser can load.
+
+    Paths and raw bytes are handed to the runtime to publish, which is what
+    buys the http URL that `VIEW_PARAMS` needs; with no runtime to publish to
+    (a component built outside one) the bytes go inline as a `data:` URL,
+    which shows the same document minus the view options.
 
     A missing file draws nothing (`''`) rather than failing: an app often
     points the viewer at a file it has not generated yet (see
     `pdf_watermaker_copy`'s watermark preview).
     """
+    if isinstance(src, str) and src.startswith('/media/'):
+        return src  # already published, e.g. the same value set twice
     if isinstance(src, str) and src.startswith('data:'):
-        return src
-    try:
-        data = _as_pdf_bytes(src)
-    except OSError:
-        return ''
+        data = _decode_data_url(src)
+    else:
+        try:
+            data = _as_pdf_bytes(src)
+        except OSError:
+            return ''
     if not data:
         return ''
-    encoded = base64.b64encode(_subset(data, pages)).decode('ascii')
-    return 'data:application/pdf;base64,{}'.format(encoded)
+    data = _subset(data, pages)
+    if runtime is None:
+        encoded = base64.b64encode(data).decode('ascii')
+        return 'data:application/pdf;base64,{}'.format(encoded)
+    return runtime.publish_media(data, 'application/pdf') + VIEW_PARAMS
 
 
 class _UrlProperty(Property):
-    """A `Property` that stores whatever is set on it as a `data:` URL.
+    """A `Property` that stores whatever is set on it as a loadable URL.
 
     `PdfViewer.src` accepts a path, raw `bytes`, or a ready URL from every
     direction -- the constructor, `set()`, `bind()`, or a plain assignment --
@@ -98,12 +129,13 @@ class _UrlProperty(Property):
     conversion -- a path or `bytes` could not travel to the client).
     """
 
-    def __init__(self, pages: tp.Tuple[int, ...]) -> None:
+    def __init__(self, pages: tp.Tuple[int, ...], runtime: tp.Any) -> None:
         super().__init__('')
         self._pages = pages
+        self._runtime = runtime
 
     def set(self, value: tp.Any, notify: tp.Optional[bool] = None) -> None:
-        super().set(_to_url(value, self._pages), notify)
+        super().set(_to_url(value, self._pages, self._runtime), notify)
 
 
 class PdfViewer(Component):
@@ -114,9 +146,10 @@ class PdfViewer(Component):
     is rasterized on the server.
 
     Args:
-        src: the PDF to show -- a file path, `bytes`, or a ready `data:`
-            URL. Bindable: rebinding swaps the document in place (a `src`
-            delta patch, no rerun).
+        src: the PDF to show -- a file path, `bytes`, or a ready URL (a
+            `data:` one is published again, so the view options still
+            apply). Bindable: rebinding swaps the document in place (a
+            `src` delta patch, no rerun).
         pages_to_render: 1-based page numbers to show, e.g. `(1, 2, 3)`. A
             subset is cut out of the document with `pikepdf`, so a long file
             only ships the pages asked for; empty (the default) shows every
@@ -130,8 +163,9 @@ class PdfViewer(Component):
             with the content test below (see `_visible_when_filled`).
 
     Properties:
-        src: str -- the current document, always as a `data:` URL ('' when
-            there is none). `set()` / `bind()` accept a path or `bytes` too.
+        src: str -- the current document, always as a URL the browser can
+            fetch and that carries the view options ('' when there is none).
+            `set()` / `bind()` accept a path or `bytes` too.
         visible: bool -- false while there is no document, or whenever the
             flag is switched off explicitly.
     """
@@ -148,7 +182,13 @@ class PdfViewer(Component):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(visible=visible, **kwargs)
-        self.src: _UrlProperty = _UrlProperty(_normalize_pages(pages_to_render))
+        # the runtime building this tree is the one to publish the document
+        # with, and it has to be kept: `src` is usually set long after the
+        # build, from an event handler, by which time
+        # `Component._active_runtime` is None again.
+        self.src: _UrlProperty = _UrlProperty(
+            _normalize_pages(pages_to_render), Component._active_runtime
+        )
         if isinstance(src, Property):
             self.src.bind(src)
         else:

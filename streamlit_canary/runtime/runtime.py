@@ -11,6 +11,7 @@ This is the core of the "no rerun" model: after `build()`, the app function
 never runs again — only signal handlers execute.
 """
 
+import hashlib
 import os
 import sys
 import traceback
@@ -24,6 +25,11 @@ if tp.TYPE_CHECKING:
 else:
     Component = tp.Any
     WebSocketClient = tp.Any
+
+_MAX_MEDIA = 64
+"""How many published media bodies the runtime holds (see `publish_media`).
+One `PdfViewer` page range is a few hundred KB, so the cap keeps a handful of
+MB around -- far more than any one page can point at."""
 
 
 def _display_path(path: str) -> str:
@@ -85,6 +91,7 @@ class Runtime:
         self._ws_clients: set[WebSocketClient] = set()
         self._source_changed: set[str] = set()
         self._log_sinks: dict[str, list[tp.Callable[[str], None]]] = {}
+        self._media: dict[str, tuple[str, bytes]] = {}
         self._built = False
 
     # -- lifecycle --------------------------------------------------------
@@ -212,6 +219,11 @@ class Runtime:
                 message['body_opens'] = [
                     i for i, o in enumerate(value or []) if body_opens(o)
                 ]
+            # CheckGroup in flag mode keeps `value` as a list of booleans
+            # parallel to `options` (`options` was a `dict`), so a rebuilt row
+            # set also needs those flags to know which rows are ticked.
+            if getattr(comp, '_flags', False):
+                message['flags'] = list(comp.value.get() or ())
         elif prop_name == 'value':
             # NumberInput: the display text may differ from the raw value
             # (e.g. `hex`), so send it along for the frontend to patch.
@@ -279,6 +291,32 @@ class Runtime:
                 # a panel that cannot take the line must not take the app
                 # down with it -- the line has reached the terminal already
                 pass
+
+    # -- media -------------------------------------------------------------
+
+    def publish_media(self, data: bytes, media_type: str) -> str:
+        """Publish `data` and return the URL the client can fetch it from.
+
+        A PDF has to travel over HTTP rather than inside a `data:` URL: only
+        then does the browser's built-in viewer honour the open parameters
+        (`#zoom=`, `#navpanes=`) that `PdfViewer` puts on the end of the URL.
+        A `data:` URL is the whole document in the page and the viewer drops
+        everything after the `#`.
+
+        The token is the content hash, so the same bytes always come back
+        under the same URL -- re-publishing is free, and the client may cache
+        it forever. The oldest entries are dropped past `_MAX_MEDIA`.
+        """
+        token = hashlib.sha256(data).hexdigest()[:32]
+        self._media.pop(token, None)  # re-insert, so it counts as fresh
+        self._media[token] = (media_type, data)
+        while len(self._media) > _MAX_MEDIA:
+            self._media.pop(next(iter(self._media)))
+        return '/media/{}'.format(token)
+
+    def get_media(self, token: str) -> tp.Optional[tuple[str, bytes]]:
+        """The `(media type, body)` published under `token`, if still held."""
+        return self._media.get(token)
 
     # TODO or DELETE: file watcher & reload banner needs to be refactored or
     # be deleted. Nothing reaches these any more: the watcher is not started

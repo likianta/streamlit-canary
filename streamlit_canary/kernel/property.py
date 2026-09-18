@@ -46,6 +46,7 @@ class Property(tp.Generic[T.Q]):
     def __init__(self, default: T.Q | _Undefined = _undefined) -> None:
         self.default = default
         self.value = default
+        self.remark = ''
         self.on_change = Signal(_owner_factory=lambda: self)
 
     def __bool__(self) -> bool:
@@ -129,23 +130,24 @@ class Property(tp.Generic[T.Q]):
                     return self._sources[index].get()  # type: ignore
 
                 def _lazy_sync(self, source: Property) -> None:
-                    if pending_updates.stage != 'resolving':
-                        self.sync()
-                        return
-                    # Inside a batch: hold the sync until the *last declared*
-                    # source that changed has had its turn, so a transaction
-                    # syncs a multi-source target once rather than once per
-                    # `source` itself need not be part of the batch -- a
-                    # derived property moves during the flush without being
-                    # queued (one of the queued ones moved it), and for the
-                    # rule below only the declared order matters.
-                    s_index = self._source_ids.index(id(source))
-                    for fid in self._source_ids[s_index + 1 :]:
-                        if fid in pending_updates.queue:
-                            # A source declared *after* this one is still
-                            # waiting for its turn in this batch, so it is the
-                            # one that will ask to sync.
-                            return
+                    if source.remark:
+                        print(pending_updates.stage, source.remark, ':nv')
+                    if pending_updates.stage == 'resolving':
+                        # inside a batch: hold the sync until the 
+                        # *last declared* source that changed has had its turn, 
+                        # so a transaction syncs a multi-source target once 
+                        # rather than once per `source` itself need not be part 
+                        # of the batch -- a derived property moves during the 
+                        # flush without being queued (one of the queued ones 
+                        # moved it), and for the rule below only the declared 
+                        # order matters.
+                        src_index = self._source_ids.index(id(source))
+                        for following_id in self._source_ids[src_index + 1 :]:
+                            if following_id in pending_updates.queue:
+                                # a source declared *after* this one is still
+                                # waiting for its turn in this batch, so it is 
+                                # the one that will ask to sync.
+                                return
                     self.sync()
 
                 def sync(self) -> None:

@@ -121,7 +121,7 @@ def entry_label(option: tp.Any) -> str:
     """
     name = str(option)
     if name == NAV_UP:
-        return ':orange[:material/folder:] .. :gray[goto parent]'
+        return ':orange[:material/folder:] .. :gray[(goto parent)]'
     escaped = name.replace('__', '\\_\\_')
     if escaped.endswith('/'):
         return ':material/folder: {}'.format(escaped)
@@ -296,7 +296,6 @@ def option_path(nav: _TreeNav, option: tp.Any) -> str:
 _MODE_SINGLE = 'single'
 _MODE_MULTIPLE = 'multiple'
 _MODE_MULTICROSS = 'multicross'
-_MODE_ANY = 'any'
 
 _MODES = (_MODE_SINGLE, _MODE_MULTIPLE, _MODE_MULTICROSS)
 
@@ -354,15 +353,24 @@ def _bucket_text(value: tp.Any) -> str:
     return ':material/bucket_check: {}'.format(len(_as_picked(value)))
 
 
-def _check_selection_mode(mode: str) -> str:
-    """Validate a `selection_mode` keyword."""
-    if mode not in _MODES + (_MODE_ANY,):
-        raise ValueError(
-            'selection_mode must be one of {}, got {!r}'.format(
-                ', '.join(repr(m) for m in _MODES + (_MODE_ANY,)), mode
+def _check_selection_mode(mode: tp.Union[str, tp.Iterable[str]]) -> tuple:
+    """Normalize a `selection_mode` keyword into the modes to offer.
+
+    A lone literal (the usual case) becomes a one-element tuple, so the rest
+    of the class only ever deals with a tuple: the first entry is the mode
+    the panel starts in, and more than one entry gets the segmented control
+    that switches between them. Repeats are dropped, order is kept.
+    """
+    modes = (mode,) if isinstance(mode, str) else tuple(mode)
+    if not modes:
+        raise ValueError('selection_mode must name at least one mode')
+    for one in modes:
+        if one not in _MODES:
+            raise ValueError(
+                'selection_mode must be one of {}, or a tuple of them, '
+                'got {!r}'.format(', '.join(repr(m) for m in _MODES), mode)
             )
-        )
-    return mode
+    return tuple(dict.fromkeys(modes))
 
 
 def _empty_value(mode: str) -> tp.Any:
@@ -594,8 +602,9 @@ class TreeSelect(_Labeled, Column):
     click anywhere on the row walks up, so it draws no arrow of its own.
 
     `selection_mode` settles how much may be picked at once (see `value`);
-    only `'multicross'` (or `'any'`) draws the bucket, and only `'any'` draws
-    the segmented control that switches between the three.
+    only a set that includes `'multicross'` draws the bucket, and only a set
+    holding more than one draws the segmented control that switches between
+    them.
 
     Args:
         start_directory: the folder to open (default: the cwd).
@@ -610,9 +619,11 @@ class TreeSelect(_Labeled, Column):
             Left `None` when an enclosing `Popover` does the scrolling.
         width: see `Column`.
         selection_mode: `'single'` (one node, the default), `'multiple'`
-            (nodes of the folder being browsed -- leaving it drops them),
-            `'multicross'` (nodes gathered across folders into a bucket), or
-            `'any'` (all three, switched from a segmented control).
+            (nodes of the folder being browsed -- leaving it drops them), or
+            `'multicross'` (nodes gathered across folders into a bucket). A
+            tuple of them -- e.g. `('single', 'multicross')` -- offers a
+            segmented control over exactly those, starting with the first;
+            the sequence is respected whichever way you order it.
         _vendored: whether the panel is delivered inside a wrapper's frame,
             which also floats the Confirm button into the corner (see the
             Layout note above).  Only `TreeSelectWithInput` passes `True`.
@@ -656,7 +667,7 @@ class TreeSelect(_Labeled, Column):
         filter: T.Filter = None,
         height: int | None = None,
         width: Width | None = None,
-        selection_mode: str = _MODE_SINGLE,
+        selection_mode: tp.Union[str, tp.Iterable[str]] = _MODE_SINGLE,
         _vendored: bool = False,
         border: bool | None = None,
         **kwargs: tp.Any,
@@ -682,9 +693,7 @@ class TreeSelect(_Labeled, Column):
         self._vendored = _vendored
 
         selection_mode = _check_selection_mode(selection_mode)
-        initial_mode = (
-            selection_mode if selection_mode in _MODES else _MODE_SINGLE
-        )
+        initial_mode = selection_mode[0]
         keeps = _filter_func(filter)
         nav = _TreeNav(start_directory)
         self._nav = nav
@@ -702,11 +711,11 @@ class TreeSelect(_Labeled, Column):
         self.on_navigate: Signal = Signal(str)
         self.on_submit: Signal = Signal(tp.Iterable[str])
 
-        # only the modes that can cross folders get a bucket, and only `any`
-        # gets the control that switches between them -- so `single` and
-        # `multiple` build neither
-        crosses = selection_mode in (_MODE_MULTICROSS, _MODE_ANY)
-        switchable = selection_mode == _MODE_ANY
+        # only the modes that can cross folders get a bucket, and only a
+        # `selection_mode` offering more than one gets the control that
+        # switches between them -- so a plain `single` builds neither
+        crosses = _MODE_MULTICROSS in selection_mode
+        switchable = len(selection_mode) > 1
 
         with self:
             # The toolbar is a row across the panel's top. The location
@@ -747,7 +756,7 @@ class TreeSelect(_Labeled, Column):
                 if switchable:
                     self._mode_control = SegmentedControl(
                         'Selection mode',
-                        options=_MODES,
+                        options=selection_mode,
                         value=initial_mode,
                         format=lambda m: _MODE_LABELS[m],
                         label_visibility='collapsed',
@@ -991,8 +1000,8 @@ class TreeSelect(_Labeled, Column):
         self.on_navigate.emit(nav.directory)
 
     def _set_mode(self, mode: str) -> None:
-        """Switch the active mode (only `selection_mode='any'` allows this)."""
-        if mode not in _MODES or mode == self.mode.get():
+        """Switch the active mode -- only to one `selection_mode` offers."""
+        if mode not in self._selection_mode or mode == self.mode.get():
             return
         # the selection means something different per mode, so start clean
         self.mode.set(mode)
@@ -1072,7 +1081,7 @@ class TreeSelectWithInput(Column):
         show_recent: bool = False,
         height: int = 500,
         width: Width | None = None,
-        selection_mode: str = _MODE_SINGLE,
+        selection_mode: tp.Union[str, tp.Iterable[str]] = _MODE_SINGLE,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)

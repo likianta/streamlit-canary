@@ -177,7 +177,9 @@
     margin-left: auto;
     color: var(--st-text-color);
     opacity: 0.4;
-    cursor: help;
+    /* the default arrow, not `help`: Windows' question-mark pointer is an
+       eyesore, and the tooltip already says what the glyph means */
+    cursor: default;
   }
   .st-widget-label .st-widget-help:hover {
     opacity: 0.9;

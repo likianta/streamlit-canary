@@ -76,10 +76,20 @@ class CheckGroup(_RowGestures, _Labeled):
         ):
             pass
 
+    Spell the starting state next to each option with a `dict`: the keys
+    become the options, and `value` then mirrors them as a parallel list of
+    booleans (see `value` below):
+
+        v3.CheckGroup('Extras', options={'Deps': True, 'Docs': False})
+
     Args:
         label: the widget label (bindable).
-        options: the choices, laid out top to bottom (bindable).
-        value: the initial selection, a list drawn from `options` (bindable).
+        options: the choices, laid out top to bottom (bindable). A `dict` is
+            accepted as a shorthand: the keys become the options, and each
+            value says whether that option starts ticked.
+        value: the initial selection, a list drawn from `options` (bindable)
+            -- or, for the `dict` form, a list of booleans parallel to
+            `options`.
         format: callable (value -> text) or a label sequence parallel to
             `options`.
         horizontal: lay the options out in a row instead of a column.
@@ -93,7 +103,10 @@ class CheckGroup(_RowGestures, _Labeled):
     Properties:
         label, options — see `_Labeled` / the fields below.
         value: list — the ticked options; the client sends the whole list on
-            every toggle.
+            every toggle. When `options` was given as a `dict`, this is
+            instead a list of booleans parallel to `options` -- the form the
+            client's report gets translated into, and the form it is read
+            back as.
         focused_index: int — the position of the row the client last clicked
             (a click on a row body highlights that row -- see
             `scHighlightChoice`), or -1 while none is. Handy for a "go into
@@ -105,7 +118,8 @@ class CheckGroup(_RowGestures, _Labeled):
         (default `str`; reassign it to change formatting).
 
     Signals:
-        on_value (via `cg['on_value']` or `cg.value.on_change`)
+        on_change (also `cg['on_value']` / `cg.value.on_change`): `value`
+            changed, i.e. a row was ticked or unticked.
         on_options (via `cg['on_options']` or `cg.options.on_change`)
     """
 
@@ -116,7 +130,9 @@ class CheckGroup(_RowGestures, _Labeled):
     def __init__(
         self,
         label: str | Property = '',
-        options: tp.Sequence[tp.Any] | Property | None = None,
+        options: (
+            tp.Sequence[tp.Any] | tp.Mapping[str, bool] | Property | None
+        ) = None,
         *,
         value: tp.Sequence[tp.Any] | Property | None = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
@@ -128,6 +144,20 @@ class CheckGroup(_RowGestures, _Labeled):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
+        # A `dict[str, bool]` spells each option's text together with whether
+        # it starts ticked: the keys become `options` and the flags become
+        # `value`. That value is then a list of booleans *parallel* to
+        # `options` rather than a subset of it -- `_flags` marks the widget
+        # as that odd one out, and the renderer and `_coerce_value` branch on
+        # it.
+        if isinstance(options, dict):
+            self._flags = True
+            flags = [bool(on) for on in options.values()]
+            options = list(options)
+            if value is None:
+                value = flags
+        else:
+            self._flags = False
         self.options = _prop([], _as_list(options))
         self.value = _prop([], _as_list(value))
         self.enabled = _prop(True, enabled)
@@ -146,9 +176,28 @@ class CheckGroup(_RowGestures, _Labeled):
         self._horizontal = horizontal
         self._max_height = max_height
 
+    @property
+    def on_change(self) -> Signal:
+        """Shorthand for the `value` Property's `on_change` Signal.
+
+        A `CheckGroup` carries several properties, but a row being ticked or
+        unticked is nearly always what a caller wants to hear about, so
+        `cg.on_change` reads as `cg.value.on_change` (equivalently
+        `cg['on_value']`).
+        """
+        return self.value.on_change
+
     def _coerce_value(self, values: tp.Any) -> list:
-        """Map the client's raw strings back onto the real options."""
+        """Map the client's raw strings back onto the real options.
+
+        In flag mode the client still reports the ticked *texts*, but the
+        value is the parallel list of booleans, so every option is tested
+        against that report instead of being looked up in it.
+        """
         options = list(self.options.get())
+        if self._flags:
+            texts = {str(value) for value in (values or ())}
+            return [str(option) in texts for option in options]
         out = []
         for raw in values or ():
             for option in options:
@@ -765,8 +814,8 @@ class Toggle(_Labeled):
     def __init__(
         self,
         label: str | Property = '',
-        *,
         value: bool | Property = False,
+        *,
         label_visibility: str = 'visible',
         **kwargs: tp.Any,
     ) -> None:
