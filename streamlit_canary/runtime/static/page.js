@@ -105,6 +105,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           inputType: 'radio',
           onchange: 'scSendChange',
           isChecked: (o) => scOptionKey(o) === scOptionKey(currentVal),
+          boxDisabled: msg.box_disabled,
+          doubleClick: el.classList.contains('st-dblclick-rows'),
         });
       }
       if (el.classList.contains('st-check-group')) {
@@ -117,6 +119,8 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           onchange: 'scSendCheckGroup',
           isChecked: (o) => wanted.has(scOptionKey(o)),
           boxOnly: el.classList.contains('st-check-group--box-only'),
+          boxDisabled: msg.box_disabled,
+          doubleClick: el.classList.contains('st-dblclick-rows'),
         });
       }
       if (el.classList.contains('st-segmented')) {
@@ -364,11 +368,18 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   // (mirrors the server's `_choice_group_items_html`). The two differ only in
   // the input's type, its checked test, the change handler and the box
   // (the radio's circle vs the square box of `v3.Checkbox`). With `boxOnly`
-  // (`CheckGroup(full_body_click=False)`) the field rides inside its own
+  // (`CheckGroup(body_click_behavior='')`) the field rides inside its own
   // label, so only the box selects an option.
+  //
+  // `boxDisabled` lists the indices whose box is frozen (the server sends it
+  // with an `options` patch): their field is inert and their row is dimmed.
+  // With `doubleClick` the label wraps the whole row, so a body click ticks
+  // the box while a double click opens the node (`scOpenRow`).
   function scChoiceItemsHtml(config) {
     const { id, values, labels, inputType, onchange, isChecked } = config;
     const boxOnly = !!config.boxOnly;
+    const doubleClick = !!config.doubleClick;
+    const frozen = new Set(config.boxDisabled || []);
     const name = inputType === 'radio' ? ` name="radio_${id}"` : '';
     const fmt = window.scRenderMarkup;
     const box =
@@ -388,16 +399,18 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       );
     }
     return values.map((o, i) => {
+      const off = frozen.has(i) ? ' disabled' : '';
       const field =
         `<span class="st-radio-input-wrap">` +
         `<input type="${inputType}"${name} value="${scOptionAttr(o)}" ` +
-        `${isChecked(o) ? 'checked' : ''} onchange="${onchange}(this)" ` +
+        `${isChecked(o) ? 'checked' : ''}${off} onchange="${onchange}(this)" ` +
         `data-comp-id="${id}"/></span>`;
       const text =
         `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>`;
+      const cls = 'st-radio-item' + (frozen.has(i) ? ' is-box-disabled' : '');
       if (boxOnly) {
         return (
-          `<div class="st-radio-item"><div class="st-radio-item-body">` +
+          `<div class="${cls}"><div class="st-radio-item-body">` +
           `<div class="st-radio-item-row" ` +
           `onclick="scHighlightChoice(event, this)">` +
           `<label class="st-radio-box-label">${field}${box}</label>` +
@@ -405,9 +418,16 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           `</div></div></div>`
         );
       }
+      // here the label wraps the row, so a body click ticks the box; the
+      // extra handlers add the highlight and pick up the double click
+      const acts = doubleClick
+        ? ' onclick="scHighlightChoice(event, this)"' +
+          ' ondblclick="scOpenRow(event, this)"'
+        : '';
       return (
-        `<label class="st-radio-item">${field}` +
-        `<div class="st-radio-item-body"><div class="st-radio-item-row">` +
+        `<label class="${cls}">${field}` +
+        `<div class="st-radio-item-body">` +
+        `<div class="st-radio-item-row"${acts}>` +
         box +
         text +
         `</div></div></label>`
@@ -415,7 +435,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     }).join('');
   }
 
-  // `CheckGroup(full_body_click=False)`: the box ticks the option; the rest
+  // `CheckGroup(body_click_behavior='')`: the box ticks the option; the rest
   // of the row acts on the node instead (a folder's body enters it). That
   // body click is also sent to the server as a `focus` event, which mirrors
   // it on `CheckGroup.focused_index` so the app can act on the row.
@@ -438,6 +458,24 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         value: items.indexOf(item),
       }));
     }
+  }
+  // `navigation_mode='double_click'`: the row body ticks the box on a single
+  // click (`scHighlightChoice` adds the highlight) and *opens* the node on a
+  // double one. The open gesture is its own event, so the server navigates
+  // without the single click having committed to anything else.
+  function scOpenRow(event, el) {
+    const item = el.closest('.st-radio-item');
+    if (!item) return;
+    const root = item.closest('.st-check-group, .st-radio');
+    if (!root) return;
+    const items = Array.from(
+      item.parentElement.querySelectorAll('.st-radio-item'));
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: root.dataset.id,
+      event: 'open',
+      value: items.indexOf(item),
+    }));
   }
   // -- Selectbox options rendering -----------------------------------------
   // Shared by the initial render's patch path: rebuilding the dropdown must

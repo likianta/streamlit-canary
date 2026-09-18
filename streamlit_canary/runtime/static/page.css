@@ -1133,7 +1133,7 @@
     margin: 0 0 0 -4px;
     border-radius: 6px;
   }
-  /* `CheckGroup(full_body_click=False)`: the field rides inside this label, so
+  /* `CheckGroup(body_click_behavior='')`: the field rides inside this label, so
      only the box selects the option -- clicking the text merely highlights the
      row (see `scHighlightChoice`). */
   .st-radio-box-label {
@@ -1231,7 +1231,7 @@
   .st-check-group .st-radio-item .st-checkbox-box {
     margin-top: 0;
   }
-  /* `full_body_click=False`: the box ticks the node and the rest of the row
+  /* `body_click_behavior=''`: the box ticks the node and the rest of the row
      acts on it (a folder's body enters it -- see `scHighlightChoice`), so the
      item keeps the pointer cursor rather than falling back to `default`. */
   .st-check-group .st-radio-item:has(input:checked) .st-checkbox-box {
@@ -1240,6 +1240,14 @@
   }
   .st-check-group .st-radio-item:has(input:checked) .st-checkbox-box svg {
     opacity: 1;
+  }
+  /* A frozen row (`box_disabled`, e.g. `TreeSelect`'s `..`): its field is
+     disabled, so the box never ticks and is drawn dimmed instead. The other
+     half of the row still answers clicks (highlight, double-click open), so
+     the cursor stays. */
+  .st-radio .st-radio-item.is-box-disabled .st-radio-circle,
+  .st-check-group .st-radio-item.is-box-disabled .st-checkbox-box {
+    opacity: 0.4;
   }
   .st-check-group--horizontal .st-radio-group {
     flex-direction: row;

@@ -155,6 +155,14 @@ class Runtime:
         if prop_name == 'options':
             fmt = getattr(comp, 'format_func', None) or str
             message['formatted'] = [fmt(o) for o in (value or [])]
+            # RadioGroup / CheckGroup: which rows draw a frozen box (see
+            # their `box_disabled`) -- the JS rebuilt rows need the indices
+            # because it cannot evaluate the predicate.
+            box_disabled = getattr(comp, '_box_disabled', None)
+            if callable(box_disabled):
+                message['box_disabled'] = [
+                    i for i, o in enumerate(value or []) if box_disabled(o)
+                ]
         elif prop_name == 'value':
             # NumberInput: the display text may differ from the raw value
             # (e.g. `hex`), so send it along for the frontend to patch.

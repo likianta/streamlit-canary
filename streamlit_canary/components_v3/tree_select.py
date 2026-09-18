@@ -44,6 +44,8 @@ from ..kernel import Property
 from ..kernel import Signal
 from ..kernel import bind
 from .base import Width
+from .widgets import _BODY_NONE
+from .widgets import _BODY_TOGGLE
 from .widgets import Button
 from .widgets import Caption
 from .widgets import CheckGroup
@@ -196,14 +198,22 @@ class _TreeNav:
         self.recent.appendleft(path)
 
 
-def listing_options(nav: _TreeNav, keeps: tp.Callable[[str], bool]) -> list:
+def listing_options(
+    nav: _TreeNav, keeps: tp.Callable[[str], bool], *, with_here: bool = True
+) -> list:
     """The rows of a folder listing: the nav rows, folders, then files.
 
-    Folders carry a trailing `'/'`, files do not.  The two leading rows are
-    the whole navigation now that the toolbar's arrows are gone: `'..'` moves
-    up and `'.'` picks the current folder, both in a single click.
+    Folders carry a trailing `'/'`, files do not.  The leading rows are the
+    whole navigation now that the toolbar's arrows are gone: `'..'` moves up
+    and `'.'` picks the current folder, both in a single click.
+
+    A single click stops being the navigation gesture in a double-click panel
+    (`with_here=False`), and `'.'` goes with it: it exists only to let one
+    click both move and pick, which is exactly what that panel separates.
     """
-    options = [NAV_UP, NAV_HERE]
+    options = [NAV_UP]
+    if with_here:
+        options.append(NAV_HERE)
     options += [name + '/' for name in nav.dirnames()]
     options += [name for name in nav.filenames() if keeps(name)]
     return options
@@ -238,6 +248,27 @@ _MODE_LABELS = {
     _MODE_MULTICROSS: 'Multi-cross select',
 }
 
+_NAV_SINGLE = 'single_click'
+_NAV_DOUBLE = 'double_click'
+
+_NAVS = (_NAV_SINGLE, _NAV_DOUBLE)
+
+
+def _check_navigation_mode(mode: str) -> str:
+    """Validate a `navigation_mode` keyword."""
+    if mode not in _NAVS:
+        raise ValueError(
+            'navigation_mode must be one of {}, got {!r}'.format(
+                ', '.join(repr(m) for m in _NAVS), mode
+            )
+        )
+    return mode
+
+
+def _is_nav_up(option: tp.Any) -> bool:
+    """`..` is a pure navigation target -- never a node to tick."""
+    return str(option) == NAV_UP
+
 
 def _as_picked(value: tp.Any) -> list:
     """`TreeSelect.value` as a list of paths (the multi modes' shape)."""
@@ -251,11 +282,11 @@ def _bucket_text(value: tp.Any) -> str:
     return ':material/bucket_check: {}'.format(len(_as_picked(value)))
 
 
-def _check_select_mode(mode: str) -> str:
-    """Validate a `select_mode` keyword."""
+def _check_selection_mode(mode: str) -> str:
+    """Validate a `selection_mode` keyword."""
     if mode not in _MODES + (_MODE_ANY,):
         raise ValueError(
-            'select_mode must be one of {}, got {!r}'.format(
+            'selection_mode must be one of {}, got {!r}'.format(
                 ', '.join(repr(m) for m in _MODES + (_MODE_ANY,)), mode
             )
         )
@@ -408,6 +439,12 @@ class Recent(Popover):
         initial = list(options)
         self.options = Property(initial)
         self.value = Property('')
+        # The radio runs its own `_auto_select` whenever the list changes,
+        # which takes the first entry. That is a list refresh, not a pick --
+        # but it looks exactly like one to `_sync_value`, and a listener
+        # treating it as a pick would move the panel. So remember the entry
+        # the radio is about to take on its own.
+        self._adopting = ''
         with self:
             self._radio = RadioGroup(
                 label,
@@ -419,13 +456,18 @@ class Recent(Popover):
         @self.options.on_change
         def _sync_options() -> None:
             options_ = list(self.options.get() or [])
-            self._radio.options.set(options_)
+            # same test as `_auto_select`, so the guess below is exact
             if options_ and self._radio['value'] not in options_:
-                self._radio.value.set(options_[0])
+                self._adopting = str(options_[0])
+            self._radio.options.set(options_)
 
         @self._radio.value.on_change
         def _sync_value() -> None:
-            self.value.set(str(self._radio['value']))
+            picked = str(self._radio['value'])
+            if picked and picked == self._adopting:
+                self._adopting = ''
+                return
+            self.value.set(picked)
 
         if initial:
             self._radio.value.set(initial[0])
@@ -466,9 +508,22 @@ class TreeSelect(Column):
     a box as well: the box ticks the node while its body acts on it (a
     folder's body enters it, a file's body ticks it).
 
-    `select_mode` settles how much may be picked at once (see `value`); only
-    `'multicross'` (or `'any'`) draws the bucket, and only `'any'` draws the
-    segmented control that switches between the three.
+    `navigation_mode` decides which gesture does the moving:
+
+        'single_click'  one click both moves and picks, as above -- the box is
+                        the only thing that merely ticks, so `..` and `.` earn
+                        their keep.
+        'double_click'  one click only ticks / picks the row -- in the multi
+                        modes the whole row is the box's label, so clicking
+                        its body ticks it; a *double* click opens the folder.
+                        A file opens nothing (there is nowhere to go), and `.`
+                        is dropped, since picking is no longer fused to
+                        moving.  `..` still goes up, but its box is frozen
+                        (dimmed, never tickable): it is a target, not a node.
+
+    `selection_mode` settles how much may be picked at once (see `value`);
+    only `'multicross'` (or `'any'`) draws the bucket, and only `'any'` draws
+    the segmented control that switches between the three.
 
     Args:
         start_directory: the folder to open (default: the cwd).
@@ -476,10 +531,12 @@ class TreeSelect(Column):
         height: optional cap in px on the listing, after which it scrolls.
             Left `None` when an enclosing `Popover` does the scrolling.
         width: see `Column`.
-        select_mode: `'single'` (one node, the default), `'multiple'` (nodes
-            of the folder being browsed -- leaving it drops them),
+        selection_mode: `'single'` (one node, the default), `'multiple'`
+            (nodes of the folder being browsed -- leaving it drops them),
             `'multicross'` (nodes gathered across folders into a bucket), or
             `'any'` (all three, switched from a segmented control).
+        navigation_mode: `'single_click'` or `'double_click'` (the default);
+            see above.
 
     Properties:
         value: str | list[str] — the selection. `single` keeps one path (`''`
@@ -510,18 +567,25 @@ class TreeSelect(Column):
         filter: T.Filter = None,
         height: int | None = None,
         width: Width | None = None,
-        select_mode: str = _MODE_SINGLE,
+        selection_mode: str = _MODE_SINGLE,
+        navigation_mode: str = _NAV_DOUBLE,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
 
-        select_mode = _check_select_mode(select_mode)
-        initial_mode = select_mode if select_mode in _MODES else _MODE_SINGLE
+        selection_mode = _check_selection_mode(selection_mode)
+        navigation_mode = _check_navigation_mode(navigation_mode)
+        initial_mode = (
+            selection_mode if selection_mode in _MODES else _MODE_SINGLE
+        )
+        # a double click opens the node, so a single one is free to pick it
+        double = navigation_mode == _NAV_DOUBLE
         keeps = _filter_func(filter)
         nav = _TreeNav(start_directory)
         self._nav = nav
         self._keeps = keeps
-        self._select_mode = select_mode
+        self._selection_mode = selection_mode
+        self._double = double
         # guards every pick handler while the listing is rebuilt: re-listing
         # swaps `options`, which resets `focused_index` and makes a radio fall
         # back to another row
@@ -537,8 +601,8 @@ class TreeSelect(Column):
         # only the modes that can cross folders get a bucket, and only `any`
         # gets the control that switches between them -- so `single` and
         # `multiple` build neither
-        crosses = select_mode in (_MODE_MULTICROSS, _MODE_ANY)
-        switchable = select_mode == _MODE_ANY
+        crosses = selection_mode in (_MODE_MULTICROSS, _MODE_ANY)
+        switchable = selection_mode == _MODE_ANY
 
         with self:
             # The toolbar floats in the panel's top-right corner, so it stays
@@ -576,6 +640,12 @@ class TreeSelect(Column):
                         label_visibility='collapsed',
                     )
             self._location = Caption(_location_label(nav.directory))
+            # A double-click panel freezes `..` (see `_is_nav_up`) and lets a
+            # click on a row body tick the box; the single-click arrangement
+            # instead gives the body no behaviour of its own, so it is free to
+            # act on the node.
+            frozen = _is_nav_up if double else None
+            body_behavior = _BODY_TOGGLE if double else _BODY_NONE
             with Column(visible=bind(self.mode, _is_single)):
                 self._single_list = RadioGroup(
                     'Folder contents',
@@ -583,15 +653,19 @@ class TreeSelect(Column):
                     format=entry_label,
                     label_visibility='collapsed',
                     max_height=height,
+                    box_disabled=frozen,
+                    double_click_open=double,
                 )
             with Column(visible=bind(self.mode, _is_multi)):
                 self._multi_list = CheckGroup(
                     'Folder contents',
                     options=(),
                     format=entry_label,
-                    full_body_click=False,
+                    body_click_behavior=body_behavior,
                     label_visibility='collapsed',
                     max_height=height,
+                    box_disabled=frozen,
+                    double_click_open=double,
                 )
             # A Confirm button floats in the bottom-right corner. It is the
             # panel's "done" action: a wrapper hooks `on_submit` to fold the
@@ -603,13 +677,23 @@ class TreeSelect(Column):
 
         @self._single_list.value.on_change
         def _on_single_pick() -> None:
-            # clicking a row *is* the navigation here; the radio's selection is
-            # only a signal, so it never carries the picked node itself
             if self._syncing:
                 return
             option = str(self._single_list.value.get())
             if not option:
                 return
+            if self._double:
+                # a click only *picks* the node here -- opening a folder is
+                # the double click's job (`_on_single_open`). `..` is frozen
+                # (it can never be picked), so the radio should not have
+                # carried it at all.
+                if option == NAV_UP:
+                    return
+                self.value.set(option_path(self._nav, option))
+                return
+            # single-click: clicking a row *is* the navigation here; the
+            # radio's selection is only a signal, so it never carries the
+            # picked node itself
             if option == NAV_UP:
                 self._jump(self._nav.parent_of())
             elif option == NAV_HERE:
@@ -630,9 +714,21 @@ class TreeSelect(Column):
             kept = [p for p in _as_picked(self.value.get()) if p not in listed]
             self.value.set(kept + self._ticked_paths())
 
-        @self._multi_list.focused_index.on_change
-        def _on_multi_body_click() -> None:
-            self._activate_focused()
+        @self._single_list.on_open
+        def _on_single_open(index: int) -> None:
+            self._open_row(self._single_list, index)
+
+        @self._multi_list.on_open
+        def _on_multi_open(index: int) -> None:
+            self._open_row(self._multi_list, index)
+
+        if not double:
+
+            @self._multi_list.focused_index.on_change
+            def _on_multi_body_click() -> None:
+                # single-click only: there the body acts the moment it is
+                # clicked, whereas a double-click panel waits for `on_open`
+                self._activate_focused()
 
         @self._refresh_btn.on_click
         def _on_refresh() -> None:
@@ -692,10 +788,11 @@ class TreeSelect(Column):
     def _activate_focused(self) -> None:
         """Act on the row whose *body* was clicked in a multi mode.
 
-        The box ticks (`full_body_click=False`); the body instead moves the
-        panel when the row is a folder (or `..`), and ticks it when the row is
-        a file (or `.`, "this folder"). The row is highlighted client-side
-        either way.
+        The single-click arrangement only: the box ticks
+        (`body_click_behavior=''`) while the body instead moves the panel when
+        the row is a folder (or `..`), and ticks it when the row is a file (or
+        `.`, "this folder"). The row is highlighted client-side either way. A
+        double-click panel leaves the body to the box and waits for `on_open`.
         """
         if self._syncing:
             return
@@ -713,6 +810,21 @@ class TreeSelect(Column):
             ticked = list(self._multi_list.value.get() or ())
             if option not in ticked:
                 self._multi_list.value.set(ticked + [option])
+
+    def _carried_row(self, options: list) -> str:
+        """The listing row the current pick sits on (double-click panel).
+
+        `single` picks exactly one node, so that node's own row is what the
+        radio should mark -- unlike the single-click panel, whose radio is a
+        mere click signal and so is always left blank.
+        """
+        current = self.value.get()
+        if not current or self.mode.get() != _MODE_SINGLE:
+            return ''
+        for option in options:
+            if option != NAV_UP and option_path(self._nav, option) == current:
+                return str(option)
+        return ''
 
     def _goto(self, directory: str) -> None:
         """Point the panel at a folder and re-list it (used by the wrappers)."""
@@ -739,18 +851,43 @@ class TreeSelect(Column):
         options = self._multi_list.options.get() or ()
         return {p for p in (option_path(nav, o) for o in options) if p}
 
+    def _open_row(self, group: RadioGroup | CheckGroup, index: tp.Any) -> None:
+        """Enter the folder a row stands for -- the double-click gesture.
+
+        Only a folder (or `..`) has anywhere to go: double-clicking a file is
+        a no-op, the single click having already picked it. Nothing else is
+        needed for "open" to be unambiguous, since a double-click panel
+        freezes `..` (so a stray click cannot pick it) and drops `.`.
+        """
+        if self._syncing:
+            return
+        options = list(group.options.get() or ())
+        if not (isinstance(index, int) and 0 <= index < len(options)):
+            return
+        option = str(options[index])
+        if option == NAV_UP:
+            self._jump(self._nav.parent_of())
+        elif option.endswith('/'):
+            self._jump(self._nav.child(option[:-1]))
+
     def _refresh_listing(self) -> None:
         nav = self._nav
-        options = listing_options(nav, self._keeps)
+        options = listing_options(nav, self._keeps, with_here=not self._double)
         picked = set(_as_picked(self.value.get()))
         self._syncing = True
         try:
             self._single_list.options.set(options)
             self._multi_list.options.set(options)
-            # the radio's selection doubles as the click signal, so a fresh
-            # listing starts with nothing (and never a nav row) selected --
-            # otherwise clicking the pre-selected row would not register
-            self._single_list.value.set('')
+            if self._double:
+                # a double-click radio *is* the pick, so it shows what the
+                # panel carries (see `_carried_row`)
+                self._single_list.value.set(self._carried_row(options))
+            else:
+                # the radio's selection doubles as the click signal, so a
+                # fresh listing starts with nothing (and never a nav row)
+                # selected -- otherwise clicking the pre-selected row would
+                # not register
+                self._single_list.value.set('')
             # the check group re-ticks what was picked before, so walking back
             # into a folder shows its ticks again
             self._multi_list.value.set(
@@ -762,7 +899,7 @@ class TreeSelect(Column):
         self.on_navigate.emit(nav.directory)
 
     def _set_mode(self, mode: str) -> None:
-        """Switch the active mode (only `select_mode='any'` allows this)."""
+        """Switch the active mode (only `selection_mode='any'` allows this)."""
         if mode not in _MODES or mode == self.mode.get():
             return
         # the selection means something different per mode, so start clean
@@ -793,17 +930,17 @@ class TreeSelectWithInput(Column):
         |                  [refresh] [bucket] [mode] <- floats top    |
         | /current/folder                                             |
         | ..        (goto parent)                                     |
-        | .         (this folder)                                     |
         | subfolder/                                                  |
         | another-file.txt              <- scrolls past `height` px   |
         |                              [ Confirm ]   <- floats bottom |
         +-------------------------------------------------------------+
 
     The panel is a `TreeSelect`; the popover stretches it from the path
-    input's left edge to the header row's right edge.  The panel navigates by
-    clicking a row (no arrows); its toolbar -- refresh, plus the bucket and
-    the mode control when `select_mode` calls for them -- floats in the
-    top-right corner, and its Confirm button in the bottom-right one, so both
+    input's left edge to the header row's right edge.  It navigates by
+    clicking a row -- `navigation_mode` decides whether that takes one click
+    or two (see `TreeSelect`) -- and its toolbar, refresh plus the bucket and
+    the mode control when `selection_mode` calls for them, floats in the
+    top-right corner, with its Confirm button in the bottom-right one, so both
     stay reachable while the listing scrolls.  Confirm folds this popover away
     (through `TreeSelect.on_submit`).
 
@@ -822,7 +959,8 @@ class TreeSelectWithInput(Column):
         show_recent: keep a "Recent" dropdown of the picked paths.
         height: max height of the "Browse" panel in px (default 500).
         width: see `Column`.
-        select_mode: how the panel lets nodes be picked -- see `TreeSelect`.
+        selection_mode: how the panel lets nodes be picked -- see `TreeSelect`.
+        navigation_mode: which gesture moves the panel -- see `TreeSelect`.
 
     Properties:
         value: str | list[str] — the panel's selection; this mirrors
@@ -843,7 +981,8 @@ class TreeSelectWithInput(Column):
         show_recent: bool = True,
         height: int = 500,
         width: Width | None = None,
-        select_mode: str = _MODE_SINGLE,
+        selection_mode: str = _MODE_SINGLE,
+        navigation_mode: str = _NAV_DOUBLE,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -860,6 +999,9 @@ class TreeSelectWithInput(Column):
         self.value = Property(tp.cast(tp.Union[str, tp.List[str]], ''))
         self.mode = Property(_MODE_SINGLE)
         self._has_recent = Property(False)
+        # set while `_refresh_recent` adopts the newest path into the dropdown:
+        # that is a display update, not a pick, so `_commit` must not run
+        self._recent_quiet = False
 
         with self:
             with Row('bottom'):
@@ -877,7 +1019,8 @@ class TreeSelectWithInput(Column):
                         nav.directory,
                         filter=filter,
                         height=None,
-                        select_mode=select_mode,
+                        selection_mode=selection_mode,
+                        navigation_mode=navigation_mode,
                     )
         self.value.bind(self._tree.value)
         self.mode.bind(self._tree.mode)
@@ -894,6 +1037,8 @@ class TreeSelectWithInput(Column):
 
         @self._recent.value.on_change
         def _on_recent_picked() -> None:
+            if self._recent_quiet:
+                return
             self._commit(str(self._recent['value']))
 
         @self._tree.value.on_change
@@ -977,7 +1122,14 @@ class TreeSelectWithInput(Column):
         self._has_recent.set(bool(recent) and self._show_recent)
         self._recent.options.set(recent)
         if recent and self._recent['value'] not in recent:
-            self._recent.value.set(recent[0])
+            # show the newest entry without *picking* it: `_on_recent_picked`
+            # runs `_commit`, which navigates for a folder -- and the panel's
+            # tick must not move the panel (see `navigation_mode`)
+            self._recent_quiet = True
+            try:
+                self._recent.value.set(recent[0])
+            finally:
+                self._recent_quiet = False
 
 
 class TreeSelectDualPane(Column):
@@ -1002,6 +1154,10 @@ class TreeSelectDualPane(Column):
     Signals:
         on_confirm: emitted when Confirm is clicked.
     """
+
+    # TODO: give this pane a `navigation_mode` too (and forward it from
+    # `TreeSelectDualPaneWithInput`). It still navigates on a single click,
+    # so the two browsers speak different gestures.
 
     def __init__(
         self,
@@ -1313,6 +1469,9 @@ class TreeSelectDualPaneWithInput(Column):
         self.value = Property('')
         self._browsing = Property(False)
         self._has_recent = Property(False)
+        # see `TreeSelectWithInput.__init__` -- here the adopt only re-enters
+        # `_commit`, but the guard is the same
+        self._recent_quiet = False
         if result:
             self.value.set(result)
             nav.remember(result)
@@ -1359,6 +1518,8 @@ class TreeSelectDualPaneWithInput(Column):
 
         @self._recent.value.on_change
         def _on_recent_picked() -> None:
+            if self._recent_quiet:
+                return
             self._commit(str(self._recent['value']))
 
         @self._path_input.path.on_change
@@ -1395,4 +1556,10 @@ class TreeSelectDualPaneWithInput(Column):
         self._has_recent.set(bool(recent) and self._show_recent)
         self._recent.options.set(recent)
         if recent and self._recent['value'] not in recent:
-            self._recent.value.set(recent[0])
+            # show the newest entry without *picking* it -- see the guard's
+            # note in `__init__`
+            self._recent_quiet = True
+            try:
+                self._recent.value.set(recent[0])
+            finally:
+                self._recent_quiet = False

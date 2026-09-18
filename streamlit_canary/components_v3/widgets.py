@@ -115,21 +115,35 @@ def _is_blank(value: tp.Any) -> bool:
     return not value
 
 
-def _visible_when_filled(data: Property) -> Property[bool]:
+def _visible_when_filled(
+    data: Property, explicit: bool | Property = True
+) -> Property[bool]:
     """A `visible` flag that follows whether `data` holds anything.
 
     `Table` / `Code` / `Markdown` have nothing to draw while their data is
     blank, so rather than leaving an empty frame behind they hide -- and come
     back as soon as the (possibly bound) value fills in.
 
+    `explicit` is the caller's own `visible` (the base-class argument) ANDed
+    in, so the widget hides either because there is nothing to draw or because
+    the caller switched it off, and a bound flag keeps working: both sources
+    are watched.
+
     `data` must already hold its value when this is called.
     """
     visible = Property(True)
 
     def sync() -> None:
-        visible.set(not _is_blank(data.get()))
+        on = (
+            bool(explicit.get())
+            if isinstance(explicit, Property)
+            else bool(explicit)
+        )
+        visible.set(not _is_blank(data.get()) and on)
 
     data.on_change.connect(sync)
+    if isinstance(explicit, Property):
+        explicit.on_change.connect(sync)
     sync()
     return visible
 
@@ -388,10 +402,71 @@ class _OptionsWidget(_Labeled):
         return raw
 
 
+class _RowGestures:
+    """Mixin for the two option lists whose rows carry a body gesture.
+
+    `RadioGroup` and `CheckGroup` both draw rows a client can click *beside*
+    the box: such a click highlights the row, and -- with the second mode
+    below -- ticks it, leaving the double click to open the node. The two
+    events and the state behind them live here so the widgets stay thin;
+    `_init_rows` is called from each `__init__` (the two meet through
+    `_Labeled`, so there is no single `super()` to chain into).
+
+    Fields:
+        focused_index: Property[int] — the row the client last highlighted,
+            or -1 while none is. Dropped whenever `options` change: the rows
+            are rebuilt, so a remembered index would point at the wrong one.
+        on_open: Signal[int] — a row *body* was double-clicked; the payload is
+            the row index. That is the gesture `TreeSelect` navigates on
+            (`navigation_mode='double_click'`).
+        _box_disabled: Callable[[Any], bool] | None — marks options whose box
+            may never be ticked. They are drawn dimmed and their field is
+            inert, so only the row's other half still acts.
+        _double_click_open: bool — whether the rows carry that gesture at all.
+    """
+
+    def _init_rows(
+        self,
+        box_disabled: tp.Callable[[tp.Any], bool] | None,
+        double_click_open: bool,
+    ) -> None:
+        self.focused_index = Property(-1)
+        self.on_open: Signal = Signal(int)
+        self._box_disabled = box_disabled
+        self._double_click_open = double_click_open
+        self.options.on_change.connect(self._reset_focus)
+
+    def _on_focus(self, value: tp.Any) -> None:
+        """Record the option row the client just highlighted.
+
+        Fired by a `focus` event (see `scHighlightChoice`); the payload is the
+        row's index.
+        """
+        try:
+            index = int(value)
+        except (TypeError, ValueError):
+            index = -1
+        self.focused_index.set(index)
+
+    def _on_open(self, value: tp.Any) -> None:
+        """Relay a double-clicked row body to `on_open` (see `scOpenRow`)."""
+        try:
+            index = int(value)
+        except (TypeError, ValueError):
+            return
+        self.on_open.emit(index)
+
+    def _reset_focus(self) -> None:
+        """Drop the highlight when the options are rebuilt (indices shift)."""
+        self.focused_index.set(-1)
+
+
 class _TextVisible(_HasText):
     """Shared base for status boxes: a `text` plus a bindable `visible`.
 
-    Used by Spinner and Success.
+    The flag itself lives on `Component`; these boxes only default it *off*,
+    so a `Spinner` stays out of the way until it is entered. Used by Spinner
+    and Success.
     """
 
     def __init__(
@@ -401,8 +476,7 @@ class _TextVisible(_HasText):
         visible: bool | Property = False,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, **kwargs)
-        self.visible = _prop(False, visible)
+        super().__init__(text, visible=visible, **kwargs)
 
 
 # -- widgets (alphabetical) ------------------------------------------------
@@ -523,7 +597,28 @@ class Cell(Component):
         self._col = col
 
 
-class CheckGroup(_Labeled):
+_BODY_TOGGLE = 'toggle'
+"""`CheckGroup.body_click_behavior`: clicking the row body ticks the option."""
+
+_BODY_NONE = ''
+"""`CheckGroup.body_click_behavior`: the body has no behaviour of its own --
+only the box ticks the option."""
+
+_BODY_BEHAVIORS = (_BODY_TOGGLE, _BODY_NONE)
+
+
+def _check_body_click_behavior(behavior: str) -> str:
+    """Validate a `body_click_behavior` keyword."""
+    if behavior not in _BODY_BEHAVIORS:
+        raise ValueError(
+            'body_click_behavior must be one of {}, got {!r}'.format(
+                ', '.join(repr(b) for b in _BODY_BEHAVIORS), behavior
+            )
+        )
+    return behavior
+
+
+class CheckGroup(_RowGestures, _Labeled):
     """A group of tick boxes for choosing several options at once.
 
     It is `RadioGroup`'s twin: same label handling, same option spacing, same
@@ -550,19 +645,29 @@ class CheckGroup(_Labeled):
         horizontal: lay the options out in a row instead of a column.
         max_height: cap the list height in px and scroll past it.
         enabled: whether the widget accepts input (bindable).
-        full_body_click: whether clicking anywhere on the option selects it.
-            Set it to `False` to make only the box clickable: clicking the
-            option's text then merely highlights that row.
+        body_click_behavior: what clicking the row *body* -- the space beside
+            the box -- does. `'toggle'` (the default) ticks the option, the
+            label wrapping the whole row; `''` leaves the body with no
+            behaviour of its own, so only the box ticks and clicking the text
+            merely highlights that row. Further body gestures may join these
+            two later.
+        box_disabled: a predicate marking options whose box may never be
+            ticked; those are drawn dimmed and their field is inert.
+            `TreeSelect` uses it for the `..` row, which is a navigation
+            target rather than a node.
+        double_click_open: have the rows report a body *double* click through
+            `on_open` rather than acting on a single one -- see
+            `TreeSelect(navigation_mode='double_click')`.
 
     Properties:
         label, options — see `_Labeled` / the fields below.
         value: list — the ticked options; the client sends the whole list on
             every toggle.
         focused_index: int — the position of the row the client last
-            highlighted, or -1 while none is. Only a `full_body_click=False`
-            group highlights a row (clicking an option's text -- see
-            `scHighlightChoice`), so this stays -1 otherwise. Handy for a
-            "go into the focused node" button:
+            highlighted, or -1 while none is. A `body_click_behavior=''`
+            group highlights a row when an option's text is clicked (see
+            `scHighlightChoice`); with `double_click_open` the whole row does.
+            Handy for a "go into the focused node" button:
             `btn.enabled = sc.bind(cg.focused_index, lambda i: i >= 0)`.
 
     Attributes:
@@ -572,6 +677,8 @@ class CheckGroup(_Labeled):
     Signals:
         on_value (via `cg['on_value']` or `cg.value.on_change`)
         on_options (via `cg['on_options']` or `cg.options.on_change`)
+        on_open (via `cg['on_open']` or `cg.on_open`) — a row body was
+            double-clicked; the payload is the row index (see `_RowGestures`).
     """
 
     format_func: tp.Callable[[tp.Any], str]
@@ -589,17 +696,16 @@ class CheckGroup(_Labeled):
         label_visibility: str = 'visible',
         horizontal: bool = False,
         max_height: int | None = None,
-        full_body_click: bool = True,
+        body_click_behavior: str = _BODY_TOGGLE,
+        box_disabled: tp.Callable[[tp.Any], bool] | None = None,
+        double_click_open: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
         self.options = _prop([], _as_list(options))
         self.value = _prop([], _as_list(value))
         self.enabled = _prop(True, enabled)
-        self.focused_index = Property(-1)
-        # the rows are rebuilt whenever `options` change, so any index the
-        # client remembered points at the wrong row -- drop it.
-        self.options.on_change.connect(self._reset_focus)
+        self._init_rows(box_disabled, double_click_open)
         if format is None:
             self.format_func = lambda x: str(x)
         elif callable(format):
@@ -613,7 +719,18 @@ class CheckGroup(_Labeled):
             self.format_func = _by_index
         self._horizontal = horizontal
         self._max_height = max_height
-        self._full_body_click = full_body_click
+        self._body_click_behavior = _check_body_click_behavior(
+            body_click_behavior
+        )
+
+    def _box_only(self) -> bool:
+        """Whether only the box ticks an option -- the row's rendered shape.
+
+        A body with no behaviour of its own needs the field inside its own
+        label, so that clicking the text cannot reach it; `'toggle'` lets the
+        label wrap the whole row instead. See `_choice_group_items_html`.
+        """
+        return self._body_click_behavior != _BODY_TOGGLE
 
     def _coerce_value(self, values: tp.Any) -> list:
         """Map the client's raw strings back onto the real options."""
@@ -625,22 +742,6 @@ class CheckGroup(_Labeled):
                     out.append(option)
                     break
         return out
-
-    def _on_focus(self, value: tp.Any) -> None:
-        """Record the option row the client just highlighted.
-
-        Fired by a `focus` event (see `scHighlightChoice`); the payload is the
-        row's index.
-        """
-        try:
-            index = int(value)
-        except (TypeError, ValueError):
-            index = -1
-        self.focused_index.set(index)
-
-    def _reset_focus(self) -> None:
-        """Drop the highlight when the options are rebuilt (indices shift)."""
-        self.focused_index.set(-1)
 
 
 class Checkbox(_Labeled):
@@ -683,10 +784,13 @@ class Code(_HasText):
         text: the code content (bindable).
         language: kept for parity with Streamlit's `st.code`; this
             implementation does not syntax-highlight.
+        visible: the base-class flag, ANDed with the content test above --
+            see `_visible_when_filled`.
 
     Properties:
         text: str — the code content.
-        visible: bool — derived: false while `text` is blank.
+        visible: bool — false while `text` is blank, or whenever the flag is
+            switched off explicitly.
     """
 
     _default_width = 'stretch'
@@ -696,11 +800,12 @@ class Code(_HasText):
         text: str | Property = '',
         *,
         language: str = 'python',
+        visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, **kwargs)
+        super().__init__(text, visible=visible, **kwargs)
         self._language = language
-        self.visible = _visible_when_filled(self.text)
+        self.visible = _visible_when_filled(self.text, visible)
 
 
 class Column(Component):
@@ -729,7 +834,6 @@ class Column(Component):
         weight: float | None = None,
         border: bool = False,
         height: Height | None = None,
-        visible: bool | Property = True,
         animated: bool = False,
         **kwargs: tp.Any,
     ) -> None:
@@ -737,7 +841,6 @@ class Column(Component):
         self._weight = weight
         self._border = border
         self._animated = animated
-        self.visible = _prop(True, visible)
 
 
 Container = Column
@@ -802,13 +905,11 @@ class Dialog(Component):
         self,
         text: str | Property = '',
         *,
-        visible: bool | Property = True,
         width: DialogWidth | int = 'small',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self.text = _prop('', text)
-        self.visible = _prop(True, visible)
         # Resolve the semantic size to px up front so the renderer stays thin
         # (and `comp._width` is always an int).
         if isinstance(width, str):
@@ -855,12 +956,10 @@ class Expander(Component):
         label: str | Property = '',
         *,
         expanded: bool = False,
-        visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self.label = _prop('', label)
-        self.visible = _prop(True, visible)
         # Initial state only; the client owns it from then on.
         self._expanded = expanded
 
@@ -1074,10 +1173,13 @@ class Markdown(_HelpText):
         help: optional markdown tooltip shown next to the text.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
+        visible: the base-class flag, ANDed with the content test above --
+            see `_visible_when_filled`.
 
     Properties:
         text: str — the markdown source.
-        visible: bool — derived: false while `text` is blank.
+        visible: bool — false while `text` is blank, or whenever the flag is
+            switched off explicitly.
     """
 
     def __init__(
@@ -1085,10 +1187,11 @@ class Markdown(_HelpText):
         text: str | Property = '',
         *,
         help: str | Property = '',
+        visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, help=help, **kwargs)
-        self.visible = _visible_when_filled(self.text)
+        super().__init__(text, help=help, visible=visible, **kwargs)
+        self.visible = _visible_when_filled(self.text, visible)
 
 
 class Multiselect(_Labeled):
@@ -1315,7 +1418,6 @@ class Popover(_HasText):
         label: str | Property = '',
         *,
         width: Width | None = None,
-        visible: bool | Property = True,
         help: str | Property = '',
         enabled: bool | Property = True,
         panel_align: tp.Literal['trigger', 'row', 'above'] = 'trigger',
@@ -1323,7 +1425,6 @@ class Popover(_HasText):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, width=width, **kwargs)
-        self.visible = _prop(True, visible)
         self.enabled = _prop(True, enabled)
         self.help = _help_prop(help)
         self._panel_align = panel_align
@@ -1391,7 +1492,6 @@ class MenuButton(Popover):
         value: tp.Any = '',
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         width: Width | None = None,
-        visible: bool | Property = True,
         enabled: bool | Property = True,
         help: str | Property = '',
         panel_max_height: int | None = None,
@@ -1400,7 +1500,6 @@ class MenuButton(Popover):
         super().__init__(
             label,
             width=width,
-            visible=visible,
             enabled=enabled,
             help=help,
             panel_max_height=panel_max_height,
@@ -1476,13 +1575,12 @@ class Progress(_HasText):
         auto_close: bool = True,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, **kwargs)
+        super().__init__(text, visible=visible, **kwargs)
         self.value: Property[int | None] = Property(None)
         if isinstance(value, Property):
             self.value.bind(value)
         elif value is not None:
             self.value.set(value)
-        self.visible = _prop(False, visible)
         # `total` / `index` are plain attributes on purpose: `update` runs in
         # the worker thread that executes a handler, and vendor code (the
         # collector) assigns `total` directly before its first `update`.
@@ -1537,7 +1635,7 @@ class Progress(_HasText):
         self['visible'] = False
 
 
-class RadioGroup(_OptionsWidget):
+class RadioGroup(_RowGestures, _OptionsWidget):
     """A radio button group (mirrors Streamlit's `st.radio`).
 
     Args:
@@ -1549,9 +1647,18 @@ class RadioGroup(_OptionsWidget):
         horizontal: lay the options out in a row instead of a column.
         max_height: cap the list height in px and scroll past it (useful for
             long option lists such as a folder listing).
+        box_disabled: a predicate marking options whose circle may never be
+            selected; those are drawn dimmed and their field is inert.
+            `TreeSelect` uses it for the `..` row, which is a navigation
+            target rather than a node.
+        double_click_open: have the rows report a body *double* click through
+            `on_open` rather than acting on a single one -- see
+            `TreeSelect(navigation_mode='double_click')`.
 
     Properties:
         label, options, value — see `_OptionsWidget`.
+        focused_index: int — the row the client last highlighted, or -1 while
+            none is; only `double_click_open` groups highlight rows.
 
     Attributes:
         format_func: Callable[[Any], str] — raw option value → display string
@@ -1560,6 +1667,8 @@ class RadioGroup(_OptionsWidget):
     Signals:
         on_value (via `radio['on_value']` or `radio.value.on_change`)
         on_options (via `radio['on_options']` or `radio.options.on_change`)
+        on_open (via `radio['on_open']` or `radio.on_open`) — a row body was
+            double-clicked; the payload is the row index (see `_RowGestures`).
     """
 
     _default_width = 'stretch'
@@ -1575,6 +1684,8 @@ class RadioGroup(_OptionsWidget):
         label_visibility: str = 'visible',
         horizontal: bool = False,
         max_height: int | None = None,
+        box_disabled: tp.Callable[[tp.Any], bool] | None = None,
+        double_click_open: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -1588,6 +1699,7 @@ class RadioGroup(_OptionsWidget):
         )
         self._horizontal = horizontal
         self._max_height = max_height
+        self._init_rows(box_disabled, double_click_open)
 
 
 Radio = RadioGroup  # alias
@@ -1902,9 +2014,9 @@ class Table(Component):
 
     Properties:
         rows, title, caption, footer, header — see above.
-        visible: bool — derived: false while `rows` is empty, so a table with
-            nothing to show takes no space (and comes back as soon as the
-            bound rows arrive).
+        visible: bool — false while `rows` is empty (so a table with nothing
+            to show takes no space, and comes back as soon as the bound rows
+            arrive), or whenever the flag is switched off explicitly.
     """
 
     _default_width = 'stretch'
@@ -1919,9 +2031,10 @@ class Table(Component):
         header: tp.Sequence[str] | Property | None = None,
         header_background: bool = False,
         width: Width | None = None,
+        visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(width=width, **kwargs)
+        super().__init__(width=width, visible=visible, **kwargs)
         self.rows = Property([])
         if isinstance(rows, Property):
             self.rows.bind(rows)
@@ -1936,7 +2049,7 @@ class Table(Component):
         elif header is not None:
             self.header.set(list(header))
         self._header_background = header_background
-        self.visible = _visible_when_filled(self.rows)
+        self.visible = _visible_when_filled(self.rows, visible)
 
 
 class _TabPanel(Component):

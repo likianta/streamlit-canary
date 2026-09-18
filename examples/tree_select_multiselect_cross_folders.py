@@ -1,20 +1,31 @@
 """Demo: tree select with single / multiple / multi-cross selection.
 
-`v3.TreeSelectWithInput(select_mode=...)` carries all three modes now:
+`v3.TreeSelectWithInput(selection_mode=...)` carries all three modes now:
 
     'single'        pick one node (a radio list)
     'multiple'      tick nodes of the folder being browsed
     'multicross'    tick across folders; the picks gather in a bucket
     'any'           all three, switched from a segmented control
 
-The panel navigates by *clicking* -- there are no arrow buttons.  Its listing
-opens with two extra rows, so moving up and down both take one click:
+This demo drives `multicross` with the default `navigation_mode`, i.e.
+`'double_click'`: one click *picks* a row (ticks its box), a double click
+*opens* it -- there are no arrow buttons.
 
-    `..`        go to the parent folder
-    `.`         "this folder": taken as a node, but never entered
+    dblclick  `..`       go to the parent folder
+    dblclick  `name/`    enter that subfolder
+    dblclick  `name`     nothing: a file opens nowhere
+    click     any row    tick / untick it, and stay put
 
-and the path input's candidate dropdown lists the ancestors of the current
-folder, so any parent is one pick away as well.
+`..` can never be ticked (its box is frozen, drawn dimmed): it is a target,
+not a node.  And there is no `.` / "this folder" row here -- picking and
+moving are no longer fused into a single click, so a row that only existed
+to do both has nothing left to say.
+
+Every move keeps the bucket, so picks made in other folders survive -- that
+is what makes it a *cross-folder* gathering.  The path input's candidate
+dropdown lists the ancestors of the current folder, so any parent is one
+pick away too.  Pass `navigation_mode='single_click'` for the older
+arrangement, where one click moves and the box alone ticks.
 
 Run it with:
 
@@ -32,7 +43,7 @@ def main() -> None:
     sc.set_page_config('Tree Select - Multi / Cross-folders')
 
     sel = v3.TreeSelectWithInput(
-        'Node', '', filter=None, height=420, select_mode='any'
+        'Node', '', filter=None, height=420, selection_mode='multicross'
     )
 
     with v3.Row():

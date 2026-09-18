@@ -17,6 +17,7 @@ import typing as tp
 
 from lk_utils import uuid
 
+from ..kernel import Property
 from ..kernel import PropertyHost
 
 # ---------------------------------------------------------------------------
@@ -98,6 +99,14 @@ class Component(PropertyHost):
     renderer then ignores the value). The stored value is read back as
     `comp._width` / `comp._height`, so a renderer that needs special handling
     (a flex weight, a semantic dialog size) can still branch on it.
+
+    So does the uniform `visible` keyword: it is declared on the base class,
+    so *every* component can be hidden, and no widget has to repeat it. Being
+    a `Property`, it can be bound to state and flipped at runtime, and the
+    renderer applies it to the root element it produced -- see `is_hidden`.
+    A few widgets also derive it from their own data: a blank `Code` / `Table`
+    / `Markdown` has nothing to draw, so theirs is this flag ANDed with that
+    content test.
     """
 
     # stack of components currently inside their `with` block; used to wire up
@@ -118,6 +127,7 @@ class Component(PropertyHost):
         key: str | None = None,
         width: AutoWidth | None = None,
         height: Height | None = None,
+        visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -139,6 +149,12 @@ class Component(PropertyHost):
         else:
             _validate_size(height, 'height')
             self._height = height
+        # Whether the component is drawn at all. A widget whose content
+        # decides this for itself (see the class docstring) overwrites the
+        # property after `super().__init__()`, which is fine: the runtime
+        # collects properties once the whole tree is built.
+        self.visible: Property[bool] = Property(True)
+        self.visible.set_or_bind(visible)
         # auto-attach to the enclosing component, if any.
         if Component._context_stack:
             self._parent = Component._context_stack[-1]
@@ -176,6 +192,17 @@ class Component(PropertyHost):
     @property
     def children(self) -> tuple['Component', ...]:
         return tuple(self._children)
+
+    def is_hidden(self) -> bool:
+        """Whether the component is switched off and must not be drawn.
+
+        The one place the `visible` flag is interpreted, so no renderer has to
+        repeat it: `render.py` asks this about the element it just produced and
+        marks it `hidden`, and the frontend mirrors the same flag on a
+        `visible` patch (`el.hidden`), so a bound value flips the node in
+        place.
+        """
+        return not self.visible.get()
 
     def __repr__(self) -> str:
         return f'<{type(self).__name__} id={self._id[:8]}>'

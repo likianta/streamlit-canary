@@ -91,6 +91,39 @@ def render_tree(roots: tp.Iterable[Component]) -> str:
 
 
 def _render(comp: Component) -> str:
+    """Render a component and its subtree, honoring its `visible` flag.
+
+    `visible` belongs to `Component` itself, so it is applied once, here,
+    instead of by each renderer: whatever root element `_render_element`
+    produced gets the `hidden` mark. That is the element carrying `data-id`,
+    i.e. the one a `visible` patch reaches on the client.
+    """
+    markup = _render_element(comp)
+    if not comp.is_hidden() or not markup.startswith('<'):
+        return markup
+    return _mark_hidden(markup)
+
+
+def _mark_hidden(markup: str) -> str:
+    """Insert the ` hidden` attribute into the first tag of `markup`.
+
+    The scan stops at the closing `>` of that tag, skipping quoted attribute
+    values: a `>` inside one (`data-md="a &gt; b"` is escaped, but a bare one
+    is still legal HTML) must not be mistaken for the tag's end.
+    """
+    quote = ''
+    for i, char in enumerate(markup):
+        if quote:
+            if char == quote:
+                quote = ''
+        elif char in ('"', "'"):
+            quote = char
+        elif char == '>':
+            return markup[:i] + ' hidden' + markup[i:]
+    return markup
+
+
+def _render_element(comp: Component) -> str:
     if isinstance(comp, Grid):
         cells = sorted(comp._cells.values(), key=lambda c: (c._row, c._col))
         children = ''.join(_render(c) for c in cells)
@@ -135,10 +168,9 @@ def _render(comp: Component) -> str:
     # Checked before `Column`, which `FloatingContainer` subclasses.
     if isinstance(comp, FloatingContainer):
         children = ''.join(_render(c) for c in comp.children)
-        hidden = '' if comp.visible.get() else ' hidden'
         return (
             f'<div class="st-floating st-floating--{comp._position}"'
-            f' data-id="{comp.id}"{hidden}>{children}</div>'
+            f' data-id="{comp.id}">{children}</div>'
         )
     if isinstance(comp, Column):
         children = ''.join(_render(c) for c in comp.children)
@@ -184,7 +216,6 @@ def _render(comp: Component) -> str:
             rules.append(f'height:{height}px')
             rules.append('overflow:auto')
         style = f' style="{";".join(rules)}"' if rules else ''
-        hidden = '' if comp.visible.get() else ' hidden'
         reveal_cls = ' st-reveal' if getattr(comp, '_animated', False) else ''
         bottom_cls = (
             ' st-container--bottom' if isinstance(comp, BottomContainer) else ''
@@ -192,7 +223,7 @@ def _render(comp: Component) -> str:
         return (
             f'<div class="st-container{border_cls}{reveal_cls}{bottom_cls}"'
             f' data-id="{comp.id}"'
-            f'{style}{hidden}>{children}</div>'
+            f'{style}>{children}</div>'
         )
     if isinstance(comp, Tabs):
         return _render_tabs(comp)
@@ -232,18 +263,16 @@ def _render(comp: Component) -> str:
         text = _render_paragraphs(str(comp.text.get()))
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
-        hidden = '' if comp.visible.get() else ' hidden'
         return (
             f'<div class="st-markdown" data-id="{comp.id}"'
-            f'{_size_style(comp)}{hidden}>'
+            f'{_size_style(comp)}>'
             f'{text}{help_html}</div>'
         )
     if isinstance(comp, Spinner):
         children = ''.join(_render(c) for c in comp.children)
-        hidden = '' if comp.visible.get() else ' hidden'
         text = render_markup(str(comp.text.get()))
         return (
-            f'<div class="st-spinner" data-id="{comp.id}"{hidden}>'
+            f'<div class="st-spinner" data-id="{comp.id}">'
             f'<span class="st-spinner-ring"></span>'
             f'<span class="st-spinner-text">{text}</span>'
             f'{children}</div>'
@@ -355,11 +384,10 @@ def _render_dialog(comp: Dialog) -> str:
     """Render a modal dialog: a fixed backdrop plus a centred panel."""
     title = render_markup(str(comp.text.get()))
     children = ''.join(_render(c) for c in comp.children)
-    hidden = '' if comp.visible.get() else ' hidden'
     width = getattr(comp, '_width', None)
     style = f' style="width:{width}px"' if isinstance(width, int) else ''
     return (
-        f'<div class="st-dialog-backdrop" data-id="{comp.id}"{hidden}'
+        f'<div class="st-dialog-backdrop" data-id="{comp.id}"'
         f' onclick="scDialogBackdropClick(event, this)">'
         f'<div class="st-dialog"{style} role="dialog" aria-modal="true">'
         f'<div class="st-dialog-header">'
@@ -380,9 +408,8 @@ def _render_expander(comp: Expander) -> str:
     state = 'true' if expanded else 'false'
     cls = 'st-expander is-expanded' if expanded else 'st-expander'
     hidden = '' if expanded else ' hidden'
-    comp_hidden = '' if comp.visible.get() else ' hidden'
     return (
-        f'<div class="{cls}" data-id="{comp.id}"{comp_hidden}>'
+        f'<div class="{cls}" data-id="{comp.id}">'
         f'<div class="st-expander-header" role="button" tabindex="0"'
         f' aria-expanded="{state}" onclick="scToggleExpander(this)">'
         f'<span class="st-icon st-expander-icon" translate="no">'
@@ -398,10 +425,9 @@ def _render_expander(comp: Expander) -> str:
 
 def _render_alert(comp: Component) -> str:
     """Render a coloured alert box (success / warning / info)."""
-    hidden = '' if comp.visible.get() else ' hidden'
     kind = getattr(comp, '_kind', 'success')
     return (
-        f'<div class="st-alert st-alert-{kind}" data-id="{comp.id}"{hidden}>'
+        f'<div class="st-alert st-alert-{kind}" data-id="{comp.id}">'
         f'<div class="st-alert-container" role="status">'
         f'<div class="st-alert-content">'
         f'<div class="st-alert-text">'
@@ -520,9 +546,8 @@ _ICON_PLUS = (
 
 
 def _render_code(comp: Code) -> str:
-    hidden = '' if comp.visible.get() else ' hidden'
     return (
-        f'<div class="st-code" data-id="{comp.id}"{hidden}>'
+        f'<div class="st-code" data-id="{comp.id}">'
         f'<pre><code>{html.escape(str(comp.text.get()))}</code></pre>'
         f'<div class="st-code-toolbar">'
         f'<span class="st-code-copy-chip">'
@@ -585,9 +610,8 @@ def _render_table(comp: Table) -> str:
         cls += ' st-table--content'
     if comp._header_background:
         cls += ' st-table--head-filled'
-    hidden = '' if comp.visible.get() else ' hidden'
     return (
-        f'<div class="{cls}" data-id="{comp.id}"{_size_style(comp)}{hidden}>'
+        f'<div class="{cls}" data-id="{comp.id}"{_size_style(comp)}>'
         f'{_table_text("title", comp.title.get())}'
         f'{_table_text("caption", comp.caption.get())}'
         f'<div class="st-table-scroll">'
@@ -1004,6 +1028,8 @@ def _choice_group_items_html(
     input_type: str,
     on_change: str,
     box_only: bool = False,
+    box_disabled: tp.Callable[[tp.Any], bool] | None = None,
+    double_click_open: bool = False,
 ) -> str:
     """The option-item shell shared by `RadioGroup` and `CheckGroup`.
 
@@ -1013,24 +1039,32 @@ def _choice_group_items_html(
     `CheckGroup` the very same square box (border + checkmark) as
     `v3.Checkbox`.
 
-    With `box_only` (`CheckGroup(full_body_click=False)`) the input and the box
-    ride inside their own `<label>`, so only the box selects the option; the
-    rest of the row then acts on the node instead -- a folder's body enters it
-    (see `scHighlightChoice`).
+    With `box_only` (`CheckGroup(body_click_behavior='')`) the input and the
+    box ride inside their own `<label>`, so only the box selects the option;
+    the rest of the row then acts on the node instead -- a folder's body
+    enters it (see `scHighlightChoice`).
+
+    `box_disabled` freezes single options: their field is inert (so the
+    surrounding label cannot tick them) and the row is marked
+    `is-box-disabled` for the dimmed box. With `double_click_open` the row
+    body reports a double click instead (see `scOpenRow`), which is the
+    gesture `TreeSelect(navigation_mode='double_click')` navigates on.
     """
     if not values:
         return _choice_group_empty_html(input_type)
     fmt = comp.format_func
     name = f' name="{input_type}_{comp.id}"' if input_type == 'radio' else ''
-    disabled = '' if comp.enabled.get() else ' disabled'
+    widget_off = not comp.enabled.get()
     box = _choice_box_html(input_type)
     item_html = []
     for option in values:
+        frozen = bool(box_disabled(option)) if box_disabled else False
+        off = ' disabled' if (frozen or widget_off) else ''
         field = (
             f'<span class="st-radio-input-wrap">'
             f'<input type="{input_type}"{name} '
             f'value="{html.escape(str(option))}" '
-            f'{"checked" if is_checked(option) else ""}{disabled} '
+            f'{"checked" if is_checked(option) else ""}{off} '
             f'onchange="{on_change}(this)" '
             f'data-comp-id="{comp.id}"/></span>'
         )
@@ -1038,9 +1072,12 @@ def _choice_group_items_html(
             f'<div class="st-radio-markdown">'
             f'<p>{render_markup(fmt(option))}</p></div>'
         )
+        item_cls = 'st-radio-item'
+        if frozen:
+            item_cls += ' is-box-disabled'
         if box_only:
             item_html.append(
-                f'<div class="st-radio-item">'
+                f'<div class="{item_cls}">'
                 f'<div class="st-radio-item-body">'
                 f'<div class="st-radio-item-row" '
                 f'onclick="scHighlightChoice(event, this)">'
@@ -1049,10 +1086,19 @@ def _choice_group_items_html(
                 f'</div></div></div>'
             )
         else:
+            # here the label wraps the row, so a body click ticks the box;
+            # `scHighlightChoice` merely adds the highlight, and
+            # `scOpenRow` picks up the double click
+            acts = ''
+            if double_click_open:
+                acts = (
+                    ' onclick="scHighlightChoice(event, this)"'
+                    ' ondblclick="scOpenRow(event, this)"'
+                )
             item_html.append(
-                f'<label class="st-radio-item">{field}'
+                f'<label class="{item_cls}">{field}'
                 f'<div class="st-radio-item-body">'
-                f'<div class="st-radio-item-row">'
+                f'<div class="st-radio-item-row"{acts}>'
                 f'{box}{text}'
                 f'</div></div></label>'
             )
@@ -1069,6 +1115,7 @@ def _render_choice_group(
     box_only: bool = False,
 ) -> str:
     """Render an option list: the shared body of the two group widgets."""
+    double_click_open = bool(getattr(comp, '_double_click_open', False))
     items = _choice_group_items_html(
         comp,
         comp.options.get() or (),
@@ -1076,12 +1123,18 @@ def _render_choice_group(
         input_type=input_type,
         on_change=on_change,
         box_only=box_only,
+        box_disabled=getattr(comp, '_box_disabled', None),
+        double_click_open=double_click_open,
     )
     root_cls = base_cls
     if getattr(comp, '_horizontal', False):
         root_cls += f' {base_cls}--horizontal'
     if box_only:
         root_cls += ' st-check-group--box-only'
+    if double_click_open:
+        # marks the rows for the JS `options` rebuild, which cannot see the
+        # widget's kwargs (mirrors `st-check-group--box-only`)
+        root_cls += ' st-dblclick-rows'
     if not comp.enabled.get():
         root_cls += ' is-disabled'
     max_height = getattr(comp, '_max_height', None)
@@ -1117,7 +1170,7 @@ def _render_check_group(comp: CheckGroup) -> str:
         input_type='checkbox',
         on_change='scSendCheckGroup',
         is_checked=lambda o: o in picked,
-        box_only=not comp._full_body_click,
+        box_only=comp._box_only(),
     )
 
 
@@ -1186,7 +1239,6 @@ def _render_popover(comp: Popover) -> str:
     label = _render_paragraphs(str(comp.text.get()))
     children = ''.join(_render(c) for c in comp.children)
     width_style = _size_style(comp)
-    hidden = '' if comp.visible.get() else ' hidden'
     enabled = comp.enabled.get()
     disabled = '' if enabled else ' disabled'
     panel_align = getattr(comp, '_panel_align', 'trigger')
@@ -1217,7 +1269,7 @@ def _render_popover(comp: Popover) -> str:
     if isinstance(max_height, int):
         panel_style = f' style="max-height:{max_height}px"'
     return (
-        f'<div class="{root_cls}" data-id="{comp.id}"{hidden}>'
+        f'<div class="{root_cls}" data-id="{comp.id}">'
         f'<button class="st-btn st-btn-secondary st-popover-trigger" '
         f'type="button" aria-haspopup="dialog" aria-expanded="false"'
         f'{disabled}{width_style}{help_attr} onclick="scTogglePopover(this)">'
@@ -1295,7 +1347,6 @@ def _render_progress(comp: Progress) -> str:
     rounded ends you see come from the track clipping it (see the
     `.st-progress-*` rules in `page.css`).
     """
-    hidden = '' if comp.visible.get() else ' hidden'
     value = comp.value.get()
     if value is None:
         bar = '<div class="st-progress-bar is-indeterminate"></div>'
@@ -1306,7 +1357,7 @@ def _render_progress(comp: Progress) -> str:
     # land somewhere, and `:empty` keeps it from taking up space meanwhile.
     text = render_markup(str(comp.text.get()))
     return (
-        f'<div class="st-progress" data-id="{comp.id}"{hidden}>'
+        f'<div class="st-progress" data-id="{comp.id}">'
         f'<div class="st-progress-text">{text}</div>'
         f'<div class="st-progress-track">{bar}</div>'
         f'</div>'

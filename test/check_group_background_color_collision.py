@@ -7,12 +7,12 @@ def main():
     v3.CheckGroup(
         'Check group',
         ('Option 1', 'Option 2', 'Option 3'),
-        full_body_click=False,
+        body_click_behavior='',
     )
     v3.CheckGroup(
         'Check group',
         ('Option 4', 'Option 5', 'Option 6'),
-        full_body_click=False,
+        body_click_behavior='',
         horizontal=True,
     )
 
