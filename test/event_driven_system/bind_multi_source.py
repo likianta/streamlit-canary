@@ -24,10 +24,11 @@ Short version:
    for the sync, and "in the batch" means "still to be notified". So a source
    that moves during the flush on its own -- a derived property, never queued
    -- is fine. Sections 8 and 9 keep that honest: this used to trip an
-   `assert` whose exception the batch loop swallowed (the target went stale
-   and the rest of that property's listeners were skipped), and later the
-   target would settle on a stale value whenever the already-notified source
-   was declared last.
+   `assert` inside the batch loop, and the loop swallowed the error back then
+   (it collects listener errors now and raises them once the batch is done --
+   see `bind_forced_notify.py`), so the target went stale and the rest of that
+   property's listeners were skipped. Later the target would settle on a stale
+   value whenever the already-notified source was declared last.
 """
 
 import streamlit_canary as sc
@@ -286,9 +287,9 @@ show('  other handlers on `a3` ran', probe)
 
 # Regression test. `_lazy_sync` used to assert that a changing source was
 # part of the batch, so a *derived* source -- which moves during the flush
-# without being queued -- blew up inside the batch loop, which swallows
-# listener exceptions (`except Exception: continue`). The target silently
-# kept its old value and the rest of that property's listeners were skipped.
+# without being queued -- blew up inside the batch loop, which swallowed the
+# exception and carried on. The target silently kept its old value and the
+# rest of that property's listeners were skipped.
 assert merged.get() == 'aaa' + plain.get()
 assert probe == ['aaa']
 

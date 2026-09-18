@@ -8,5 +8,6 @@
 /test/event_driven_system/pdf_watermaker_copy
 /test/event_driven_system/pdf_watermaker_copy_data
 /test/event_driven_system/pyproject_manager_copy
+/test/pixel_fidelity/sample.pdf
 /_probe.py
 __pycache__/
