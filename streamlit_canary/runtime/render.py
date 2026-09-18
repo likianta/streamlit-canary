@@ -531,20 +531,33 @@ def _render_button(comp: Button) -> str:
 def _widget_label_html(comp: Component) -> str:
     """Render a widget label, honouring `label_visibility`.
 
-    Mirrors Streamlit's semantics:
-        visible   : shown normally.
+    Mirrors Streamlit's semantics, plus the `'auto'` default:
+        auto      : decided from the label itself -- text shows the row, an
+                    empty label collapses it (a blank label would otherwise
+                    still hold the row's 24px line).
+        visible   : shown normally, empty or not (an empty one keeps the
+                    row's height, which is what `'hidden'` is for).
         hidden    : hidden, but still occupies its space.
         collapsed : hidden and removed from the layout.
 
+    `'auto'` is decided here, once, and baked into the class: the field is
+    static (like `width` / `height`), so a bound `label` that empties or
+    fills in later does not re-decide it.
+
     A widget's `help` text is attached to a trailing info glyph.
     """
-    visibility = getattr(comp, '_label_visibility', 'visible')
+    visibility = getattr(comp, '_label_visibility', 'auto')
+    label_text = str(comp.label.get() or '')
+    if visibility == 'auto':
+        # `auto` reads the label itself: text -> show the row, nothing to
+        # draw -> collapse it, so an empty label costs no height at all.
+        visibility = 'visible' if label_text.strip() else 'collapsed'
     cls = 'st-widget-label'
     if visibility == 'hidden':
         cls += ' st-widget-label--hidden'
     elif visibility == 'collapsed':
         cls += ' st-widget-label--collapsed'
-    label = render_markup(str(comp.label.get()))
+    label = render_markup(label_text)
     help_text = _help_text(comp)
     help_html = _help_icon_html(help_text) if help_text else ''
     return f'<label class="{cls}">{label}{help_html}</label>'

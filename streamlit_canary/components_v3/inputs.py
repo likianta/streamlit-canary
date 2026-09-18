@@ -21,6 +21,14 @@ from ..kernel import Signal
 from ..kernel import _undefined
 
 
+class T:
+    LabelVisibility = tp.Literal['auto', 'visible', 'hidden', 'collapsed']
+    #   'auto': if label is set, show it, else collapsed.
+    #   'visible': show label, if label is empty, occupy the height space.
+    #   'hidden': do not show label, but occupy the height space.
+    #   'collapsed': do not show label, and do not occupy the height space.
+
+
 def _resolve_number(value: tp.Any) -> int | float:
     """The plain number behind a NumberInput `value` argument.
 
@@ -137,7 +145,7 @@ class CheckGroup(_RowGestures, _Labeled):
         value: tp.Sequence[tp.Any] | Property | None = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         enabled: bool | Property = True,
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         horizontal: bool = False,
         max_height: int | None = None,
         box_disabled: tp.Callable[[tp.Any], bool] | None = None,
@@ -230,7 +238,7 @@ class Checkbox(_Labeled):
         label: str | Property = '',
         *,
         value: bool | Property = False,
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
@@ -280,7 +288,7 @@ class Multiselect(_Labeled):
         value: tp.Sequence[tp.Any] | Property | None = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         placeholder: str = 'Choose an option',
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
@@ -362,7 +370,7 @@ class NumberInput(_Labeled):
         format: tp.Callable[[tp.Any], str] | None = None,
         width: Width | None = None,
         placeholder: str = '',
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -450,7 +458,7 @@ class RadioGroup(_RowGestures, _OptionsWidget):
         index: int | Property | None = None,
         value: tp.Any = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         horizontal: bool = False,
         max_height: int | None = None,
         box_disabled: tp.Callable[[tp.Any], bool] | None = None,
@@ -489,7 +497,8 @@ class ReducibleGroup(_Labeled):
         options: the items (bindable).
         format: callable (value -> text) or a label sequence parallel to
             `options`.
-        label_visibility: 'visible' (default) | 'collapsed' | 'hidden'.
+        label_visibility: `'auto'` | `'visible'` | `'hidden'` |
+            `'collapsed'` (see `T.LabelVisibility`).
 
     Properties:
         label: str — the widget label.
@@ -510,7 +519,7 @@ class ReducibleGroup(_Labeled):
         options: tp.Sequence[tp.Any] | Property | None = None,
         *,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
@@ -630,7 +639,7 @@ class Selectbox(_OptionsWidget):
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         accept_new_options: bool = False,
         format_new_option: tp.Callable[[str], tp.Any] | None = None,
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -709,7 +718,7 @@ class TextArea(_Labeled):
         enabled: bool | Property = True,
         width: Width | None = None,
         help: str = '',
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -766,7 +775,7 @@ class TextInput(_Labeled):
         enabled: bool | Property = True,
         width: Width | None = None,
         help: str = '',
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         candidates: tp.Iterable[str] | Property | None = None,
         **kwargs: tp.Any,
     ) -> None:
@@ -816,7 +825,7 @@ class Toggle(_Labeled):
         label: str | Property = '',
         value: bool | Property = False,
         *,
-        label_visibility: str = 'visible',
+        label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)

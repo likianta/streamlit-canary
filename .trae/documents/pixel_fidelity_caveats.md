@@ -18,6 +18,11 @@
 
     原版行为: st 没有"按元素设上下限"的入口 (只有 `st.container(height=...)` 这类固定高度), 所以这不是与 st 不一致, 而是我们多出来的能力. 像素对比时若看到某块区域被压住并出现滚动条, 先确认应用是否显式传了 `max_height`.
 
+- Label visibility (label_visibility)
+  - 我们给 `label_visibility` 多添了一个取值并把它作为默认: `'auto'` -- label 为空 (或只有空白) 时, 整个标签行连同它的高度一起收起来; label 有内容时等同 `'visible'`. 因为 `'auto'` 只看 label 文本, 空 label 即使带了 `help` 也会连同那个问号图标一起收起来 (要保住它就显式传 `'visible'`).
+
+    原版行为 (在 :2200 上实测的 st): 默认的 `'visible'` 即使 label 是空字符串也会保留标签行 -- `st.text_input('')` 的控件高 68px (标签行 24px + 间隙 4px + 输入框 40px), 同一个控件改成 `label_visibility='collapsed'` 则是 40px. 所以**空 label 的控件**在我们这里会比 st 矮 28px. 现有场景里没有空 label 的控件, 以后新增场景时留意 (想要那 28px 就显式传 `'visible'`).
+
 - Layout gaps (全局横向 / 纵向间距)
   - 同目录 `01-base.css` 里还有两个间距 token: `--st-hgap` (8px) 与 `--st-vgap` (16px). 用横向的那个 (`--st-hgap`): `v3.Row` 子元素并排时的间距, `v3.Grid` 的列轨道之间, 横向 (`horizontal=True`) 的 `v3.Radio` / `v3.CheckGroup` 的选项之间, tab 条上的各个 tab, `v3.FloatingContainer` 聚簇内的子元素. 用纵向的那个 (`--st-vgap`): 应用根 (`#app`), `v3.Container`, `v3.Grid` 的行距及其 `GridCell`, popover 面板, expander 的正文, tab 面板. `v3.Row` 换行后那两行之间属于纵向节奏, 所以也走 `--st-vgap`. 注意: 属于控件自身尺度的间距 (按钮的文案到图标, checkbox 的框到文字) 不在此列, 它们保持各自原来的字面值.
 

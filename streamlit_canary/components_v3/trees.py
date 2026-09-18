@@ -52,7 +52,6 @@ from .buttons import IconButton
 from .inputs import CheckGroup
 from .inputs import RadioGroup
 from .inputs import ReducibleGroup
-from .inputs import SegmentedControl
 from .inputs import Selectbox
 from .inputs import TextInput
 
@@ -70,6 +69,7 @@ from .texts import Text
 class T:
     Filter = tp.Optional[tp.Union[str, tp.Tuple[str, ...]]]
     NodeType = tp.Literal['file', 'folder']
+    SelectionMode = tp.Literal['single', 'multiple', 'multicross']
 
 
 def _norm(path: str) -> str:
@@ -329,16 +329,6 @@ def _is_nav_up(option: tp.Any) -> bool:
 def _is_under(path: str, folder: str) -> bool:
     """Whether `path` is a strict descendant of `folder` (a folder path)."""
     return path.startswith(folder.rstrip('/') + '/')
-
-
-def _label_draws_nothing(label: str | Property) -> bool:
-    """Whether a `label` argument draws no text (a `Property` is read).
-
-    Used to collapse an empty label, which would otherwise still hold the
-    label row's 24px line (see `_widget_label_html`).
-    """
-    value = label.get() if isinstance(label, Property) else label
-    return not str(value or '').strip()
 
 
 def _as_picked(value: tp.Any) -> list:
@@ -610,9 +600,9 @@ class TreeSelect(_Labeled, Column):
         start_directory: the folder to open (default: the cwd).
         label: the widget label, drawn above the panel the way an input's
             label is (same markup / metrics as `TextInput.label`).
-        label_visibility: `'visible'` (the default when `label` has text) |
-            `'hidden'` | `'collapsed'`. Left `None`, an empty label is
-            collapsed so it costs no height.
+        label_visibility: `'auto'` (the default: the label row follows the
+            label, so an empty one costs no height) | `'visible'` | `'hidden'`
+            | `'collapsed'`. See `inputs.T.LabelVisibility`.
         help: optional markdown tooltip shown next to the label.
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
         height: optional cap in px on the listing, after which it scrolls.
@@ -662,22 +652,18 @@ class TreeSelect(_Labeled, Column):
         start_directory: str = '',
         *,
         label: str | Property = '',
-        label_visibility: str | None = None,
+        label_visibility: str = 'auto',
         help: str | Property = '',
         filter: T.Filter = None,
         height: int | None = None,
         width: Width | None = None,
-        selection_mode: tp.Union[str, tp.Iterable[str]] = _MODE_SINGLE,
+        selection_mode: tp.Union[
+            T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
+        ] = _MODE_SINGLE,
         _vendored: bool = False,
         border: bool | None = None,
         **kwargs: tp.Any,
     ) -> None:
-        if label_visibility is None:
-            # an empty label would still hold the label row's 24px line, so
-            # collapse it rather than leave a blank band above the panel
-            label_visibility = (
-                'collapsed' if _label_draws_nothing(label) else 'visible'
-            )
         if border is None:
             # a standalone panel frames itself; one delivered inside a
             # wrapper's frame (a popover) would only nest a second frame
@@ -754,10 +740,10 @@ class TreeSelect(_Labeled, Column):
                             ),
                         )
                 if switchable:
-                    self._mode_control = SegmentedControl(
+                    self._mode_control = Selectbox(
                         'Selection mode',
                         options=selection_mode,
-                        value=initial_mode,
+                        index=0,
                         format=lambda m: _MODE_LABELS[m],
                         label_visibility='collapsed',
                     )
@@ -1081,7 +1067,9 @@ class TreeSelectWithInput(Column):
         show_recent: bool = False,
         height: int = 500,
         width: Width | None = None,
-        selection_mode: tp.Union[str, tp.Iterable[str]] = _MODE_SINGLE,
+        selection_mode: tp.Union[
+            T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
+        ] = _MODE_SINGLE,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)

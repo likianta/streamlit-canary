@@ -160,7 +160,10 @@ class _Labeled(Component):
 
     Fields:
         label: Property[str]   — the widget label (bindable).
-        _label_visibility: str — "visible" | "hidden" | "collapsed".
+        _label_visibility: str — "auto" | "visible" | "hidden" | "collapsed";
+            see `inputs.T.LabelVisibility` for all four. "auto" is the
+            default: the row follows the label, showing when it draws
+            something and collapsing when it draws nothing.
         help: Property[str]    — markdown tooltip shown next to the label
             (bindable; bind it when the text depends on state).
     """
@@ -169,7 +172,7 @@ class _Labeled(Component):
         self,
         label: str | Property = '',
         *,
-        label_visibility: str = 'visible',
+        label_visibility: str = 'auto',
         help: str | Property = '',
         **kwargs: tp.Any,
     ) -> None:
@@ -208,7 +211,7 @@ class _OptionsWidget(_Labeled):
         value: tp.Any = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         enabled: bool | Property = True,
-        label_visibility: str = 'visible',
+        label_visibility: str = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
