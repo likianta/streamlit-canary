@@ -46,15 +46,18 @@ streamlit-canary/
 │   ├── components_v2/        # v2 组件 (过渡版本)
 │   ├── session.py            # v1/v2 session state 管理
 │   └── runner.py             # 传统 Streamlit 子进程启动器 (legacy)
+├── examples/
+│   ├── click_counter.py      # 计数器示例 (最小 v3 演示用例)
+│   └── ...
 ├── test/                     # 测试与演示 (你可以在本目录下根据需要创建新的测试脚本)
 │   ├── event_driven_system/        # v3 事件驱动测试
-│   │   ├── demo_click_counter.py   # 计数器 demo (最小可运行示例)
 │   │   ├── components_v3_demo.py   # 纯 Python 组件树 / 信号演示
 │   │   └── ...
 │   ├── pixel_fidelity/       # UI 像素级对齐的试验脚本
 │   └── ...
 ├── references/               # 参考资源
 │   ├── asa_gui/              # 原版基于 Streamlit 的演示应用, 运行在 localhost:2204
+│   ├── pdf_watermaker/       # 原版基于 Streamlit 的演示应用, 运行在 localhost:2210
 │   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2206
 │   ├── streamlit/            # Streamlit 源码
 │   └── ...                   # 截图, 参考图等
@@ -113,7 +116,9 @@ python test/event_driven_system/components_v3_demo.py
 2207: PyProject Manager 副本应用. 也就是我们正在用 v3 组件重写并测试的应用.
 2208: Depsland AppBuilder 原版应用 (暂未开始).
 2209: Depsland AppBuilder 副本应用 (暂未开始).
-2210...2229: 暂未定义, 未来会根据需要添加.
+2210: PDF Watermaker 原版应用.
+2211: PDF Watermaker 副本应用.
+2212...2229: 暂未定义, 未来会根据需要添加.
 ```
 
 ### Playwright 使用说明

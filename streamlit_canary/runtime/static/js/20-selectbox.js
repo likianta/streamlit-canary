@@ -85,6 +85,21 @@
       (Number.isFinite(cap) ? Math.min(height, cap) : height) + 'px',
     );
   }
+  // A dropdown that opens inside a popover panel (the tree-select toolbar's
+  // location bar) has to clear that panel's `overflow` clip -- the panel is
+  // scrollable, so an `absolute` dropdown would be cut off at its edge. Like
+  // the panel itself, such a dropdown is `position: fixed` (see page.css) and
+  // placed here in viewport coordinates, aligned to the control it belongs to;
+  // a dropdown outside any panel keeps its plain `absolute` placement.
+  function scPositionSelectboxDropdown(dropdown) {
+    if (!dropdown.closest('.st-popover-panel')) return;
+    const control = dropdown.closest('.st-selectbox-control');
+    if (!control) return;
+    const rect = control.getBoundingClientRect();
+    dropdown.style.left = Math.round(rect.left) + 'px';
+    dropdown.style.width = Math.round(rect.width) + 'px';
+    dropdown.style.top = Math.round(rect.bottom + 4) + 'px';
+  }
   // -- Custom selectbox dropdown interaction --
   function scToggleSelectbox(trigger) {
     const control = trigger.closest('.st-selectbox-control');
@@ -105,6 +120,7 @@
       dropdown.hidden = false;
       // The chevron turn (80ms) is quicker than the panel growth (120ms), so
       // the rotation is over before the panel is fully open.
+      scPositionSelectboxDropdown(dropdown);
       scMeasureOpenHeight(dropdown, '--st-selectbox-open-height');
       trigger.setAttribute('aria-expanded', 'true');
     }
@@ -166,6 +182,7 @@
     } else {
       dropdown.hidden = false;
       // Same growth animation as the selectbox panel.
+      scPositionSelectboxDropdown(dropdown);
       scMeasureOpenHeight(dropdown, '--st-selectbox-open-height');
       box.setAttribute('aria-expanded', 'true');
     }

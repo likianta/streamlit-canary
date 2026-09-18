@@ -326,6 +326,11 @@ def _is_nav_up(option: tp.Any) -> bool:
     return str(option) == NAV_UP
 
 
+def _is_under(path: str, folder: str) -> bool:
+    """Whether `path` is a strict descendant of `folder` (a folder path)."""
+    return path.startswith(folder.rstrip('/') + '/')
+
+
 def _as_picked(value: tp.Any) -> list:
     """`TreeSelect.value` as a list of paths (the multi modes' shape)."""
     if isinstance(value, list):
@@ -600,11 +605,15 @@ class TreeSelect(Column):
             from the current folder (a path input's candidate list, say)
             should be refreshed from here.
         on_submit: emitted when the Confirm button in the bottom-right corner
-            is clicked. A wrapper such as `TreeSelectWithInput` listens for it
-            to dismiss the popover it opened.
+            is clicked, carrying the resolved absolute paths (see `resolve`);
+            a pick another pick already covers is dropped, so a ticked folder
+            stands in for everything under it. A wrapper such as
+            `TreeSelectWithInput` listens for it to dismiss the popover it
+            opened.
 
     Call `reload()` to re-read the folder from disk, `select(path)` to add a
-    path that is not in the listing, and `clear()` to drop the selection.
+    path that is not in the listing, `clear()` to drop the selection, and
+    `resolve()` for the paths the Confirm button reports.
     """
 
     def __init__(
@@ -638,7 +647,7 @@ class TreeSelect(Column):
         )
         self.mode = Property(initial_mode)
         self.on_navigate: Signal = Signal(str)
-        self.on_submit: Signal = Signal()
+        self.on_submit: Signal = Signal(tp.Iterable[str])
 
         # only the modes that can cross folders get a bucket, and only `any`
         # gets the control that switches between them -- so `single` and
@@ -660,7 +669,7 @@ class TreeSelect(Column):
                     format=_path_label,
                     label_visibility='collapsed',
                 )
-                self._refresh_btn = IconButton('refresh', help='Refresh')
+                self._refresh_btn = IconButton('refresh')
                 if crosses:
                     # The bucket holds the cross-folder haul. It rides in a
                     # `Popover` (a `MenuButton` is an options widget, not a
@@ -770,7 +779,7 @@ class TreeSelect(Column):
 
         @self._confirm_btn.on_click
         def _on_confirm() -> None:
-            self.on_submit.emit()
+            self.on_submit.emit(self.resolve())
 
         if crosses:
 
@@ -800,6 +809,22 @@ class TreeSelect(Column):
         """Re-read the current folder from disk and refresh the listing."""
         self._nav.reload()
         self._refresh_listing()
+
+    def resolve(self) -> tp.Tuple[str, ...]:
+        """The selection as absolute paths, for the Confirm button to report.
+
+        A ticked folder stands for everything under it, so a pick that
+        another pick already covers is dropped: the raw picks `['a/b',
+        'a/b/c', 'a/b/d.txt', 'a/e']` resolve to `('a/b', 'a/e')`. The panel's
+        own pick order is kept, so "the first pick" stays the first one the
+        user made.
+        """
+        picked = _as_picked(self.value.get())
+        return tuple(
+            path
+            for path in picked
+            if not any(_is_under(path, other) for other in picked)
+        )
 
     def select(self, path: str) -> None:
         """Add `path` to the selection.
@@ -960,7 +985,7 @@ class TreeSelectWithInput(Column):
 
     Args:
         label: the path input's label.
-        initial_path: the starting file or folder (default: the cwd).
+        start_directory: the starting file or folder (default: the cwd).
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
         show_recent: keep a "Recent" dropdown of the picked paths.
         height: max height of the "Browse" panel in px (default 500).
@@ -980,10 +1005,10 @@ class TreeSelectWithInput(Column):
     def __init__(
         self,
         label: str = '',
-        initial_path: str = '',
+        start_directory: str = '',
         *,
         filter: T.Filter = None,
-        show_recent: bool = True,
+        show_recent: bool = False,
         height: int = 500,
         width: Width | None = None,
         selection_mode: str = _MODE_SINGLE,
@@ -991,8 +1016,8 @@ class TreeSelectWithInput(Column):
     ) -> None:
         super().__init__(width=width, **kwargs)
 
-        first_path = initial_path or os.getcwd()
-        initial_is_file = bool(initial_path) and fs.isfile(first_path)
+        first_path = start_directory or os.getcwd()
+        initial_is_file = bool(start_directory) and fs.isfile(first_path)
         nav = _TreeNav(fs.parent(first_path) if initial_is_file else first_path)
         self._nav = nav
         self._keeps = _filter_func(filter)
@@ -1050,11 +1075,13 @@ class TreeSelectWithInput(Column):
             self._refresh_recent()
 
         @self._tree.on_submit
-        def _on_tree_submitted() -> None:
+        def _on_tree_submitted(_paths: tp.Iterable[str]) -> None:
             # the panel's Confirm is a "done" action: fold the popover away
             # (the panel has no idea it lives in one; we own it, so we close
             # it). The pick itself already sits in `_tree.value`, which
-            # `value` mirrors.
+            # `value` mirrors. The resolved paths stay on the panel
+            # (`_tree.resolve()`), so a caller that needs them reads them
+            # there rather than through this wrapper.
             self._browse_popover.close()
 
         self._refresh_recent()
@@ -1391,7 +1418,7 @@ class TreeSelectDualPaneWithInput(Column):
 
     Args:
         label: the path input's label.
-        initial_path: the starting file or folder (default: the cwd).
+        start_directory: the starting file or folder (default: the cwd).
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
         show_recent: keep a "Recent" dropdown of the picked paths.
         node_type: `'file'` (default) or `'folder'`.
@@ -1412,10 +1439,10 @@ class TreeSelectDualPaneWithInput(Column):
     def __init__(
         self,
         label: str,
-        initial_path: str = '',
+        start_directory: str = '',
         *,
         filter: T.Filter = None,
-        show_recent: bool = True,
+        show_recent: bool = False,
         node_type: T.NodeType = 'file',
         dialog_title: str = '',
         tree_panel_height: int = 500,
@@ -1426,7 +1453,7 @@ class TreeSelectDualPaneWithInput(Column):
         super().__init__(width=width, **kwargs)
 
         custom = custom or {}
-        first_path = initial_path or os.getcwd()
+        first_path = start_directory or os.getcwd()
         if node_type == 'file':
             result = _norm(first_path) if fs.isfile(first_path) else ''
         else:
