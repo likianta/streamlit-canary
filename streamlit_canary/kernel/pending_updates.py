@@ -1,5 +1,6 @@
 import typing as tp
 
+from contextlib import AbstractContextManager
 from contextlib import contextmanager
 
 if tp.TYPE_CHECKING:
@@ -16,41 +17,58 @@ class _PendingUpdates:
         self.stage = 'idle'
         self._transaction_order = 0
 
-    def __call__(self):
-        """
+    def __call__(self) -> AbstractContextManager[None]:
+        """Open a transaction: batch the `set()`s made inside the block.
+
         Usage:
-            assert isinstance(sc.pending_updates, _PendingUpdates)
-            with sc.pending_updates():  # `with` statement is allowed.
+            with sc.pending_updates():
                 count.set(1)
                 count.set(2)
                 count.set(3)
-            # finally, only 3 is notified.
+            # the value is 3, and its listeners ran once -- on one settled
+            # state -- instead of once per set.
+
+        Every `set()` inside the block still writes its value straight away;
+        only the `on_change` notification waits, and each property that
+        changed is notified once, in the order it was first set.
+
+        Blocks nest: an inner one joins the outer transaction (the sets are
+        still batched as a whole) rather than committing on its own.
         """
+        return self._transaction()
 
-        @contextmanager
-        def _pending():
-            if self.stage == 'idle':
-                self.stage = 'pending'
-                try:
-                    yield
-                finally:
-                    if self.queue:
-                        self.stage = 'resolving'
-                        for source, _ in sorted(
-                            self.queue.values(), key=lambda x: x[1]
-                        ):
-                            try:
-                                source.on_change.emit()
-                            except Exception:
-                                continue
-                        self.queue.clear()
-                    self.stage = 'idle'
-            elif self.stage == 'pending':
+    @contextmanager
+    def _transaction(self) -> tp.Iterator[None]:
+        if self.stage == 'idle':
+            self.stage = 'pending'
+            try:
                 yield
-            else:
-                raise Exception('Invalid state')
-
-        return _pending
+            finally:
+                if self.queue:
+                    self.stage = 'resolving'
+                    # A source is popped the moment it is notified, so while
+                    # the batch runs "in the queue" means "still to be
+                    # notified". `Property.bind` relies on that to tell
+                    # "a later source will sync" apart from "a later source
+                    # has already had its turn".
+                    for source, _ in sorted(
+                        self.queue.values(), key=lambda x: x[1]
+                    ):
+                        self.queue.pop(id(source), None)
+                        # One misbehaving listener must not stop the rest of
+                        # the batch from being notified.
+                        try:
+                            source.on_change.emit()
+                        except Exception:
+                            continue
+                    self.queue.clear()
+                self.stage = 'idle'
+        elif self.stage == 'pending':
+            yield
+        else:
+            raise RuntimeError(
+                'cannot open a transaction while one is being resolved'
+            )
 
     # def __contains__(self, source_id: int) -> bool:
     #     return source_id in self.queue
