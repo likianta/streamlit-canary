@@ -333,7 +333,7 @@ class _TextVisible(_HasText):
 
     The flag itself lives on `Component`; these boxes only default it *off*,
     so a `Spinner` stays out of the way until it is entered. Used by Spinner
-    and Success.
+    and by the `Callout` family.
     """
 
     def __init__(

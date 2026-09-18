@@ -1,6 +1,7 @@
 """Status elements: Streamlit's "Status elements" (`api-reference/status`).
 
-`Info`, `Progress`, `Spinner`, `Success`, `Toast`, `Warning`.
+`Callout` (the base of `Error`, `Info`, `Success`, `Warning`), `Progress`,
+`Spinner`, `Toast`.
 """
 
 import typing as tp
@@ -12,13 +13,38 @@ from .base import Component
 from ..kernel import Property
 
 
-class Info(_TextVisible):
-    """A blue informational alert box (mirrors Streamlit's `st.info`).
+class Callout(_TextVisible):
+    """A coloured alert box -- the base of `Error` / `Info` / `Success` /
+    `Warning`.
+
+    Those four are one box in four palettes, the way `st.error` / `st.info` /
+    `st.success` / `st.warning` are, so a subclass only names its palette
+    through `_kind`; `render.py` turns that into the `st-alert-<kind>` class
+    and `runtime/static/css/11-status.css` pairs each kind with its
+    `--st-<name>-background-color` / `--st-<name>-text-color`.
+
+    The base itself carries the success palette, because that is what the
+    shared `.st-alert-container` rule holds -- the variants only override it.
 
     Properties:
         text:    str  — the message (bindable; `:color[..]` markup allowed)
-        visible: bool — whether the alert is shown (bindable)
+        visible: bool — whether the alert is shown (bindable). Like every
+            `_TextVisible` box it defaults to **False**, which is what keeps a
+            `Spinner` out of the way until it is entered; an alert that is
+            simply there therefore needs `visible=True`, or a binding.
     """
+
+    _kind = 'success'
+
+
+class Error(Callout):
+    """A red error alert box (mirrors Streamlit's `st.error`)."""
+
+    _kind = 'error'
+
+
+class Info(Callout):
+    """A blue informational alert box (mirrors Streamlit's `st.info`)."""
 
     _kind = 'info'
 
@@ -170,13 +196,8 @@ class Spinner(_TextVisible):
         return super().__exit__(*exc)
 
 
-class Success(_TextVisible):
-    """A green success alert box (mirrors Streamlit's `st.success`).
-
-    Properties:
-        text:    str  — the message (bindable; `:color[..]` markup allowed)
-        visible: bool — whether the alert is shown (bindable)
-    """
+class Success(Callout):
+    """A green success alert box (mirrors Streamlit's `st.success`)."""
 
     _kind = 'success'
 
@@ -259,12 +280,7 @@ class Toast(Component):
         self.messages.set(messages)
 
 
-class Warning(_TextVisible):
-    """A yellow warning alert box (mirrors Streamlit's `st.warning`).
-
-    Properties:
-        text:    str  — the message (bindable; `:color[..]` markup allowed)
-        visible: bool — whether the alert is shown (bindable)
-    """
+class Warning(Callout):
+    """A yellow warning alert box (mirrors Streamlit's `st.warning`)."""
 
     _kind = 'warning'

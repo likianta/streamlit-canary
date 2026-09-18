@@ -47,12 +47,10 @@ from ..components_v3.layouts import Space
 from ..components_v3.layouts import Tabs
 from ..components_v3.layouts import _TabPanel
 
-from ..components_v3.status import Info
+from ..components_v3.status import Callout
 from ..components_v3.status import Progress
 from ..components_v3.status import Spinner
-from ..components_v3.status import Success
 from ..components_v3.status import Toast
-from ..components_v3.status import Warning
 
 from ..components_v3.texts import Caption
 from ..components_v3.texts import Code
@@ -283,7 +281,7 @@ def _render_element(comp: Component) -> str:
             f'<span class="st-spinner-text">{text}</span>'
             f'{children}</div>'
         )
-    if isinstance(comp, (Success, Warning, Info)):
+    if isinstance(comp, Callout):
         return _render_alert(comp)
     if isinstance(comp, Popover):
         return _render_popover(comp)
@@ -430,7 +428,7 @@ def _render_expander(comp: Expander) -> str:
 
 
 def _render_alert(comp: Component) -> str:
-    """Render a coloured alert box (success / warning / info)."""
+    """Render a coloured alert box (error / info / success / warning)."""
     kind = getattr(comp, '_kind', 'success')
     return (
         f'<div class="st-alert st-alert-{kind}" data-id="{comp.id}">'

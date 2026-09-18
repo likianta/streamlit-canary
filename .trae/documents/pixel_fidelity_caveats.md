@@ -11,6 +11,13 @@
 
     原版行为: st.bottom 只允许在根布局中使用.
 
+- Callout
+  - `v3.Error` / `v3.Info` / `v3.Success` / `v3.Warning` 是同一个 `v3.Callout` 基类的四个子类, 四者只差配色 (子类只写 `_kind`, 渲染成 `.st-alert-<kind>`, 样式在 `runtime/static/css/11-status.css`). 四套配色逐一对照过真实的 Streamlit 应用 (`st.error` / `st.info` / `st.success` / `st.warning` 各渲染一条, 读计算样式): 背景是各自的 `--st-<name>-background-color`, 文字是各自的 `--st-<name>-text-color`; 浅色主题下实测背景为 blue `rgba(28,131,255,.1)` / green `rgba(33,195,84,.1)` / yellow `rgba(255,255,18,.1)` / red `rgba(255,43,43,.1)`, 文字为 `#0054a3` / `#158237` / `#926c05` / `#bd4043`. 注意 warning 是**黄色** (`--st-yellow-*`), 不是橙色.
+
+  - 盒子的尺寸刻意与 Streamlit 不同: 我们固定 `min-height: 40px` + 内边距 `4px 12px`, 原版是内边距 `16px` 且高度自适应.
+
+    原版行为: st 的 alert 四周留 16px 内边距, 高度随内容撑开, 所以同样的文案在原版里更高一些. 我们让 alert 和一个普通按钮同高 (40px), 是为了让它和 Spinner 共用的那块状态区高度恒定 -- 状态在两行之间来回切换时不会跳动.
+
 - Code
   - 当 `text` 为空 (或只有空白字符) 时, 组件整体隐藏, 不会留下一个空的代码框. 该字段是 bindable 的, 所以绑定了一个暂为空的来源时, 它会跟着来源的填充而重新出现.
 

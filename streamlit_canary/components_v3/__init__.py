@@ -59,6 +59,8 @@ from .layouts import Row
 from .layouts import Space
 from .layouts import Tabs
 
+from .status import Callout
+from .status import Error
 from .status import Info
 from .status import Progress
 from .status import Spinner

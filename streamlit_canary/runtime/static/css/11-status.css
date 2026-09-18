@@ -1,4 +1,6 @@
-  /* Success alert (mirrors Streamlit's `st.success`) */
+  /* Alert box: one container, four palettes (see the variants below). It is
+     Streamlit's `st.error` / `st.info` / `st.success` / `st.warning` -- the
+     same box in a different colour. */
   .st-alert {
     display: block;
   }
@@ -21,14 +23,23 @@
     font-size: 16px;
     color: inherit;
   }
-  /* Alert variants: the base colours above are the success palette. */
+  /* Alert variants: the base colours above are the success palette, so the
+     other three only restate their own pair. `<kind>` is the `_kind` of the
+     `Callout` subclass (see components_v3/status.py), and each pair is the one
+     Streamlit paints for that same `st.*` call -- measured against a real app:
+     blue / green / yellow / red at 10% over the page in the light theme, with
+     the matching `-text-color`. */
   .st-alert-warning .st-alert-container {
-    background-color: var(--st-orange-background-color);
-    color: var(--st-orange-text-color);
+    background-color: var(--st-yellow-background-color);
+    color: var(--st-yellow-text-color);
   }
   .st-alert-info .st-alert-container {
     background-color: var(--st-blue-background-color);
     color: var(--st-blue-text-color);
+  }
+  .st-alert-error .st-alert-container {
+    background-color: var(--st-red-background-color);
+    color: var(--st-red-text-color);
   }
 
   /* Spinner */
