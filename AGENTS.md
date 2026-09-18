@@ -28,7 +28,15 @@ streamlit-canary/
 │   │   └── state.py          # 状态容器
 │   ├── components_v3/        # v3 事件驱动组件 (纯 Python, 无 Streamlit 依赖)
 │   │   ├── base.py           # Component 基类: 组件树, 上下文栈, 注册到 runtime
-│   │   └── widgets.py        # 内置组件 + 共享私有基类
+│   │   ├── _shared.py        # 共享私有基类 + 助手 (非 public API)
+│   │   ├── texts.py          # 文本元素 (Streamlit: Text elements)
+│   │   ├── data.py           # 数据元素 (Data elements)
+│   │   ├── charts.py         # 图表元素 (Chart elements)
+│   │   ├── buttons.py        # 按钮类 (Input widgets 的按钮部分)
+│   │   ├── inputs.py         # 取值类 (Input widgets 的输入部分)
+│   │   ├── layouts.py        # 布局与容器 (Layouts and containers)
+│   │   ├── status.py         # 状态元素 (Status elements)
+│   │   └── trees.py          # 自研文件夹浏览器 (TreeSelect 家族)
 │   ├── runtime/              # 事件驱动运行时
 │   │   ├── runtime.py        # Runtime: 持久组件树 + 事件路由 + delta 广播
 │   │   ├── render.py         # 组件树 → HTML
@@ -178,7 +186,7 @@ when mouse.click(sel):
 2. **采集数据**: 用 `browser_evaluate` 在原版 (`:2204` / `:2206`) 和副本 (`:2205` / `:2207`) 分别采集断言处的实际值
 3. **对比分析**: 找出差异
 4. **修复代码**: 按需改以下位置 --
-   - `components_v3/widgets.py` -- 组件定义 / 属性
+   - `components_v3/<分类>.py` -- 组件定义 / 属性 (分类见 §7)
    - `runtime/render.py` -- HTML 结构
    - `runtime/static/page.css` -- 样式
    - `runtime/static/page.js` -- 前端交互 (事件回传 / delta patch)
@@ -207,7 +215,7 @@ when mouse.click(sel):
 - 每行代码不超过 80 字符 (见 `pyproject.toml:[tool.ruff]:line-length`).
 - import 使用 force-single-line 风格 (见 `pyproject.toml:[tool.ruff.lint.isort]`).
 - 字符串使用单引号 (见 `pyproject.toml:[tool.ruff.format]:quote-style`).
-- 同一模块内的 class 按字母序排列 (私有基类因为要先于使用者定义, 可集中放在文件前部, 如 `components_v3/widgets.py`).
+- 同一模块内的 class 按字母序排列 (私有基类因为要先于使用者定义, 可集中放在文件前部, 如 `components_v3/_shared.py`).
 - 在代码注释 (`#` 开头的注释), `print(...)` 以及 `Exception(...)` 中使用小写字母开头的句子. 在函数注解 (docstring) 以及 triple-quoted strings 中, 使用规范的大小写格式.
 
 ## 7. 架构约束
@@ -216,7 +224,8 @@ when mouse.click(sel):
 - **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`).
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
 - **`references/` 只读**: `references/` 目录 (含其中以软链接形式挂载的参考项目) 对 agent 是**只读**的, 不要修改其中的任何文件; 只可读取作为参考.
-- **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/widgets.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
+- **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/_shared.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
+- **组件按 Streamlit 分类分模块**: `components_v3/` 下按 Streamlit API reference 的分类分文件, 模块名统一用复数形式 (`data` / `status` 单复数同形) -- `texts` (Text elements) / `data` / `charts` / `buttons` + `inputs` (Input widgets 一分为二) / `layouts` (Layouts and containers) / `status`; 分类表与官方对照见 `components_v3/__init__.py` 的模块 docstring, 原始分类清单在 `references/streamlit_api_reference_catagory.html`. 组件与 Streamlit 的对应关系 (以及我们自研的部分) 以该 docstring 为准.
 - **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`page.css` / `page.js` / `markdown-it.min.js` / `theme-*.css`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此 **改动这些文件后必须重启服务**.
 - **Markdown 在前端渲染**: 服务器只把 markdown 源文写进 `.st-md` / `.st-md-block` 占位符的 `data-md` 属性, 真正的解析由 `page.js` + 打包的 `markdown-it` 在浏览器完成 (与 Streamlit 的 react-markdown 一致). 因此 `render_markup` (行内) / `_render_paragraphs` (块级) 只负责出占位符; 新增承载 markdown 的元素时, 必须带上 `st-md` (或 `st-md-block`) 类, 否则 delta patch 与样式都会失配. Streamlit 自有的 `:color[..]` / `:material/..:` 扩展和 typographer (` -> ` → `→` 等) 也在 `page.js` 里以插件形式实现.
 - **Web 服务**: 用 Starlette + Uvicorn (HTTP 页面 + WebSocket 事件/delta), 不用 FastAPI.
@@ -259,7 +268,7 @@ def ddd(value): ...
 
 一个 v3 组件通常涉及以下几处改动:
 
-1. `components_v3/widgets.py` -- 定义 class (按字母序插入, 优先复用私有基类); 在 `components_v3/__init__.py` 里导出.
+1. `components_v3/<分类>.py` -- 定义 class (按字母序插入, 优先复用 `_shared.py` 的私有基类); 在 `components_v3/__init__.py` 里导出. 分类怎么选见 §7 "组件按 Streamlit 分类分模块".
 2. `runtime/render.py` -- 新增 `_render_xxx(comp)`, 并在 `_render()` 的分发链里加一个 `isinstance(comp, Xxx)` 分支 (必须放在最后的兜底分支之前).
 3. `runtime/static/page.css` -- 组件的样式.
 4. `runtime/static/page.js` -- 需要回传事件时加发送函数 (参照 `scSendChange` / `scSendCheck`); 需要响应 delta 时, 在 patch 分支里按 `el.classList.contains('st-xxx')` 处理.

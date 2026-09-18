@@ -15,44 +15,50 @@ import typing as tp
 from lk_utils import fs
 
 from ..components_v3.base import Component
-from ..components_v3.widgets import AltairChart
-from ..components_v3.widgets import BottomContainer
-from ..components_v3.widgets import Button
-from ..components_v3.widgets import Caption
-from ..components_v3.widgets import Cell
-from ..components_v3.widgets import CheckGroup
-from ..components_v3.widgets import Checkbox
-from ..components_v3.widgets import Code
-from ..components_v3.widgets import Column
-from ..components_v3.widgets import Dialog
-from ..components_v3.widgets import Expander
-from ..components_v3.widgets import FloatingContainer
-from ..components_v3.widgets import Grid
-from ..components_v3.widgets import Info
-from ..components_v3.widgets import Markdown
-from ..components_v3.widgets import Multiselect
-from ..components_v3.widgets import NumberInput
-from ..components_v3.widgets import Popover
-from ..components_v3.widgets import Progress
-from ..components_v3.widgets import RadioGroup
-from ..components_v3.widgets import ReducibleGroup
-from ..components_v3.widgets import Row
-from ..components_v3.widgets import SegmentedControl
-from ..components_v3.widgets import SelectSlider
-from ..components_v3.widgets import Selectbox
-from ..components_v3.widgets import Space
-from ..components_v3.widgets import Spinner
-from ..components_v3.widgets import Success
-from ..components_v3.widgets import Table
-from ..components_v3.widgets import Tabs
-from ..components_v3.widgets import Text
-from ..components_v3.widgets import TextArea
-from ..components_v3.widgets import TextInput
-from ..components_v3.widgets import Title
-from ..components_v3.widgets import Toast
-from ..components_v3.widgets import Toggle
-from ..components_v3.widgets import Warning
-from ..components_v3.widgets import _TabPanel
+from ..components_v3.buttons import Button
+
+from ..components_v3.charts import AltairChart
+
+from ..components_v3.data import Table
+
+from ..components_v3.inputs import CheckGroup
+from ..components_v3.inputs import Checkbox
+from ..components_v3.inputs import Multiselect
+from ..components_v3.inputs import NumberInput
+from ..components_v3.inputs import RadioGroup
+from ..components_v3.inputs import ReducibleGroup
+from ..components_v3.inputs import SegmentedControl
+from ..components_v3.inputs import SelectSlider
+from ..components_v3.inputs import Selectbox
+from ..components_v3.inputs import TextArea
+from ..components_v3.inputs import TextInput
+from ..components_v3.inputs import Toggle
+
+from ..components_v3.layouts import BottomContainer
+from ..components_v3.layouts import Cell
+from ..components_v3.layouts import Column
+from ..components_v3.layouts import Dialog
+from ..components_v3.layouts import Expander
+from ..components_v3.layouts import FloatingContainer
+from ..components_v3.layouts import Grid
+from ..components_v3.layouts import Popover
+from ..components_v3.layouts import Row
+from ..components_v3.layouts import Space
+from ..components_v3.layouts import Tabs
+from ..components_v3.layouts import _TabPanel
+
+from ..components_v3.status import Info
+from ..components_v3.status import Progress
+from ..components_v3.status import Spinner
+from ..components_v3.status import Success
+from ..components_v3.status import Toast
+from ..components_v3.status import Warning
+
+from ..components_v3.texts import Caption
+from ..components_v3.texts import Code
+from ..components_v3.texts import Markdown
+from ..components_v3.texts import Text
+from ..components_v3.texts import Title
 from ..kernel.property import Property
 
 # ---------------------------------------------------------------------------

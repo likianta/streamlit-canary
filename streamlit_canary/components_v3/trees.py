@@ -44,24 +44,29 @@ from ..kernel import Property
 from ..kernel import Signal
 from ..kernel import bind
 from .base import Width
-from .widgets import _BODY_NONE
-from .widgets import _BODY_TOGGLE
-from .widgets import Button
-from .widgets import Caption
-from .widgets import CheckGroup
-from .widgets import Column
-from .widgets import Dialog
-from .widgets import FloatingContainer
-from .widgets import IconButton
-from .widgets import Info
-from .widgets import Popover
-from .widgets import RadioGroup
-from .widgets import ReducibleGroup
-from .widgets import Row
-from .widgets import SegmentedControl
-from .widgets import Selectbox
-from .widgets import Text
-from .widgets import TextInput
+from ._shared import _BODY_NONE
+from ._shared import _BODY_TOGGLE
+
+from .buttons import Button
+from .buttons import IconButton
+
+from .inputs import CheckGroup
+from .inputs import RadioGroup
+from .inputs import ReducibleGroup
+from .inputs import SegmentedControl
+from .inputs import Selectbox
+from .inputs import TextInput
+
+from .layouts import Column
+from .layouts import Dialog
+from .layouts import FloatingContainer
+from .layouts import Popover
+from .layouts import Row
+
+from .status import Info
+
+from .texts import Caption
+from .texts import Text
 
 
 class T:

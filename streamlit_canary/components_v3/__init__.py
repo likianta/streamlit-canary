@@ -3,52 +3,76 @@ Event-driven (v3) component model.
 
 Pure-Python components used by the event-driven runtime. No Streamlit
 dependency here — the frontend bridge is added in a later phase.
+
+The components are grouped into modules the way Streamlit groups its API
+reference (the category list is taken from
+`references/streamlit_api_reference_categories.html`):
+
+    texts    Streamlit's "Text elements" (`api-reference/text`)
+    data     Streamlit's "Data elements" (`api-reference/data`)
+    charts   Streamlit's "Chart elements" (`api-reference/charts`)
+    buttons  Streamlit's "Input widgets" (`api-reference/widgets`), buttons
+    inputs   Streamlit's "Input widgets", the value inputs
+    layouts  Streamlit's "Layouts and containers" (`api-reference/layout`)
+    status   Streamlit's "Status elements" (`api-reference/status`)
+
+Its "Input widgets" page is broad, so we split it into `buttons` and
+`inputs`. `tree_select` is ours (a folder browser) and keeps its own module;
+the private bases the modules share live in `_shared`.
 """
 
 from .base import Component
-from .widgets import AltairChart
-from .widgets import BottomContainer
-from .widgets import Button
-from .widgets import Caption
-from .widgets import Cell
-from .widgets import CheckGroup
-from .widgets import Checkbox
-from .widgets import Code
-from .widgets import Column
-from .widgets import Container
-from .widgets import Dialog
-from .widgets import Expander
-from .widgets import Floating
-from .widgets import FloatingContainer
-from .widgets import Grid
-from .widgets import IconButton
-from .widgets import Info
-from .widgets import Markdown
-from .widgets import MenuButton
-from .widgets import Multiselect
-from .widgets import NumberInput
-from .widgets import Popover
-from .widgets import Progress
-from .widgets import Radio
-from .widgets import RadioGroup
-from .widgets import ReducibleGroup
-from .widgets import Row
-from .widgets import SegmentedControl
-from .widgets import SelectSlider
-from .widgets import Selectbox
-from .widgets import Space
-from .widgets import Spinner
-from .widgets import Success
-from .widgets import Table
-from .widgets import Tabs
-from .widgets import Text
-from .widgets import TextArea
-from .widgets import TextInput
-from .widgets import Title
-from .widgets import Toast
-from .widgets import Toggle
-from .widgets import Warning
-from .tree_select import TreeSelect
-from .tree_select import TreeSelectDualPane
-from .tree_select import TreeSelectDualPaneWithInput
-from .tree_select import TreeSelectWithInput
+
+from .buttons import Button
+from .buttons import IconButton
+from .buttons import MenuButton
+
+from .charts import AltairChart
+
+from .data import Table
+
+from .inputs import CheckGroup
+from .inputs import Checkbox
+from .inputs import Multiselect
+from .inputs import NumberInput
+from .inputs import Radio
+from .inputs import RadioGroup
+from .inputs import ReducibleGroup
+from .inputs import SegmentedControl
+from .inputs import SelectSlider
+from .inputs import Selectbox
+from .inputs import TextArea
+from .inputs import TextInput
+from .inputs import Toggle
+
+from .layouts import BottomContainer
+from .layouts import Cell
+from .layouts import Column
+from .layouts import Container
+from .layouts import Dialog
+from .layouts import Expander
+from .layouts import Floating
+from .layouts import FloatingContainer
+from .layouts import Grid
+from .layouts import Popover
+from .layouts import Row
+from .layouts import Space
+from .layouts import Tabs
+
+from .status import Info
+from .status import Progress
+from .status import Spinner
+from .status import Success
+from .status import Toast
+from .status import Warning
+
+from .texts import Caption
+from .texts import Code
+from .texts import Markdown
+from .texts import Text
+from .texts import Title
+
+from .trees import TreeSelect
+from .trees import TreeSelectDualPane
+from .trees import TreeSelectDualPaneWithInput
+from .trees import TreeSelectWithInput

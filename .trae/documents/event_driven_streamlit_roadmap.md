@@ -143,7 +143,9 @@ sc.run(click_counter_demo, port=2201)   # 直接收函数,不通过 streamlit ru
 
 **产出**: `sc.v3.*` context-manager 组件,挂在运行时之前的纯 Python 层
 (放在 `sc.v3.*` 下避免污染稳定命名空间)。已落在 `streamlit_canary/components_v3/`
-(`base.py` + `widgets.py`), 组件清单见 `AGENTS.md` §3。
+(按 Streamlit 的 API reference 分类分模块: `base.py` + `_shared.py` +
+`texts.py` / `data.py` / `charts.py` / `buttons.py` / `inputs.py` /
+`layouts.py` / `status.py` + `tree_select.py`), 组件清单见 `AGENTS.md` §3。
 
 **关键设计点**:
 - `with sc.v3.Button(...) as btn:` 构造组件,返回带持久 id 的实例
