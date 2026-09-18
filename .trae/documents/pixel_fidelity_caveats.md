@@ -7,11 +7,16 @@
 ## UI 差异一览
 
 - Control height (全局控件高度)
-  - 按钮 (`v3.Button` / `v3.IconButton` / `v3.Popover` 与 `v3.MenuButton` 的触发器)、单行输入框 (`v3.TextInput` 的输入部分)、`v3.NumberInput` 的盒子、`v3.Selectbox` 的触发器、`v3.SegmentedControl` 的轨道, 以及共用一块状态区的 `v3.Callout` / `v3.Spinner`, 高度统一由 `runtime/static/css/01-base.css` 里的 `--st-control-height` (32px) 决定. 它在每一处都当作 `min-height` 用, 所以会增高的控件 (多行按钮文案, 换行的 alert) 仍然可以撑高 -- 例如两行文案的按钮实测 46.78px, 两行 alert 实测 51.19px.
+  - 按钮 (`v3.Button` / `v3.IconButton` / `v3.Popover` 与 `v3.MenuButton` 的触发器)、单行输入框 (`v3.TextInput` 的输入部分)、`v3.NumberInput` 的盒子、`v3.Selectbox` 的触发器、`v3.Multiselect` 的触发器、`v3.SegmentedControl` 的轨道, 以及共用一块状态区的 `v3.Callout` / `v3.Spinner`, 高度统一由 `runtime/static/css/01-base.css` 里的 `--st-control-height` (32px) 决定. 它在每一处都当作 `min-height` 用, 所以会增高的控件 (多行按钮文案, 换行的 alert) 仍然可以撑高 -- 例如两行文案的按钮实测 46.78px, 两行 alert 实测 51.19px.
 
     原版行为: st 的按钮与输入框是 40px (segmented 轨道则随自己的内边距落在 36.4px 之类的位置). 我们刻意矮 8px, 为的是让一行 / 一条工具栏里的框成为 "一条腰带", 而不是高低参差. 这是**既定选择**, 不要把它当成 bug 去 "修复" 回 40px: 像素对比里凡是上述控件的框高都应预期 32px. 由此产生的 8px 差值会连带影响依赖它们高度的一切纵向位置, 但那些位置都是前端按触发器的真实 rect 现算的 (面板 / 浮层的锚点, dropdown 的落点), 所以会自动跟随.
 
   - 一处实现上的耦合: `.st-text-input-box` 被三种语境复用 (TextInput 的输入框, NumberInput 的内层输入框, `TextInput(candidates=...)` 里被 Selectbox 触发器框住的那个). 后两者各有一条 override 把 `min-height` 归零, 让外框拥有高度 -- 新加类似复用时要照做, 否则内层会自己撑到 32px 并溢出外框.
+
+- Height bounds (组件高度上下限)
+  - 所有组件 (含布局容器) 都接受 `max_height` / `min_height` 两个像素上下限, 这是 canary 独有的能力. 上限会一并带上 `overflow: auto` -- 也就是说封顶的容器 / 面板会滚动, 而不是让内容溢出到盒子外面; 下限 (`min_height`) 没有这个副作用. `height='stretch'` 胜过上下限: 两者同时给时, 上下限被丢弃 (显式的"填满父级"优先). 细节与落地位置见 `AGENTS.md` §7.
+
+    原版行为: st 没有"按元素设上下限"的入口 (只有 `st.container(height=...)` 这类固定高度), 所以这不是与 st 不一致, 而是我们多出来的能力. 像素对比时若看到某块区域被压住并出现滚动条, 先确认应用是否显式传了 `max_height`.
 
 - Layout gaps (全局横向 / 纵向间距)
   - 同目录 `01-base.css` 里还有两个间距 token: `--st-hgap` (8px) 与 `--st-vgap` (16px). 用横向的那个 (`--st-hgap`): `v3.Row` 子元素并排时的间距, `v3.Grid` 的列轨道之间, 横向 (`horizontal=True`) 的 `v3.Radio` / `v3.CheckGroup` 的选项之间, tab 条上的各个 tab, `v3.FloatingContainer` 聚簇内的子元素. 用纵向的那个 (`--st-vgap`): 应用根 (`#app`), `v3.Container`, `v3.Grid` 的行距及其 `GridCell`, popover 面板, expander 的正文, tab 面板. `v3.Row` 换行后那两行之间属于纵向节奏, 所以也走 `--st-vgap`. 注意: 属于控件自身尺度的间距 (按钮的文案到图标, checkbox 的框到文字) 不在此列, 它们保持各自原来的字面值.

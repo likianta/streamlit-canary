@@ -45,6 +45,9 @@ class Column(Component):
         border: whether to draw a bordered container around the children.
         height: fixed height in px; the content scrolls when it overflows
             (mirrors `st.container(height=...)`).
+        max_height, min_height: optional pixel cap / floor on the container's
+            height; a cap makes the container scroll rather than letting its
+            content spill past it. Canary-only -- see `Component`.
         visible: bool (default True, bindable) — hidden containers keep their
             place in the tree but are not rendered.
         animated: transition the height when `visible` flips, instead of
@@ -122,6 +125,8 @@ class Dialog(Component):
         width:   `'small'` (default, 500px) | `'medium'` (750px) |
             `'large'` (1280px); an int px value is accepted as an escape
             hatch. Mirrors Streamlit's semantic `DialogWidth`.
+        max_height, min_height: optional pixel cap / floor on the panel's
+            height; a cap makes the panel scroll as a whole. See `Component`.
 
     Properties:
         text: str  — the title.

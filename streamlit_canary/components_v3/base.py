@@ -43,6 +43,13 @@ AutoWidth: tp.TypeAlias = Width | tp.Literal['auto']
 Height: tp.TypeAlias = int | tp.Literal['stretch', 'content']
 HeightWithoutContent: tp.TypeAlias = int | tp.Literal['stretch']
 
+# Every component also accepts `max_height` / `min_height`: a pixel cap and
+# floor on the box's own height (`None` = no bound). They are canary-only --
+# Streamlit has no per-element bounds -- and, unlike `width` / `height`, they
+# take no keyword, because a limit is a number rather than a size. A bound is
+# dropped when `height` is `'stretch'`: "fill the parent" is explicit, so it
+# wins over a cap that would contradict it (see `Component`'s docstring).
+
 _SIZE_KEYWORDS: tp.Final[tuple[str, ...]] = ('stretch', 'content', 'auto')
 
 
@@ -62,6 +69,20 @@ def _validate_size(value: tp.Any, name: str) -> None:
         f'{name} must be a positive int or one of {_SIZE_KEYWORDS}, '
         f'got {value!r}'
     )
+
+
+def _validate_bound(value: tp.Any, name: str) -> None:
+    """Reject a `max_height` / `min_height` that is not a positive int.
+
+    A bound is a pixel limit, not a size, so the sizing keywords do not apply
+    to it (`None` means "no bound", which is the default).
+    """
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f'{name} must be a positive int, got {value!r}')
+    if value <= 0:
+        raise ValueError(f'{name} must be > 0, got {value!r}')
 
 
 class Component(PropertyHost):
@@ -107,6 +128,16 @@ class Component(PropertyHost):
     A few widgets also derive it from their own data: a blank `Code` / `Table`
     / `Markdown` has nothing to draw, so theirs is this flag ANDed with that
     content test.
+
+    `max_height` / `min_height` (canary-only) bound the box's own height, in
+    pixels; `None` (the default) means no bound. A layout box with a
+    `max_height` also scrolls, so the content moves past the cap instead of
+    spilling over it -- the same pairing a fixed `height` gets (see
+    `_bounds_style` in `runtime/render.py`). `width` / `height` are static
+    values rather than `Property`s, and so are these: the frontend has no
+    patch for them, so they are fixed at construction like the rest of the
+    size scheme. A bound loses to `height='stretch'` (the explicit "fill the
+    parent"), see the size scheme above.
     """
 
     # stack of components currently inside their `with` block; used to wire up
@@ -127,6 +158,8 @@ class Component(PropertyHost):
         key: str | None = None,
         width: AutoWidth | None = None,
         height: Height | None = None,
+        max_height: int | None = None,
+        min_height: int | None = None,
         visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
@@ -149,6 +182,10 @@ class Component(PropertyHost):
         else:
             _validate_size(height, 'height')
             self._height = height
+        _validate_bound(max_height, 'max_height')
+        _validate_bound(min_height, 'min_height')
+        self._max_height: int | None = max_height
+        self._min_height: int | None = min_height
         # Whether the component is drawn at all. A widget whose content
         # decides this for itself (see the class docstring) overwrites the
         # property after `super().__init__()`, which is fine: the runtime

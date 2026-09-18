@@ -16,8 +16,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    min-height: 38px;
-    padding: 4px 12px;
+    min-height: var(--st-control-height);
+    /* No vertical padding: the frame is the shared control height and the
+       flex centring above places the values in it (see `01-base.css`). */
+    padding: 0 12px;
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     background-color: var(--st-secondary-background-color);

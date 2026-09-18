@@ -150,14 +150,18 @@ def _render_element(comp: Component) -> str:
         )
         align_map = {'top': 'start', 'center': 'center', 'bottom': 'end'}
         align = align_map.get(comp._vertical_alignment, 'start')
+        rules = [f'grid-template-columns:{tracks}', f'align-items:{align}']
+        rules.extend(_bounds_style(comp, scroll=True))
         return (
-            f'<div class="st-grid" data-id="{comp.id}" '
-            f'style="grid-template-columns:{tracks};align-items:{align}">'
-            f'{children}</div>'
+            f'<div class="st-grid" data-id="{comp.id}"'
+            f'{_style_attr(rules)}>{children}</div>'
         )
     if isinstance(comp, Cell):
         children = ''.join(_render(c) for c in comp.children)
-        return f'<div class="st-grid-cell" data-id="{comp.id}">{children}</div>'
+        return (
+            f'<div class="st-grid-cell" data-id="{comp.id}"'
+            f'{_style_attr(_bounds_style(comp, scroll=True))}>{children}</div>'
+        )
     if isinstance(comp, Row):
         children = ''.join(_render(c) for c in comp.children)
         valign = getattr(comp, '_vertical_alignment', 'top')
@@ -167,9 +171,11 @@ def _render_element(comp: Component) -> str:
             'bottom': 'flex-end',
         }
         align = align_map.get(valign, 'flex-start')
+        rules = [f'align-items:{align}']
+        rules.extend(_bounds_style(comp, scroll=True))
         return (
-            f'<div class="st-row" data-id="{comp.id}" '
-            f'style="align-items:{align}">{children}</div>'
+            f'<div class="st-row" data-id="{comp.id}"'
+            f'{_style_attr(rules)}>{children}</div>'
         )
     if isinstance(comp, Space):
         return _render_space(comp)
@@ -178,7 +184,8 @@ def _render_element(comp: Component) -> str:
         children = ''.join(_render(c) for c in comp.children)
         return (
             f'<div class="st-floating st-floating--{comp._position}"'
-            f' data-id="{comp.id}">{children}</div>'
+            f' data-id="{comp.id}"'
+            f'{_style_attr(_bounds_style(comp, scroll=True))}>{children}</div>'
         )
     if isinstance(comp, Column):
         children = ''.join(_render(c) for c in comp.children)
@@ -223,11 +230,15 @@ def _render_element(comp: Component) -> str:
             # the minimum to 0 keeps the weight authoritative.
             rules.append('min-width:0')
         height = getattr(comp, '_height', None)
+        rules.extend(_bounds_style(comp, scroll=True))
         if isinstance(height, int):
             # Fixed-height container: the content scrolls once it overflows.
+            # `_bounds_style` may have added the same `overflow` already, for a
+            # `max_height` (the two are not mutually exclusive).
             rules.append(f'height:{height}px')
-            rules.append('overflow:auto')
-        style = f' style="{";".join(rules)}"' if rules else ''
+            if 'overflow:auto' not in rules:
+                rules.append('overflow:auto')
+        style = _style_attr(rules)
         reveal_cls = ' st-reveal' if getattr(comp, '_animated', False) else ''
         bottom_cls = (
             ' st-container--bottom' if isinstance(comp, BottomContainer) else ''
@@ -378,7 +389,8 @@ def _render_tabs(comp: Tabs) -> str:
             f'{hidden}>{body}</div>'
         )
     return (
-        f'<div class="st-tabs" data-id="{comp.id}">'
+        f'<div class="st-tabs" data-id="{comp.id}"'
+        f'{_style_attr(_bounds_style(comp, scroll=True))}>'
         f'<div class="st-tabs-bar" role="tablist">{"".join(buttons)}'
         f'<span class="st-tabs-indicator"></span></div>'
         f'<div class="st-tabs-panels">{"".join(panels)}</div>'
@@ -401,7 +413,14 @@ def _render_dialog(comp: Dialog) -> str:
     title = render_markup(str(comp.text.get()))
     children = ''.join(_render(c) for c in comp.children)
     width = getattr(comp, '_width', None)
-    style = f' style="width:{width}px"' if isinstance(width, int) else ''
+    rules: list[str] = []
+    if isinstance(width, int):
+        rules.append(f'width:{width}px')
+    # The bounds go on the panel, not on the root element: the root is a
+    # full-screen backdrop, so a cap there would mean nothing (the semantic
+    # `width` above lands on the panel for the same reason).
+    rules.extend(_bounds_style(comp, scroll=True))
+    style = _style_attr(rules)
     return (
         f'<div class="st-dialog-backdrop" data-id="{comp.id}"'
         f' onclick="scDialogBackdropClick(event, this)">'
@@ -425,7 +444,8 @@ def _render_expander(comp: Expander) -> str:
     cls = 'st-expander is-expanded' if expanded else 'st-expander'
     hidden = '' if expanded else ' hidden'
     return (
-        f'<div class="{cls}" data-id="{comp.id}">'
+        f'<div class="{cls}" data-id="{comp.id}"'
+        f'{_style_attr(_bounds_style(comp, scroll=True))}>'
         f'<div class="st-expander-header" role="button" tabindex="0"'
         f' aria-expanded="{state}" onclick="scToggleExpander(this)">'
         f'<span class="st-icon st-expander-icon" translate="no">'
@@ -639,26 +659,49 @@ def _render_table(comp: Table) -> str:
     )
 
 
-def _size_rule(value: tp.Any, name: str) -> str:
+def _size_rule(
+    value: tp.Any,
+    name: str,
+    max_value: int | None = None,
+    min_value: int | None = None,
+) -> str:
     """CSS declaration(s) for one sizing value (`name` is 'width'/'height').
+
+    `max_value` / `min_value` are the component's own bounds for that axis
+    (see `Component`'s `max_height` / `min_height`), appended after the size
+    itself so they win over the `max-*: 100%` a `'content'` size carries.
 
     Returns '' for a value the inline style does not own: `None` and the
     `'auto'` keyword are left to CSS, so a component's own rules (or the
-    markdown family's vertical/horizontal switch) still apply.
+    markdown family's vertical/horizontal switch) still apply. Bounds are
+    still emitted in that case -- capping a box the CSS already sizes is
+    exactly what a bound is for.
+
+    `'stretch'` returns early, which is what makes it win over the bounds: a
+    box told to fill its parent cannot also honour a cap, and the caller's
+    explicit instruction is the one that survives.
     """
     if value == 'stretch':
         return f'{name}:100%'
+    rules: list[str] = []
     if value == 'content':
         # Inside a flex row the row's own `flex` would stretch the element, so
         # the inline `flex: 0 1 auto` keeps the content size authoritative.
         prefix = 'flex:0 1 auto;' if name == 'width' else ''
-        return f'{prefix}{name}:fit-content;max-{name}:100%'
-    if isinstance(value, int) and not isinstance(value, bool):
+        rules.append(f'{prefix}{name}:fit-content')
+        # the cap that `content` implies -- unless the caller set their own
+        if max_value is None:
+            rules.append(f'max-{name}:100%')
+    elif isinstance(value, int) and not isinstance(value, bool):
         # `flex: 0 1 auto` keeps the explicit size authoritative inside a flex
         # row: the row's default `flex` would otherwise let flex-basis win and
         # stretch the widget.
-        return f'flex:0 1 auto;{name}:{value}px'
-    return ''
+        rules.append(f'flex:0 1 auto;{name}:{value}px')
+    if max_value is not None:
+        rules.append(f'max-{name}:{max_value}px')
+    if min_value is not None:
+        rules.append(f'min-{name}:{min_value}px')
+    return ';'.join(rules)
 
 
 def _width_style(comp: Component) -> str:
@@ -671,21 +714,66 @@ def _width_style(comp: Component) -> str:
     return f' style="{rule}"' if rule else ''
 
 
+def _style_attr(rules: tp.Sequence[str]) -> str:
+    """The ` style="..."` attribute a list of declarations produces ('' if
+    the list is empty, so the element carries no `style` at all)."""
+    return f' style="{";".join(rules)}"' if rules else ''
+
+
 def _size_style(comp: Component) -> str:
-    """Inline `style` attribute for a component's `width` / `height`.
+    """Inline `style` attribute for a component's `width` / `height`, plus the
+    `max_height` / `min_height` bounds on the height axis.
 
     Mirrors Streamlit's sizing keywords:
         'stretch'  fill the parent (`width: 100%`).
         'content'  hug the content, capped at the parent width.
         int        a fixed pixel size.
         'auto' / None  no inline rule -- CSS decides (see `page.css`).
+
+    The width axis passes no bounds: `max_width` / `min_width` are not part of
+    the API yet. A layout that builds its own `style` (a flex weight, grid
+    tracks) takes the same bounds from `_bounds_style` instead.
     """
     rules = [
         rule
         for name in ('width', 'height')
-        if (rule := _size_rule(getattr(comp, f'_{name}', None), name))
+        if (
+            rule := _size_rule(
+                getattr(comp, f'_{name}', None),
+                name,
+                getattr(comp, f'_max_{name}', None),
+                getattr(comp, f'_min_{name}', None),
+            )
+        )
     ]
-    return f' style="{";".join(rules)}"' if rules else ''
+    return _style_attr(rules)
+
+
+def _bounds_style(comp: Component, *, scroll: bool = False) -> list[str]:
+    """The `max-height` / `min-height` rules for a layout box, as a list.
+
+    A layout emits a `style` of its own (flex weights, grid tracks), so it
+    extends its rule list with these; the uniform `_size_style` path passes the
+    very same bounds through `_size_rule` instead. `height='stretch'` drops
+    them for the reason `_size_rule` gives.
+
+    `scroll` adds `overflow: auto` under an upper bound: a cap on its own would
+    let the content spill over the box instead of scrolling past it, which is
+    the pairing a fixed `height` already has. A floor (`min_height`) never
+    needs it -- it only guarantees a size.
+    """
+    if getattr(comp, '_height', None) == 'stretch':
+        return []
+    rules: list[str] = []
+    max_height = getattr(comp, '_max_height', None)
+    min_height = getattr(comp, '_min_height', None)
+    if isinstance(max_height, int):
+        rules.append(f'max-height:{max_height}px')
+        if scroll:
+            rules.append('overflow:auto')
+    if isinstance(min_height, int):
+        rules.append(f'min-height:{min_height}px')
+    return rules
 
 
 def _format_number(comp: NumberInput, value: tp.Any) -> str:
