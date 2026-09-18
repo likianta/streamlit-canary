@@ -9,8 +9,6 @@ live in `buttons.py`.
 
 import typing as tp
 
-from ._shared import _BODY_BEHAVIORS
-from ._shared import _BODY_TOGGLE
 from ._shared import _as_list
 from ._shared import _Labeled
 from ._shared import _OptionsWidget
@@ -60,17 +58,6 @@ def _check_number_arg(arg: tp.Any, is_float: bool, name: str) -> int | float:
     return arg
 
 
-def _check_body_click_behavior(behavior: str) -> str:
-    """Validate a `body_click_behavior` keyword."""
-    if behavior not in _BODY_BEHAVIORS:
-        raise ValueError(
-            'body_click_behavior must be one of {}, got {!r}'.format(
-                ', '.join(repr(b) for b in _BODY_BEHAVIORS), behavior
-            )
-        )
-    return behavior
-
-
 class CheckGroup(_RowGestures, _Labeled):
     """A group of tick boxes for choosing several options at once.
 
@@ -98,29 +85,19 @@ class CheckGroup(_RowGestures, _Labeled):
         horizontal: lay the options out in a row instead of a column.
         max_height: cap the list height in px and scroll past it.
         enabled: whether the widget accepts input (bindable).
-        body_click_behavior: what clicking the row *body* -- the space beside
-            the box -- does. `'toggle'` (the default) ticks the option, the
-            label wrapping the whole row; `''` leaves the body with no
-            behaviour of its own, so only the box ticks and clicking the text
-            merely highlights that row. Further body gestures may join these
-            two later.
         box_disabled: a predicate marking options whose box may never be
             ticked; those are drawn dimmed and their field is inert.
             `TreeSelect` uses it for the `..` row, which is a navigation
             target rather than a node.
-        double_click_open: have the rows report a body *double* click through
-            `on_open` rather than acting on a single one -- see
-            `TreeSelect(navigation_mode='double_click')`.
 
     Properties:
         label, options — see `_Labeled` / the fields below.
         value: list — the ticked options; the client sends the whole list on
             every toggle.
-        focused_index: int — the position of the row the client last
-            highlighted, or -1 while none is. A `body_click_behavior=''`
-            group highlights a row when an option's text is clicked (see
-            `scHighlightChoice`); with `double_click_open` the whole row does.
-            Handy for a "go into the focused node" button:
+        focused_index: int — the position of the row the client last clicked
+            (a click on a row body highlights that row -- see
+            `scHighlightChoice`), or -1 while none is. Handy for a "go into
+            the focused node" button:
             `btn.enabled = sc.bind(cg.focused_index, lambda i: i >= 0)`.
 
     Attributes:
@@ -130,8 +107,6 @@ class CheckGroup(_RowGestures, _Labeled):
     Signals:
         on_value (via `cg['on_value']` or `cg.value.on_change`)
         on_options (via `cg['on_options']` or `cg.options.on_change`)
-        on_open (via `cg['on_open']` or `cg.on_open`) — a row body was
-            double-clicked; the payload is the row index (see `_RowGestures`).
     """
 
     format_func: tp.Callable[[tp.Any], str]
@@ -149,16 +124,14 @@ class CheckGroup(_RowGestures, _Labeled):
         label_visibility: str = 'visible',
         horizontal: bool = False,
         max_height: int | None = None,
-        body_click_behavior: str = _BODY_TOGGLE,
         box_disabled: tp.Callable[[tp.Any], bool] | None = None,
-        double_click_open: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
         self.options = _prop([], _as_list(options))
         self.value = _prop([], _as_list(value))
         self.enabled = _prop(True, enabled)
-        self._init_rows(box_disabled, double_click_open)
+        self._init_rows(box_disabled)
         if format is None:
             self.format_func = lambda x: str(x)
         elif callable(format):
@@ -172,18 +145,6 @@ class CheckGroup(_RowGestures, _Labeled):
             self.format_func = _by_index
         self._horizontal = horizontal
         self._max_height = max_height
-        self._body_click_behavior = _check_body_click_behavior(
-            body_click_behavior
-        )
-
-    def _box_only(self) -> bool:
-        """Whether only the box ticks an option -- the row's rendered shape.
-
-        A body with no behaviour of its own needs the field inside its own
-        label, so that clicking the text cannot reach it; `'toggle'` lets the
-        label wrap the whole row instead. See `_choice_group_items_html`.
-        """
-        return self._body_click_behavior != _BODY_TOGGLE
 
     def _coerce_value(self, values: tp.Any) -> list:
         """Map the client's raw strings back onto the real options."""
@@ -415,14 +376,11 @@ class RadioGroup(_RowGestures, _OptionsWidget):
             selected; those are drawn dimmed and their field is inert.
             `TreeSelect` uses it for the `..` row, which is a navigation
             target rather than a node.
-        double_click_open: have the rows report a body *double* click through
-            `on_open` rather than acting on a single one -- see
-            `TreeSelect(navigation_mode='double_click')`.
 
     Properties:
         label, options, value — see `_OptionsWidget`.
-        focused_index: int — the row the client last highlighted, or -1 while
-            none is; only `double_click_open` groups highlight rows.
+        focused_index: int — the row the client last clicked, or -1 while none
+            is (see `CheckGroup`).
 
     Attributes:
         format_func: Callable[[Any], str] — raw option value → display string
@@ -431,8 +389,6 @@ class RadioGroup(_RowGestures, _OptionsWidget):
     Signals:
         on_value (via `radio['on_value']` or `radio.value.on_change`)
         on_options (via `radio['on_options']` or `radio.options.on_change`)
-        on_open (via `radio['on_open']` or `radio.on_open`) — a row body was
-            double-clicked; the payload is the row index (see `_RowGestures`).
     """
 
     _default_width = 'stretch'
@@ -449,7 +405,6 @@ class RadioGroup(_RowGestures, _OptionsWidget):
         horizontal: bool = False,
         max_height: int | None = None,
         box_disabled: tp.Callable[[tp.Any], bool] | None = None,
-        double_click_open: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -463,7 +418,7 @@ class RadioGroup(_RowGestures, _OptionsWidget):
         )
         self._horizontal = horizontal
         self._max_height = max_height
-        self._init_rows(box_disabled, double_click_open)
+        self._init_rows(box_disabled)
 
 
 Radio = RadioGroup  # alias

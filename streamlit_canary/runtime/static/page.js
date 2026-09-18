@@ -65,6 +65,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       } else {
         el.hidden = !msg.value;
       }
+      // An element that was hidden only becomes measurable now, and the tree
+      // rows' text widths are what line the `->` arrows up.
+      if (msg.value) scAlignRowArrows(el);
     }
     // `Popover.close()`: a counter bump asking us to fold the panel away.
     // The trigger stays put, so this is the close half of `scTogglePopover`.
@@ -106,8 +109,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           onchange: 'scSendChange',
           isChecked: (o) => scOptionKey(o) === scOptionKey(currentVal),
           boxDisabled: msg.box_disabled,
-          doubleClick: el.classList.contains('st-dblclick-rows'),
+          navigable: msg.navigable,
+          bodyOpens: msg.body_opens,
         });
+        scAlignRowArrows(el);
       }
       if (el.classList.contains('st-check-group')) {
         const wanted = new Set((el._scValue || []).map(scOptionKey));
@@ -118,10 +123,11 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           inputType: 'checkbox',
           onchange: 'scSendCheckGroup',
           isChecked: (o) => wanted.has(scOptionKey(o)),
-          boxOnly: el.classList.contains('st-check-group--box-only'),
           boxDisabled: msg.box_disabled,
-          doubleClick: el.classList.contains('st-dblclick-rows'),
+          navigable: msg.navigable,
+          bodyOpens: msg.body_opens,
         });
+        scAlignRowArrows(el);
       }
       if (el.classList.contains('st-segmented')) {
         const group = el.querySelector('.st-segmented-group');
@@ -367,19 +373,23 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   // The option-item shell shared by the RadioGroup and CheckGroup rebuilds
   // (mirrors the server's `_choice_group_items_html`). The two differ only in
   // the input's type, its checked test, the change handler and the box
-  // (the radio's circle vs the square box of `v3.Checkbox`). With `boxOnly`
-  // (`CheckGroup(body_click_behavior='')`) the field rides inside its own
-  // label, so only the box selects an option.
+  // (the radio's circle vs the square box of `v3.Checkbox`).
+  //
+  // A click anywhere on the row lands on the `<label>` that wraps it, so the
+  // browser ticks the option on its own -- no script, and nothing held back
+  // for a possible second click.
   //
   // `boxDisabled` lists the indices whose box is frozen (the server sends it
   // with an `options` patch): their field is inert and their row is dimmed.
-  // With `doubleClick` the label wraps the whole row, so a body click ticks
-  // the box while a double click opens the node (`scOpenRow`).
+  // `navigable` lists the indices that get a trailing "enter" button
+  // (`scOpenRow`), which is how a tree row's folder is entered.
+  // `bodyOpens` lists the indices whose own click walks in, with no button
+  // (a frozen box leaves the click free; `..` is the one such row).
   function scChoiceItemsHtml(config) {
     const { id, values, labels, inputType, onchange, isChecked } = config;
-    const boxOnly = !!config.boxOnly;
-    const doubleClick = !!config.doubleClick;
     const frozen = new Set(config.boxDisabled || []);
+    const navigable = new Set(config.navigable || []);
+    const opensOnBody = new Set(config.bodyOpens || []);
     const name = inputType === 'radio' ? ` name="radio_${id}"` : '';
     const fmt = window.scRenderMarkup;
     const box =
@@ -407,41 +417,41 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         `data-comp-id="${id}"/></span>`;
       const text =
         `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>`;
+      const enter = navigable.has(i) ? scRowEnterHtml() : '';
       const cls = 'st-radio-item' + (frozen.has(i) ? ' is-box-disabled' : '');
-      if (boxOnly) {
-        return (
-          `<div class="${cls}"><div class="st-radio-item-body">` +
-          `<div class="st-radio-item-row" ` +
-          `onclick="scHighlightChoice(event, this)">` +
-          `<label class="st-radio-box-label">${field}${box}</label>` +
-          text +
-          `</div></div></div>`
-        );
-      }
-      // here the label wraps the row, so a body click ticks the box; the
-      // extra handlers add the highlight and pick up the double click
-      const acts = doubleClick
-        ? ' onclick="scHighlightChoice(event, this)"' +
-          ' ondblclick="scOpenRow(event, this)"'
-        : '';
+      // the label wraps the whole row: a body click ticks the box by itself,
+      // and `scHighlightChoice` adds the highlight on the way past -- unless
+      // the row walks in on that click, which is `scOpenRow` (mirrors the
+      // server's `_choice_group_items_html`)
+      const rowClick = opensOnBody.has(i) ? 'scOpenRow' : 'scHighlightChoice';
       return (
         `<label class="${cls}">${field}` +
         `<div class="st-radio-item-body">` +
-        `<div class="st-radio-item-row"${acts}>` +
+        `<div class="st-radio-item-row" ` +
+        `onclick="${rowClick}(event, this)">` +
         box +
         text +
+        enter +
         `</div></div></label>`
       );
     }).join('');
   }
 
-  // `CheckGroup(body_click_behavior='')`: the box ticks the option; the rest
-  // of the row acts on the node instead (a folder's body enters it). That
-  // body click is also sent to the server as a `focus` event, which mirrors
-  // it on `CheckGroup.focused_index` so the app can act on the row.
+  // The "enter" button a navigable row floats beside its text (mirrors the
+  // server's `_row_enter_html`). It rides inside the row's `<label>`, which
+  // is safe: a label ignores a click aimed at interactive content inside it,
+  // so this opens the row without ticking its box.
+  function scRowEnterHtml() {
+    return (
+      '<button class="st-row-open" type="button" aria-label="Open" ' +
+      `onclick="scOpenRow(event, this)">` +
+      `${window.scRenderMarkup(':material/arrow_forward:')}</button>`
+    );
+  }
+
+  // A click on a row's body highlights that row and mirrors it on the
+  // widget's `focused_index`, so the app can act on "the row just clicked".
   function scHighlightChoice(event, el) {
-    // a click inside the box's own label is a tick, not a body click
-    if (event.target.closest('.st-radio-box-label')) return;
     const item = el.closest('.st-radio-item');
     if (!item) return;
     const items = Array.from(
@@ -459,11 +469,14 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       }));
     }
   }
-  // `navigation_mode='double_click'`: the row body ticks the box on a single
-  // click (`scHighlightChoice` adds the highlight) and *opens* the node on a
-  // double one. The open gesture is its own event, so the server navigates
-  // without the single click having committed to anything else.
+  // Walk into a row: the click is reported as its own `open` event, so
+  // entering never doubles as a tick of that row. Two callers share it --
+  // `scRowEnterHtml`'s button (where `stopPropagation` also keeps the click
+  // off the row's own handler: aiming at the arrow is not "clicking the row
+  // body") and the row itself for a `bodyOpens` row such as `..`.
   function scOpenRow(event, el) {
+    event.preventDefault();
+    event.stopPropagation();
     const item = el.closest('.st-radio-item');
     if (!item) return;
     const root = item.closest('.st-check-group, .st-radio');
@@ -476,6 +489,33 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       event: 'open',
       value: items.indexOf(item),
     }));
+  }
+  // Line the "enter" arrows up on one x: every folder row's text is given the
+  // width of the longest folder text, so the arrow that follows the row's own
+  // 8px gap starts at the same offset in every row and the pointer can be
+  // aimed without reading each name first. Called whenever the rows are
+  // (re)built and again once the webfonts land -- both the names and the
+  // arrow glyph change width when their fonts arrive.
+  function scAlignRowArrows(root) {
+    const texts = [];
+    (root || document).querySelectorAll('.st-radio-item-row').forEach((row) => {
+      // A row inside a hidden subtree measures 0 wide; skip it rather than
+      // let it drag the common width down. Its own reveal re-runs this.
+      if (row.offsetParent === null) return;
+      if (!row.querySelector('.st-row-open')) return;
+      const text = row.querySelector(':scope > .st-radio-markdown');
+      if (text) texts.push(text);
+    });
+    // measure from scratch: the previous pass pinned a `min-width` on these
+    // very elements, and that width would otherwise come back as the reading
+    texts.forEach((t) => { t.style.minWidth = ''; });
+    if (texts.length < 2) return;
+    let widest = 0;
+    texts.forEach((t) => {
+      widest = Math.max(widest, t.getBoundingClientRect().width);
+    });
+    const px = Math.ceil(widest) + 'px';
+    texts.forEach((t) => { t.style.minWidth = px; });
   }
   // -- Selectbox options rendering -----------------------------------------
   // Shared by the initial render's patch path: rebuilding the dropdown must
@@ -981,8 +1021,11 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       // Measured after the placement pass, so a row-aligned panel is sized
       // from its final width. The chevron is swapped, not animated.
       scMeasureOpenHeight(panel, '--st-popover-open-height');
-      // A segmented control inside the panel only becomes measurable now.
+      // Two things inside the panel only become measurable now: a segmented
+      // control, and the tree rows' text -- their widths are what pins the
+      // `->` arrows to one x, and inside a hidden panel every reading is 0.
       scSyncSegmented(panel);
+      scAlignRowArrows(panel);
     }
     scSwapChevron(
       trigger, '.st-popover-chevron', 'expand_more', 'expand_less', !isOpen
@@ -1994,9 +2037,13 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
   scToolbar();
   scSyncThemeRadios();
   scRenderMarkdown(document);
+  scAlignRowArrows(document);
   scInitAltairCharts();
   scSyncSegmented(document);
-  document.fonts.ready.then(() => scSyncSegmented(document));
+  document.fonts.ready.then(() => {
+    scSyncSegmented(document);
+    scAlignRowArrows(document);
+  });
   document.querySelectorAll('.st-tabs').forEach(scObserveTabs);
   document.querySelectorAll('.st-toast-stack').forEach(scArmToasts);
   document.querySelectorAll('.st-select-slider').forEach((el) => {

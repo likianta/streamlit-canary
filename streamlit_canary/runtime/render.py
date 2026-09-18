@@ -1026,6 +1026,23 @@ def _choice_group_empty_html(input_type: str) -> str:
     )
 
 
+def _row_enter_html() -> str:
+    """The "enter" button a navigable option row floats beside its text.
+
+    It sits inside the row's `<label>`, which is safe: a label ignores clicks
+    aimed at interactive content inside it, so the button opens the row
+    without ticking its box on the way.  The click is reported as an `open`
+    event (see `scOpenRow`), which `_NavigationGroup` in
+    `components_v3/trees.py` picks up -- that is where this gesture is
+    defined; the generic group widgets know nothing about it.
+    """
+    return (
+        '<button class="st-row-open" type="button" aria-label="Open" '
+        'onclick="scOpenRow(event, this)">'
+        f'{render_markup(":material/arrow_forward:")}</button>'
+    )
+
+
 def _choice_group_items_html(
     comp: RadioGroup | CheckGroup,
     values: tp.Sequence[tp.Any],
@@ -1033,9 +1050,9 @@ def _choice_group_items_html(
     *,
     input_type: str,
     on_change: str,
-    box_only: bool = False,
     box_disabled: tp.Callable[[tp.Any], bool] | None = None,
-    double_click_open: bool = False,
+    navigable: tp.Callable[[tp.Any], bool] | None = None,
+    body_opens: tp.Callable[[tp.Any], bool] | None = None,
 ) -> str:
     """The option-item shell shared by `RadioGroup` and `CheckGroup`.
 
@@ -1045,16 +1062,24 @@ def _choice_group_items_html(
     `CheckGroup` the very same square box (border + checkmark) as
     `v3.Checkbox`.
 
-    With `box_only` (`CheckGroup(body_click_behavior='')`) the input and the
-    box ride inside their own `<label>`, so only the box selects the option;
-    the rest of the row then acts on the node instead -- a folder's body
-    enters it (see `scHighlightChoice`).
+    A click anywhere on the row lands on the `<label>` that wraps it, so the
+    browser ticks the option by itself: no script takes part and nothing is
+    held back to leave room for a second click. `scHighlightChoice` only adds
+    the row highlight on the way past.
 
     `box_disabled` freezes single options: their field is inert (so the
     surrounding label cannot tick them) and the row is marked
-    `is-box-disabled` for the dimmed box. With `double_click_open` the row
-    body reports a double click instead (see `scOpenRow`), which is the
-    gesture `TreeSelect(navigation_mode='double_click')` navigates on.
+    `is-box-disabled` for the dimmed box.
+
+    `navigable` marks the options that carry a trailing "enter" button (see
+    `_row_enter_html`) -- `TreeSelect` uses it for its folders.  That button
+    is the only way to walk into a row; the row's own click still just ticks
+    it.
+
+    `body_opens` marks the options whose *own* click walks in, with no button
+    at all: a row with a frozen box has no tick to spend, so the click is
+    free.  `TreeSelect` uses it for `..`; the handler is `scOpenRow`, the same
+    one the arrow uses, so both gestures arrive as one `open` event.
     """
     if not values:
         return _choice_group_empty_html(input_type)
@@ -1078,36 +1103,23 @@ def _choice_group_items_html(
             f'<div class="st-radio-markdown">'
             f'<p>{render_markup(fmt(option))}</p></div>'
         )
+        enter = _row_enter_html() if (navigable and navigable(option)) else ''
         item_cls = 'st-radio-item'
         if frozen:
             item_cls += ' is-box-disabled'
-        if box_only:
-            item_html.append(
-                f'<div class="{item_cls}">'
-                f'<div class="st-radio-item-body">'
-                f'<div class="st-radio-item-row" '
-                f'onclick="scHighlightChoice(event, this)">'
-                f'<label class="st-radio-box-label">{field}{box}</label>'
-                f'{text}'
-                f'</div></div></div>'
-            )
-        else:
-            # here the label wraps the row, so a body click ticks the box;
-            # `scHighlightChoice` merely adds the highlight, and
-            # `scOpenRow` picks up the double click
-            acts = ''
-            if double_click_open:
-                acts = (
-                    ' onclick="scHighlightChoice(event, this)"'
-                    ' ondblclick="scOpenRow(event, this)"'
-                )
-            item_html.append(
-                f'<label class="{item_cls}">{field}'
-                f'<div class="st-radio-item-body">'
-                f'<div class="st-radio-item-row"{acts}>'
-                f'{box}{text}'
-                f'</div></div></label>'
-            )
+        # the label wraps the whole row, so a click on the body of an ordinary
+        # row ticks the box by itself and `scHighlightChoice` only adds the
+        # highlight; a `body_opens` row spends that click on the walk-in
+        walk_in = bool(body_opens and body_opens(option))
+        row_click = 'scOpenRow' if walk_in else 'scHighlightChoice'
+        item_html.append(
+            f'<label class="{item_cls}">{field}'
+            f'<div class="st-radio-item-body">'
+            f'<div class="st-radio-item-row" '
+            f'onclick="{row_click}(event, this)">'
+            f'{box}{text}{enter}'
+            f'</div></div></label>'
+        )
     return ''.join(item_html)
 
 
@@ -1118,29 +1130,21 @@ def _render_choice_group(
     input_type: str,
     on_change: str,
     is_checked: tp.Callable[[tp.Any], bool],
-    box_only: bool = False,
 ) -> str:
     """Render an option list: the shared body of the two group widgets."""
-    double_click_open = bool(getattr(comp, '_double_click_open', False))
     items = _choice_group_items_html(
         comp,
         comp.options.get() or (),
         is_checked,
         input_type=input_type,
         on_change=on_change,
-        box_only=box_only,
         box_disabled=getattr(comp, '_box_disabled', None),
-        double_click_open=double_click_open,
+        navigable=getattr(comp, '_navigable', None),
+        body_opens=getattr(comp, '_body_opens', None),
     )
     root_cls = base_cls
     if getattr(comp, '_horizontal', False):
         root_cls += f' {base_cls}--horizontal'
-    if box_only:
-        root_cls += ' st-check-group--box-only'
-    if double_click_open:
-        # marks the rows for the JS `options` rebuild, which cannot see the
-        # widget's kwargs (mirrors `st-check-group--box-only`)
-        root_cls += ' st-dblclick-rows'
     if not comp.enabled.get():
         root_cls += ' is-disabled'
     max_height = getattr(comp, '_max_height', None)
@@ -1176,7 +1180,6 @@ def _render_check_group(comp: CheckGroup) -> str:
         input_type='checkbox',
         on_change='scSendCheckGroup',
         is_checked=lambda o: o in picked,
-        box_only=comp._box_only(),
     )
 
 

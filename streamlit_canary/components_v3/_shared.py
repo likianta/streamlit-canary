@@ -9,7 +9,6 @@ import typing as tp
 
 from .base import Component
 from ..kernel import Property
-from ..kernel import Signal
 
 _T = tp.TypeVar('_T')
 
@@ -288,41 +287,32 @@ class _OptionsWidget(_Labeled):
 
 
 class _RowGestures:
-    """Mixin for the two option lists whose rows carry a body gesture.
+    """Mixin for the two option lists whose rows carry a click highlight.
 
     `RadioGroup` and `CheckGroup` both draw rows a client can click *beside*
-    the box: such a click highlights the row, and -- with the second mode
-    below -- ticks it, leaving the double click to open the node. The two
-    events and the state behind them live here so the widgets stay thin;
-    `_init_rows` is called from each `__init__` (the two meet through
-    `_Labeled`, so there is no single `super()` to chain into).
+    the box: such a click highlights the row and reports it back through a
+    `focus` event. That highlight and the state behind it live here so the
+    widgets stay thin; `_init_rows` is called from each `__init__` (the two
+    meet through `_Labeled`, so there is no single `super()` to chain into).
 
     Fields:
-        focused_index: Property[int] — the row the client last highlighted,
-            or -1 while none is. Dropped whenever `options` change: the rows
-            are rebuilt, so a remembered index would point at the wrong one.
-        on_open: Signal[int] — a row *body* was double-clicked; the payload is
-            the row index. That is the gesture `TreeSelect` navigates on
-            (`navigation_mode='double_click'`).
+        focused_index: Property[int] — the row the client last clicked, or -1
+            while none is. Dropped whenever `options` change: the rows are
+            rebuilt, so a remembered index would point at the wrong one.
         _box_disabled: Callable[[Any], bool] | None — marks options whose box
             may never be ticked. They are drawn dimmed and their field is
             inert, so only the row's other half still acts.
-        _double_click_open: bool — whether the rows carry that gesture at all.
     """
 
     def _init_rows(
-        self,
-        box_disabled: tp.Callable[[tp.Any], bool] | None,
-        double_click_open: bool,
+        self, box_disabled: tp.Callable[[tp.Any], bool] | None
     ) -> None:
         self.focused_index = Property(-1)
-        self.on_open: Signal = Signal(int)
         self._box_disabled = box_disabled
-        self._double_click_open = double_click_open
         self.options.on_change.connect(self._reset_focus)
 
     def _on_focus(self, value: tp.Any) -> None:
-        """Record the option row the client just highlighted.
+        """Record the option row the client just clicked.
 
         Fired by a `focus` event (see `scHighlightChoice`); the payload is the
         row's index.
@@ -332,14 +322,6 @@ class _RowGestures:
         except (TypeError, ValueError):
             index = -1
         self.focused_index.set(index)
-
-    def _on_open(self, value: tp.Any) -> None:
-        """Relay a double-clicked row body to `on_open` (see `scOpenRow`)."""
-        try:
-            index = int(value)
-        except (TypeError, ValueError):
-            return
-        self.on_open.emit(index)
 
     def _reset_focus(self) -> None:
         """Drop the highlight when the options are rebuilt (indices shift)."""
@@ -362,13 +344,3 @@ class _TextVisible(_HasText):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(text, visible=visible, **kwargs)
-
-
-_BODY_TOGGLE = 'toggle'
-"""`CheckGroup.body_click_behavior`: clicking the row body ticks the option."""
-
-_BODY_NONE = ''
-"""`CheckGroup.body_click_behavior`: the body has no behaviour of its own --
-only the box ticks the option."""
-
-_BODY_BEHAVIORS = (_BODY_TOGGLE, _BODY_NONE)

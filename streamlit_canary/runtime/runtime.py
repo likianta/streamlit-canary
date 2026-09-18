@@ -163,6 +163,22 @@ class Runtime:
                 message['box_disabled'] = [
                     i for i, o in enumerate(value or []) if box_disabled(o)
                 ]
+            # ... and which rows carry the "enter" button (`_navigable`, which
+            # only `TreeSelect`'s private navigation groups set) -- same
+            # reason.
+            navigable = getattr(comp, '_navigable', None)
+            if callable(navigable):
+                message['navigable'] = [
+                    i for i, o in enumerate(value or []) if navigable(o)
+                ]
+            # ... and which rows walk in on their *own* click instead
+            # (`_body_opens`: `..` has no arrow and no tick, so the click is
+            # free) -- the JS row needs the same handler the server drew.
+            body_opens = getattr(comp, '_body_opens', None)
+            if callable(body_opens):
+                message['body_opens'] = [
+                    i for i, o in enumerate(value or []) if body_opens(o)
+                ]
         elif prop_name == 'value':
             # NumberInput: the display text may differ from the raw value
             # (e.g. `hex`), so send it along for the frontend to patch.

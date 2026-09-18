@@ -2,6 +2,12 @@
     /* Streamlit's built-in "Light" theme, token for token.
        Values come from the frontend theme definition plus the derived
        tokens it computes from them (see the notes on each group). */
+    /* Lets Chromium paint the UI we do not draw ourselves -- a scrollbar, a
+       text caret, the canvas behind the app -- in the theme's own colours.
+       Without it every scrollbar stays light however dark the box around it
+       is; the selectbox dropdown, which draws its own thin one, is the
+       exception. */
+    color-scheme: light;
     --st-background-color: #ffffff;                    /* bgColor     */
     --st-secondary-background-color: #f0f2f6;          /* secondaryBg */
     --st-text-color: #31333f;                          /* bodyText    */

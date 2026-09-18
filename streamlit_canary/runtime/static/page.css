@@ -1133,12 +1133,74 @@
     margin: 0 0 0 -4px;
     border-radius: 6px;
   }
-  /* `CheckGroup(body_click_behavior='')`: the field rides inside this label, so
-     only the box selects the option -- clicking the text merely highlights the
-     row (see `scHighlightChoice`). */
-  .st-radio-box-label {
+  /* The "enter" arrow a navigable row floats beside its text. Only
+     `TreeSelect` draws one (see `_NavigationGroup`): the generic groups have
+     no notion of a row you can walk into. The row's own `gap` (8px) is the
+     spacing, and `scAlignRowArrows` pins the text of every arrow row to the
+     longest folder name, so the arrows all land on one x. The reveal is a
+     fade plus a 4px slide. Nothing here turns the hit area off while it is
+     hidden: the arrow and its tolerance zone sit *inside* the row, so the
+     pointer can only reach them when the row is hovered -- which is exactly
+     when they are drawn. Toggling `pointer-events` with the hover instead
+     would leave the arrow unarmoured for the event that reveals it, so a
+     pointer arriving in one jump would have to jiggle before the chip and
+     the click landed. */
+  .st-row-open {
+    position: relative;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    /* A square, so the hover chip has room around the glyph. */
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    /* `:blue[..]`, so the arrow reads as an action rather than as text. */
+    color: var(--st-blue-text-color);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
     cursor: pointer;
+    opacity: 0;
+    transform: translateX(0);
+    transition: opacity 120ms ease, transform 120ms ease,
+      background-color 120ms ease;
+  }
+  /* The aiming tolerance right of the arrow: 30px that belong to the button --
+     so the pointer there hovers *and* clicks the arrow -- but paint nothing.
+     The row is wide, so the far right of it is still a plain row click. */
+  .st-row-open::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: -30px;
+    bottom: 0;
+  }
+  .st-radio-item:hover .st-row-open,
+  .st-radio-item:has(input:focus-visible) .st-row-open {
+    opacity: 1;
+    transform: translateX(4px);
+  }
+  /* One layer above the row's own hover wash, which is already painted under
+     the arrow: the chip is tinted blue so the two stay apart. */
+  .st-row-open:hover {
+    background-color: var(--st-blue-background-color);
+  }
+  .st-row-open:focus-visible {
+    opacity: 1;
+    transform: translateX(4px);
+    outline: 2px solid var(--st-primary-color);
+  }
+  /* The arrow *is* the row's "enter" action, so the text underlines while the
+     pointer rests on it -- or anywhere in its tolerance zone, since `::after`
+     is part of the button -- and the pair then reads as a single link. The
+     rule is muted (`:gray[..]`) so it stays a hint beside the arrow's blue. */
+  .st-radio-item-row:has(.st-row-open:hover) .st-radio-markdown {
+    text-decoration: underline;
+    text-decoration-color: var(--st-gray-text-color);
   }
   .st-radio-item.is-highlighted .st-radio-item-row {
     background-color: var(--st-hover-background-color);
@@ -1231,9 +1293,8 @@
   .st-check-group .st-radio-item .st-checkbox-box {
     margin-top: 0;
   }
-  /* `body_click_behavior=''`: the box ticks the node and the rest of the row
-     acts on it (a folder's body enters it -- see `scHighlightChoice`), so the
-     item keeps the pointer cursor rather than falling back to `default`. */
+  /* Ticking simply fills the box: the whole row is the box's own `<label>`,
+     so the browser flips it without any script (see `scHighlightChoice`). */
   .st-check-group .st-radio-item:has(input:checked) .st-checkbox-box {
     border-color: var(--st-primary-color);
     background-color: var(--st-primary-color);
@@ -1242,9 +1303,9 @@
     opacity: 1;
   }
   /* A frozen row (`box_disabled`, e.g. `TreeSelect`'s `..`): its field is
-     disabled, so the box never ticks and is drawn dimmed instead. The other
-     half of the row still answers clicks (highlight, double-click open), so
-     the cursor stays. */
+     disabled, so the box never ticks and is drawn dimmed instead. The rest of
+     the row still answers clicks -- the highlight, or the walk-in when the row
+     is a `body_opens` one (`..`) -- so the cursor stays. */
   .st-radio .st-radio-item.is-box-disabled .st-radio-circle,
   .st-check-group .st-radio-item.is-box-disabled .st-checkbox-box {
     opacity: 0.4;
@@ -1531,13 +1592,26 @@
     animation: st-popover-panel-in var(--st-popover-anim) ease;
   }
   /* Same clipping contract as `st-selectbox-dropdown-in`: the contents stay
-     clipped while the panel is still short (nothing spills out, no scrollbar
-     flashes) and both `height` and `overflow` fall back to the base rule once
-     the animation is over -- which is what leaves the row-aligned variant
-     scrollable again. */
+     clipped while the panel is still short (nothing spills out, and no
+     scrollbar flashes up over a box that is still growing) and both `height`
+     and `overflow` fall back to the base rule once the animation is over. */
   @keyframes st-popover-panel-in {
     from { height: 0; overflow: hidden; }
     to { height: var(--st-popover-open-height, auto); overflow: hidden; }
+  }
+  /* The row-aligned panel animates `height` only, leaving `overflow` to its
+     base rule for the whole run. Its toolbar is right-aligned in a box whose
+     scrollbar eats into the content width, so were the scrollbar to arrive
+     only as the animation ended, everything beside it -- the toolbar most
+     visibly -- would be shoved a scrollbar-width sideways on the last frame.
+     Paired with the base `overflow-y: scroll` below, the panel is scrollable
+     from the first frame and nothing moves. */
+  @keyframes st-popover-panel-grow-in {
+    from { height: 0; }
+    to { height: var(--st-popover-open-height, auto); }
+  }
+  .st-popover-panel--row {
+    animation-name: st-popover-panel-grow-in;
   }
   .st-popover-panel[hidden] { display: none; }
   /* Streamlit's popover elevation (`shadows.popover`). Only its light theme
@@ -1642,7 +1716,12 @@
     gap: 0;
     min-width: 0;
     overflow-x: hidden;
-    overflow-y: auto;
+    /* `scroll` rather than `auto`: the scrollbar's width stays out of the
+       content for the whole open animation (see the keyframes), so the
+       listing and the toolbar over it never shift as the panel settles. Its
+       height is measured to fit the listing exactly, so `auto` would drop the
+       scrollbar again on the last frame and hand that width back. */
+    overflow-y: scroll;
   }
   /* A section bar (a `Row` that is not the sticky toolbar) keeps the panel's
      side gutters, so the widgets inside it line up with the other children. */
@@ -1667,16 +1746,25 @@
     background-color: var(--st-background-color);
     border-top: 1px solid var(--st-border-color);
   }
-  /* `TreeSelectWithInput` renders its tree inside a container, and a custom
-     panel may group extra widgets in one too, so the rules above have to
-     reach one level deeper as well. */
-  .st-popover-panel--row > .st-container > .st-caption {
+  /* `TreeSelect` renders each selection mode's list inside a container of its
+     own, and a custom panel may group extra widgets in one too, so the rules
+     above have to reach inside those containers as well. The container step
+     is a *descendant* one: the tree already sits in a container, so its lists
+     are a container deeper than the panel -- a fixed number of `>` steps
+     cannot both cover that and stay readable. */
+  .st-popover-panel--row .st-container > .st-caption {
     margin: 0;
     padding: 0 16px 6px;
   }
-  .st-popover-panel--row > .st-container > .st-radio,
-  .st-popover-panel--row > .st-container > .st-check-group {
+  .st-popover-panel--row .st-container > .st-radio,
+  .st-popover-panel--row .st-container > .st-check-group {
     padding: 0 16px 12px;
+  }
+  /* The toolbar row a tree panel opens with (its location selectbox and the
+     buttons beside it). The `:not(:last-child)` mark keeps this off a "done"
+     row, which takes the sticky treatment below instead. */
+  .st-popover-panel--row .st-container > .st-row:not(:last-child) {
+    padding: 0 16px;
   }
   .st-popover-panel--row > .st-container > .st-row:last-child {
     position: sticky;
@@ -2378,10 +2466,15 @@
      A flex/grid container owns the spacing between its stacked children via
      `gap`, so the per-widget `margin-bottom` declared above is dropped
      inside them (otherwise it would add to the gap, or leave a trailing
-     8px after the last child). Declared last so it wins over those
-     single-class widget rules. */
+     8px after the last child). A floating cluster is one too -- and there
+     the stray margin hurts more than a doubled gap: `align-items: center`
+     centres the *margin* box, so the 8px bottom margin a `Popover` carries
+     pushes its trigger 4px off the cluster's centre line, which reads as a
+     broken baseline next to the icon button beside it. Declared last so it
+     wins over those single-class widget rules. */
   .st-row > *,
   .st-container > *,
+  .st-floating > *,
   .st-grid-cell > *,
   .st-tab-panel > *,
   .st-popover-panel > * { margin-bottom: 0; }

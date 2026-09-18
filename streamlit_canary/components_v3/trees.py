@@ -44,8 +44,6 @@ from ..kernel import Property
 from ..kernel import Signal
 from ..kernel import bind
 from .base import Width
-from ._shared import _BODY_NONE
-from ._shared import _BODY_TOGGLE
 
 from .buttons import Button
 from .buttons import IconButton
@@ -65,7 +63,6 @@ from .layouts import Row
 
 from .status import Info
 
-from .texts import Caption
 from .texts import Text
 
 
@@ -108,41 +105,106 @@ def _filter_func(filter: T.Filter) -> tp.Callable[[str], bool]:
 
 
 NAV_UP = '..'
-"""A listing row standing for the parent folder."""
-
-NAV_HERE = '.'
-"""A listing row standing for the current folder. Picking it sets that folder
-as the value instead of moving -- v1's "This folder" entry. `option_path`
-resolves it to the folder itself, so it is a real node."""
+"""A listing row standing for the parent folder. It is a place to go, not a
+node to pick, so `_is_nav_up` freezes its box; and the click that a frozen box
+leaves over goes to the row itself -- `_NavigationGroup`'s `body_opens` turns
+it into the walk-up gesture, which is why `..` carries no "enter" arrow."""
 
 
 def entry_label(option: tp.Any) -> str:
-    """Render a listing row: `'..'` / `'.'` / `'<name>/'` / `'<name>'`.
+    """Render a listing row: `'..'` / `'<name>/'` / `'<name>'`.
 
-    Folders carry a trailing `'/'` (see `listing_options`); the two nav rows
-    get an orange folder icon plus a gray hint, so they read as actions rather
-    than as nodes.
+    Folders carry a trailing `'/'` (see `listing_options`); the nav row gets
+    an orange folder icon plus a gray hint, so it reads as an action rather
+    than as a node.
     """
     name = str(option)
     if name == NAV_UP:
         return ':orange[:material/folder:] .. :gray[goto parent]'
-    if name == NAV_HERE:
-        return ':orange[:material/folder:] . :gray[(this folder)]'
     escaped = name.replace('__', '\\_\\_')
     if escaped.endswith('/'):
         return ':material/folder: {}'.format(escaped)
     return ':material/description: {}'.format(escaped)
 
 
-def _location_label(directory: str) -> str:
-    """Captain text for a folder path (`__` is escaped for markdown)."""
-    return ':gray[{}]'.format(directory.replace('__', '\\_\\_'))
+def _path_label(path: str) -> str:
+    """A folder path as selectbox text (`__` is escaped for markdown)."""
+    return path.replace('__', '\\_\\_')
 
 
 def _call(hook: tp.Optional[tp.Callable]) -> None:
     """Run a v1-style `custom` builder hook, if given."""
     if hook is not None:
         hook()
+
+
+class _NavigationGroup:
+    """Mixin: a listing whose folder rows carry an "enter" arrow.
+
+    `TreeSelect` needs two gestures on one row: a single click on the row body
+    ticks / picks it -- the box's own label wraps the whole row, so the
+    browser does that by itself -- while a folder floats a small `->` just
+    right of its text once the pointer is over the row (the row's own `gap`,
+    8px, is the spacing). The text underlines while the pointer rests on that
+    arrow, so the pair reads as one link, and clicking it walks into the
+    folder. The arrow answers over a little slack to its right as well: the
+    whole icon plus 30px counts as the arrow for hovering *and* clicking,
+    since the pointer has to be aimed at a 20px glyph otherwise. Past that
+    the far right of the row still belongs to the row itself.
+
+    A row whose box is frozen (`box_disabled`) has no tick to give, so its own
+    click is free to be the gesture: `body_opens` marks those rows, and a
+    click anywhere on them walks in exactly like the arrow would. That is what
+    `..` uses -- it is a place, not a node, and an arrow on top of that would
+    only clutter a row that has nothing else to do.
+
+    The arrow is deliberately *not* a `CheckGroup` feature: it is opinionated
+    about what a row means -- a folder, a place to go -- which is
+    `TreeSelect`'s business rather than a widget's. Hence these subclasses,
+    which only `TreeSelect` builds, plus the other half of the contract in
+    `render.py` (`_row_enter_html`, and the `navigable` / `body_opens` index
+    lists an `options` patch carries for the JS rebuild).
+
+    Args:
+        navigable: marks the options that stand for a folder, and so draw the
+            arrow (see `_is_enterable`).
+        body_opens: marks the options a click on the row itself walks into,
+            with no arrow involved (see `_is_nav_up`).
+
+    Signals:
+        on_open (via `group.on_open`) — a row was entered, through its arrow
+            or, for a `body_opens` row, through the click on the row itself;
+            the payload is the row index. The gesture is its own event, so
+            walking into a folder never doubles as a tick of that row.
+    """
+
+    def __init__(
+        self,
+        *args: tp.Any,
+        navigable: tp.Callable[[tp.Any], bool] | None = None,
+        body_opens: tp.Callable[[tp.Any], bool] | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.on_open: Signal = Signal(int)
+        self._navigable = navigable
+        self._body_opens = body_opens
+
+    def _on_open(self, value: tp.Any) -> None:
+        """Relay a row's "enter" arrow to `on_open` (see `scOpenRow`)."""
+        try:
+            index = int(value)
+        except (TypeError, ValueError):
+            return
+        self.on_open.emit(index)
+
+
+class _NavCheckGroup(_NavigationGroup, CheckGroup):
+    """A `CheckGroup` whose folder rows carry the "enter" arrow."""
+
+
+class _NavRadioGroup(_NavigationGroup, RadioGroup):
+    """A `RadioGroup` whose folder rows carry the "enter" arrow."""
 
 
 class _TreeNav:
@@ -203,22 +265,14 @@ class _TreeNav:
         self.recent.appendleft(path)
 
 
-def listing_options(
-    nav: _TreeNav, keeps: tp.Callable[[str], bool], *, with_here: bool = True
-) -> list:
-    """The rows of a folder listing: the nav rows, folders, then files.
+def listing_options(nav: _TreeNav, keeps: tp.Callable[[str], bool]) -> list:
+    """The rows of a folder listing: the nav row, folders, then files.
 
-    Folders carry a trailing `'/'`, files do not.  The leading rows are the
-    whole navigation now that the toolbar's arrows are gone: `'..'` moves up
-    and `'.'` picks the current folder, both in a single click.
-
-    A single click stops being the navigation gesture in a double-click panel
-    (`with_here=False`), and `'.'` goes with it: it exists only to let one
-    click both move and pick, which is exactly what that panel separates.
+    Folders carry a trailing `'/'`, files do not.  `'..'` leads the listing:
+    it is the way back up, and a single click on its body walks there -- its
+    box is frozen, so the click has nothing else to do (see `_is_nav_up`).
     """
     options = [NAV_UP]
-    if with_here:
-        options.append(NAV_HERE)
     options += [name + '/' for name in nav.dirnames()]
     options += [name for name in nav.filenames() if keeps(name)]
     return options
@@ -227,14 +281,11 @@ def listing_options(
 def option_path(nav: _TreeNav, option: tp.Any) -> str:
     """The absolute path a listing row stands for.
 
-    `..` is a pure action, not a node, so it maps to `''`; `.` stands for the
-    current folder, so ticking it picks that folder (v1's "This folder").
+    `..` is a pure action, not a node, so it maps to `''`.
     """
     name = str(option)
     if name == NAV_UP:
         return ''
-    if name == NAV_HERE:
-        return nav.directory
     if name.endswith('/'):
         return nav.child(name[:-1])
     return nav.child(name)
@@ -253,25 +304,24 @@ _MODE_LABELS = {
     _MODE_MULTICROSS: 'Multi-cross select',
 }
 
-_NAV_SINGLE = 'single_click'
-_NAV_DOUBLE = 'double_click'
 
-_NAVS = (_NAV_SINGLE, _NAV_DOUBLE)
+def _is_enterable(option: tp.Any) -> bool:
+    """Whether a listing row carries the "enter" arrow: a folder, and only a
+    folder.
 
-
-def _check_navigation_mode(mode: str) -> str:
-    """Validate a `navigation_mode` keyword."""
-    if mode not in _NAVS:
-        raise ValueError(
-            'navigation_mode must be one of {}, got {!r}'.format(
-                ', '.join(repr(m) for m in _NAVS), mode
-            )
-        )
-    return mode
+    A file opens nowhere, so it gets no arrow.  `..` gets none either: it is
+    entered by clicking its own body (`_is_nav_up`), and it is already the
+    row a pointer reaches for, so an arrow would only add noise.
+    """
+    return str(option).endswith('/')
 
 
 def _is_nav_up(option: tp.Any) -> bool:
-    """`..` is a pure navigation target -- never a node to tick."""
+    """`..` is a pure navigation target -- never a node to tick.
+
+    It drives two things at once: the frozen box (nothing to tick, drawn
+    dimmed) and the body click that walks up (`body_opens`).
+    """
     return str(option) == NAV_UP
 
 
@@ -338,8 +388,7 @@ class PathInput(Column):
         value: the initial text.
         width: see `Column`.
         candidates: the box's suggestions (bindable); see `TextInput`.
-            `TreeSelectWithInput` fills it with the ancestors of the folder
-            being browsed -- that is what gives `PathInput` its dropdown.
+            `None` (the default) draws no caret -- a plain text box.
 
     Properties:
         path: str — the resolved absolute path ('' when it does not exist).
@@ -488,43 +537,36 @@ class TreeSelect(Column):
 
     Layout::
 
-        [                ] [refresh] [bucket] [mode]  <- floats top-right
-        /current/folder
-        ..  (goto parent)
-        .   (this folder)
-        subfolder/
+        [ /current/folder v ] [refresh] [bucket] [mode]  <- toolbar row
+        ..   (goto parent)            <- one click walks up, no arrow
+        subfolder/                              ->
         another-file.txt                 <- scrolls past `height` px
                                          [ Confirm ]  <- floats bottom-right
 
-    The toolbar and the Confirm button ride in `FloatingContainer`s, so they
-    stay put in their corners of the panel while the listing scrolls beneath
-    them -- and, being sticky, they keep their place in the flow, so no row
-    can end up hidden under either one for good.
+    The toolbar is a row across the top of the panel: a location selectbox
+    listing every ancestor of the folder on show -- itself included, so any
+    parent is one pick away -- and then the actions.  The Confirm button rides
+    in a `FloatingContainer`, so it stays put in the panel's corner while the
+    listing scrolls beneath it -- and, being sticky, it keeps its place in the
+    flow, so no row can end up hidden under it for good.
 
-    No arrow toolbar: every row is a click target, and what a click does
-    depends on the row --
+    Two gestures live on a row, and neither one waits on the other:
 
-        `..`        move to the parent folder
-        `.`         stay put, and take the current folder
-        `name/`     enter that subfolder
-        `name`      take that file
+        one click   tick / pick that row -- the whole row is the box's label,
+                    so `single` picks the node and the multi modes tick it.
+                    Nothing is held back: there is no double click to leave
+                    room for, so the tick lands with the click.
+        the arrow   walk into that row (`->` to the right of the text, on
+                    hover -- see `_NavigationGroup`).  Only a folder draws
+                    one; every arrow sits at the same x, past the longest
+                    folder name, so the pointer can aim without re-reading
+                    -- and the icon plus 30px of slack to its right is the
+                    same target, the far right of the row being the row's.
 
-    -- so one click moves in either direction.  In the multi modes a row shows
-    a box as well: the box ticks the node while its body acts on it (a
-    folder's body enters it, a file's body ticks it).
-
-    `navigation_mode` decides which gesture does the moving:
-
-        'single_click'  one click both moves and picks, as above -- the box is
-                        the only thing that merely ticks, so `..` and `.` earn
-                        their keep.
-        'double_click'  one click only ticks / picks the row -- in the multi
-                        modes the whole row is the box's label, so clicking
-                        its body ticks it; a *double* click opens the folder.
-                        A file opens nothing (there is nowhere to go), and `.`
-                        is dropped, since picking is no longer fused to
-                        moving.  `..` still goes up, but its box is frozen
-                        (dimmed, never tickable): it is a target, not a node.
+    `..` leads the listing as the way back up.  Its box is frozen -- dimmed
+    and never tickable -- because it is a target rather than a node
+    (`_is_nav_up`), and that is what frees its own click for the gesture: one
+    click anywhere on the row walks up, so it draws no arrow of its own.
 
     `selection_mode` settles how much may be picked at once (see `value`);
     only `'multicross'` (or `'any'`) draws the bucket, and only `'any'` draws
@@ -540,8 +582,6 @@ class TreeSelect(Column):
             (nodes of the folder being browsed -- leaving it drops them),
             `'multicross'` (nodes gathered across folders into a bucket), or
             `'any'` (all three, switched from a segmented control).
-        navigation_mode: `'single_click'` or `'double_click'` (the default);
-            see above.
 
     Properties:
         value: str | list[str] — the selection. `single` keeps one path (`''`
@@ -554,9 +594,10 @@ class TreeSelect(Column):
     Signals:
         on_value (via `tree['on_value']` or `tree.value.on_change`)
         on_navigate: emitted with the new folder every time the listing is
-            refreshed -- a row click, a `_goto` from a wrapper, or the initial
-            build. Anything derived from the current folder (a path input's
-            candidate list, say) should be refreshed from here.
+            refreshed -- walking into a row (its arrow, or `..`'s own click),
+            a `_goto` from a wrapper, or the initial build. Anything derived
+            from the current folder (a path input's candidate list, say)
+            should be refreshed from here.
         on_submit: emitted when the Confirm button in the bottom-right corner
             is clicked. A wrapper such as `TreeSelectWithInput` listens for it
             to dismiss the popover it opened.
@@ -573,24 +614,19 @@ class TreeSelect(Column):
         height: int | None = None,
         width: Width | None = None,
         selection_mode: str = _MODE_SINGLE,
-        navigation_mode: str = _NAV_DOUBLE,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
 
         selection_mode = _check_selection_mode(selection_mode)
-        navigation_mode = _check_navigation_mode(navigation_mode)
         initial_mode = (
             selection_mode if selection_mode in _MODES else _MODE_SINGLE
         )
-        # a double click opens the node, so a single one is free to pick it
-        double = navigation_mode == _NAV_DOUBLE
         keeps = _filter_func(filter)
         nav = _TreeNav(start_directory)
         self._nav = nav
         self._keeps = keeps
         self._selection_mode = selection_mode
-        self._double = double
         # guards every pick handler while the listing is rebuilt: re-listing
         # swaps `options`, which resets `focused_index` and makes a radio fall
         # back to another row
@@ -610,10 +646,19 @@ class TreeSelect(Column):
         switchable = selection_mode == _MODE_ANY
 
         with self:
-            # The toolbar floats in the panel's top-right corner, so it stays
-            # reachable while the listing scrolls. Its own right edge is
-            # `align-self: flex-end` (see `.st-floating`); no `Space` needed.
-            with FloatingContainer('top-right'):
+            # The toolbar is a row across the panel's top. The location
+            # selectbox leads: it lists every ancestor of the folder on show,
+            # itself last, so the ladder doubles as "you are here" and any
+            # parent is one pick away. It is the only child that stretches, so
+            # the row needs no `Space`.
+            with Row('center'):
+                self._location = Selectbox(
+                    'Current location',
+                    options=_path_chain(nav.directory),
+                    value=nav.directory,
+                    format=_path_label,
+                    label_visibility='collapsed',
+                )
                 self._refresh_btn = IconButton('refresh', help='Refresh')
                 if crosses:
                     # The bucket holds the cross-folder haul. It rides in a
@@ -644,33 +689,32 @@ class TreeSelect(Column):
                         format=lambda m: _MODE_LABELS[m],
                         label_visibility='collapsed',
                     )
-            self._location = Caption(_location_label(nav.directory))
-            # A double-click panel freezes `..` (see `_is_nav_up`) and lets a
-            # click on a row body tick the box; the single-click arrangement
-            # instead gives the body no behaviour of its own, so it is free to
-            # act on the node.
-            frozen = _is_nav_up if double else None
-            body_behavior = _BODY_TOGGLE if double else _BODY_NONE
+            # The two lists differ only in how many nodes they may pick. Both
+            # freeze `..` and route its body click to the walk-up (`_is_nav_up`
+            # is both predicates), and both float the "enter" arrow on their
+            # folders (`_is_enterable`) -- the arrow is what moves the panel
+            # for a node row, so a row's own click is free to just tick it.
             with Column(visible=bind(self.mode, _is_single)):
-                self._single_list = RadioGroup(
+                self._single_list = _NavRadioGroup(
                     'Folder contents',
                     options=(),
                     format=entry_label,
                     label_visibility='collapsed',
                     max_height=height,
-                    box_disabled=frozen,
-                    double_click_open=double,
+                    box_disabled=_is_nav_up,
+                    navigable=_is_enterable,
+                    body_opens=_is_nav_up,
                 )
             with Column(visible=bind(self.mode, _is_multi)):
-                self._multi_list = CheckGroup(
+                self._multi_list = _NavCheckGroup(
                     'Folder contents',
                     options=(),
                     format=entry_label,
-                    body_click_behavior=body_behavior,
                     label_visibility='collapsed',
                     max_height=height,
-                    box_disabled=frozen,
-                    double_click_open=double,
+                    box_disabled=_is_nav_up,
+                    navigable=_is_enterable,
+                    body_opens=_is_nav_up,
                 )
             # A Confirm button floats in the bottom-right corner. It is the
             # panel's "done" action: a wrapper hooks `on_submit` to fold the
@@ -685,28 +729,11 @@ class TreeSelect(Column):
             if self._syncing:
                 return
             option = str(self._single_list.value.get())
-            if not option:
+            if not option or option == NAV_UP:
+                # `..` is frozen, so its box cannot be ticked; the walk-up is
+                # its row's own click (`_on_single_open`)
                 return
-            if self._double:
-                # a click only *picks* the node here -- opening a folder is
-                # the double click's job (`_on_single_open`). `..` is frozen
-                # (it can never be picked), so the radio should not have
-                # carried it at all.
-                if option == NAV_UP:
-                    return
-                self.value.set(option_path(self._nav, option))
-                return
-            # single-click: clicking a row *is* the navigation here; the
-            # radio's selection is only a signal, so it never carries the
-            # picked node itself
-            if option == NAV_UP:
-                self._jump(self._nav.parent_of())
-            elif option == NAV_HERE:
-                self.value.set(self._nav.directory)
-            elif option.endswith('/'):
-                self._jump(self._nav.child(option[:-1]))
-            else:
-                self.value.set(self._nav.child(option))
+            self.value.set(option_path(self._nav, option))
 
         @self._multi_list.value.on_change
         def _on_multi_toggle() -> None:
@@ -727,13 +754,14 @@ class TreeSelect(Column):
         def _on_multi_open(index: int) -> None:
             self._open_row(self._multi_list, index)
 
-        if not double:
-
-            @self._multi_list.focused_index.on_change
-            def _on_multi_body_click() -> None:
-                # single-click only: there the body acts the moment it is
-                # clicked, whereas a double-click panel waits for `on_open`
-                self._activate_focused()
+        @self._location.value.on_change
+        def _on_location_picked() -> None:
+            # the ladder only ever holds folders, so a pick is a jump
+            if self._syncing:
+                return
+            directory = str(self._location.value.get())
+            if directory and directory != self._nav.directory:
+                self._jump(directory)
 
         @self._refresh_btn.on_click
         def _on_refresh() -> None:
@@ -790,38 +818,12 @@ class TreeSelect(Column):
 
     # -- internals ----------------------------------------------------------
 
-    def _activate_focused(self) -> None:
-        """Act on the row whose *body* was clicked in a multi mode.
-
-        The single-click arrangement only: the box ticks
-        (`body_click_behavior=''`) while the body instead moves the panel when
-        the row is a folder (or `..`), and ticks it when the row is a file (or
-        `.`, "this folder"). The row is highlighted client-side either way. A
-        double-click panel leaves the body to the box and waits for `on_open`.
-        """
-        if self._syncing:
-            return
-        options = list(self._multi_list.options.get() or ())
-        index = self._multi_list.focused_index.get()
-        if not (isinstance(index, int) and 0 <= index < len(options)):
-            return
-        option = str(options[index])
-        if option == NAV_UP:
-            self._jump(self._nav.parent_of())
-        elif option.endswith('/'):
-            self._jump(self._nav.child(option[:-1]))
-        elif option:
-            # a file (or `.`): highlight plus tick
-            ticked = list(self._multi_list.value.get() or ())
-            if option not in ticked:
-                self._multi_list.value.set(ticked + [option])
-
     def _carried_row(self, options: list) -> str:
-        """The listing row the current pick sits on (double-click panel).
+        """The listing row the current pick sits on.
 
         `single` picks exactly one node, so that node's own row is what the
-        radio should mark -- unlike the single-click panel, whose radio is a
-        mere click signal and so is always left blank.
+        radio should mark.  Left blank in the multi modes, where the boxes
+        already carry the selection.
         """
         current = self.value.get()
         if not current or self.mode.get() != _MODE_SINGLE:
@@ -857,12 +859,12 @@ class TreeSelect(Column):
         return {p for p in (option_path(nav, o) for o in options) if p}
 
     def _open_row(self, group: RadioGroup | CheckGroup, index: tp.Any) -> None:
-        """Enter the folder a row stands for -- the double-click gesture.
+        """Walk into the place a row stands for.
 
-        Only a folder (or `..`) has anywhere to go: double-clicking a file is
-        a no-op, the single click having already picked it. Nothing else is
-        needed for "open" to be unambiguous, since a double-click panel
-        freezes `..` (so a stray click cannot pick it) and drops `.`.
+        Two gestures land here and both send the same `open` event: the
+        "enter" arrow of a folder row, and the row click of a `body_opens` row
+        (`..`, which has no arrow). A file reaches neither -- `_is_enterable`
+        gives it no arrow, and it has nowhere to go.
         """
         if self._syncing:
             return
@@ -877,30 +879,28 @@ class TreeSelect(Column):
 
     def _refresh_listing(self) -> None:
         nav = self._nav
-        options = listing_options(nav, self._keeps, with_here=not self._double)
+        options = listing_options(nav, self._keeps)
         picked = set(_as_picked(self.value.get()))
         self._syncing = True
         try:
             self._single_list.options.set(options)
             self._multi_list.options.set(options)
-            if self._double:
-                # a double-click radio *is* the pick, so it shows what the
-                # panel carries (see `_carried_row`)
-                self._single_list.value.set(self._carried_row(options))
-            else:
-                # the radio's selection doubles as the click signal, so a
-                # fresh listing starts with nothing (and never a nav row)
-                # selected -- otherwise clicking the pre-selected row would
-                # not register
-                self._single_list.value.set('')
+            # the radio *is* the pick in `single` mode, so it shows what the
+            # panel carries (see `_carried_row`)
+            self._single_list.value.set(self._carried_row(options))
             # the check group re-ticks what was picked before, so walking back
             # into a folder shows its ticks again
             self._multi_list.value.set(
                 [o for o in options if option_path(nav, o) in picked]
             )
+            # the ladder is the panel's location bar: the current folder is
+            # the last rung, so a fresh listing reads as "you are here".
+            # `value` goes in before `options` so `_auto_select` finds it
+            # already present and does not fall back to the drive root.
+            self._location.value.set(nav.directory)
+            self._location.options.set(_path_chain(nav.directory))
         finally:
             self._syncing = False
-        self._location.text.set(_location_label(nav.directory))
         self.on_navigate.emit(nav.directory)
 
     def _set_mode(self, mode: str) -> None:
@@ -930,10 +930,9 @@ class TreeSelectWithInput(Column):
 
     Layout::
 
-        [ path input .................. v ] [ Recent ] [ Browse v ]
+        [ path input .................... ] [ Recent ] [ Browse v ]
         +-- "Browse" popover (spans the header row) ------------------+
-        |                  [refresh] [bucket] [mode] <- floats top    |
-        | /current/folder                                             |
+        | [ /current/folder v ] [refresh] [bucket] [mode] <- toolbar  |
         | ..        (goto parent)                                     |
         | subfolder/                                                  |
         | another-file.txt              <- scrolls past `height` px   |
@@ -941,18 +940,19 @@ class TreeSelectWithInput(Column):
         +-------------------------------------------------------------+
 
     The panel is a `TreeSelect`; the popover stretches it from the path
-    input's left edge to the header row's right edge.  It navigates by
-    clicking a row -- `navigation_mode` decides whether that takes one click
-    or two (see `TreeSelect`) -- and its toolbar, refresh plus the bucket and
-    the mode control when `selection_mode` calls for them, floats in the
-    top-right corner, with its Confirm button in the bottom-right one, so both
-    stay reachable while the listing scrolls.  Confirm folds this popover away
-    (through `TreeSelect.on_submit`).
+    input's left edge to the header row's right edge.  A single click on a row
+    ticks / picks it, and the folder rows float an "enter" arrow to walk into
+    them (a click on `..` itself walks up; see `TreeSelect`).  The panel
+    carries its own toolbar (the location
+    selectbox plus refresh, and the bucket and the mode control when
+    `selection_mode` calls for them) across its top, with its Confirm
+    button in the bottom-right corner, so the Confirm stays reachable while
+    the listing scrolls.  Confirm folds this popover away (through
+    `TreeSelect.on_submit`).
 
-    The path input also carries a candidate dropdown: every ancestor of the
-    folder the panel shows, so any parent is one pick away. It follows the
-    panel -- a row jump or a submitted path refreshes it (see
-    `_refresh_candidates`).
+    The path input is a plain text box: the ancestor ladder rides on the
+    panel's location selectbox (see `TreeSelect`), which follows the browsed
+    folder by itself -- so there is nothing here to keep in step.
 
     Typing (or picking) a folder points the panel there; a file joins the
     panel's selection.  The selection survives browsing -- `clear()` drops it.
@@ -965,7 +965,6 @@ class TreeSelectWithInput(Column):
         height: max height of the "Browse" panel in px (default 500).
         width: see `Column`.
         selection_mode: how the panel lets nodes be picked -- see `TreeSelect`.
-        navigation_mode: which gesture moves the panel -- see `TreeSelect`.
 
     Properties:
         value: str | list[str] — the panel's selection; this mirrors
@@ -987,7 +986,6 @@ class TreeSelectWithInput(Column):
         height: int = 500,
         width: Width | None = None,
         selection_mode: str = _MODE_SINGLE,
-        navigation_mode: str = _NAV_DOUBLE,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -1010,9 +1008,7 @@ class TreeSelectWithInput(Column):
 
         with self:
             with Row('bottom'):
-                # `candidates` starts empty, so the caret is drawn (disabled)
-                # from the first paint and only its contents change later.
-                self._path_input = PathInput(label, first_path, candidates=[])
+                self._path_input = PathInput(label, first_path)
                 self._recent = Recent(
                     'Recent', visible=self._has_recent, max_height=280
                 )
@@ -1025,7 +1021,6 @@ class TreeSelectWithInput(Column):
                         filter=filter,
                         height=None,
                         selection_mode=selection_mode,
-                        navigation_mode=navigation_mode,
                     )
         self.value.bind(self._tree.value)
         self.mode.bind(self._tree.mode)
@@ -1053,17 +1048,6 @@ class TreeSelectWithInput(Column):
                 self._nav.remember(path)
             self._refresh_recent()
 
-        @self._path_input.on_submit
-        def _on_path_submitted() -> None:
-            self._refresh_candidates()
-
-        @self._tree.on_navigate
-        def _on_tree_navigated(directory: str) -> None:
-            # the panel drives the folder, so mirror it onto our own nav --
-            # that is what `_refresh_candidates` reads
-            self._nav.directory = directory
-            self._refresh_candidates()
-
         @self._tree.on_submit
         def _on_tree_submitted() -> None:
             # the panel's Confirm is a "done" action: fold the popover away
@@ -1073,7 +1057,6 @@ class TreeSelectWithInput(Column):
             self._browse_popover.close()
 
         self._refresh_recent()
-        self._refresh_candidates()
 
     # -- public api ---------------------------------------------------------
 
@@ -1087,23 +1070,11 @@ class TreeSelectWithInput(Column):
 
     # -- internals ----------------------------------------------------------
 
-    def _refresh_candidates(self) -> None:
-        """Offer every ancestor of the current folder in the path input.
-
-        The dropdown is a jump list: picking an entry puts that folder's path
-        into the box, which `_commit` then resolves. Callers that drive the
-        panel themselves (instead of through `TreeSelect`) re-run this after
-        moving the folder.
-        """
-        self._path_input.candidates.set(_path_chain(self._nav.directory))
-
     def _commit(self, path: str) -> None:
         """Resolve a typed / picked path into a selection or a jump.
 
-        A folder moves the panel there -- so picking an ancestor candidate
-        navigates, the way v1's "Current location" selectbox did -- while a
-        file joins the panel's selection (`single` replaces it, the multi
-        modes add it).
+        A folder moves the panel there, while a file joins the panel's
+        selection (`single` replaces it, the multi modes add it).
         """
         path = path.strip()
         if not path:
@@ -1128,8 +1099,8 @@ class TreeSelectWithInput(Column):
         self._recent.options.set(recent)
         if recent and self._recent['value'] not in recent:
             # show the newest entry without *picking* it: `_on_recent_picked`
-            # runs `_commit`, which navigates for a folder -- and the panel's
-            # tick must not move the panel (see `navigation_mode`)
+            # runs `_commit`, which navigates for a folder -- and displaying a
+            # path in the dropdown is not a pick
             self._recent_quiet = True
             try:
                 self._recent.value.set(recent[0])
@@ -1160,9 +1131,9 @@ class TreeSelectDualPane(Column):
         on_confirm: emitted when Confirm is clicked.
     """
 
-    # TODO: give this pane a `navigation_mode` too (and forward it from
-    # `TreeSelectDualPaneWithInput`). It still navigates on a single click,
-    # so the two browsers speak different gestures.
+    # TODO: give this pane the "enter" arrow too (see `_NavigationGroup`). It
+    # still navigates on a single click, so the two browsers speak different
+    # gestures.
 
     def __init__(
         self,

@@ -7,29 +7,32 @@
     'multicross'    tick across folders; the picks gather in a bucket
     'any'           all three, switched from a segmented control
 
-This demo drives `multicross` with the default `navigation_mode`, i.e.
-`'double_click'`: one click *picks* a row (ticks its box), a double click
-*opens* it -- there are no arrow buttons.
+This demo drives `multicross`: one click on a row *picks* it (ticks its box
+and stays put), while every folder floats a small `->` beside its text once
+the pointer is on the row.  Clicking that arrow walks into the folder (the
+text underlines while the pointer is on the arrow, so the pair reads as one
+link).  Every arrow sits on the same x -- just past the longest folder name --
+so the pointer can be aimed without reading each row first.
 
-    dblclick  `..`       go to the parent folder
-    dblclick  `name/`    enter that subfolder
-    dblclick  `name`     nothing: a file opens nowhere
-    click     any row    tick / untick it, and stay put
+    click        any row       tick / untick it, and stay put
+    click `->`   `name/`       enter that subfolder
+                 `name`        no arrow: a file opens nowhere
+    click        `..`          go to the parent folder.  It has no arrow: its
+                               box is frozen, so the click has nothing else to
+                               do and *is* the gesture
 
 `..` can never be ticked (its box is frozen, drawn dimmed): it is a target,
-not a node.  And there is no `.` / "this folder" row here -- picking and
-moving are no longer fused into a single click, so a row that only existed
-to do both has nothing left to say.
+not a node.  And there is no `.` / "this folder" row here -- there is nothing
+to enter, and the location selectbox already picks that folder.
 
 Every move keeps the bucket, so picks made in other folders survive -- that
-is what makes it a *cross-folder* gathering.  The path input's candidate
-dropdown lists the ancestors of the current folder, so any parent is one
-pick away too.  Pass `navigation_mode='single_click'` for the older
-arrangement, where one click moves and the box alone ticks.
+is what makes it a *cross-folder* gathering.  The panel's toolbar opens with
+a location selectbox listing the ancestors of the current folder, so any
+parent is one pick away too.
 
 Run it with:
 
-    python examples/tree_select_multiselect_cross_folders.py    # :2201
+    python examples/tree_select_multicross.py    # :2201
 """
 
 import json

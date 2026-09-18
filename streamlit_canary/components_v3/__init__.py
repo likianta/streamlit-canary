@@ -17,7 +17,7 @@ reference (the category list is taken from
     status   Streamlit's "Status elements" (`api-reference/status`)
 
 Its "Input widgets" page is broad, so we split it into `buttons` and
-`inputs`. `tree_select` is ours (a folder browser) and keeps its own module;
+`inputs`. `trees` is ours (a folder browser) and keeps its own module;
 the private bases the modules share live in `_shared`.
 """
 
