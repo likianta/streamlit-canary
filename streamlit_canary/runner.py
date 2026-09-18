@@ -1,4 +1,5 @@
 import os
+import socket
 import sys
 import typing as tp
 
@@ -9,8 +10,52 @@ from lk_utils import fs
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
 
+from .runtime import Runtime
+from .runtime import serve
+
 
 def run(
+    target: tp.Union[str, tp.Callable[[], None]], port: int = 3001, **kwargs
+) -> tp.Optional[tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]]:
+    """
+    params:
+        target: a script path.
+        show_window: if true, will open a native window.
+            if this argument is set to true, `subthread` will be ignored.
+    returns:
+        (streamlit_process, window_process)
+    """
+    if callable(target):  # v3 entrance
+        print(
+            'application will be running at:\n- {}\n- {}'.format(
+                'http://localhost:{}'.format(port),
+                'http://{}:{}'.format(_get_local_ip(), port),
+            ),
+            ':v4',
+        )
+        runtime = Runtime(target)  # type: ignore
+        serve(runtime, port=port)  # blocking
+    else:
+        return _legacy_run(target, port, **kwargs)
+
+
+def _get_local_ip() -> str:
+    """
+    Ref:
+    - `[lib] airmise : /util.py : get_local_ip_address`
+    - `[lib] streamlit : /net_util.py : get_internal_ip`
+    - https://stackoverflow.com/a/28950776
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        try:
+            # doesn't even have to be reachable
+            s.connect(('8.8.8.8', 1))
+            return s.getsockname()[0]
+        except Exception:
+            return '127.0.0.1'
+
+
+def _legacy_run(
     target: str,
     port: int = 3001,
     *,
@@ -27,14 +72,6 @@ def run(
     icon: tp.Optional[str] = None,
     title: tp.Optional[str] = None,
 ) -> tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]:
-    """
-    params:
-        target: a script path.
-        show_window: if true, will open a native window.
-            if this argument is set to true, `subthread` will be ignored.
-    returns:
-        (streamlit_process, window_process)
-    """
     # popen_options = {}
     # for k in ('cwd', 'env', 'shell'):
     #     if k in kwargs:
@@ -69,7 +106,7 @@ def run(
                 ('--server.headless', 'true'),
                 ('--server.port', str(port)),
                 target,
-                ('--', *extra_args) if extra_args else ()
+                ('--', *extra_args) if extra_args else (),
             ),
             verbose=True,
             blocking=False if show_window else blocking,

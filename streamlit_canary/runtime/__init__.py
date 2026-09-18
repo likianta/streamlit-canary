@@ -19,20 +19,6 @@ from .server import WebSocketClient
 from .watcher import add_watch_file
 from .watcher import add_watch_folder
 
-__all__ = [
-    'Runtime',
-    'WebSocketClient',
-    'add_watch_file',
-    'add_watch_folder',
-    'create_app',
-    'render_page',
-    'render_tree',
-    'run_app',
-    'serve',
-    'set_page_config',
-]
-
-
 # ---------------------------------------------------------------------------
 # page config (stored globally, consumed by `render_page`)
 # ---------------------------------------------------------------------------
@@ -62,31 +48,3 @@ def set_page_config(
 
 def get_page_config() -> dict[str, tp.Any]:
     return dict(_page_config)
-
-
-def run_app(
-    app_func: tp.Callable[[], None], port: int = 3001
-) -> None:  # pragma: no cover - thin wrapper
-    """Build the runtime for `app_func` and serve it on `port` (blocking)."""
-    runtime = Runtime(app_func)
-    serve(runtime, port=port)
-
-
-def run(
-    target: tp.Union[str, tp.Callable[[], None]],
-    port: int = 3001,
-    **kwargs: tp.Any,
-) -> tp.Any:
-    """
-    Unified entry point.
-
-    If `target` is a callable (app function), run it with the event-driven
-    runtime (no rerun, Starlette+Uvicorn). If it is a string (script path),
-    fall back to the legacy Streamlit subprocess runner.
-    """
-    if callable(target):
-        return run_app(tp.cast(tp.Callable[[], None], target), port=port)
-    else:
-        from ..runner import run as _legacy_run
-
-        return _legacy_run(target, port=port, **kwargs)
