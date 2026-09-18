@@ -4,8 +4,11 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 4px 12px;
-    min-height: 40px;
+    /* The frame is the shared control height, and the flex centring above is
+       what places the label in it -- hence no vertical padding. A multi-line
+       label still grows the button, since the token is a `min-height`. */
+    padding: 0 12px;
+    min-height: var(--st-control-height);
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     font-family: var(--st-font);

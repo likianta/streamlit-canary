@@ -141,7 +141,7 @@ def _render_element(comp: Component) -> str:
         # subtracted from the whole row, narrowing every column).
         weights = comp._weights
         n = len(weights)
-        gap_px = 16  # matches `.st-grid { gap: 16px }`
+        gap_px = 8  # must match `--st-hgap` in `static/css/01-base.css`
         share = gap_px * (n - 1) / n
         total = sum(weights)
         tracks = ' '.join(

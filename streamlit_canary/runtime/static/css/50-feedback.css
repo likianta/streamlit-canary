@@ -140,14 +140,16 @@
   .st-tabs {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--st-vgap);
   }
   .st-tabs-bar {
     /* Both the full-width line and the moving underline are positioned
        against the bar. */
     position: relative;
     display: flex;
-    gap: 16px;
+    /* The tabs are siblings in a horizontal strip, so they take the shared
+       horizontal gap (see `01-base.css`). */
+    gap: var(--st-hgap);
   }
   /* Streamlit draws the line under the tabs with a pseudo-element (2px tall,
      `fadeText05`) instead of a border, and its underline paints on top of it.
@@ -198,7 +200,7 @@
   .st-tab-panel {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--st-vgap);
   }
   .st-tab-panel[hidden] { display: none; }
 
@@ -233,7 +235,7 @@
   .st-expander-body-inner {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--st-vgap);
     padding: 16px;
     border-top: 1px solid var(--st-border-color);
   }
@@ -302,12 +304,15 @@
   }
 
   /* -- Icon-only button (`v3.IconButton`) -- */
+  /* A square: the side is the shared control height, so an icon button lines
+     up with the buttons and inputs beside it. `min-width` rather than
+     `width`, so an unusually long label still gets its 8px of padding. */
   .st-btn.st-btn-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 36px;
-    padding: 4px 8px;
+    min-width: var(--st-control-height);
+    padding: 0 8px;
   }
   .st-btn.st-btn-icon .st-btn-text p { margin: 0; }
   /* Icon buttons keep their intrinsic width in a row (like switches) so a nav

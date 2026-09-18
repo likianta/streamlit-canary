@@ -5,18 +5,18 @@
   .st-text-input-box {
     display: block;
     width: 100%;
-    min-height: 40px;
-    padding: 8px 12px;
+    min-height: var(--st-control-height);
+    /* No vertical padding: the box *is* the control height, and an `<input>`
+       centres its own single line inside it, so padding would only eat into
+       that. Streamlit's inputs use a 19.6px line box (1.4 x 14px), not the
+       1.6 body leading, which is why 1.4 stays. */
+    padding: 0 12px;
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
     font-family: var(--st-font);
     font-size: 14px;
-    /* Streamlit's inputs use a 19.6px line box (1.4 x 14px), not the 1.6 body
-       leading. With 1.6 the text would be 22.4px, so `min-height: 40px` would
-       be exceeded and the box (and its number-input wrapper) would grow to
-       40.4px -- a sub-pixel drift that accumulates in nested layouts. */
     line-height: 1.4;
     box-sizing: border-box;
   }
@@ -71,7 +71,7 @@
     display: flex;
     align-items: stretch;
     width: 100%;
-    min-height: 40px;
+    min-height: var(--st-control-height);
     /* Streamlit fills its inputs instead of outlining them, so the border
        is the same colour as the fill. */
     border: 0.8px solid var(--st-secondary-background-color);
@@ -94,6 +94,10 @@
     flex: 1 1 auto;
     width: auto;
     min-width: 0;
+    /* The shared control height is a `min-height`, so the inner box has to
+       drop it or it would sit at 32px inside the 32px wrapper and overflow
+       its 0.8px border. With it gone the stretch above sizes the input --
+       the wrapper owns the height, as it owns the frame. */
     min-height: 0;
     border: none;
     background-color: transparent;

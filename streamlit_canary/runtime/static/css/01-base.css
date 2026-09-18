@@ -1,3 +1,27 @@
+  /* The shared metrics of the layout. */
+  /* One height for the whole "control" family: buttons (and the popover /
+     menu triggers, which are buttons), a single-line input, the selectbox
+     frame, the segmented rail, the number input's box and the alert box /
+     spinner that share a status slot. Streamlit keeps its buttons and inputs
+     at 40px (and lets a segmented rail land wherever its padding takes it);
+     we run them 8px shorter on purpose, so a toolbar or a form row reads as
+     one band of boxes instead of a row of mismatched heights. It is a
+     `min-height` at every use: a control that *may* grow -- a multi-line
+     button label, a wrapped alert -- still grows past it. */
+  /* The two gaps. `--st-vgap` is the vertical rhythm between blocks, and it
+     mirrors Streamlit's 16px: its main block container, `st.columns`,
+     expanders, tab panels and popover panels all space their children that
+     way. `--st-hgap` is the horizontal one and is *ours*: siblings laid out
+     side by side -- a row, a grid's column track, a horizontal option group,
+     the tab strip -- sit 8px apart, so they read as one cluster instead of
+     drifting apart. A gap that is a widget's own metric rather than the
+     layout's (a button's label to its icon, a checkbox's box to its text)
+     keeps its literal value. */
+  :root {
+    --st-control-height: 32px;
+    --st-vgap: 16px;
+    --st-hgap: 8px;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: var(--st-font);
@@ -10,7 +34,7 @@
   #app {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--st-vgap);
     /* Streamlit's main block container is 46rem (736px) *including* its
        1rem horizontal padding, so its content column is 704px wide. */
     max-width: 736px;
@@ -19,7 +43,7 @@
     padding: 96px 16px 160px;
   }
   /* The `gap` above owns the vertical rhythm, so the widgets' own bottom
-     margins are dropped (otherwise each gap would be 16 + 8 = 24px). */
+     margins are dropped (otherwise each gap would be vgap + 8px = 24px). */
   #app > * { margin-bottom: 0; }
   /* `layout='wide'`: fill the viewport (like Streamlit's wide layout)
      instead of centering a fixed-width column. The horizontal padding

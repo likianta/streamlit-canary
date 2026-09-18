@@ -6,6 +6,20 @@
 
 ## UI 差异一览
 
+- Control height (全局控件高度)
+  - 按钮 (`v3.Button` / `v3.IconButton` / `v3.Popover` 与 `v3.MenuButton` 的触发器)、单行输入框 (`v3.TextInput` 的输入部分)、`v3.NumberInput` 的盒子、`v3.Selectbox` 的触发器、`v3.SegmentedControl` 的轨道, 以及共用一块状态区的 `v3.Callout` / `v3.Spinner`, 高度统一由 `runtime/static/css/01-base.css` 里的 `--st-control-height` (32px) 决定. 它在每一处都当作 `min-height` 用, 所以会增高的控件 (多行按钮文案, 换行的 alert) 仍然可以撑高 -- 例如两行文案的按钮实测 46.78px, 两行 alert 实测 51.19px.
+
+    原版行为: st 的按钮与输入框是 40px (segmented 轨道则随自己的内边距落在 36.4px 之类的位置). 我们刻意矮 8px, 为的是让一行 / 一条工具栏里的框成为 "一条腰带", 而不是高低参差. 这是**既定选择**, 不要把它当成 bug 去 "修复" 回 40px: 像素对比里凡是上述控件的框高都应预期 32px. 由此产生的 8px 差值会连带影响依赖它们高度的一切纵向位置, 但那些位置都是前端按触发器的真实 rect 现算的 (面板 / 浮层的锚点, dropdown 的落点), 所以会自动跟随.
+
+  - 一处实现上的耦合: `.st-text-input-box` 被三种语境复用 (TextInput 的输入框, NumberInput 的内层输入框, `TextInput(candidates=...)` 里被 Selectbox 触发器框住的那个). 后两者各有一条 override 把 `min-height` 归零, 让外框拥有高度 -- 新加类似复用时要照做, 否则内层会自己撑到 32px 并溢出外框.
+
+- Layout gaps (全局横向 / 纵向间距)
+  - 同目录 `01-base.css` 里还有两个间距 token: `--st-hgap` (8px) 与 `--st-vgap` (16px). 用横向的那个 (`--st-hgap`): `v3.Row` 子元素并排时的间距, `v3.Grid` 的列轨道之间, 横向 (`horizontal=True`) 的 `v3.Radio` / `v3.CheckGroup` 的选项之间, tab 条上的各个 tab, `v3.FloatingContainer` 聚簇内的子元素. 用纵向的那个 (`--st-vgap`): 应用根 (`#app`), `v3.Container`, `v3.Grid` 的行距及其 `GridCell`, popover 面板, expander 的正文, tab 面板. `v3.Row` 换行后那两行之间属于纵向节奏, 所以也走 `--st-vgap`. 注意: 属于控件自身尺度的间距 (按钮的文案到图标, checkbox 的框到文字) 不在此列, 它们保持各自原来的字面值.
+
+    原版行为: 这些位置 st 用的都是 16px (主块容器 / `st.columns` / expander / 面板都是 1rem 的节奏). 我们把**横向**间距刻意收到 8px, 让并排的箱子读作一个聚簇而不是彼此散开; **纵向**间距保持 16px 与 st 一致. 所以像素对比里横向间距按 8px 预期, 纵向仍按 16px.
+
+  - 一处跨端耦合: `Grid` 的列轨道宽度是服务端算出来的 (`runtime/render.py` 的 `_render_element`: `weight% - gap * (n - 1) / n`), 那个 `gap_px` 必须与 `--st-hgap` 同步, 否则 "轨道之和 + 间距之和" 不再等于容器内宽 (会差 `(16 - 8) * (n - 1) / n`; 3 列时约 5.3px/列). 实测 3 列 Grid 的轨道加间距为 703.98px, 容器内宽 704px.
+
 - BottomContainer
   - 我们的底部布局容器是贴着当前的父布局的底部的: 实现是给容器加 `margin-top: auto`, 所以只要父级 (垂直容器) 还有剩余空间, 它就会被压到底部, 不限定于根布局. 我们同时给了 `v3.Bottom` 这个别名 (对齐原版的 `st.bottom`), `v3.BottomContainer` 仍然可用.
 
@@ -14,9 +28,9 @@
 - Callout
   - `v3.Error` / `v3.Info` / `v3.Success` / `v3.Warning` 是同一个 `v3.Callout` 基类的四个子类, 四者只差配色 (子类只写 `_kind`, 渲染成 `.st-alert-<kind>`, 样式在 `runtime/static/css/11-status.css`). 四套配色逐一对照过真实的 Streamlit 应用 (`st.error` / `st.info` / `st.success` / `st.warning` 各渲染一条, 读计算样式): 背景是各自的 `--st-<name>-background-color`, 文字是各自的 `--st-<name>-text-color`; 浅色主题下实测背景为 blue `rgba(28,131,255,.1)` / green `rgba(33,195,84,.1)` / yellow `rgba(255,255,18,.1)` / red `rgba(255,43,43,.1)`, 文字为 `#0054a3` / `#158237` / `#926c05` / `#bd4043`. 注意 warning 是**黄色** (`--st-yellow-*`), 不是橙色.
 
-  - 盒子的尺寸刻意与 Streamlit 不同: 我们固定 `min-height: 40px` + 内边距 `4px 12px`, 原版是内边距 `16px` 且高度自适应.
+  - 盒子的尺寸刻意与 Streamlit 不同: 我们固定 `min-height: var(--st-control-height)` (即 32px) + 内边距 `0 12px`, 原版是内边距 `16px` 且高度自适应.
 
-    原版行为: st 的 alert 四周留 16px 内边距, 高度随内容撑开, 所以同样的文案在原版里更高一些. 我们让 alert 和一个普通按钮同高 (40px), 是为了让它和 Spinner 共用的那块状态区高度恒定 -- 状态在两行之间来回切换时不会跳动.
+    原版行为: st 的 alert 四周留 16px 内边距, 高度随内容撑开, 所以同样的文案在原版里更高一些. 我们让 alert 与普通按钮 / 输入框同高 (见上面 `Control height` 一节), 是为了让它和 Spinner 共用的那块状态区高度恒定 -- 状态在两行之间来回切换时不会跳动.
 
 - Code
   - 当 `text` 为空 (或只有空白字符) 时, 组件整体隐藏, 不会留下一个空的代码框. 该字段是 bindable 的, 所以绑定了一个暂为空的来源时, 它会跟着来源的填充而重新出现.

@@ -210,7 +210,9 @@
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 16px;
+    /* Options side by side are laid out by the same rule as a row's children
+       (see `--st-hgap` in `01-base.css`). */
+    gap: var(--st-hgap);
     min-height: 40px;
   }
 
@@ -251,7 +253,7 @@
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 16px;
+    gap: var(--st-hgap);
     min-height: 40px;
   }
 
@@ -263,12 +265,16 @@
     margin-bottom: 8px;
   }
   /* The track: a rounded, slightly recessed rail the pills sit in. It hugs
-     its content instead of filling the widget's width. */
+     its content instead of filling the widget's width. Its height is the
+     shared control height: the pills drop their vertical padding and stretch
+     to the rail's content box (26px), so the rail lands exactly on the token
+     rather than on whatever 2px + pill + 2px adds up to. */
   .st-segmented-group {
     position: relative;
     display: inline-flex;
     align-self: flex-start;
     gap: 2px;
+    min-height: var(--st-control-height);
     padding: 2px;
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-base-radius);
@@ -300,7 +306,9 @@
     position: relative;
     display: flex;
     align-items: center;
-    padding: 4px 12px;
+    /* No vertical padding: the pill stretches to the rail's content box and
+       centres its label there (see `.st-segmented-group`). */
+    padding: 0 12px;
     border-radius: 6px;
     color: var(--st-text-color);
     font-size: var(--st-small-font-size);
