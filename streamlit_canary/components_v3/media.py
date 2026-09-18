@@ -7,11 +7,17 @@ wrapper around the third-party `streamlit-pdf` component, and the reference
 inside an iframe before a single page is drawn.
 
 A browser already has a PDF engine, and `<embed type="application/pdf">`
-reaches it directly. This viewer uses that: the server only hands the
-document over (cut down to the asked-for pages, and published under
+reaches it directly. This viewer uses that by default: the server only hands
+the document over (cut down to the asked-for pages, and published under
 `/media/<hash>` -- see `VIEW_PARAMS` for why it cannot simply go inline) and
 the browser draws it. Nothing is rasterized, no engine is bundled, and the
 payload is exactly the page range an app asks for.
+
+`enable_pdfjs=True` swaps in the other engine -- the pdf.js bundled under
+`runtime/static/pdfjs`, drawn page by page onto canvases. It costs a bigger
+download, and buys back the two things the built-in viewer keeps to itself
+(its content is opaque to the page): a box that fits the document exactly,
+and view options that are ours to set, on any browser.
 """
 
 import base64
@@ -20,6 +26,7 @@ import typing as tp
 
 from ._shared import _visible_when_filled
 from .base import Component
+from .base import Height
 from ..kernel import Property
 
 VIEW_PARAMS = '#navpanes=0&zoom=page-width'
@@ -31,6 +38,27 @@ what is usually a short box, which leaves the text unreadably small.
 The viewer only reads these off an http(s) URL. A `data:` URL *is* the
 document, and everything after its `#` is dropped, so the bytes are published
 by the runtime instead of inlined (see `Runtime.publish_media`)."""
+
+CONTENT_HEIGHT: Height = 'content'
+"""The `height` value that makes the box as tall as the document rather than
+a fixed size, still capped by `max_height`.
+
+The built-in viewer will not say how tall its content is -- `fit-content` on
+a PDF `<embed>` collapses to the 150px every replaced element falls back to
+-- so the box is *calculated* from the pages' shape (`_page_ratio`) plus the
+viewer's own furniture, in CSS:
+
+    height: calc((100cqw - inset) * ratio + chrome)   # see `70-media.css`
+
+Both constants are the built-in viewer's, measured on Chromium; another
+browser pads its viewer differently, so there the box may miss by a few dozen
+px (it errs slightly tall, which reads as a little slack rather than as a
+scrollbar).
+
+With `enable_pdfjs=True` none of that is needed: pdf.js draws onto real
+canvases, so the box simply fits them and this means plain `height: auto`.
+
+Any other value is the usual sizing keyword (see `Component`)."""
 
 
 def _normalize_pages(pages: tp.Any) -> tp.Tuple[int, ...]:
@@ -79,6 +107,35 @@ def _subset(data: bytes, pages: tp.Tuple[int, ...]) -> bytes:
         return buffer.getvalue()
 
 
+def _page_ratio(data: bytes) -> float:
+    """The document's shape: the pages' total height per unit of width.
+
+    A viewer opened with `zoom=page-width` draws a page as wide as the box, so
+    the height it needs is ``box_width * this``. `_to_url` sends it along as
+    `?ratio=`, which is how a box can be sized to the document without having
+    to ask the server again (see `CONTENT_HEIGHT`).
+
+    `0.0` when the shape cannot be read -- not a PDF, or no `pikepdf` -- and
+    the box then falls back to a definite height.
+    """
+    try:
+        import pikepdf
+    except ImportError:
+        return 0.0
+    try:
+        with pikepdf.open(io.BytesIO(data)) as pdf:
+            total = 0.0
+            for page in pdf.pages:
+                box = page.mediabox
+                width = float(box[2]) - float(box[0])
+                height = float(box[3]) - float(box[1])
+                if width > 0:
+                    total += height / width
+            return total
+    except pikepdf.PdfError:
+        return 0.0
+
+
 def _decode_data_url(url: str) -> bytes:
     """The bytes behind a base64 `data:` URL (`b''` when it is malformed)."""
     _, _, payload = url.partition(',')
@@ -115,7 +172,13 @@ def _to_url(src: tp.Any, pages: tp.Tuple[int, ...], runtime: tp.Any) -> str:
     if runtime is None:
         encoded = base64.b64encode(data).decode('ascii')
         return 'data:application/pdf;base64,{}'.format(encoded)
-    return runtime.publish_media(data, 'application/pdf') + VIEW_PARAMS
+    url = runtime.publish_media(data, 'application/pdf')
+    # the shape goes along with the document, so a `src` patch lets the client
+    # re-size the box on its own (see `CONTENT_HEIGHT`)
+    ratio = _page_ratio(data)
+    if ratio > 0:
+        url += '?ratio={:.4f}'.format(ratio)
+    return url + VIEW_PARAMS
 
 
 class _UrlProperty(Property):
@@ -143,7 +206,8 @@ class PdfViewer(Component):
 
     The pages are drawn by the browser's own PDF engine, through an
     `<embed type="application/pdf">`; there is no bundled viewer and nothing
-    is rasterized on the server.
+    is rasterized on the server. `enable_pdfjs=True` asks for the bundled
+    pdf.js instead (see the module docstring).
 
     Args:
         src: the PDF to show -- a file path, `bytes`, or a ready URL (a
@@ -155,10 +219,18 @@ class PdfViewer(Component):
             only ships the pages asked for; empty (the default) shows every
             page. Needs `pikepdf` for a subset -- without it the whole
             document is shown.
+        enable_pdfjs: draw with the bundled pdf.js rather than the browser's
+            own viewer. Experimental: the download is bigger, and nothing
+            appears until that JavaScript has loaded.
         width: `int` px | 'stretch' (the default) | 'content' | 'auto'.
-        height: `int` px | 'stretch' | None -- the box the browser scrolls
-            the document inside, `500` by default. A PDF plugin needs a
-            definite box, so there is no "hug the content" value.
+        height: `int` px | 'stretch' | 'content' | None. `None` -- the usual
+            default -- leaves the box at `500`px, the size `st.pdf` starts
+            at too; `'content'` makes it as tall as the document (see
+            `CONTENT_HEIGHT`). A `max_height` without a `height` means
+            `'content'`: an upper bound on its own can only mean "as tall as
+            it needs to be, up to this".
+        max_height: `int` px -- an upper bound on the height; whatever does
+            not fit scrolls.
         visible: bool (default True, bindable) -- the base-class flag, ANDed
             with the content test below (see `_visible_when_filled`).
 
@@ -178,16 +250,25 @@ class PdfViewer(Component):
         src: str | bytes | Property = '',
         *,
         pages_to_render: tp.Iterable[int] = (),
+        enable_pdfjs: bool = False,
+        height: Height | None = None,
+        max_height: int | None = None,
         visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(visible=visible, **kwargs)
+        if height is None and max_height is not None:
+            height = CONTENT_HEIGHT
+        super().__init__(
+            height=height, max_height=max_height, visible=visible, **kwargs
+        )
+        self._enable_pdfjs = enable_pdfjs
+        self._pages = _normalize_pages(pages_to_render)
         # the runtime building this tree is the one to publish the document
         # with, and it has to be kept: `src` is usually set long after the
         # build, from an event handler, by which time
         # `Component._active_runtime` is None again.
         self.src: _UrlProperty = _UrlProperty(
-            _normalize_pages(pages_to_render), Component._active_runtime
+            self._pages, Component._active_runtime
         )
         if isinstance(src, Property):
             self.src.bind(src)

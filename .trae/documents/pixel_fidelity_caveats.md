@@ -90,6 +90,14 @@
 
   - 前提是浏览器带 PDF 插件. playwright 默认拉的 `chromium_headless_shell` 没有插件, `<embed>` 在那里画不出任何内容 —— 因此 `pdf_viewer_vs.py` 用 `channel='chromium'` 拉起完整版 chromium (它才有插件).
 
+  - `height='content'` (`PdfViewer.CONTENT_HEIGHT`) 让盒子高到刚好包住内容, 再由 `max_height` 封顶: 内容不足上限就贴住内容 (Expander 之类的父容器正好包住它, 没有滚动条), 超过上限就停在 `max_height` 并在盒子内部滚动. **只给 `max_height` 不给 `height` 就隐含这个模式** —— 给了一个上限却不给高度时, "按内容" 是唯一说得通的高度. (默认值仍是 `_default_height = 500`: 那是一个固定的高度, 所以 `max_height=1500` 落在 500 的盒子上永远不会生效, 正是它让人误以为 "不到 1500 就 overflow 了".)
+
+    原生引擎这条走 CSS 几何推算: 服务端用 `pikepdf` 量出文档的 "高宽比" (各页高/宽之和), 由 `/media/<token>?ratio=<r>` 带出来, 前端在 `container-type: inline-size` 的盒子里按 `calc((100cqw - inset) * ratio + chrome)` 反推高度 (`inset` 20px / `chrome` 88px 是实测 Chromium 内置 viewer 的留白). 为什么不直接让 `<embed>` 自己撑高: 替换元素对 PDF 回报不出内容高度, `height: auto` / `fit-content` 一律塌到 150px 的默认高度. 这层推算依赖浏览器内置 viewer 的版面, 换了浏览器 (或插件没画内容) 就会偏, 所以它是 "贴合内容" 的近似, 不是像素级.
+
+  - `enable_pdfjs=True` (实验开关): 不走浏览器插件, 改用我们打包的 pdf.js 把页面画到 `<canvas>` 上 (`runtime/static/pdfjs/`, 由 `/static/pdfjs/<name>` 送出, 只有打开它的页面才按需下载). 这条路线里的内容高度是真的 (由 canvas 撑出来), 视图也不受浏览器 viewer 影响, 换任何浏览器都一致 —— 代价是首次打开要多下约 1.6MB 的引擎, 而且它绕开了上面那套几何推算 (不再需要 `?ratio=` 的参与). 页面脚本 (`76-pdf-viewer.js`) 复用一份文档缓存 (最多 4 份, 超出即 `destroy()`), `ResizeObserver` 在宽度变化时按新宽度重画, 所以 `height='content'` 在这条路上是货真价实的 "内容多高就多高".
+
+    原版行为: 没有对应开关 —— `streamlit_pdf_viewer` 只有 pdf.js 一种引擎, 也就是我们这条实验路线要做的事.
+
 - Popover
   - Popover 的展开面板使用高度动画 (120ms), 跟 Selectbox 的展开面板是同一套做法: 从 0 高度展开到内容高度, 展开过程中内容被裁剪, 因此不会溢出, 也不会出现滚动条 (展开结束后若内容超过 max-height, 才恢复为可滚动).
 

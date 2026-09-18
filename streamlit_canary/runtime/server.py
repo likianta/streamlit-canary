@@ -52,6 +52,11 @@ _ICON_FONT_PATH = (
 _MARKDOWN_PATH = (
     Path(__file__).resolve().parent / 'static' / 'markdown-it.min.js'
 )
+# Bundled pdf.js (Apache-2.0), the other engine a `PdfViewer` can draw with
+# (`enable_pdfjs=True`). Only a page that switches to it ever fetches these,
+# and the allowlist keeps the directory from being walkable.
+_PDFJS_DIR = Path(__file__).resolve().parent / 'static' / 'pdfjs'
+_PDFJS_FILES = ('pdf.min.mjs', 'pdf.worker.min.mjs')
 
 
 class WebSocketClient:
@@ -107,6 +112,14 @@ def create_app(runtime: Runtime) -> Starlette:
         if not _MARKDOWN_PATH.is_file():
             return Response(status_code=404)
         return FileResponse(_MARKDOWN_PATH, media_type='text/javascript')
+
+    async def pdfjs_endpoint(request: Request) -> Response:
+        # see `_PDFJS_FILES` -- the media type matters, since the page imports
+        # these as ES modules
+        name = request.path_params['name']
+        if name not in _PDFJS_FILES or not (_PDFJS_DIR / name).is_file():
+            return Response(status_code=404)
+        return FileResponse(_PDFJS_DIR / name, media_type='text/javascript')
 
     async def media_endpoint(request: Request) -> Response:
         # what a `PdfViewer` published (see `Runtime.publish_media`) -- served
@@ -168,6 +181,7 @@ def create_app(runtime: Runtime) -> Starlette:
             Route('/fonts/source-code.woff2', code_font_endpoint),
             Route('/fonts/material-symbols.woff2', icon_font_endpoint),
             Route('/static/markdown-it.js', markdown_endpoint),
+            Route('/static/pdfjs/{name}', pdfjs_endpoint),
             Route('/media/{token}', media_endpoint),
             WebSocketRoute('/ws', ws_endpoint),
         ]

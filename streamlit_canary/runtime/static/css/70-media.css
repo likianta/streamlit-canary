@@ -1,8 +1,17 @@
-  /* -- PdfViewer (the browser's PDF engine, in an `<embed>`) -- */
-  /* The plugin paints its own chrome (a grey backdrop and a toolbar), so
-     the panel only frames it -- the theme border and radius keep it from
-     reading as a stray grey block dropped into the page. */
+  /* -- PdfViewer (a PDF, drawn by the browser or by the bundled pdf.js) -- */
+  /* The browser's viewer paints its own chrome (a grey backdrop and a
+     toolbar), so the panel only frames it -- the theme border and radius keep
+     it from reading as a stray grey block dropped into the page. */
   .st-pdf-viewer {
+    /* The built-in viewer's own furniture, in px: the margin it keeps either
+       side of a page, and everything it stacks above and below the pages (its
+       toolbar, its padding, and the gaps between pages). Chromium's numbers,
+       measured; another browser's viewer pads differently, so a box sized to
+       its content can miss by a few dozen px there. See
+       `components_v3/media.py`'s `CONTENT_HEIGHT`. */
+    --st-pdf-inset: 20px;
+    --st-pdf-chrome: 88px;
+
     display: block;
     margin-bottom: 8px;
     border: 1px solid var(--st-border-color);
@@ -14,4 +23,44 @@
     width: 100%;
     height: 100%;
     border: 0;
+  }
+
+  /* A box sized to its document. The viewer will not say how tall its content
+     is (`fit-content` on a PDF `<embed>` collapses to the 150px every replaced
+     element falls back to), so the height is a calculation: the shape sent
+     along with the document (`--st-pdf-ratio`, the pages' total height per
+     unit of width) scaled by the box's own width. `max-height` (set inline
+     from the component's bound) still caps it, and the box scrolls past
+     whatever it cannot show. */
+  .st-pdf-viewer--content {
+    container-type: inline-size;
+    overflow: auto;
+  }
+  .st-pdf-viewer--content > .st-pdf-viewer-embed {
+    height: calc(
+      (100cqw - var(--st-pdf-inset)) * var(--st-pdf-ratio, 1) +
+        var(--st-pdf-chrome)
+    );
+  }
+
+  /* pdf.js (`enable_pdfjs=True`): the pages are canvases this page draws
+     itself, so the box simply fits them -- no calculation involved, and the
+     `max-height` bound still caps it. */
+  .st-pdf-viewer--pdfjs {
+    overflow: auto;
+  }
+  .st-pdf-viewer-pages {
+    display: block;
+    width: 100%;
+  }
+  .st-pdf-viewer-page {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 auto var(--st-hgap);
+    background: #fff;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+  }
+  .st-pdf-viewer-page:last-child {
+    margin-bottom: 0;
   }

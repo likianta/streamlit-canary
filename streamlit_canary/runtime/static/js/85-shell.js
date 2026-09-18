@@ -112,6 +112,7 @@
   scRenderMarkdown(document);
   scAlignRowArrows(document);
   scInitAltairCharts();
+  scBootPdfViews();
   scSyncSegmented(document);
   document.fonts.ready.then(() => {
     scSyncSegmented(document);
