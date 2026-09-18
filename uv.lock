@@ -1339,7 +1339,7 @@ wheels = [
 
 [[package]]
 name = "lk-utils"
-version = "3.8.2a16"
+version = "3.8.2a20"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
@@ -1349,7 +1349,7 @@ dependencies = [
     { name = "rich" },
 ]
 wheels = [
-    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2a16-py3-none-any.whl" },
+    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2a20-py3-none-any.whl" },
 ]
 
 [package.optional-dependencies]
@@ -2456,7 +2456,7 @@ wheels = [
 
 [[package]]
 name = "pyapp-window"
-version = "2.2.3"
+version = "2.2.4b0"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
@@ -2467,7 +2467,7 @@ dependencies = [
     { name = "toga", marker = "python_full_version < '3.15' and sys_platform != 'linux'" },
 ]
 wheels = [
-    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.2.3-py3-none-any.whl" },
+    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.2.4b0-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -3069,7 +3069,7 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0a19"
+version = "0.4.0a22"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3097,10 +3097,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argsense", specifier = ">=1.1.2", index = "http://localhost:2131/" },
-    { name = "lk-utils", specifier = ">=3.8.2a16", index = "http://localhost:2131/" },
+    { name = "lk-utils", specifier = ">=3.8.2a20", index = "http://localhost:2131/" },
     { name = "neoprint", specifier = ">=0.1.11", index = "http://localhost:2131/" },
     { name = "psutil", specifier = ">=7.0.0" },
-    { name = "pyapp-window", specifier = ">=2.2.3", index = "http://localhost:2131/" },
+    { name = "pyapp-window", specifier = ">=2.2.4b0", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
     { name = "streamlit", specifier = ">=1.61.0,!=1.62.*" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },

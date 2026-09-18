@@ -16,29 +16,87 @@ from .runtime import serve
 
 
 def run(
-    target: tp.Union[str, tp.Callable[[], None]], port: int = 3001, **kwargs
+    target: tp.Union[str, tp.Callable[[], None]],
+    port: int = 3001,
+    *,
+    blocking: bool = True,
+    extra_args: tp.Sequence[str] = (),
+    show_window: bool = False,
+    window_icon: tp.Optional[str] = None,
+    window_pos: pyapp_window.opener.T.AnyPos = 'center',
+    window_size: pyapp_window.opener.T.AnySize = (1200, 900),
+    window_title: tp.Optional[str] = None,
+    # ---
+    icon: tp.Optional[str] = None,  # alias of window_icon
+    title: tp.Optional[str] = None,  # alias of window_title
+    _v3: tp.Optional[tp.Literal[True]] = None,  # experimental
+    **kwargs,
 ) -> tp.Optional[tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]]:
     """
     params:
         target: a script path.
         show_window: if true, will open a native window.
-            if this argument is set to true, `subthread` will be ignored.
     returns:
         (streamlit_process, window_process)
     """
-    if callable(target):  # v3 entrance
-        print(':dsv', now('h:n:s'))
-        print(
-            'application is running at:\n  - {}\n  - {}'.format(
-                'http://localhost:{}'.format(port),
-                'http://{}:{}'.format(_get_local_ip(), port),
-            ),
-            ':v4p',
-        )
-        runtime = Runtime(target)  # type: ignore
-        serve(runtime, port=port)  # blocking
+    if _v3 or callable(target):  # v3 entrance
+        if isinstance(target, str):
+            proc_v3 = tp.cast(
+                Popen,
+                run_cmd_args(
+                    (sys.executable, target, *extra_args),
+                    blocking=False if show_window else blocking,
+                    verbose=True,
+                    force_term_color=True,
+                ),
+            )
+        else:  # callable
+            if blocking:
+                print(':dsv', now('h:n:s'))
+                print(
+                    'application is running at:\n  - {}\n  - {}'.format(
+                        'http://localhost:{}'.format(port),
+                        'http://{}:{}'.format(_get_local_ip(), port),
+                    ),
+                    ':v4p',
+                )
+                runtime = Runtime(target)
+                serve(runtime, port=port)  # blocking
+                return
+            else:
+                raise NotImplementedError
+
+        if show_window:
+            proc_win = tp.cast(  # TODO  # noqa
+                Popen,
+                pyapp_window.open_window(
+                    port=port,
+                    blocking=blocking,
+                    title=window_title
+                    or title
+                    or 'Streamlit Canary Application',
+                    icon=window_icon or icon or '',
+                    oversize_scheme='crop',
+                    pos=window_pos,
+                    size=window_size,
+                ),
+            )
+            return proc_v3, proc_win
+        else:
+            return proc_v3, None
     else:
-        return _legacy_run(target, port, **kwargs)
+        return _legacy_run(
+            target,
+            port,
+            blocking=blocking,
+            extra_args=extra_args,
+            show_window=show_window,
+            window_icon=window_icon or icon,
+            window_pos=window_pos,
+            window_size=window_size,
+            window_title=window_title or title,
+            **kwargs,
+        )
 
 
 def _get_local_ip() -> str:
@@ -61,16 +119,15 @@ def _legacy_run(
     target: str,
     port: int = 3001,
     *,
+    blocking: bool = True,
     extra_args: tp.Sequence[str] = (),
     show_error_details_on_ui: bool = True,
     show_window: bool = False,
-    # subthread: bool = False,
     window_icon: tp.Optional[str] = None,
     window_pos: pyapp_window.opener.T.AnyPos = 'center',
     window_size: pyapp_window.opener.T.AnySize = (1200, 900),
     window_title: tp.Optional[str] = None,
     # -- alias
-    blocking: bool = True,
     icon: tp.Optional[str] = None,
     title: tp.Optional[str] = None,
 ) -> tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]:
