@@ -1,0 +1,464 @@
+  /* RadioGroup (mirrors Streamlit's `stRadio` markup and metrics) */
+  .st-radio {
+    margin-bottom: 8px;
+  }
+  /* Streamlit's radio shrinks to its content width instead of filling the
+     parent container. Scoped to column containers so it does not disturb
+     vertical alignment when a radio sits inside a Row. */
+  .st-container > .st-radio {
+    align-self: flex-start;
+  }
+  .st-radio-group {
+    display: flex;
+    flex-direction: column;
+    /* `stretch`, so every option is as wide as the radio and the hover
+       highlight spans that width instead of hugging the option's own text.
+       The horizontal variant overrides this with `align-items: center`. */
+    align-items: stretch;
+    gap: 0;
+  }
+  .st-radio-item {
+    display: block;
+    padding: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  /* Canary-only: hovering an option highlights its whole row, the way a
+     Selectbox item does (Streamlit only deepens the circle's colour). The
+     box spans the option and takes a little room on the left -- `padding`
+     against an equal, opposite `margin` -- so the circle keeps the label's x
+     while the highlight gains breathing room. The left padding is
+     deliberately smaller than the right one, which reads better.
+     The box never grows past the option vertically: it used to add `2px` of
+     padding against a `-2px` margin, which made stacked highlights overlap by
+     4px -- the overlap double-darkened the translucent colour and let the
+     lower row steal clicks from the option above it. The row is now exactly
+     as tall as the option, and two adjacent highlights fuse instead (see
+     `.st-radio-item.is-highlighted + .st-radio-item:hover` below). */
+  .st-radio-item:hover .st-radio-item-row,
+  .st-radio-item:has(input:focus-visible) .st-radio-item-row {
+    background-color: var(--st-hover-background-color);
+  }
+  /* The real <input> is visually hidden; the indicator is drawn with divs. */
+  .st-radio-input-wrap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .st-radio-item-body {
+    display: flex;
+    flex-direction: column;
+    color: var(--st-text-color);
+  }
+  .st-radio-item-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    /* The hover / focus highlight box (see `.st-radio-item:hover` above). */
+    padding: 0 8px 0 4px;
+    margin: 0 0 0 -4px;
+    border-radius: 6px;
+  }
+  /* The "enter" arrow a navigable row floats beside its text. Only
+     `TreeSelect` draws one (see `_NavigationGroup`): the generic groups have
+     no notion of a row you can walk into. `scAlignRowArrows` pins the text of
+     every arrow row to the longest folder name, so the arrows all land on one
+     x -- 32px past that name, which is the row's own 8px `gap` plus 24px more
+     and keeps the tick area (box + name) clear of the arrow instead of
+     crowding it. The reveal is a fade plus a 4px slide. Nothing here turns
+     the hit area off while it is hidden: the arrow and its tolerance zone sit
+     *inside* the row, so the pointer can only reach them when the row is
+     hovered -- which is exactly when they are drawn. Toggling `pointer-events`
+     with the hover instead would leave the arrow unarmoured for the event that
+     reveals it, so a pointer arriving in one jump would have to jiggle before
+     the chip and the click landed. */
+  .st-row-open {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* A square, so the hover chip has room around the glyph. */
+    width: 20px;
+    height: 20px;
+    /* The wider breathing space: the row's `gap` already contributes 8px, so
+       this tops it up to 32px. */
+    margin-left: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    /* `:blue[..]`, so the arrow reads as an action rather than as text. */
+    color: var(--st-blue-text-color);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateX(0);
+    transition: opacity 120ms ease, transform 120ms ease,
+      background-color 120ms ease;
+  }
+  /* The aiming tolerance right of the arrow: 30px that belong to the button --
+     so the pointer there hovers *and* clicks the arrow -- but paint nothing.
+     The row is wide, so the far right of it is still a plain row click. */
+  .st-row-open::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: -30px;
+    bottom: 0;
+  }
+  .st-radio-item:hover .st-row-open,
+  .st-radio-item:has(input:focus-visible) .st-row-open {
+    opacity: 1;
+    transform: translateX(4px);
+  }
+  /* One layer above the row's own hover wash, which is already painted under
+     the arrow: the chip is tinted blue so the two stay apart. */
+  .st-row-open:hover {
+    background-color: var(--st-blue-background-color);
+  }
+  .st-row-open:focus-visible {
+    opacity: 1;
+    transform: translateX(4px);
+    outline: 2px solid var(--st-primary-color);
+  }
+  /* The arrow *is* the row's "enter" action, so the text underlines while the
+     pointer rests on it -- or anywhere in its tolerance zone, since `::after`
+     is part of the button -- and the pair then reads as a single link. The
+     rule is muted (`:gray[..]`) so it stays a hint beside the arrow's blue. */
+  .st-radio-item-row:has(.st-row-open:hover) .st-radio-markdown {
+    text-decoration: underline;
+    text-decoration-color: var(--st-gray-text-color);
+  }
+  .st-radio-item.is-highlighted .st-radio-item-row {
+    background-color: var(--st-hover-background-color);
+  }
+  /* Fuse two stacked highlights into one blob (canary-only). When the
+     highlighted row and the hovered row sit right next to each other, square
+     the edge they share -- the upper row drops its bottom radius, the lower
+     row its top radius -- so the pair reads as a single rounded rectangle
+     instead of two pills colliding. Either row may be the highlighted one, so
+     both orderings are covered. */
+  .st-radio-item.is-highlighted:has(+ .st-radio-item:hover) .st-radio-item-row,
+  .st-radio-item:hover:has(+ .st-radio-item.is-highlighted) .st-radio-item-row {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .st-radio-item.is-highlighted + .st-radio-item:hover .st-radio-item-row,
+  .st-radio-item:hover + .st-radio-item.is-highlighted .st-radio-item-row {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+  .st-radio-circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--st-border-color);
+  }
+  .st-radio-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: var(--st-background-color);
+  }
+  .st-radio-item:has(input:checked) .st-radio-circle {
+    background-color: var(--st-primary-color);
+  }
+  .st-radio-item:has(input:checked) .st-radio-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--st-on-primary-color);
+  }
+  .st-radio-markdown {
+    display: block;
+  }
+  .st-radio-markdown p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-text-color);
+  }
+  /* Empty option list: mirror `st.radio`, which swaps its options for a
+     single disabled row -- an (unchecked) indicator plus this faded line --
+     instead of drawing nothing. The row reuses the option metrics, so the
+     hint sits exactly where the first option would have been. */
+  .st-radio-empty .st-checkbox-box {
+    margin-top: 0;
+  }
+  .st-radio-empty-label {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-gray-text-color);
+  }
+  /* Horizontal radio: options lay out in a row and wrap onto the next line
+     once they no longer fit, rather than spilling past the container
+     (mirrors `st.radio(horizontal=True)`). */
+  .st-radio--horizontal .st-radio-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    min-height: 40px;
+  }
+
+  /* Check group: RadioGroup's option shell (the renderer emits the very same
+     item markup -- see `_render_check_group`), with the square box of
+     `v3.Checkbox` -- a 1px border plus a checkmark -- in place of the radio's
+     circle. The box's own rules live in the checkbox section below; only the
+     checked state needs the check group's hookup. */
+  .st-check-group {
+    margin-bottom: 8px;
+  }
+  .st-container > .st-check-group {
+    align-self: flex-start;
+  }
+  /* The checkbox box is tuned for the checkbox's own row (top-aligned); an
+     option row centres its box, like the radio's circle does. */
+  .st-check-group .st-radio-item .st-checkbox-box {
+    margin-top: 0;
+  }
+  /* Ticking simply fills the box: the whole row is the box's own `<label>`,
+     so the browser flips it without any script (see `scHighlightChoice`). */
+  .st-check-group .st-radio-item:has(input:checked) .st-checkbox-box {
+    border-color: var(--st-primary-color);
+    background-color: var(--st-primary-color);
+  }
+  .st-check-group .st-radio-item:has(input:checked) .st-checkbox-box svg {
+    opacity: 1;
+  }
+  /* A frozen row (`box_disabled`, e.g. `TreeSelect`'s `..`): its field is
+     disabled, so the box never ticks and is drawn dimmed instead. The rest of
+     the row still answers clicks -- the highlight, or the walk-in when the row
+     is a `body_opens` one (`..`) -- so the cursor stays. */
+  .st-radio .st-radio-item.is-box-disabled .st-radio-circle,
+  .st-check-group .st-radio-item.is-box-disabled .st-checkbox-box {
+    opacity: 0.4;
+  }
+  .st-check-group--horizontal .st-radio-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    min-height: 40px;
+  }
+
+  /* Segmented control (mirrors Streamlit's `st.segmented_control`) */
+  .st-segmented {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  /* The track: a rounded, slightly recessed rail the pills sit in. It hugs
+     its content instead of filling the widget's width. */
+  .st-segmented-group {
+    position: relative;
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-base-radius);
+    background-color: var(--st-secondary-background-color);
+  }
+  /* The raised pill. It is a single element that *slides* between the options
+     instead of a per-pill background, so switching animates (its width and
+     offset are measured by `scSyncSegmented`). It sits under the pills, which
+     paint after it in the DOM. */
+  .st-segmented-highlight {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    left: 0;
+    width: 0;
+    border-radius: 6px;
+    background-color: var(--st-background-color);
+    box-shadow: 0 1px 2px rgba(var(--st-shadow-rgb), 0.1);
+    pointer-events: none;
+    opacity: 0;
+    transition: transform 0.18s ease, width 0.18s ease, opacity 0.18s ease;
+  }
+  /* Placing the highlight for the first time must not look like a slide in
+     from the left. */
+  .st-segmented-highlight.is-instant {
+    transition: none;
+  }
+  .st-segmented-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 6px;
+    color: var(--st-text-color);
+    font-size: var(--st-small-font-size);
+    line-height: 1.6;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  /* Hover only tints an *unselected* pill: the selected one is marked by
+     `.st-segmented-highlight`, and its hover background would paint right
+     over that highlight (the pills sit above it in the DOM). */
+  .st-segmented-item:hover:not(:has(input:checked)) {
+    background-color: var(--st-hover-background-color);
+  }
+  /* The real <input> carries the value and the change event but is visually
+     hidden, exactly like the radio's. */
+  .st-segmented-item input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  /* The raised look lives on `.st-segmented-highlight` so that it can slide.
+     The checked pill keeps a weight cue, which also keeps the selection
+     readable before the highlight has been placed. */
+  .st-segmented-item:has(input:checked) .st-segmented-item-label {
+    font-weight: 500;
+  }
+  .st-segmented-item input:focus-visible + .st-segmented-item-label {
+    outline: 2px solid var(--st-primary-color);
+    outline-offset: 2px;
+  }
+  .st-segmented.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* Checkbox (mirrors Streamlit's `st.checkbox`) */
+  .st-checkbox { margin-bottom: 8px; }
+  .st-checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  /* The real <input> is visually hidden; the box is drawn with divs + svg. */
+  .st-checkbox-input-wrap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .st-checkbox-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    border: 1px solid var(--st-border-color);
+    border-radius: 4px;
+    background-color: transparent;
+  }
+  .st-checkbox-box svg {
+    width: 9.35px;
+    height: 9.35px;
+    fill: none;
+    stroke: var(--st-on-primary-color);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+  }
+  .st-checkbox-label:has(input:checked) .st-checkbox-box {
+    border-color: var(--st-primary-color);
+    background-color: var(--st-primary-color);
+  }
+  .st-checkbox-label:has(input:checked) .st-checkbox-box svg {
+    opacity: 1;
+  }
+  .st-checkbox-text {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--st-text-color);
+  }
+
+  /* Toggle switch (mirrors Streamlit's `st.toggle`). Same markup shape as the
+     checkbox: a visually hidden <input> plus div-drawn visuals. */
+  .st-toggle { margin-bottom: 8px; }
+  .st-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+  /* The real <input> is visually hidden; the switch is drawn with divs.
+     Same pattern as the checkbox, so clicks are handled by the label's
+     activation behavior (which also keeps it reachable for assistive tech). */
+  .st-toggle-input-wrap {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .st-toggle-track {
+    position: relative;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 16px;
+    border-radius: 9999px;
+    background-color: var(--st-border-color);
+    transition: background-color 0.2s ease;
+  }
+  .st-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--st-on-primary-color);
+    transition: transform 0.2s ease;
+  }
+  .st-toggle-label:has(input:checked) .st-toggle-track {
+    background-color: var(--st-primary-color);
+  }
+  .st-toggle-label:has(input:checked) .st-toggle-thumb {
+    transform: translateX(16px);
+  }
+  .st-toggle-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--st-text-color);
+  }
+  /* Switches keep their intrinsic width in a row (like buttons), so a row of
+     them packs left instead of spreading apart. The basis has to be
+     `fit-content`: with `auto` the switch would fall back to its own
+     `width: 100%` and take a whole line to itself. */
+  .st-row > .st-toggle { flex: 0 0 fit-content; }
+

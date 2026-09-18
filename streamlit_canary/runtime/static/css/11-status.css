@@ -1,0 +1,62 @@
+  /* Success alert (mirrors Streamlit's `st.success`) */
+  .st-alert {
+    display: block;
+  }
+  .st-alert[hidden] {
+    display: none;
+  }
+  /* Alert height matches a normal button (40px), so the shared status area
+  (spinner <-> success) does not jump. */
+  .st-alert-container {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    background-color: var(--st-green-background-color);
+    color: var(--st-green-text-color);
+    border-radius: 8px;
+    padding: 4px 12px;
+  }
+  .st-alert-text p {
+    margin: 0;
+    font-size: 16px;
+    color: inherit;
+  }
+  /* Alert variants: the base colours above are the success palette. */
+  .st-alert-warning .st-alert-container {
+    background-color: var(--st-orange-background-color);
+    color: var(--st-orange-text-color);
+  }
+  .st-alert-info .st-alert-container {
+    background-color: var(--st-blue-background-color);
+    color: var(--st-blue-text-color);
+  }
+
+  /* Spinner */
+  .st-spinner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    margin-bottom: 8px;
+    color: var(--st-text-color);
+    font-size: 14px;
+  }
+  .st-spinner[hidden] {
+    display: none;
+  }
+  .st-spinner-ring {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border: 2px solid var(--st-border-color);
+    border-top-color: var(--st-primary-color);
+    border-radius: 50%;
+    animation: st-spin 0.8s linear infinite;
+  }
+  @keyframes st-spin {
+    to { transform: rotate(360deg); }
+  }
+  .st-spinner-text {
+    white-space: pre-line;
+  }
+

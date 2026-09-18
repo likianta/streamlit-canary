@@ -1,0 +1,227 @@
+  /* Selectbox (custom dropdown — no native <select>) */
+  .st-selectbox {
+    margin-bottom: 8px;
+    /* Two clocks, both canary-only touches. The chevron turns quickly so
+       clicking reads as instant, while the panel takes a little longer to
+       grow -- the turn therefore always lands *before* the panel is fully
+       open, never after it. */
+    --st-selectbox-chevron-anim: 80ms;
+    --st-selectbox-panel-anim: 120ms;
+  }
+  .st-selectbox-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .st-selectbox-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    line-height: 1.4;
+    cursor: pointer;
+    /* Clicking the trigger repeatedly must keep toggling the dropdown (like
+       the popover trigger does) instead of turning into a text selection. */
+    user-select: none;
+    /* No transition here: Streamlit turns the border red as soon as the
+       control is focused, so a fading (translucent) red in between would be
+       a visible artifact. */
+  }
+  /* No border-color change on hover — matches Streamlit's behavior. The focus
+     border is the only decoration: Streamlit adds no focus ring. */
+  .st-selectbox-trigger:focus {
+    outline: none;
+    border-color: var(--st-primary-color);
+  }
+  .st-selectbox-value {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .st-selectbox-arrow {
+    color: var(--st-text-color);
+    flex-shrink: 0;
+    /* A canary-only touch (Streamlit keeps the chevron still and lets the
+       panel alone signal the state): the chevron turns over while the panel
+       grows, and is already back at rest before the growth ends. */
+    transition: transform var(--st-selectbox-chevron-anim) ease;
+  }
+  .st-selectbox-trigger[aria-expanded="true"] .st-selectbox-arrow {
+    transform: rotate(180deg);
+  }
+  .st-selectbox-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    /* Streamlit paints the popup with the app background, not the secondary
+       one, and the rows carry the whole 40px height -- hence no padding. */
+    background-color: var(--st-background-color);
+    box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.4);
+    padding: 0;
+    /* Grows to the height `scMeasureOpenHeight` measured, over the same
+       interval the popover panel uses. */
+    animation: st-selectbox-dropdown-in var(--st-selectbox-panel-anim) ease;
+  }
+  /* The panel grows from 0 to its content height (a canary-only touch). The
+     target is set by `scMeasureOpenHeight`, because `auto` is not animatable
+     and the panel's height is not known ahead of time. Clipping is what keeps
+     the items from spilling out of the still-short panel and keeps a
+     scrollbar from flashing on the way; both `height` and `overflow` fall
+     back to the base rule once the animation is over, so a long list is
+     scrollable again the moment the panel is fully open. */
+  @keyframes st-selectbox-dropdown-in {
+    from { height: 0; overflow: hidden; }
+    to { height: var(--st-selectbox-open-height, auto); overflow: hidden; }
+  }
+  .st-selectbox-option {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 5px;
+    font-size: 14px;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  .st-selectbox-option-inner {
+    display: flex;
+    align-items: center;
+    /* Streamlit lets the highlight box fill the row and clips a label that is
+       too long for it, so the items keep a constant pitch. */
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    border-radius: 6px;
+    /* No transition: the highlight has to land on the very first frame, so
+       the pointer never sees the background fade in. */
+  }
+  .st-selectbox-option:hover > .st-selectbox-option-inner {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-selectbox-trigger:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  /* Disabled option widgets: `is-disabled` is toggled by the `enabled` patch. */
+  .st-radio.is-disabled,
+  .st-check-group.is-disabled,
+  .st-select-slider.is-disabled,
+  .st-multiselect.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .st-radio.is-disabled .st-radio-item,
+  .st-check-group.is-disabled .st-radio-item {
+    cursor: not-allowed;
+  }
+  .st-selectbox-option[data-selected] .st-selectbox-option-inner {
+    color: var(--st-primary-color);
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar {
+    width: 6px;
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .st-selectbox-dropdown::-webkit-scrollbar-thumb {
+    background: var(--st-border-color);
+    border-radius: 3px;
+  }
+  /* `accept_new_options`: the "type a new value" row at the top of the
+     dropdown, plus the "Add: ..." affordance below it. */
+  .st-selectbox-new {
+    padding: 5px 5px 0;
+  }
+  .st-selectbox-new-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: 4px;
+    background-color: var(--st-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    box-sizing: border-box;
+    outline: none;
+  }
+  .st-selectbox-new-input:focus {
+    border-color: var(--st-gray-color);
+  }
+  .st-selectbox-newitem {
+    padding: 0 5px;
+    color: var(--st-gray-color);
+    cursor: pointer;
+  }
+  .st-selectbox-newitem[hidden] { display: none; }
+  .st-selectbox-newitem > .st-selectbox-option-inner {
+    border: 0.8px dashed var(--st-border-color);
+  }
+  .st-selectbox-newitem:hover > .st-selectbox-option-inner {
+    background-color: var(--st-border-color);
+  }
+
+  /* TextInput `candidates`: an editable box framed exactly like a Selectbox
+     trigger, whose caret unfolds the very same panel above. Only the input's
+     own frame is neutralised -- the wrapping trigger draws the border,
+     background and focus ring -- so the two read as a single control. The
+     variable name is the input's; the `--box` wrapper is the frame. */
+  .st-text-input-candidates .st-text-input-candidates-input {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+    cursor: text;
+    user-select: text;
+  }
+  .st-text-input-candidates .st-text-input-candidates-input:focus {
+    border: 0;
+  }
+  /* `st.selectbox(accept_new_options=True)` colours the frame's edge on
+     focus; the frame is a plain div, so `:focus-within` stands in. */
+  .st-text-input-candidates .st-selectbox-trigger:focus-within {
+    border-color: var(--st-primary-color);
+  }
+  .st-text-input-candidates .st-text-input-candidates-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  /* An empty candidate list keeps the caret, greyed out (see
+     `TextInput(candidates=...)`). */
+  .st-text-input-candidates .st-text-input-candidates-toggle:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+

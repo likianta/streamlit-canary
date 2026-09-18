@@ -1,0 +1,29 @@
+/* 'Source Sans' is Streamlit's UI font, bundled in this package and
+     served at /fonts/source-sans.woff2 (see server.py). It keeps text
+     metrics identical to Streamlit's. */
+  @font-face {
+    font-family: 'Source Sans';
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/source-sans.woff2') format('woff2');
+  }
+  /* Streamlit's code font; bundled for the same reason as 'Source Sans'. */
+  @font-face {
+    font-family: 'Source Code Pro';
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/source-code.woff2') format('woff2');
+  }
+  /* 'Material Symbols Rounded' (the same file Streamlit bundles) turns an
+     icon *name* into its glyph through the font's ligatures, e.g. the text
+     "adjust" draws the slider icon. `font-display: block` matters: with
+     `swap` the raw name would show for a moment before the font lands. */
+  @font-face {
+    font-family: 'Material Symbols Rounded';
+    font-weight: 400;
+    font-style: normal;
+    font-display: block;
+    src: url('/fonts/material-symbols.woff2') format('woff2');
+  }

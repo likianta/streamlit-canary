@@ -1,0 +1,101 @@
+  .st-table {
+    margin-bottom: 8px;
+  }
+  /* `width='content'`: hug the contents instead of filling the column. */
+  .st-table--content,
+  .st-table--content .st-table-scroll {
+    width: fit-content;
+  }
+  .st-table--content .st-table-table {
+    width: auto;
+  }
+  .st-table-scroll {
+    overflow: auto;
+    border: 0.8px solid var(--st-dataframe-border-color);
+  }
+  .st-table-table {
+    display: inline-table;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+  }
+  .st-table-key {
+    /* The row-header column reads in the muted text colour at the same
+       weight as the values (mirrors Streamlit). The horizontal inset comes
+       from the first / last cell rules below. */
+    padding: 4px 8px;
+    color: var(--st-gray-color);
+    font-weight: 400;
+    text-align: start;
+  }
+  .st-table-cell {
+    padding: 4px 8px;
+    text-align: left;
+  }
+  .st-table-key,
+  .st-table-cell {
+    vertical-align: middle;
+    border-bottom: 0.8px solid var(--st-dataframe-border-color);
+    /* Streamlit's cells use a tighter 1.5 leading than the 1.6 body. */
+    line-height: 1.5;
+  }
+  /* Canary-only: roomier cells than Streamlit's tight padding. Every edge
+     against an inner divider sits 8px away, while the outermost cells carry
+     the wider 16px inset against the table's outer frame. Keyed on the
+     first / last cell, so it also holds for a wider table. */
+  .st-table-table tbody > tr > :first-child,
+  .st-table-table thead > tr > :first-child {
+    padding-left: 16px;
+  }
+  .st-table-table tbody > tr > :last-child,
+  .st-table-table thead > tr > :last-child {
+    padding-right: 16px;
+  }
+  /* The vertical divider belongs to every column but the last. */
+  .st-table-table tbody > tr > :not(:last-child),
+  .st-table-table thead > tr > :not(:last-child) {
+    border-right: 0.8px solid var(--st-dataframe-border-color);
+  }
+  .st-table-table > tbody > tr:last-child > * {
+    border-bottom: none;
+  }
+  .st-table-key p,
+  .st-table-cell p {
+    margin: 0;
+  }
+  /* Canary-only extras: a title / caption / footer wrapped around the box,
+     plus an optional column-label row. The header row is the one styling
+     knob (`header_background`) the canary offers, rather than a fully
+     customisable table. */
+  .st-table-title {
+    margin-bottom: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.6;
+    color: var(--st-heading-color);
+  }
+  .st-table-caption,
+  .st-table-footer {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-gray-color);
+  }
+  .st-table-caption {
+    margin-bottom: 4px;
+  }
+  .st-table-footer {
+    margin-top: 4px;
+  }
+  .st-table-head .st-table-key,
+  .st-table-head .st-table-cell {
+    color: var(--st-text-color);
+    font-weight: 500;
+  }
+  .st-table--head-filled .st-table-head .st-table-key,
+  .st-table--head-filled .st-table-head .st-table-cell {
+    background-color: var(--st-dataframe-header-background-color);
+  }
+

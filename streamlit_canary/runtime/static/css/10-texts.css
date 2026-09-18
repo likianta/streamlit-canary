@@ -1,0 +1,113 @@
+  /* Title */
+  .st-title {
+    font-family: var(--st-heading-font);
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--st-heading-color);
+    margin-bottom: 16px;
+    line-height: 1.25;
+  }
+
+  /* Text */
+  .st-text {
+    font-size: 14px;
+    color: var(--st-text-color);
+    margin-bottom: 8px;
+  }
+  /* A `v3.Text()` is often used as an empty placeholder slot (it still needs
+     to stay in the DOM so its text can be patched later). It renders nothing
+     anyway, and hiding it keeps it out of a parent flex container's `gap`. */
+  .st-text:empty { display: none; }
+  /* A `v3.Markdown()` block: same rhythm as `.st-text`, but it keeps the
+     body font size (Streamlit's markdown is `st.markdown`, not `st.text`). */
+  .st-markdown {
+    color: var(--st-text-color);
+    margin-bottom: 8px;
+  }
+  .st-markdown:empty { display: none; }
+
+  /* Markdown (parsed client-side by markdown-it): `page.js` fills the
+     `.st-md` holders the server emits, so the element styles below are
+     scoped to that holder. Component-specific rules (e.g. `.st-alert-text
+     p`) are more specific and still win. */
+  .st-md a {
+    color: var(--st-primary-color);
+    text-decoration: underline;
+  }
+  .st-md p {
+    margin: 0 0 8px;
+  }
+  .st-md p:last-child {
+    margin-bottom: 0;
+  }
+  .st-md ul,
+  .st-md ol {
+    margin: 0 0 8px;
+    padding-left: 22px;
+  }
+  .st-md li {
+    margin: 2px 0;
+  }
+  .st-md blockquote {
+    margin: 0 0 8px;
+    padding: 2px 0 2px 12px;
+    border-left: 3px solid var(--st-border-color);
+    color: var(--st-gray-color);
+  }
+  .st-md h1,
+  .st-md h2,
+  .st-md h3,
+  .st-md h4,
+  .st-md h5,
+  .st-md h6 {
+    margin: 16px 0 8px;
+    font-family: var(--st-heading-font);
+    color: var(--st-heading-color);
+    line-height: 1.3;
+  }
+  .st-md hr {
+    border: none;
+    border-top: 1px solid var(--st-border-color);
+    margin: 12px 0;
+  }
+  .st-md code {
+    font-family: var(--st-code-font);
+    font-size: 0.85em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background-color: var(--st-code-background-color);
+  }
+  .st-md pre {
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: var(--st-code-background-color);
+    overflow-x: auto;
+  }
+  .st-md pre code {
+    padding: 0;
+    background-color: transparent;
+  }
+  .st-md table {
+    border-collapse: collapse;
+    margin: 0 0 8px;
+  }
+  .st-md th,
+  .st-md td {
+    border: 1px solid var(--st-border-color);
+    padding: 4px 10px;
+    text-align: left;
+  }
+  .st-md th {
+    background-color: var(--st-secondary-background-color);
+  }
+  .st-md img {
+    max-width: 100%;
+  }
+
+  .st-caption {
+    font-size: 14px;
+    color: var(--st-gray-color);
+    margin-bottom: 8px;
+  }
+

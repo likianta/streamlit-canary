@@ -1409,6 +1409,22 @@ def _load_static(filename: str) -> str:
     return fs.load(fs.here('static/' + filename), 'plain').strip()
 
 
+def _load_static_parts(folder: str, names: tp.Sequence[str]) -> str:
+    """Reassemble a bundled asset from its parts, in the order given.
+
+    `page.css` / `page.js` are cut into per-component parts only so a reader
+    can find a block by file name (the lists below say what is where). Both
+    names are still what the rest of the code calls these bundles. The parts
+    hold the very same bytes the single file used to, so this join -- the one
+    place their order lives -- puts the cascade (CSS) and the declarations
+    (JS) back exactly as they were.
+    """
+    return ''.join(
+        fs.load(fs.here('static/{0}/{1}'.format(folder, name)), 'plain')
+        for name in names
+    ).strip()
+
+
 def _theme_block(css: str, theme: str) -> str:
     """Scope one theme file's tokens to `html[data-theme="<theme>"]`.
 
@@ -1443,9 +1459,49 @@ scThemeRoot.dataset.themePref = scThemePref;
 scThemeRoot.dataset.theme = scThemePref === 'system'
   ? (scThemeDark ? 'dark' : 'light') : scThemePref;"""
 
-_PAGE_CSS = _load_static('page.css')
+# `page.css` is cut by component; the order below is the cascade order, and
+# it mirrors the original single file block for block (see the loader above).
+_PAGE_CSS = _load_static_parts(
+    'css',
+    [
+        '00-fonts.css',  # the three bundled faces
+        '01-base.css',  # reset, `body`, the `#app` shell
+        '10-texts.css',  # Title, Text, markdown, Caption
+        '11-status.css',  # Alert, Spinner
+        '20-layouts.css',  # Row, Container, Floating, Grid, widget label
+        '30-inputs.css',  # TextInput, TextArea, NumberInput
+        '31-table.css',  # Table
+        '32-code.css',  # Code block
+        '33-buttons.css',  # Button, Icon
+        '34-selectbox.css',  # Selectbox and its dropdown
+        '35-choice.css',  # RadioGroup, CheckGroup, Segmented, Checkbox
+        '40-overlays.css',  # Popover + panel variants, Menu, Toolbar
+        '50-feedback.css',  # rerun notice, error panel, Tabs, Expander,
+        # Dialog, Toast, Progress
+        '60-misc.css',  # AltairChart, Multiselect, SelectSlider
+    ],
+)
 
-_PAGE_JS = _load_static('page.js')
+# `page.js`, same idea: `00-connection.js` carries the socket and the whole
+# delta dispatcher, the rest are the per-component helpers it calls.
+_PAGE_JS = _load_static_parts(
+    'js',
+    [
+        '00-connection.js',  # the socket + the delta dispatcher
+        '10-helpers.js',  # copy, send, option keys, choice rows, arrows
+        '20-selectbox.js',  # dropdown, new-option row, candidates
+        '30-overlays.js',  # Dialog, Multiselect, Popover, Menu
+        '40-inputs.js',  # Checkbox / CheckGroup sends + dismissal
+        '50-markdown.js',  # markdown-it + the `:color` / `:material` bits
+        '60-toast.js',  # the toast stack
+        '70-widgets.js',  # Tabs, Expander, NumberInput stepper
+        '71-slider.js',  # SelectSlider
+        '75-charts.js',  # AltairChart (vega-embed)
+        '80-dev-tools.js',  # source-change notice, uncaught error panel
+        '85-shell.js',  # toolbar, theme, menu + the boot calls
+        '90-help.js',  # help tooltips
+    ],
+)
 
 PAGE_TEMPLATE = """<!DOCTYPE html>
 <html lang="en" data-theme="{theme}">

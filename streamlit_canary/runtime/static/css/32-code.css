@@ -1,0 +1,68 @@
+  /* Code block (mirrors Streamlit's `st.code`) */
+  .st-code {
+    position: relative;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background-color: var(--st-code-background-color);
+    overflow: hidden;
+  }
+  .st-code pre {
+    margin: 0;
+    padding: 16px 0 16px 16px;
+    overflow-x: auto;
+  }
+  .st-code code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--st-text-color);
+    white-space: pre;
+  }
+  .st-code-toolbar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    padding: 8px 8px 0 0;
+    opacity: 0;
+    visibility: hidden;
+  }
+  .st-code:hover .st-code-toolbar,
+  .st-code:focus-within .st-code-toolbar {
+    opacity: 1;
+    visibility: visible;
+  }
+  .st-code-copy-chip {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 30.4px;
+    height: 30.4px;
+    padding: 4px;
+    border-radius: 8px;
+    background-color: var(--st-code-toolbar-background-color);
+  }
+  .st-code-copy {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22.4px;
+    height: 22.4px;
+    padding: 4px;
+    border: none;
+    border-radius: 8px;
+    background-color: transparent;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  .st-code-copy:hover {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-code-copy svg {
+    width: 14.4px;
+    height: 14.4px;
+  }
+  .st-code-copy .icon-done { display: none; }
+  .st-code-copy.is-copied .icon-copy { display: none; }
+  .st-code-copy.is-copied .icon-done { display: block; }
+

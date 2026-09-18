@@ -1,0 +1,149 @@
+  /* Text input (mirrors Streamlit's `st.text_input`) */
+  .st-text-input {
+    margin-bottom: 8px;
+  }
+  .st-text-input-box {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    /* Streamlit's inputs use a 19.6px line box (1.4 x 14px), not the 1.6 body
+       leading. With 1.6 the text would be 22.4px, so `min-height: 40px` would
+       be exceeded and the box (and its number-input wrapper) would grow to
+       40.4px -- a sub-pixel drift that accumulates in nested layouts. */
+    line-height: 1.4;
+    box-sizing: border-box;
+  }
+  .st-text-input-box::placeholder {
+    color: var(--st-gray-color);
+  }
+  .st-text-input-box:focus {
+    outline: none;
+    border-color: var(--st-gray-color);
+  }
+  .st-text-input-box:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
+  }
+
+  /* Multi-line text box (mirrors Streamlit's `st.text_area`). Shares the
+     single-line box's frame; `height` comes from the inline style. */
+  .st-text-area { margin-bottom: 8px; }
+  .st-text-area-box {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--st-widget-border-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 14px;
+    line-height: 1.6;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+  .st-text-area-box::placeholder {
+    color: var(--st-gray-color);
+  }
+  .st-text-area-box:focus {
+    outline: none;
+    border-color: var(--st-gray-color);
+  }
+  .st-text-area-box:disabled {
+    color: var(--st-gray-color);
+    cursor: not-allowed;
+  }
+
+  /* Number input (mirrors Streamlit's `st.number_input`).
+     The wrapper owns the border/background so the stepper (+/-) gadgets can
+     sit inside the same box; the inner input is stripped of its own frame. */
+  .st-number-input {
+    margin-bottom: 8px;
+  }
+  .st-number-box {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    min-height: 40px;
+    /* Streamlit fills its inputs instead of outlining them, so the border
+       is the same colour as the fill. */
+    border: 0.8px solid var(--st-secondary-background-color);
+    border-radius: var(--st-button-radius);
+    background-color: var(--st-secondary-background-color);
+    box-sizing: border-box;
+  }
+  /* The box measures its own width for the stepper's responsive layout (see
+     the container queries below). A `width='content'` wrapper is sized *from*
+     the box, and containment -- which hides the contents from that
+     calculation -- would collapse it, so such a wrapper is left out; it hugs
+     its own (always wide) content instead. */
+  .st-number-input:not(.st-number-input--content-width) .st-number-box {
+    container-type: inline-size;
+  }
+  .st-number-box:focus-within {
+    border-color: var(--st-gray-color);
+  }
+  .st-number-box > .st-text-input-box {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    border: none;
+    background-color: transparent;
+  }
+  .st-number-stepper {
+    display: flex;
+    flex: none;
+    /* Wide enough: the two arrows sit side by side on the right, like
+       Streamlit's. */
+    flex-direction: row;
+  }
+  .st-number-step {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--st-text-color);
+    cursor: pointer;
+  }
+  .st-number-step:not(:disabled):hover {
+    background-color: var(--st-primary-color);
+    color: var(--st-on-primary-color);
+  }
+  /* Sitting on a bound: the arrow is inert and dimmed. */
+  .st-number-step:disabled {
+    color: var(--st-gray-text-color);
+    cursor: not-allowed;
+  }
+  /* Narrow: Streamlit drops the stepper once the widget is thinner than its
+     `hideNumberInputControls` breakpoint (7.5rem) because the horizontal
+     gadget no longer fits. We keep it and stack the arrows vertically
+     instead -- "+" above, "-" below -- which only needs one arrow's width.
+     The queries measure the box' content box, while Streamlit measures the
+     whole widget, hence the 0.1rem taken off each limit (the 0.8px border on
+     both sides). */
+  @container (width < 7.4rem) {
+    .st-number-stepper { flex-direction: column-reverse; }
+    .st-number-step { flex: 1 1 0; }
+  }
+  /* Too narrow even for the stacked gadget: it is then dropped, like
+     Streamlit does. The vertical gadget is one arrow (2rem) narrower than
+     the horizontal one, so this limit sits 2rem below the one above. */
+  @container (width < 5.4rem) {
+    .st-number-stepper { display: none; }
+  }
+
+  /* Table (mirrors Streamlit's `st.table`): a key column rendered as
+     `<th scope="row">` plus a value column, inside a bordered, scrollable
+     box. The rules inside are horizontal only, and the last row has none. */

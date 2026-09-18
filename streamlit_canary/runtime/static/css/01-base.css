@@ -1,0 +1,31 @@
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--st-font);
+    font-size: var(--st-base-font-size);
+    font-weight: var(--st-base-font-weight);
+    background-color: var(--st-background-color);
+    color: var(--st-text-color);
+    line-height: 1.6;
+  }
+  #app {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    /* Streamlit's main block container is 46rem (736px) *including* its
+       1rem horizontal padding, so its content column is 704px wide. */
+    max-width: 736px;
+    margin: 0 auto;
+    /* Vertical rhythm of Streamlit's main block container. */
+    padding: 96px 16px 160px;
+  }
+  /* The `gap` above owns the vertical rhythm, so the widgets' own bottom
+     margins are dropped (otherwise each gap would be 16 + 8 = 24px). */
+  #app > * { margin-bottom: 0; }
+  /* `layout='wide'`: fill the viewport (like Streamlit's wide layout)
+     instead of centering a fixed-width column. The horizontal padding
+     matches Streamlit's main block container. */
+  #app.st-wide {
+    max-width: none;
+    padding: 96px 80px 160px;
+  }
+

@@ -1,0 +1,358 @@
+  /* Popover (mirrors Streamlit's `st.popover`) */
+  .st-popover {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 8px;
+    /* The panel grows open over this interval (a canary-only touch, same entry
+       as the selectbox dropdown). The chevron does not animate: it is swapped
+       for a different glyph. */
+    --st-popover-anim: 120ms;
+  }
+  .st-popover[hidden] {
+    display: none;
+  }
+  /* In a Row the popover keeps its intrinsic width, like buttons. */
+  .st-row > .st-popover { flex: 0 0 auto; }
+  /* Streamlit's trigger is a plain (secondary) button whose inner flex row
+     uses `gap: 2px` and `margin: 0 -5px 0 0`: the 14px icon, the 2px gap and
+     the 16px chevron therefore overflow the right padding by 5px, which is
+     what keeps the whole trigger at 53px. Without the same arithmetic the
+     trigger grows ~12px wider and steals that width from the `width:
+     stretch` siblings sharing the row. */
+  .st-popover-trigger { gap: 2px; }
+  .st-popover-trigger-label { display: block; }
+  .st-popover-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-right: -5px;
+    color: var(--st-text-color);
+  }
+  /* The chevron is an icon-font glyph, swapped (not rotated) by
+     `scTogglePopover`; 16px with a 16px line box is Streamlit's box. */
+  .st-popover-chevron {
+    display: flex;
+    font-size: 16px;
+    line-height: 16px;
+  }
+  /* `st.menu_button`'s chevron is one size up (20px) from a popover's -- the
+     renderer marks a menu trigger `.st-popover--menu`. */
+  .st-popover--menu .st-popover-chevron {
+    font-size: 20px;
+    line-height: 20px;
+  }
+  /* The floating panel hangs below the trigger, left-aligned. It is
+     `position: fixed` and placed by `scPositionPanel` -- the way Streamlit's
+     portalled overlays are -- so it escapes a scrollable ancestor's `overflow`
+     clip instead of being cut off inside it. */
+  .st-popover-panel {
+    position: fixed;
+    /* Fallbacks only: `scPositionPanel` writes the measured `left` / `top` in
+       the same task as the panel is shown, before anything is painted. */
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 320px;
+    padding: 23px;
+    border: 0.8px solid var(--st-border-color);
+    border-radius: 12px;
+    background-color: var(--st-background-color);
+    /* Grows to the height `scMeasureOpenHeight` measured, like the selectbox
+       dropdown -- the panel is anchored by its top edge, so it unfolds
+       downwards. */
+    animation: st-popover-panel-in var(--st-popover-anim) ease;
+  }
+  /* Same clipping contract as `st-selectbox-dropdown-in`: the contents stay
+     clipped while the panel is still short (nothing spills out, and no
+     scrollbar flashes up over a box that is still growing) and both `height`
+     and `overflow` fall back to the base rule once the animation is over. */
+  @keyframes st-popover-panel-in {
+    from { height: 0; overflow: hidden; }
+    to { height: var(--st-popover-open-height, auto); overflow: hidden; }
+  }
+  /* The row-aligned panel animates `height` only, leaving `overflow` to its
+     base rule for the whole run. Its toolbar is right-aligned in a box whose
+     scrollbar eats into the content width, so were the scrollbar to arrive
+     only as the animation ended, everything beside it -- the toolbar most
+     visibly -- would be shoved a scrollbar-width sideways on the last frame.
+     Paired with the base `overflow-y: scroll` below, the panel is scrollable
+     from the first frame and nothing moves. */
+  @keyframes st-popover-panel-grow-in {
+    from { height: 0; }
+    to { height: var(--st-popover-open-height, auto); }
+  }
+  .st-popover-panel--row {
+    animation-name: st-popover-panel-grow-in;
+  }
+  .st-popover-panel[hidden] { display: none; }
+  /* Streamlit's popover elevation (`shadows.popover`). Only its light theme
+     paints the shadow -- the dark theme leaves the panel with nothing but
+     the 0.8px border -- so we mirror that split. */
+  :root[data-theme='light'] .st-popover-panel {
+    box-shadow: 0 4px 16px rgba(var(--st-shadow-rgb), 0.16);
+  }
+  /* Upward panel (`Popover(panel_align='above')`): `scPositionPanel` anchors it
+     to the viewport's bottom edge, which also makes the entry animation unfold
+     upwards. */
+  .st-popover-panel--above {
+    top: auto;
+    overflow-y: auto;
+  }
+  /* A menu panel (`MenuButton`): a z-index above every panel, so it paints over
+     whatever it overlaps. The metrics mirror `st.menu_button`'s menu, measured
+     on Streamlit: `2px 6px` of panel padding, rows of 28px, and the very same
+     `shadows.popover` elevation as the other panels (light theme only -- see
+     the rule above). */
+  .st-popover-panel--menu {
+    z-index: 1000060;
+    width: max-content;
+    max-width: 360px;
+    min-width: 0;
+    padding: 2px 6px;
+    gap: 0;
+    overflow-y: auto;
+  }
+  /* The rows of a menu panel / reducible group stack in a plain block, so
+     their `4px 0` margins *collapse* -- `st.menu_button`'s surface is a block
+     too, which is why its rows sit 32px apart (28px + 4px), not 36px. */
+  .st-menu-options,
+  .st-reducible-group-items {
+    display: block;
+  }
+  /* A menu option row, shared by `MenuButton`'s options and `ReducibleGroup`'s
+     items: at least 128px wide (Streamlit's `min-width` on its menuitem),
+     28px tall with a 6px radius and 4px of vertical breathing room, which is
+     `st.menu_button`'s menuitem. (The name is distinct from the toolbar
+     dropdown's `.st-menu-item`, which has its own metrics.) */
+  .st-menu-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 128px;
+    height: 28px;
+    margin: 4px 0;
+    padding: 0 8px;
+    border-radius: 6px;
+    color: var(--st-text-color);
+    cursor: pointer;
+    user-select: none;
+  }
+  .st-menu-option:hover {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-menu-option-label {
+    /* Absorbs the slack so a trailing remove button sits at the right edge. */
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* `ReducibleGroup`: the trailing `x` shows only while its row is hovered. */
+  .st-menu-option-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--st-text-color);
+    font: inherit;
+    cursor: pointer;
+    opacity: 0;
+  }
+  .st-menu-option:hover .st-menu-option-remove {
+    opacity: 1;
+  }
+  .st-menu-option-remove:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--st-primary-color);
+  }
+  .st-reducible-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  /* Child bottom margins are dropped by the shared vertical-rhythm rule at
+     the end of this file, so the flex `gap` controls the spacing. */
+  /* Row-aligned panel (`Popover(panel_align='row')`, used by
+     `TreeSelectWithInput`): the frontend sizes it from the surrounding row's
+     text input to the row's right edge.  It scrolls once its content
+     exceeds `max-height`, and its last row (the icon-button bar) sticks to
+     the bottom so a long listing never pushes it out of view. */
+  .st-popover-panel--row {
+    /* The panel owns the top inset; each direct child owns its own
+       horizontal / bottom gutters (the rules below). */
+    padding: 16px 0 0;
+    gap: 0;
+    min-width: 0;
+    overflow-x: hidden;
+    /* `scroll` rather than `auto`: the scrollbar's width stays out of the
+       content for the whole open animation (see the keyframes), so the
+       listing and the toolbar over it never shift as the panel settles. Its
+       height is measured to fit the listing exactly, so `auto` would drop the
+       scrollbar again on the last frame and hand that width back. */
+    overflow-y: scroll;
+  }
+  /* A section bar (a `Row` that is not the sticky toolbar) keeps the panel's
+     side gutters, so the widgets inside it line up with the other children. */
+  .st-popover-panel--row > .st-row:not(:last-child) {
+    padding: 0 16px;
+  }
+  .st-popover-panel--row > .st-caption {
+    margin: 0;
+    padding: 0 16px 6px;
+  }
+  .st-popover-panel--row > .st-radio,
+  .st-popover-panel--row > .st-check-group,
+  .st-popover-panel--row > .st-segmented {
+    padding: 0 16px 12px;
+  }
+  .st-popover-panel--row > .st-row:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 8px 16px;
+    background-color: var(--st-background-color);
+    border-top: 1px solid var(--st-border-color);
+  }
+  /* `TreeSelect` renders each selection mode's list inside a container of its
+     own, and a custom panel may group extra widgets in one too, so the rules
+     above have to reach inside those containers as well. The container step
+     is a *descendant* one: the tree already sits in a container, so its lists
+     are a container deeper than the panel -- a fixed number of `>` steps
+     cannot both cover that and stay readable. */
+  .st-popover-panel--row .st-container > .st-caption {
+    margin: 0;
+    padding: 0 16px 6px;
+  }
+  .st-popover-panel--row .st-container > .st-radio,
+  .st-popover-panel--row .st-container > .st-check-group {
+    padding: 0 16px 12px;
+  }
+  /* The toolbar row a tree panel opens with (its location selectbox and the
+     buttons beside it). The `:not(:last-child)` mark keeps this off a "done"
+     row, which takes the sticky treatment below instead. */
+  .st-popover-panel--row .st-container > .st-row:not(:last-child) {
+    padding: 0 16px;
+  }
+  .st-popover-panel--row > .st-container > .st-row:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 8px 16px;
+    background-color: var(--st-background-color);
+    border-top: 1px solid var(--st-border-color);
+  }
+  /* A checkbox list used as a panel section keeps the panel's gutters. */
+  .st-popover-panel--row > .st-container .st-checkbox {
+    padding: 0 16px;
+  }
+  /* A floating cluster takes the panel's side gutters itself (the panel sets
+     none), so its corner is inset from the border rather than sitting on it.
+     The panel's 16px top padding already insets the top cluster; the bottom
+     one has no such padding, so it carries its own. */
+  .st-popover-panel--row > .st-container > .st-floating {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+  .st-popover-panel--row > .st-container > .st-floating--bottom-left,
+  .st-popover-panel--row > .st-container > .st-floating--bottom-center,
+  .st-popover-panel--row > .st-container > .st-floating--bottom-right {
+    bottom: 12px;
+    margin-bottom: 12px;
+  }
+  /* -- Developer toolbar: the ⋮ menu (theme + rerun, see page.js) -- */
+  /* Streamlit's main menu, cut down to what a canary app needs. It floats
+     in the top-right corner, inside the 96px of `#app`'s top padding, so it
+     sits over empty space rather than over content. The exception panel
+     shares the corner and stacks above it (z-index 2100). */
+  .st-toolbar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 2000;
+  }
+  .st-toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--st-button-radius);
+    background: transparent;
+    color: var(--st-text-color);
+    font-family: var(--st-font);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .st-toolbar-btn:hover {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-menu {
+    position: absolute;
+    top: 40px;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+    padding: 6px;
+    border: 0.8px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    background-color: var(--st-secondary-background-color);
+    box-shadow: 0 6px 20px rgba(var(--st-shadow-rgb), 0.45);
+    font-family: var(--st-font);
+    font-size: var(--st-base-font-size);
+    line-height: 1.3;
+  }
+  .st-menu[hidden] { display: none; }
+  .st-menu-title {
+    padding: 6px 10px 4px;
+    color: var(--st-gray-color);
+    font-size: 12px;
+  }
+  /* One row: a theme radio label or the Rerun action. */
+  .st-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--st-text-color);
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .st-menu-item:hover {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-menu-item input {
+    accent-color: var(--st-primary-color);
+    cursor: pointer;
+  }
+  .st-menu-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .st-menu-sep {
+    height: 1px;
+    margin: 6px 4px;
+    background-color: var(--st-border-color);
+  }
+  /* Reserve room for the rerun notice so it never covers app content.
+     The rule is scoped to `body.sc-rerun-visible`, which the frontend
+     toggles together with the notice: with nothing to show, the layout
+     stays identical to Streamlit's. 76px = 16px offset + ~54px notice
+     height + 6px breathing room. */
+  body.sc-rerun-visible { padding-top: 76px; }
+  /* -- Rerun notice: "Source file changed" + Rerun (dev convenience) -- */

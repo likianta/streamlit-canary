@@ -144,9 +144,10 @@ class _NavigationGroup:
     `TreeSelect` needs two gestures on one row: a single click on the row body
     ticks / picks it -- the box's own label wraps the whole row, so the
     browser does that by itself -- while a folder floats a small `->` just
-    right of its text once the pointer is over the row (the row's own `gap`,
-    8px, is the spacing). The text underlines while the pointer rests on that
-    arrow, so the pair reads as one link, and clicking it walks into the
+    right of its text once the pointer is over the row. 32px of clearance, not
+    the row's own 8px `gap`: the extra air keeps the tick area (box + name)
+    from crowding the arrow. The text underlines while the pointer rests on
+    that arrow, so the pair reads as one link, and clicking it walks into the
     folder. The arrow answers over a little slack to its right as well: the
     whole icon plus 30px counts as the arrow for hovering *and* clicking,
     since the pointer has to be aimed at a 20px glyph otherwise. Past that

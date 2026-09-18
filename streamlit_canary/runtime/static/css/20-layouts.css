@@ -1,0 +1,205 @@
+  /* Layout: Row */
+  .st-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  /* Streamlit gives every element of a horizontal container `flex-grow: 1`
+     plus a flex basis taken from the element's type: `fit-content` for most
+     elements, `8rem` for the input-like widgets and `14rem` for the large
+     ones (`minStretchWidth` in the bundled frontend). The basis decides how
+     the row's leftover space is shared, so the split only matches Streamlit
+     when the same bases are used here. */
+  .st-row > * { flex: 1 1 fit-content; }
+  .st-row > .st-btn-secondary { flex: 0 0 auto; }
+  /* A `width='stretch'` widget fills its parent on its own. Inside a row that
+     would give it a 100% flex basis, so it would claim the whole line and
+     push its siblings onto the next one (two stretch buttons never sit side
+     by side). Growing from the type's basis instead keeps both on one line.
+     The declarations are matched at a boundary (`^=` / `;`) so that the
+     `max-width: 100%` of a `width='content'` widget is not caught as well. */
+  .st-row > *[style^="width:100%"],
+  .st-row > *[style*=";width:100%"] {
+    flex: 1 1 fit-content;
+    min-width: 0;
+  }
+  /* A `Space` is nothing *but* slack: it absorbs the row's leftover width so
+     whatever follows it (e.g. a trailing popover) sits at the right edge. It
+     is declared after the `width:100%` rule above so that its flex wins. */
+  .st-row > .st-space {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  /* The widgets Streamlit builds from a wider basis. The block-level ones
+     (`st.columns`, containers, expanders) count as `8rem` too, because
+     Streamlit gives those blocks the same medium basis. They also take the
+     remaining space, so they must be allowed to shrink below their
+     min-content width -- otherwise a wide one pushes its sibling (e.g. the
+     refresh icon button) onto the next line. Buttons are deliberately
+     excluded: they keep their intrinsic width and wrap instead. */
+  .st-row > .st-number-input,
+  .st-row > .st-text-input,
+  .st-row > .st-text-area,
+  .st-row > .st-selectbox,
+  .st-row > .st-multiselect,
+  .st-row > .st-radio,
+  .st-row > .st-check-group,
+  .st-row > .st-select-slider,
+  .st-row > .st-grid,
+  .st-row > .st-container,
+  .st-row > .st-expander {
+    flex: 1 1 8rem;
+    min-width: 0;
+  }
+  .st-row > .st-table,
+  .st-row > .st-code,
+  .st-row > .st-altair-chart {
+    flex: 1 1 14rem;
+    min-width: 0;
+  }
+
+  /* Markdown family `width='auto'` (Streamlit): the element stretches inside
+     a vertical container (handled by its own block layout) but shrinks to
+     its content inside a horizontal one. */
+  .st-row > .st-text,
+  .st-row > .st-caption,
+  .st-row > .st-title {
+    flex: 0 1 auto;
+    width: fit-content;
+  }
+
+  /* Layout: Container (Column) */
+  .st-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .st-container--border {
+    border: 1px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    padding: 16px;
+  }
+  .st-container[hidden] { display: none; }
+  /* Canary-only: a container pinned to the bottom of its parent (Streamlit's
+     `st.bottom` only works at the root). `margin-top: auto` absorbs whatever
+     free space the parent flex layout has, pushing the block down. */
+  .st-container--bottom {
+    margin-top: auto;
+  }
+  /* A `FloatingContainer`: a cluster pinned to a corner of the layout it sits
+     in. It is `position: sticky`, so the parent's content scrolls underneath
+     while the cluster stays put -- and because sticky also keeps the element's
+     place in the flow, nothing can hide under it for good (so the parent needs
+     no compensating padding). The corner's horizontal half is `align-self`,
+     which is why only a vertical layout may hold one. The surface colour
+     matches the panel / dialog behind it, so rows scrolling past do not show
+     through the cluster while it is stuck. */
+  .st-floating {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: sticky;
+    z-index: 2;
+    width: fit-content;
+    max-width: 100%;
+    padding: 4px;
+    border-radius: 8px;
+    background-color: var(--st-background-color);
+  }
+  .st-floating--top-left { top: 4px; align-self: flex-start; }
+  .st-floating--top-center { top: 4px; align-self: center; }
+  .st-floating--top-right { top: 4px; align-self: flex-end; }
+  /* A sticky box can only be offset from its own flow position, so a bottom
+     cluster must *sit* at the end to be able to stick there. `margin-top:
+     auto` pushes it to the end whenever the parent has room to spare, which
+     covers a parent of fixed height; inside one that already overflows (a
+     scrolling listing) the cluster still has to be authored as the last
+     child -- see `FloatingContainer`'s docstring. */
+  .st-floating--bottom-left {
+    bottom: 4px; align-self: flex-start; margin-top: auto;
+  }
+  .st-floating--bottom-center {
+    bottom: 4px; align-self: center; margin-top: auto;
+  }
+  .st-floating--bottom-right {
+    bottom: 4px; align-self: flex-end; margin-top: auto;
+  }
+  .st-floating[hidden] { display: none; }
+
+  /* Layout: Grid */
+  .st-grid {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 8px;
+    align-items: stretch;
+  }
+  .st-grid-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  /* Widget label */
+  .st-widget-label {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--st-text-color);
+    margin-bottom: 4px;
+    visibility: visible;
+  }
+  .st-widget-label--hidden {
+    visibility: hidden;
+  }
+  .st-widget-label--collapsed {
+    display: none;
+  }
+  /* The info glyph sits at the far right of the label row -- above the right
+     edge of the input -- not next to the label text, which is where Streamlit
+     puts it. */
+  .st-widget-label .st-widget-help {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+    color: var(--st-text-color);
+    opacity: 0.4;
+    cursor: help;
+  }
+  .st-widget-label .st-widget-help:hover {
+    opacity: 0.9;
+  }
+
+  /* Help tooltip: markdown-capable replacement for the native `title`.
+     Positioned in viewport coordinates by `scShowHelp` in page.js. It is an
+     interactive pane (links, tables, selectable text), so the pointer may
+     travel from the glyph onto it; `scScheduleHelpHide` in page.js keeps it
+     alive during that trip. Metrics mirror Streamlit's `stTooltipContent`. */
+  .st-help-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    max-width: 672px;
+    padding: 6px 12px;
+    border: 1px solid var(--st-border-color);
+    border-radius: 8px;
+    background-color: var(--st-secondary-background-color);
+    color: var(--st-text-color);
+    box-shadow: 0 4px 12px rgba(var(--st-shadow-rgb), 0.15);
+    font-family: var(--st-font);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    pointer-events: auto;
+  }
+  .st-help-tooltip[hidden] {
+    display: none;
+  }
+
