@@ -82,6 +82,17 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         );
       }
     }
+    if (msg.prop === 'src') {
+      // `PdfViewer`: swap the embedded document. Rebuilding the node (rather
+      // than only assigning `src`) is what makes the PDF plugin pick the new
+      // document up.
+      const embed = el.querySelector('.st-pdf-viewer-embed');
+      if (embed) {
+        const next = embed.cloneNode(false);
+        next.setAttribute('src', msg.value);
+        embed.replaceWith(next);
+      }
+    }
     if (msg.prop === 'options') {
       if (el.classList.contains('st-selectbox')) {
         // Custom dropdown: rebuild option items + update trigger label.
@@ -315,6 +326,11 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       if (el.classList.contains('st-toast-stack')) {
         scPatchToasts(el, msg.value);
         el.hidden = !(msg.value && msg.value.length);
+      }
+    }
+    if (msg.prop === 'lines') {
+      if (el.classList.contains('st-log-panel')) {
+        scPatchLog(el, msg.value);
       }
     }
   };

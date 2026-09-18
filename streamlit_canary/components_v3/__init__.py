@@ -15,6 +15,7 @@ reference (the category list is taken from
     inputs   Streamlit's "Input widgets", the value inputs
     layouts  Streamlit's "Layouts and containers" (`api-reference/layout`)
     status   Streamlit's "Status elements" (`api-reference/status`)
+    media    Streamlit's "Media elements" (`api-reference/media`)
 
 Its "Input widgets" page is broad, so we split it into `buttons` and
 `inputs`. `trees` is ours (a folder browser) and keeps its own module;
@@ -45,6 +46,7 @@ from .inputs import TextArea
 from .inputs import TextInput
 from .inputs import Toggle
 
+from .layouts import Bottom
 from .layouts import BottomContainer
 from .layouts import Cell
 from .layouts import Column
@@ -59,9 +61,12 @@ from .layouts import Row
 from .layouts import Space
 from .layouts import Tabs
 
+from .media import PdfViewer
+
 from .status import Callout
 from .status import Error
 from .status import Info
+from .status import LogPanel
 from .status import Progress
 from .status import Spinner
 from .status import Success

@@ -43,6 +43,7 @@ from lk_utils import fs
 from ..kernel import Property
 from ..kernel import Signal
 from ..kernel import bind
+from ._shared import _Labeled
 from .base import Width
 
 from .buttons import Button
@@ -331,6 +332,16 @@ def _is_under(path: str, folder: str) -> bool:
     return path.startswith(folder.rstrip('/') + '/')
 
 
+def _label_draws_nothing(label: str | Property) -> bool:
+    """Whether a `label` argument draws no text (a `Property` is read).
+
+    Used to collapse an empty label, which would otherwise still hold the
+    label row's 24px line (see `_widget_label_html`).
+    """
+    value = label.get() if isinstance(label, Property) else label
+    return not str(value or '').strip()
+
+
 def _as_picked(value: tp.Any) -> list:
     """`TreeSelect.value` as a list of paths (the multi modes' shape)."""
     if isinstance(value, list):
@@ -533,7 +544,7 @@ class Recent(Popover):
             self._radio.value.set(initial[0])
 
 
-class TreeSelect(Column):
+class TreeSelect(_Labeled, Column):
     """The single-pane tree browser: a folder listing that navigates itself.
 
         with Popover('Browse', panel_align='row', panel_max_height=500):
@@ -547,14 +558,22 @@ class TreeSelect(Column):
         ..   (goto parent)            <- one click walks up, no arrow
         subfolder/                              ->
         another-file.txt                 <- scrolls past `height` px
-                                         [ Confirm ]  <- floats bottom-right
+        [              Confirm               ]
 
     The toolbar is a row across the top of the panel: a location selectbox
     listing every ancestor of the folder on show -- itself included, so any
-    parent is one pick away -- and then the actions.  The Confirm button rides
-    in a `FloatingContainer`, so it stays put in the panel's corner while the
-    listing scrolls beneath it -- and, being sticky, it keeps its place in the
-    flow, so no row can end up hidden under it for good.
+    parent is one pick away -- and then the actions.
+
+    `_vendored` settles where the Confirm button goes and what frame the
+    panel wears.  Left alone (the default) the panel is a standalone widget:
+    the button sits under the listing, in the ordinary flow, and the panel
+    draws its own `border`.  A wrapper that already lives inside a frame --
+    `TreeSelectWithInput`, inside a popover -- passes `_vendored=True`
+    instead: the button rides in a `FloatingContainer` in the panel's
+    corner, staying put while the listing scrolls beneath it (and, being
+    sticky, keeping its place in the flow, so no row can end up hidden under
+    it for good), and `border` falls back to `False` so the popover's own
+    frame is not doubled.
 
     Two gestures live on a row, and neither one waits on the other:
 
@@ -580,6 +599,12 @@ class TreeSelect(Column):
 
     Args:
         start_directory: the folder to open (default: the cwd).
+        label: the widget label, drawn above the panel the way an input's
+            label is (same markup / metrics as `TextInput.label`).
+        label_visibility: `'visible'` (the default when `label` has text) |
+            `'hidden'` | `'collapsed'`. Left `None`, an empty label is
+            collapsed so it costs no height.
+        help: optional markdown tooltip shown next to the label.
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
         height: optional cap in px on the listing, after which it scrolls.
             Left `None` when an enclosing `Popover` does the scrolling.
@@ -588,6 +613,11 @@ class TreeSelect(Column):
             (nodes of the folder being browsed -- leaving it drops them),
             `'multicross'` (nodes gathered across folders into a bucket), or
             `'any'` (all three, switched from a segmented control).
+        _vendored: whether the panel is delivered inside a wrapper's frame,
+            which also floats the Confirm button into the corner (see the
+            Layout note above).  Only `TreeSelectWithInput` passes `True`.
+        border: whether the panel draws its own frame.  Left `None` it is
+            `not _vendored`, so a standalone panel is framed by default.
 
     Properties:
         value: str | list[str] — the selection. `single` keeps one path (`''`
@@ -604,8 +634,8 @@ class TreeSelect(Column):
             a `_goto` from a wrapper, or the initial build. Anything derived
             from the current folder (a path input's candidate list, say)
             should be refreshed from here.
-        on_submit: emitted when the Confirm button in the bottom-right corner
-            is clicked, carrying the resolved absolute paths (see `resolve`);
+        on_submit: emitted when the Confirm button is clicked, carrying the
+            resolved absolute paths (see `resolve`);
             a pick another pick already covers is dropped, so a ticked folder
             stands in for everything under it. A wrapper such as
             `TreeSelectWithInput` listens for it to dismiss the popover it
@@ -620,13 +650,36 @@ class TreeSelect(Column):
         self,
         start_directory: str = '',
         *,
+        label: str | Property = '',
+        label_visibility: str | None = None,
+        help: str | Property = '',
         filter: T.Filter = None,
         height: int | None = None,
         width: Width | None = None,
         selection_mode: str = _MODE_SINGLE,
+        _vendored: bool = False,
+        border: bool | None = None,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(width=width, **kwargs)
+        if label_visibility is None:
+            # an empty label would still hold the label row's 24px line, so
+            # collapse it rather than leave a blank band above the panel
+            label_visibility = (
+                'collapsed' if _label_draws_nothing(label) else 'visible'
+            )
+        if border is None:
+            # a standalone panel frames itself; one delivered inside a
+            # wrapper's frame (a popover) would only nest a second frame
+            border = not _vendored
+        super().__init__(
+            label,
+            label_visibility=label_visibility,
+            help=help,
+            width=width,
+            border=border,
+            **kwargs,
+        )
+        self._vendored = _vendored
 
         selection_mode = _check_selection_mode(selection_mode)
         initial_mode = (
@@ -726,11 +779,19 @@ class TreeSelect(Column):
                     navigable=_is_enterable,
                     body_opens=_is_nav_up,
                 )
-            # A Confirm button floats in the bottom-right corner. It is the
-            # panel's "done" action: a wrapper hooks `on_submit` to fold the
-            # popover away (the panel itself must not know about its parent).
-            with FloatingContainer('bottom-right'):
-                self._confirm_btn = Button('Confirm', type='primary')
+            # The Confirm button is the panel's "done" action: a wrapper
+            # hooks `on_submit` to fold the popover away (the panel itself
+            # must not know about its parent). A vendored panel floats it
+            # into the corner, where it stays put while the listing scrolls;
+            # a standalone one keeps it under the listing, in the ordinary
+            # flow.
+            if _vendored:
+                with FloatingContainer('bottom-right'):
+                    self._confirm_btn = Button('Confirm', type='primary')
+            else:
+                self._confirm_btn = Button(
+                    'Confirm', type='primary', width='stretch'
+                )
 
         # -- handlers -------------------------------------------------------
 
@@ -1047,6 +1108,11 @@ class TreeSelectWithInput(Column):
                         filter=filter,
                         height=None,
                         selection_mode=selection_mode,
+                        # this panel rides inside our `Browse` popover, which
+                        # already draws the frame: float the Confirm button
+                        # into the corner and skip the panel's own border
+                        _vendored=True,
+                        border=False,
                     )
         self.value.bind(self._tree.value)
         self.mode.bind(self._tree.mode)

@@ -26,12 +26,13 @@ def run(
         (streamlit_process, window_process)
     """
     if callable(target):  # v3 entrance
+        print(':ds')
         print(
-            'application will be running at:\n- {}\n- {}'.format(
+            'application is running at:\n  - {}\n  - {}'.format(
                 'http://localhost:{}'.format(port),
                 'http://{}:{}'.format(_get_local_ip(), port),
             ),
-            ':v4',
+            ':v4p',
         )
         runtime = Runtime(target)  # type: ignore
         serve(runtime, port=port)  # blocking

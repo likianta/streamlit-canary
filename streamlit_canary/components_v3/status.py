@@ -1,14 +1,16 @@
 """Status elements: Streamlit's "Status elements" (`api-reference/status`).
 
-`Callout` (the base of `Error`, `Info`, `Success`, `Warning`), `Progress`,
-`Spinner`, `Toast`.
+`Callout` (the base of `Error`, `Info`, `Success`, `Warning`), `LogPanel`,
+`Progress`, `Spinner`, `Toast`.
 """
 
+import re
 import typing as tp
 from time import sleep
 
 from ._shared import _HasText
 from ._shared import _TextVisible
+from ._shared import _visible_when_filled
 from .base import Component
 from ..kernel import Property
 
@@ -47,6 +49,85 @@ class Info(Callout):
     """A blue informational alert box (mirrors Streamlit's `st.info`)."""
 
     _kind = 'info'
+
+
+# Terminal control sequences: CSI (`\x1b[` + params + final byte) and the
+# short two-character escapes. Enough for neoprint's colours and styles.
+_ANSI_RE = re.compile(r'\x1b(?:\[[0-?]*[ -/]*[@-~]|[@-Z\\-_])')
+
+
+def _strip_ansi(text: str) -> str:
+    """Drop terminal colour codes from an emitted line.
+
+    The browser has no terminal to interpret them, so the panel would
+    otherwise show the escape sequences as garbage. Most lines carry none, so
+    the escape character is checked before the pattern runs.
+    """
+    return _ANSI_RE.sub('', text) if '\x1b' in text else text
+
+
+class LogPanel(Component):
+    """A live view of what the app prints to the terminal.
+
+        with v3.BottomContainer():
+            v3.LogPanel(source='stdout')
+
+    Everything the app writes to `source` lands here, one row per line, the
+    newest at the bottom -- which stays in view as lines arrive. The panel
+    hides itself while nothing has been written, so an app that never prints
+    does not pay for an empty frame.
+
+    `print` is monkey-patched by neoprint in this package, and neoprint keeps
+    its own handle on the stream it writes to, so the capture has to wrap
+    that handle as well as `sys.stdout` / `sys.stderr` -- see
+    `Runtime.add_log_sink`. ANSI colour codes (neoprint decorates its output)
+    are dropped.
+
+    Args:
+        source: the stream to follow -- `'stdout'` (the default, where
+            `print` goes) or `'stderr'`.
+        height: see the size scheme; 200px by default, past which the log
+            scrolls.
+        width: see the size scheme; stretches by default.
+
+    Properties:
+        lines: list[str] -- the buffered lines, oldest first, capped at
+            `_max_lines` (the oldest are dropped).
+    """
+
+    _default_width = 'stretch'
+    _default_height = 200
+    _max_lines = 500
+
+    def __init__(
+        self,
+        source: str = 'stdout',
+        *,
+        visible: bool | Property = True,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(visible=visible, **kwargs)
+        if source not in ('stdout', 'stderr'):
+            raise ValueError(
+                "source must be 'stdout' or 'stderr', got {!r}".format(source)
+            )
+        self._source = source
+        self.lines = Property([])
+        self.visible = _visible_when_filled(self.lines, visible)
+        # Ask the runtime to tee the stream into us. The active runtime is
+        # the one building this tree, and the capture has to outlive the
+        # build: the app prints from its own event handlers, long after
+        # `main()` has returned.
+        runtime = Component._active_runtime
+        if runtime is not None:
+            runtime.add_log_sink(source, self._append)
+
+    def _append(self, line: str) -> None:
+        """Take one line from the stream tee (the runtime's log sink)."""
+        lines = list(self.lines.get() or [])
+        lines.append(_strip_ansi(line))
+        del lines[: -self._max_lines]
+        self.lines.set(lines)
 
 
 class Progress(_HasText):

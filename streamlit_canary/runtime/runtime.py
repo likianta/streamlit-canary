@@ -45,6 +45,38 @@ def _log_error(text: str) -> None:
     sys.stderr.flush()
 
 
+class _LogTee:
+    """A stand-in for `sys.stdout` / `sys.stderr` that feeds the log panels.
+
+    Every write goes on to the real stream first -- the terminal keeps
+    working -- and then into a line buffer, because `print(a, b)` lays its
+    pieces down one `write` at a time while a sink wants whole lines.
+    """
+
+    def __init__(self, stream: tp.Any, emit: tp.Callable[[str], None]) -> None:
+        self._stream = stream
+        self._emit = emit
+        self._pending = ''
+
+    def write(self, text: str) -> int:
+        self._stream.write(text)
+        self._pending += text
+        while '\n' in self._pending:
+            line, self._pending = self._pending.split('\n', 1)
+            self._emit(line)
+        return len(text)
+
+    def flush(self) -> None:
+        self._stream.flush()
+
+    def __getattr__(self, name: str) -> tp.Any:
+        # everything else (`columns`, `encoding`, `isatty`, ...) is the real
+        # stream's; the guard keeps a half-built tee from recursing
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return getattr(self._stream, name)
+
+
 class Runtime:
     def __init__(self, app_func: tp.Callable[[], None]) -> None:
         self._app_func = app_func
@@ -52,6 +84,7 @@ class Runtime:
         self._roots: list[Component] = []
         self._ws_clients: set[WebSocketClient] = set()
         self._source_changed: set[str] = set()
+        self._log_sinks: dict[str, list[tp.Callable[[str], None]]] = {}
         self._built = False
 
     # -- lifecycle --------------------------------------------------------
@@ -198,6 +231,54 @@ class Runtime:
     def _broadcast(self, message: dict) -> None:
         for client in list(self._ws_clients):
             client.send_json(message)
+
+    # -- log capture -------------------------------------------------------
+
+    def add_log_sink(self, source: str, sink: tp.Callable[[str], None]) -> None:
+        """Feed every complete line written to `source` to `sink`.
+
+        `source` is `'stdout'` or `'stderr'`, and a sink is what a `LogPanel`
+        registers while it is being built. The stream is wrapped the first
+        time a sink asks for it and stays wrapped for the life of the
+        process. Sinks receive lines rather than raw writes: `print(a, b)`
+        lays its pieces down one `write` at a time.
+        """
+        self._log_sinks.setdefault(source, []).append(sink)
+        self._wrap_log_stream(source)
+
+    def _wrap_log_stream(self, source: str) -> None:
+        """Put a `_LogTee` in front of `source` (once)."""
+        stream = getattr(sys, source)
+        if isinstance(stream, _LogTee):
+            # a second panel on the same stream rides the first tee
+            return
+        tee = _LogTee(stream, lambda line: self._emit_log(source, line))
+        setattr(sys, source, tee)
+        if source != 'stdout':
+            return
+        # neoprint wrote its own handle on the stream down at import time
+        # (`neoprint.console._stdout`, read by `Console.print`), so anything
+        # printed from inside this package -- which neoprint decorates
+        # instead of handing to `builtins.print` -- would keep writing to the
+        # original object and slip past the tee. Point that handle at the tee
+        # too. Nothing is double-counted: the tee forwards to the stream it
+        # wrapped, which is that same original object. (Note that the
+        # `neoprint.console` *attribute* is the `Console` instance the package
+        # re-exports -- `_stdout` lives on the module, hence `sys.modules`.)
+        neoprint_console = sys.modules.get('neoprint.console')
+        if neoprint_console is not None and not isinstance(
+            neoprint_console._stdout, _LogTee
+        ):
+            neoprint_console._stdout = tee
+
+    def _emit_log(self, source: str, line: str) -> None:
+        for sink in tuple(self._log_sinks.get(source, ())):
+            try:
+                sink(line)
+            except Exception:
+                # a panel that cannot take the line must not take the app
+                # down with it -- the line has reached the terminal already
+                pass
 
     # TODO or DELETE: file watcher & reload banner needs to be refactored or
     # be deleted. Nothing reaches these any more: the watcher is not started

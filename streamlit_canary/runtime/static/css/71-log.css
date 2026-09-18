@@ -1,0 +1,20 @@
+  /* LogPanel (canary-only): a live view of what the app prints */
+  .st-log-panel {
+    margin-bottom: 8px;
+    border: 1px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    background-color: var(--st-code-background-color);
+    overflow: hidden;
+  }
+  .st-log-panel-body {
+    height: 100%;
+    margin: 0;
+    padding: 8px 12px;
+    overflow: auto;
+    font-family: var(--st-code-font);
+    font-size: var(--st-small-font-size);
+    line-height: 1.6;
+    color: var(--st-text-color);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }

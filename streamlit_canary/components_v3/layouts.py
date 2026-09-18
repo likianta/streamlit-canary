@@ -1,9 +1,10 @@
 """Layouts and containers: Streamlit's "Layouts and containers"
 (`api-reference/layout`).
 
-`BottomContainer`, `Cell`, `Column` and its `Container` alias, `Dialog`,
-`Expander`, `Floating` (an alias of `FloatingContainer`), `FloatingContainer`,
-`Grid`, `Popover`, `Row`, `Space`, `Tabs` (with its private `_TabPanel`).
+`Bottom` (an alias of `BottomContainer`), `BottomContainer`, `Cell`, `Column`
+and its `Container` alias, `Dialog`, `Expander`, `Floating` (an alias of
+`FloatingContainer`), `FloatingContainer`, `Grid`, `Popover`, `Row`, `Space`,
+`Tabs` (with its private `_TabPanel`).
 """
 
 import typing as tp
@@ -97,6 +98,10 @@ class BottomContainer(Column):
 
     def __init__(self, **kwargs: tp.Any) -> None:
         super().__init__(**kwargs)
+
+
+Bottom = BottomContainer
+"""Alias of `BottomContainer`."""
 
 
 class Dialog(Component):

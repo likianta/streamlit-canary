@@ -1,0 +1,262 @@
+"""
+Compare `v3.PdfViewer` (Streamlit Canary) against `streamlit_pdf_viewer` --
+the viewer the reference `pdf_watermaker` app previews documents with.
+
+Streamlit's own media element, `st.pdf`, is only a thin wrapper around the
+third-party `streamlit-pdf` package, which is not installed here, so the
+Streamlit side of this comparison uses `streamlit_pdf_viewer` instead.
+
+The two apps under test (start them first):
+
+    # :2202 (Streamlit)
+    python -m streamlit run --browser.gatherUsageStats false \\
+        --runner.magicEnabled false --server.headless true \\
+        --server.port 2202 test/pixel_fidelity/pdf_viewer_st.py
+
+    # :2203 (Streamlit Canary)
+    python test/pixel_fidelity/pdf_viewer_sc.py
+
+Then run this comparison:
+
+    python test/pixel_fidelity/compare_pdf_viewer.py
+
+Pseudo-code (the spec this script implements):
+
+    1. Both viewers must claim the box the app asked for: a `height=` of 400
+       and of 300, each stretched to the full column width -- the theme
+       frame around our panel is inside that box, it does not add to it.
+    2. Both boxes must really draw a document. A viewer that only renders
+       its frame (what an `<embed>` does wherever the browser has no PDF
+       plugin) leaves the inside of the box a single flat colour, so the
+       check looks at the pixels inside the frame, not at the DOM.
+    3. `pages_to_render` must actually limit what the browser receives. This
+       is where the two implementations deliberately part ways, so it is
+       checked on its own rather than compared row by row:
+       `streamlit_pdf_viewer` ships the whole document and hides the extra
+       pages in pdf.js, while `v3.PdfViewer` cuts the range out of the
+       document with `pikepdf` before it is ever base64'd -- the second
+       viewer's payload must therefore hold two pages, not three.
+
+A note on the browser: playwright's default `chromium_headless_shell` build
+ships no PDF plugin, so an `<embed type="application/pdf">` there paints
+nothing at all. The full chromium build does have it, hence
+`channel='chromium'` below -- without it, section 2 could never pass.
+
+What is deliberately *not* compared, see
+`.trae/documents/pixel_fidelity_caveats.md`: the viewer chrome itself. We
+hand the document to the browser's own engine, so the toolbar and the
+backdrop are Chrome's, while `streamlit_pdf_viewer` draws pdf.js' own.
+"""
+
+import base64
+import io
+import sys
+
+import pikepdf
+from lk_utils import fs
+from PIL import Image
+from playwright.sync_api import Page
+from playwright.sync_api import sync_playwright
+
+from streamlit_canary.components_v3 import media
+
+ST_URL = 'http://localhost:2202'
+SC_URL = 'http://localhost:2203'
+
+SAMPLE = fs.here('sample.pdf')
+
+# Streamlit renders a custom component as an iframe, and the requested
+# height lands on that iframe -- that is the box our panel is measured
+# against. Matching on the component path keeps other iframes out.
+ST_VIEWER = 'iframe[src*="streamlit_pdf_viewer"]'
+SC_VIEWER = '.st-pdf-viewer'
+
+# The two heights the scenes ask for, and the page ranges the second viewer
+# of each scene asks for.
+HEIGHTS = (400, 300)
+PAGES = (1, 2)
+
+# A viewer that only painted its frame leaves the inside of the box one flat
+# colour (plus a few antialiased pixels along the frame). A drawn document --
+# a page, a backdrop, a toolbar, text -- is far past this.
+MIN_COLOURS = 30
+FRAME_INSET = 4
+
+EPS = 0.6
+
+
+def inner_colours(page: Page, selector: str, inset: int = FRAME_INSET) -> int:
+    """How many distinct colours are drawn inside the viewer's frame."""
+    shot = page.locator(selector).first.screenshot()
+    image = Image.open(io.BytesIO(shot)).convert('RGB')
+    width, height = image.size
+    box = (inset, inset, width - inset, height - inset)
+    colours = image.crop(box).getcolors(maxcolors=1 << 24)
+    return len(colours) if colours else 0
+
+
+def read_boxes(page: Page, selector: str) -> list[dict]:
+    return page.evaluate(
+        """(sel) => Array.from(document.querySelectorAll(sel)).map((el) => {
+          const box = el.getBoundingClientRect();
+          return {
+            width: +box.width.toFixed(2),
+            height: +box.height.toFixed(2),
+          };
+        })""",
+        selector,
+    )
+
+
+def same(a, b) -> bool:
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return abs(a - b) <= EPS
+    return str(a) == str(b)
+
+
+def page_count(url: str) -> int:
+    """The number of pages inside a `data:application/pdf` URL."""
+    head, _, payload = url.partition(',')
+    assert head.startswith('data:application/pdf'), head
+    with pikepdf.open(io.BytesIO(base64.b64decode(payload))) as pdf:
+        return len(pdf.pages)
+
+
+class Report:
+    def __init__(self) -> None:
+        self.rows: list[tuple[str, str, str, bool]] = []
+
+    def add(self, label: str, st_val, sc_val, cmp=same) -> None:
+        self.rows.append(
+            (label, str(st_val), str(sc_val), bool(cmp(st_val, sc_val)))
+        )
+
+    def print(self) -> None:
+        width = max(len(row[0]) for row in self.rows)
+        print('')
+        print(
+            '{:<{w}} {:<30} {:<30} {}'.format(
+                'check', 'streamlit (:2202)', 'canary (:2203)', 'ok', w=width
+            )
+        )
+        print('-' * 104)
+        for label, st_val, sc_val, ok in self.rows:
+            print(
+                '{:<{w}} {:<30} {:<30} {}'.format(
+                    label, st_val, sc_val, 'YES' if ok else 'NO', w=width
+                )
+            )
+
+    @property
+    def failures(self) -> list[tuple[str, str, str]]:
+        return [
+            (label, st_val, sc_val)
+            for label, st_val, sc_val, ok in self.rows
+            if not ok
+        ]
+
+
+def main() -> int:
+    report = Report()
+    with sync_playwright() as p:
+        # The full chromium build, not `chromium_headless_shell`: only the
+        # former has the PDF plugin an `<embed>` needs (see the docstring).
+        browser = p.chromium.launch(headless=True, channel='chromium')
+        context = browser.new_context(viewport={'width': 1280, 'height': 900})
+
+        st_page = context.new_page()
+        st_page.goto(ST_URL)
+        st_page.wait_for_selector(ST_VIEWER, timeout=20000)
+        st_page.wait_for_timeout(4000)
+
+        sc_page = context.new_page()
+        sc_page.goto(SC_URL)
+        sc_page.wait_for_selector(SC_VIEWER, timeout=20000)
+        sc_page.wait_for_timeout(4000)
+
+        # -- 1. the box is the one the app asked for ---------------------
+        st_boxes = read_boxes(st_page, ST_VIEWER)
+        sc_boxes = read_boxes(sc_page, SC_VIEWER)
+        report.add('viewer count', len(st_boxes), len(sc_boxes))
+        for i, height in enumerate(HEIGHTS):
+            st_box = st_boxes[i] if i < len(st_boxes) else {}
+            sc_box = sc_boxes[i] if i < len(sc_boxes) else {}
+            report.add(
+                'viewer {} height (asked {})'.format(i + 1, height),
+                st_box.get('height'),
+                sc_box.get('height'),
+            )
+            report.add(
+                'viewer {} width'.format(i + 1),
+                st_box.get('width'),
+                sc_box.get('width'),
+            )
+
+        # -- 2. the box is really drawn into ----------------------------
+        st_colours = inner_colours(st_page, ST_VIEWER)
+        sc_colours = inner_colours(sc_page, SC_VIEWER)
+        report.add(
+            'colours drawn inside viewer 1 (min {})'.format(MIN_COLOURS),
+            st_colours,
+            sc_colours,
+            cmp=lambda a, b: a >= MIN_COLOURS and b >= MIN_COLOURS,
+        )
+
+        # -- 3. `pages_to_render` really limits the payload ---------------
+        # Not a row-by-row comparison: the two cut the range in different
+        # places (client-side vs server-side), so each is asserted against
+        # its own expectation instead.
+        sc_src = sc_page.evaluate(
+            """(sel) => Array.from(document.querySelectorAll(sel))
+              .map((el) => el.getAttribute('src'))""",
+            SC_VIEWER + '-embed',
+        )
+        report.add(
+            'canary viewer 1 ships every page',
+            len(pikepdf.open(SAMPLE).pages),
+            page_count(sc_src[0]),
+        )
+        report.add(
+            'canary viewer 2 ships only {}'.format(list(PAGES)),
+            len(PAGES),
+            page_count(sc_src[1]),
+        )
+        report.add(
+            'canary viewer 2 payload is smaller than viewer 1',
+            True,
+            len(sc_src[1]) < len(sc_src[0]),
+        )
+        # The subsetting has to survive the same path the server uses, so the
+        # check runs the converter directly as well.
+        report.add(
+            'offline subset of page {}'.format(list(PAGES)),
+            len(PAGES),
+            page_count(media._to_url(SAMPLE, PAGES)),
+        )
+
+        report.print()
+        browser.close()
+
+    if report.failures:
+        print('')
+        print('FAILED ({} mismatch(es)):'.format(len(report.failures)))
+        for label, st_val, sc_val in report.failures:
+            print(
+                '  {label}: streamlit={st} canary={sc}'.format(
+                    label=label, st=st_val, sc=sc_val
+                )
+            )
+        return 1
+
+    print('')
+    print('PASSED: all asserted props match.')
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except AssertionError as e:
+        print('')
+        print('ERROR: {}'.format(e))
+        sys.exit(2)

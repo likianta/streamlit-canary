@@ -6,7 +6,7 @@
 /test/event_driven_system/asa_gui_copy
 /test/event_driven_system/asa_gui_copy_data/
 /test/event_driven_system/pdf_watermaker_copy
-/test/event_driven_system/pdf_watermaker_copy_data/
+/test/event_driven_system/pdf_watermaker_copy_data
 /test/event_driven_system/pyproject_manager_copy
 /_probe.py
 __pycache__/

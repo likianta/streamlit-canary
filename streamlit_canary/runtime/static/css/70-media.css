@@ -1,0 +1,17 @@
+  /* -- PdfViewer (the browser's PDF engine, in an `<embed>`) -- */
+  /* The plugin paints its own chrome (a grey backdrop and a toolbar), so
+     the panel only frames it -- the theme border and radius keep it from
+     reading as a stray grey block dropped into the page. */
+  .st-pdf-viewer {
+    display: block;
+    margin-bottom: 8px;
+    border: 1px solid var(--st-border-color);
+    border-radius: var(--st-base-radius);
+    overflow: hidden;
+  }
+  .st-pdf-viewer-embed {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }

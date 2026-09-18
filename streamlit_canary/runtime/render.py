@@ -14,6 +14,7 @@ import typing as tp
 
 from lk_utils import fs
 
+from ..components_v3._shared import _Labeled
 from ..components_v3.base import Component
 from ..components_v3.buttons import Button
 
@@ -47,7 +48,10 @@ from ..components_v3.layouts import Space
 from ..components_v3.layouts import Tabs
 from ..components_v3.layouts import _TabPanel
 
+from ..components_v3.media import PdfViewer
+
 from ..components_v3.status import Callout
+from ..components_v3.status import LogPanel
 from ..components_v3.status import Progress
 from ..components_v3.status import Spinner
 from ..components_v3.status import Toast
@@ -178,6 +182,10 @@ def _render_element(comp: Component) -> str:
         )
     if isinstance(comp, Column):
         children = ''.join(_render(c) for c in comp.children)
+        # A `Column` that also carries a widget label (`TreeSelect`, through
+        # `_Labeled`) draws it at the top of the panel, above the toolbar.
+        if isinstance(comp, _Labeled):
+            children = _widget_label_html(comp) + children
         border_cls = (
             ' st-container--border' if getattr(comp, '_border', False) else ''
         )
@@ -321,6 +329,10 @@ def _render_element(comp: Component) -> str:
         return _render_segmented_control(comp)
     if isinstance(comp, Toast):
         return _render_toast(comp)
+    if isinstance(comp, PdfViewer):
+        return _render_pdf_viewer(comp)
+    if isinstance(comp, LogPanel):
+        return _render_log_panel(comp)
     return ''.join(_render(c) for c in comp.children)
 
 
@@ -1477,6 +1489,8 @@ _PAGE_CSS = _load_static_parts(
         '50-feedback.css',  # rerun notice, error panel, Tabs, Expander,
         # Dialog, Toast, Progress
         '60-misc.css',  # AltairChart, Multiselect, SelectSlider
+        '70-media.css',  # PdfViewer
+        '71-log.css',  # LogPanel
     ],
 )
 
@@ -1492,6 +1506,7 @@ _PAGE_JS = _load_static_parts(
         '40-inputs.js',  # Checkbox / CheckGroup sends + dismissal
         '50-markdown.js',  # markdown-it + the `:color` / `:material` bits
         '60-toast.js',  # the toast stack
+        '65-log.js',  # the LogPanel
         '70-widgets.js',  # Tabs, Expander, NumberInput stepper
         '71-slider.js',  # SelectSlider
         '75-charts.js',  # AltairChart (vega-embed)
@@ -1562,6 +1577,39 @@ def _render_toast(comp: Toast) -> str:
     hidden = '' if messages else ' hidden'
     return (
         f'<div class="st-toast-stack" data-id="{comp.id}"{hidden}>{items}</div>'
+    )
+
+
+def _render_pdf_viewer(comp: PdfViewer) -> str:
+    """Render a `PdfViewer`: the browser's own PDF engine, in an `<embed>`.
+
+    `src` already holds a `data:` URL (the conversion lives on the property,
+    see `media._UrlProperty`), so nothing is read or encoded here -- and the
+    very same string is what a later `src` patch carries (see
+    `00-connection.js`).
+    """
+    src = html.escape(comp.src.get(), quote=True)
+    return (
+        f'<div class="st-pdf-viewer" data-id="{comp.id}"'
+        f'{_size_style(comp)}>'
+        f'<embed class="st-pdf-viewer-embed" type="application/pdf" '
+        f'src="{src}" /></div>'
+    )
+
+
+def _render_log_panel(comp: LogPanel) -> str:
+    """Render a `LogPanel`: the captured lines in a scrolling `<pre>`.
+
+    The whole buffer is written out, and rewritten whenever `lines` changes
+    (see `65-log.js`); it is capped at `LogPanel._max_lines`, so the payload
+    stays small. Escaping is enough to make a log line inert -- the markup
+    around it is fixed.
+    """
+    text = html.escape('\n'.join(comp.lines.get() or ()), quote=False)
+    return (
+        f'<div class="st-log-panel" data-id="{comp.id}"'
+        f'{_size_style(comp)}>'
+        f'<pre class="st-log-panel-body">{text}</pre></div>'
     )
 
 
