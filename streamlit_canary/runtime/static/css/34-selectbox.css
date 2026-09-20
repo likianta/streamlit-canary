@@ -13,7 +13,12 @@
     display: flex;
     align-items: center;
   }
-  .st-selectbox-trigger {
+  /* The sizer shares the trigger's box on purpose: it exists only to report
+     the width the trigger needs for its widest option (see
+     `.st-selectbox--content` below), so it has to measure exactly like the
+     trigger -- one shared rule instead of two that could drift apart. */
+  .st-selectbox-trigger,
+  .st-selectbox-sizer {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -37,6 +42,42 @@
     /* No transition here: Streamlit turns the border red as soon as the
        control is focused, so a fading (translucent) red in between would be
        a visible artifact. */
+  }
+  /* The sizer reports width and nothing else: `height: 0` (with the
+     `overflow: hidden` behind it) keeps its stacked content out of the row's
+     height and out of the page's scrollable area, while `visibility: hidden`
+     keeps it invisible yet still laid out -- `display: none` would measure as
+     zero, which is the whole point of this box.
+
+     `width: auto` overrides the `width: 100%` it inherits from the rule
+     above, and it is what makes the box work at all: a percentage there would
+     tie the sizer to the cell it is supposed to size, so its own text would
+     wrap to the *current* width and report that instead of the width it
+     needs -- the widest option would never get a vote. */
+  .st-selectbox-sizer {
+    width: auto;
+    height: 0;
+    min-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  /* Every option stacks here, so the sizer reports the *widest* one instead
+     of the sum of them all. */
+  .st-selectbox-sizer-texts {
+    display: flex;
+    flex-direction: column;
+  }
+  /* `width='content'`: the box is as wide as its widest *option*, not as wide
+     as the value shown right now -- picking a shorter option must not resize
+     the trigger. The trigger and the sizer hold the same grid cell, so the
+     wider of the two sizes it and both fill it. */
+  .st-selectbox--content > .st-selectbox-control {
+    display: inline-grid;
+  }
+  .st-selectbox--content > .st-selectbox-control > .st-selectbox-trigger,
+  .st-selectbox--content > .st-selectbox-control > .st-selectbox-sizer {
+    grid-area: 1 / 1;
   }
   /* No border-color change on hover — matches Streamlit's behavior. The focus
      border is the only decoration: Streamlit adds no focus ring. */

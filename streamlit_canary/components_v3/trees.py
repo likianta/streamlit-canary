@@ -746,6 +746,7 @@ class TreeSelect(_Labeled, Column):
                         index=0,
                         format=lambda m: _MODE_LABELS[m],
                         label_visibility='collapsed',
+                        width='content',
                     )
             # The two lists differ only in how many nodes they may pick. Both
             # freeze `..` and route its body click to the walk-up (`_is_nav_up`

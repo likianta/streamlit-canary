@@ -36,6 +36,28 @@
   .st-multiselect-values.is-placeholder {
     color: var(--st-gray-color);
   }
+  /* `height='fixed'` (the default): the values keep to the trigger's one line
+     and scroll sideways once they no longer fit, instead of wrapping (and so
+     growing the box taller) the way Streamlit's own trigger does. */
+  .st-multiselect--fixed .st-multiselect-values {
+    /* `flex: 1 1 auto` + `min-width: 0` are what let the strip shrink below
+       its text and scroll: a flex item's automatic minimum size is its
+       min-content width, which -- with `nowrap` -- is the whole string. */
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* no ellipsis: the text is reachable by scrolling instead (see the
+       auto-scroll in `30-overlays.js`) */
+    text-overflow: clip;
+    scroll-behavior: smooth;
+    /* The scrollbar would eat into the 32px control height, and the
+       auto-scroll is what shows the newest value anyway. */
+    scrollbar-width: none;
+  }
+  .st-multiselect--fixed .st-multiselect-values::-webkit-scrollbar {
+    display: none;
+  }
   .st-multiselect-arrow {
     flex: 0 0 auto;
     font-size: 12px;

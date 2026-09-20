@@ -219,11 +219,12 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
             o.removeAttribute('data-selected');
           }
         });
-        // Update trigger text from the matching option's inner div.
+        // Update trigger label from the matching option's inner div.
         const matched = Array.from(optEls).find(o => o.dataset.value === wanted);
-        const inner = matched ? matched.querySelector('.st-selectbox-option-inner') : null;
-        const valEl = el.querySelector('.st-selectbox-value');
-        if (valEl && inner) valEl.textContent = inner.textContent;
+        scSetSelectboxValue(
+          el,
+          matched ? matched.querySelector('.st-selectbox-option-inner') : null,
+        );
       }
       if (el.classList.contains('st-radio')) {
         el._scValue = msg.value;
@@ -282,11 +283,14 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       }
       if (el.classList.contains('st-multiselect')) {
         // `input.value` style comparison does not apply here: the selection
-        // is a list, so compare the option values as strings.
-        el._scValue = msg.value || [];
-        const wanted = el._scValue.map(String);
+        // is a list, so compare the option values as strings. Its order is the
+        // tick order, which is what the trigger shows (see
+        // `scMultiselectSelection`).
+        el._scValue = (msg.value || []).map(String);
         el.querySelectorAll('.st-multiselect-option').forEach(o => {
-          o.classList.toggle('is-checked', wanted.indexOf(o.dataset.value) >= 0);
+          o.classList.toggle(
+            'is-checked', el._scValue.indexOf(o.dataset.value) >= 0
+          );
         });
         scRefreshMultiselectSummary(el);
       }

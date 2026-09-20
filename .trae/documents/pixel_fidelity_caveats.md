@@ -23,6 +23,16 @@
 
     原版行为 (在 :2200 上实测的 st): 默认的 `'visible'` 即使 label 是空字符串也会保留标签行 -- `st.text_input('')` 的控件高 68px (标签行 24px + 间隙 4px + 输入框 40px), 同一个控件改成 `label_visibility='collapsed'` 则是 40px. 所以**空 label 的控件**在我们这里会比 st 矮 28px. 现有场景里没有空 label 的控件, 以后新增场景时留意 (想要那 28px 就显式传 `'visible'`).
 
+- Multiselect trigger (`height='fixed'`)
+  - `v3.Multiselect` 的触发器**始终保持一行** (高度就是那个 32px 的控件高度): 选中的值排成一行, 放不下时横向滚动 (滚动条隐藏), 每勾选一次把值区滚到末尾. 这就是它的默认行为 (`height='fixed'`).
+
+    原版行为: st 的 `st.multiselect` 用 `wrap: bool | None` 控制这件事 (它没有 `height` 参数): `None` (默认) 按布局决定 (在横向容器里或直接放在列里时, 标签单行 + 横向滚动; 其它情况换行), `True` 换行并且控件变高, `False` 单行固定高度 + 横向滚动. 我们是永远单行, 也就是 `wrap=False` 那一档. 所以像素对比时, 多选场景下的高度可能不同: 我们恒为 32px, st 在 `wrap=True` 或布局触发换行时会随标签增长. 这是有意为之, 不要按 st 去"修".
+
+- Selectbox `width='content'` (按最宽的选项取宽)
+  - `v3.Selectbox(width='content')` 的宽度按**最宽的选项**算, 不按当前显示的那个值: 否则选项长短不一时, 每切换一次触发器宽度就跳一次 (回归测试见 `test/selectbox_on_width_wrap.py`, 它断言每个选项下宽度一致, 且等于"最宽选项 + 框的内边距/边框/间隙/箭头"). 实现上有一处不可见的 sizer 与触发器共用 grid 单元格, 细节与两个坑 (`visibility: hidden` 而非 `display: none`; sizer 自己的 `width` 必须是 `auto`) 见 `AGENTS.md` §7.
+
+    原版行为: st 的 `st.selectbox` 只接受 `"stretch"` 或 int (它的签名用的是 `WidthWithoutContent`), 根本没有 `'content'` 这个取值, 所以此处没有"与 st 对齐"可言 -- 这是我们多出来的能力. 像素对比时若发现宽度不一致, 先确认场景是否显式传了 `width='content'`.
+
 - Layout gaps (全局横向 / 纵向间距)
   - 同目录 `01-base.css` 里还有两个间距 token: `--st-hgap` (8px) 与 `--st-vgap` (16px). 用横向的那个 (`--st-hgap`): `v3.Row` 子元素并排时的间距, `v3.Grid` 的列轨道之间, 横向 (`horizontal=True`) 的 `v3.Radio` / `v3.CheckGroup` 的选项之间, tab 条上的各个 tab, `v3.FloatingContainer` 聚簇内的子元素. 用纵向的那个 (`--st-vgap`): 应用根 (`#app`), `v3.Container`, `v3.Grid` 的行距及其 `GridCell`, popover 面板, expander 的正文, tab 面板. `v3.Row` 换行后那两行之间属于纵向节奏, 所以也走 `--st-vgap`. 注意: 属于控件自身尺度的间距 (按钮的文案到图标, checkbox 的框到文字) 不在此列, 它们保持各自原来的字面值.
 

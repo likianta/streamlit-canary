@@ -29,6 +29,22 @@
     ).join('');
     dropdown.innerHTML =
       (el.dataset.acceptNew ? scNewOptionRow(el) : '') + items;
+    // A `width='content'` box is sized from its widest option, so the sizer
+    // has to follow the new list as well (it is server-rendered at first).
+    const sizer = el.querySelector('.st-selectbox-sizer-texts');
+    if (sizer) {
+      sizer.innerHTML = labels.map((label) =>
+        `<span>${fmt(label)}</span>`).join('');
+    }
+  }
+  // Put an option's label on the trigger. It has to be the *rendered* markup,
+  // not `textContent`: a label may carry a `:material/...:` icon or emphasis,
+  // and the plain text of one is the icon's ligature name -- both the wrong
+  // thing to show and far wider than the glyph it stands for, which would also
+  // resize a `width='content'` box on every pick.
+  function scSetSelectboxValue(root, inner) {
+    const val = root ? root.querySelector('.st-selectbox-value') : null;
+    if (val && inner) val.innerHTML = inner.innerHTML;
   }
   // -- Selectbox "accept_new_options" input row --
   function scNewOptionInput(input) {
@@ -137,10 +153,10 @@
         if (o.dataset.value === value) o.setAttribute('data-selected', '');
         else o.removeAttribute('data-selected');
       });
-      // Update trigger label from the inner div's text.
-      const inner = opt.querySelector('.st-selectbox-option-inner');
-      const valEl = root.querySelector('.st-selectbox-value');
-      if (valEl && inner) valEl.textContent = inner.textContent;
+      // Update trigger label from the inner div.
+      scSetSelectboxValue(
+        root, opt.querySelector('.st-selectbox-option-inner'),
+      );
       // Close dropdown.
       const dropdown = root.querySelector('.st-selectbox-dropdown');
       const trigger = root.querySelector('.st-selectbox-trigger');

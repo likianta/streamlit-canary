@@ -28,6 +28,13 @@ class T:
     #   'hidden': do not show label, but occupy the height space.
     #   'collapsed': do not show label, and do not occupy the height space.
 
+    # `Multiselect`'s own height vocabulary: the shared one plus `'fixed'`,
+    # which means "keep the trigger on a single line -- the values do not wrap,
+    # so it keeps its height and scrolls sideways instead". It lives here, not
+    # in `base`'s size scheme, because this widget is the only one that knows
+    # what a fixed single line means (see `Multiselect`).
+    MultiselectHeight = Height | tp.Literal['fixed']
+
 
 def _resolve_number(value: tp.Any) -> int | float:
     """The plain number behind a NumberInput `value` argument.
@@ -258,13 +265,25 @@ class Multiselect(_Labeled):
     The trigger summarises the selection; opening it shows every option with
     a tick box. Each toggle reports the whole selection back to the server.
 
+    The trigger stays on a single line (`height='fixed'`, the default): the
+    selection scrolls sideways once it no longer fits, and every new tick
+    brings the end of it into view. Streamlit's own trigger wraps instead,
+    which makes the control grow taller as more options are picked.
+
+    The selection is kept in the order it was ticked -- that is the order the
+    trigger shows, the order `value` is sent in, and so the order the server
+    stores it in too.
+
     Args:
         label: the widget label (bindable).
         options: the choices (bindable).
-        value: the initial selection, a list drawn from `options` (bindable).
+        value: the initial selection, a list drawn from `options` (bindable);
+            its order is the order the trigger shows it in.
         format: callable (value -> text) or a label sequence parallel to
             `options`.
         placeholder: shown on the trigger while nothing is selected.
+        height: `'fixed'` (default: one scrolling line) | `'stretch'` |
+            `'content'` | an int px height. See `T.MultiselectHeight`.
 
     Properties:
         label: str — the widget label.
@@ -279,6 +298,11 @@ class Multiselect(_Labeled):
     format_func: tp.Callable[[tp.Any], str]
 
     _default_width = 'stretch'
+    # The trigger keeps to one line and scrolls its selection sideways instead
+    # of wrapping (see the docstring; `page.css` does the work). Left
+    # unannotated, like the other `_default_*` overrides, so it does not read
+    # as an instance variable shadowing the base's `ClassVar`.
+    _default_height = 'fixed'
 
     def __init__(
         self,
@@ -289,9 +313,18 @@ class Multiselect(_Labeled):
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         placeholder: str = 'Choose an option',
         label_visibility: T.LabelVisibility = 'auto',
+        height: T.MultiselectHeight | None = None,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        if height == 'fixed':
+            # `'fixed'` is this widget's own mode rather than part of the shared
+            # size scheme, so the base's validator does not know it: hand over
+            # `None` and let `_default_height` (which is exactly this value)
+            # carry it.
+            height = None
+        super().__init__(
+            label, label_visibility=label_visibility, height=height, **kwargs
+        )
         self.options = _prop([], _as_list(options))
         self.value = _prop([], _as_list(value))
         if format is None:

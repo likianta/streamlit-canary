@@ -47,7 +47,6 @@ class Property(tp.Generic[T.Q]):
     def __init__(self, default: T.Q | _Undefined = _undefined) -> None:
         self.default = default
         self.value = default
-        self.remark = ''
         self.on_change = Signal(_owner_factory=lambda: self)
         # True while a notification that carries no change is being delivered
         # (see `set` / `_emit`), which is what a bound target re-renders on.
@@ -215,8 +214,6 @@ class Property(tp.Generic[T.Q]):
                         self._forced = True
                     else:
                         self._forced = self._forced or trigger._forced_emit
-                        if trigger.remark:
-                            print(pending_updates.stage, trigger.remark, ':nv')
                     if pending_updates.stage == 'resolving':
                         # inside a batch: hold the sync until the
                         # *last declared* source that changed has had its turn,

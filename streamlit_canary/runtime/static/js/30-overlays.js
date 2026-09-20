@@ -25,6 +25,23 @@
   });
 
   // -- Custom multiselect dropdown interaction --
+  // The selection as an ordered list of value strings: ticking appends to it,
+  // unticking drops from it, and that order is what the trigger shows and what
+  // the server stores. A `value` patch refreshes it (`00-connection.js`); until
+  // one arrives, the server-rendered `data-selected` seeds it -- which is also
+  // what keeps the ticks when an `options` patch rebuilds the list first.
+  function scMultiselectSelection(root) {
+    if (!root._scValue) {
+      let seed = [];
+      try {
+        seed = JSON.parse(root.dataset.selected || '[]');
+      } catch (error) {
+        seed = [];
+      }
+      root._scValue = seed.map(String);
+    }
+    return root._scValue;
+  }
   function scRenderMultiselectOptions(root, values, labels) {
     const dropdown = root.querySelector('.st-multiselect-dropdown');
     if (!dropdown) return;
@@ -34,7 +51,7 @@
       .replace(/"/g, '&quot;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    const wanted = (root._scValue || []).map(String);
+    const wanted = scMultiselectSelection(root);
     dropdown.innerHTML = values.map((v, i) => {
       const checked = wanted.indexOf(String(v)) >= 0 ? ' is-checked' : '';
       return `<div class="st-multiselect-option${checked}" role="option" ` +
@@ -64,36 +81,54 @@
     if (isOpen) trigger.removeAttribute('aria-expanded');
     else trigger.setAttribute('aria-expanded', 'true');
   }
-  // The trigger summarises the ticked options, so it is rebuilt from the
-  // option labels rather than from any server-provided text.
+  // The trigger summarises the ticked options, in tick order (see
+  // `scMultiselectSelection`). Each label goes in as its *rendered* markup, not
+  // as its text: a label may carry a `:material/...:` icon, whose plain text is
+  // the icon's ligature name (same reason as `scSetSelectboxValue`).
   function scRefreshMultiselectSummary(root) {
     const valuesEl = root.querySelector('.st-multiselect-values');
     if (!valuesEl) return;
-    const labels = Array.prototype.map.call(
-      root.querySelectorAll('.st-multiselect-option.is-checked'),
-      o => o.querySelector('.st-multiselect-option-label').textContent.trim()
-    );
+    const byValue = new Map();
+    root.querySelectorAll('.st-multiselect-option').forEach(o => {
+      byValue.set(String(o.dataset.value), o);
+    });
+    const labels = [];
+    scMultiselectSelection(root).forEach((value) => {
+      const option = byValue.get(String(value));
+      const label = option &&
+        option.querySelector('.st-multiselect-option-label');
+      if (label) labels.push(label.innerHTML);
+    });
     if (labels.length) {
-      valuesEl.textContent = labels.join(', ');
+      valuesEl.innerHTML = labels.join(', ');
       valuesEl.classList.remove('is-placeholder');
     } else {
       valuesEl.textContent = root.dataset.placeholder || 'Choose an option';
       valuesEl.classList.add('is-placeholder');
     }
+    // The strip keeps to one line under `height='fixed'`, so the newest value
+    // has to be brought into view (see `.st-multiselect--fixed` in page.css).
+    if (root.classList.contains('st-multiselect--fixed')) {
+      valuesEl.scrollLeft = valuesEl.scrollWidth;
+    }
   }
   function scToggleMultiselectOption(option) {
-    option.classList.toggle('is-checked');
     const root = option.closest('.st-multiselect');
+    const value = String(option.dataset.value);
+    const selection = scMultiselectSelection(root);
+    const at = selection.indexOf(value);
+    const ticked = at < 0;
+    // ticking appends, so the newest value is also the last one shown
+    if (ticked) selection.push(value);
+    else selection.splice(at, 1);
+    option.classList.toggle('is-checked', ticked);
     scRefreshMultiselectSummary(root);
-    // The whole selection is sent on every toggle.
+    // The whole selection is sent on every toggle, in tick order.
     ws.send(JSON.stringify({
       type: 'event',
       id: root.dataset.id,
       event: 'change',
-      value: Array.prototype.map.call(
-        root.querySelectorAll('.st-multiselect-option.is-checked'),
-        o => o.dataset.value
-      ),
+      value: selection,
     }));
   }
   // -- Custom popover interaction (toggle is client-only; no rerun) --

@@ -997,8 +997,26 @@ def _render_selectbox(comp: Selectbox) -> str:
     if accept_new:
         root_attrs += ' data-accept-new="1"'
     disabled = '' if comp.enabled.get() else ' disabled'
+    # `width='content'`: the box is as wide as its widest *option*, not as wide
+    # as the value shown right now -- otherwise picking a shorter option
+    # resizes the trigger. An invisible sizer stacks every option, and
+    # page.css puts it and the trigger in one grid cell, so the wider of the
+    # two sets the cell; the browser then picks the widest option for us, with
+    # the real glyph shapes (markdown and `:material/...:` icons included).
+    content_sized = comp._width == 'content'
+    width_cls = ' st-selectbox--content' if content_sized else ''
+    sizer = ''
+    if content_sized:
+        texts = ''.join(
+            f'<span>{render_markup(fmt(o))}</span>' for o in options
+        )
+        sizer = (
+            '<div class="st-selectbox-sizer" aria-hidden="true">'
+            f'<span class="st-selectbox-sizer-texts">{texts}</span>'
+            f'{arrow_svg}</div>'
+        )
     return (
-        f'<div class="st-selectbox"{root_attrs}{_size_style(comp)}>'
+        f'<div class="st-selectbox{width_cls}"{root_attrs}{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-selectbox-control">'
         f'<button type="button" class="st-selectbox-trigger" '
@@ -1009,6 +1027,7 @@ def _render_selectbox(comp: Selectbox) -> str:
         f'</button>'
         f'<div class="st-selectbox-dropdown" '
         f'data-comp-id="{comp.id}" hidden>{new_row}{opt_items}</div>'
+        f'{sizer}'
         f'</div></div>'
     )
 
@@ -1020,12 +1039,9 @@ def _render_multiselect(comp: Multiselect) -> str:
     fmt = comp.format_func
     placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
 
-    summary: list[str] = []
     items: list[str] = []
     for i, option in enumerate(options):
         is_on = option in selected
-        if is_on:
-            summary.append(fmt(option))
         items.append(
             f'<div class="st-multiselect-option'
             f'{" is-checked" if is_on else ""}"'
@@ -1038,6 +1054,23 @@ def _render_multiselect(comp: Multiselect) -> str:
             f'</div>'
         )
 
+    # The trigger lists the ticked options in the order they were ticked, which
+    # is the order `value` keeps. The dropdown above is untouched by that: it
+    # always lists the options as the app declared them. `selected` may carry
+    # something that is not an option at all (the value is the caller's), so
+    # the labels are looked up among the options.
+    summary: list[str] = []
+    for ticked in selected:
+        for option in options:
+            if option == ticked:
+                summary.append(fmt(option))
+                break
+
+    # The client maintains that same order as it ticks and unticks, so it needs
+    # the starting point: the selection as plain strings, in order (see
+    # `scMultiselectSelection` in `30-overlays.js`).
+    selection = html.escape(json.dumps([str(o) for o in selected]))
+
     if summary:
         body = (
             f'<div class="st-multiselect-values">'
@@ -1049,9 +1082,14 @@ def _render_multiselect(comp: Multiselect) -> str:
             f'{placeholder}</div>'
         )
 
+    # `height='fixed'` (the default) keeps the values on one line and lets them
+    # scroll sideways; page.css turns the class into that behaviour. Any other
+    # height leaves the strip clipping with an ellipsis, as before.
+    fixed_cls = ' st-multiselect--fixed' if comp._height == 'fixed' else ''
     return (
-        f'<div class="st-multiselect" data-id="{comp.id}"'
-        f' data-placeholder="{placeholder}"{_size_style(comp)}>'
+        f'<div class="st-multiselect{fixed_cls}" data-id="{comp.id}"'
+        f' data-placeholder="{placeholder}" data-selected="{selection}"'
+        f'{_size_style(comp)}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-multiselect-trigger"'
         f' onclick="scToggleMultiselect(this)">'
