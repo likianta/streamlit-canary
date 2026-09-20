@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-canary"
-version = "0.4.0a24"
+version = "0.4.0a27"
 description = "LK-flavored Streamlit components."
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
 license = "MIT"
@@ -8,9 +8,8 @@ license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "argsense>=1.1.2",
-    "lk-utils>=3.8.2a20",
+    "lk-utils>=3.8.1",
     "neoprint>=0.1.11",
-    "psutil>=7.0.0",
     "pyapp-window>=2.2.4b0",
     "starlette>=1.6.0",
     "uvicorn[standard]>=0.52.4",
@@ -23,12 +22,13 @@ requires = ["hatchling>=1.29.0"]
 
 [dependency-groups]
 dev = [
-    "argsense>=1.1.3a1,<1.2.0",
+    # "argsense>=1.1.3a1,<1.2.0",
     "asa-gui>=2026.9.10b0; python_version >= '3.12'",
     "faker>=40.39.0",
-    "jlsemi-adoc-toolkit>=2026.9.18a0; python_version >= '3.12'",
+    "jlsemi-adoc-toolkit>=2026.9.20; python_version >= '3.12'",
     # "jurigged>=0.6.1",
     "playwright>=1.63.0",
+    # "psutil>=7.0.0",
     "requests>=2.34.2",
     "streamlit>=1.64.0",
     "streamlit-extras>=1.6.0",
@@ -93,8 +93,8 @@ url = "http://localhost:2131/"
 
 [tool.uv.sources]
 airmise = { index = "likianta" }
-argsense = { index = "likianta" }
+# argsense = { index = "likianta" }
 asa-gui = { index = "likianta" }
-lk-utils = { index = "likianta" }
+# lk-utils = { index = "likianta" }
 neoprint = { index = "likianta" }
 pyapp-window = { index = "likianta" }

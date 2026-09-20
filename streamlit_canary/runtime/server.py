@@ -188,8 +188,14 @@ def create_app(runtime: Runtime) -> Starlette:
     )
 
 
-def serve(runtime: Runtime, port: int = 3001) -> None:
-    """Build the runtime and start the uvicorn server (blocking)."""
+def serve(runtime: Runtime, port: int = 3001, host: str = '0.0.0.0') -> None:
+    """Build the runtime and start the uvicorn server (blocking).
+
+    Binds every interface by default (`0.0.0.0`) rather than just the
+    loopback, so the app answers on the machine's LAN address as well as on
+    `localhost` -- the two URLs `runner.run` prints. Pass
+    `host='127.0.0.1'` to keep it reachable from this machine only.
+    """
     import uvicorn
 
     runtime.build()
@@ -198,7 +204,7 @@ def serve(runtime: Runtime, port: int = 3001) -> None:
     # be deleted. The watcher is no longer started, so `mark_source_changed`
     # and the "Source file changed" notice idle; a rerun is a manual action
     # from the toolbar instead (see page.js).
-    uvicorn.run(app, host='127.0.0.1', port=port, log_level='warning')
+    uvicorn.run(app, host=host, port=port, log_level='warning')
 
 
 def _log(message: str) -> None:

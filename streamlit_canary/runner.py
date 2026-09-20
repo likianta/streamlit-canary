@@ -3,14 +3,11 @@ import socket
 import sys
 import typing as tp
 
-import psutil
 import pyapp_window
-from lk_utils import fs
 from lk_utils import now
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
 
-from ._streamlit import st
 from .runtime import Runtime
 from .runtime import serve
 
@@ -21,6 +18,7 @@ def run(
     *,
     blocking: bool = True,
     extra_args: tp.Sequence[str] = (),
+    host: str = '0.0.0.0',
     show_window: bool = False,
     window_icon: tp.Optional[str] = None,
     window_pos: pyapp_window.opener.T.AnyPos = 'center',
@@ -33,10 +31,13 @@ def run(
     **kwargs,
 ) -> tp.Optional[tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]]:
     """
-    params:
-        target: a script path.
-        show_window: if true, will open a native window.
-    returns:
+    Args:
+        target: A script path or a callable.
+        host: Which interface to bind. Left alone it is every interface, so the
+            app is reachable on the LAN as well as on localhost; pass 
+            '127.0.0.1' to keep it to this machine.
+        show_window: If true, will open a native window.
+    Returns:
         (streamlit_process, window_process)
     """
     if _v3 or callable(target):  # v3 entrance
@@ -61,7 +62,7 @@ def run(
                     ':v4p',
                 )
                 runtime = Runtime(target)
-                serve(runtime, port=port)  # blocking
+                serve(runtime, port=port, host=host)  # blocking
                 return
             else:
                 raise NotImplementedError
@@ -85,7 +86,7 @@ def run(
         else:
             return proc_v3, None
     else:
-        return _legacy_run(
+        return legacy_run(
             target,
             port,
             blocking=blocking,
@@ -102,7 +103,6 @@ def run(
 def _get_local_ip() -> str:
     """
     Ref:
-    - `[lib] airmise : /util.py : get_local_ip_address`
     - `[lib] streamlit : /net_util.py : get_internal_ip`
     - https://stackoverflow.com/a/28950776
     """
@@ -112,10 +112,21 @@ def _get_local_ip() -> str:
             s.connect(('8.8.8.8', 1))
             return s.getsockname()[0]
         except Exception:
-            return '127.0.0.1'
+            pass
+    # no route out (an isolated LAN, say): take the first non-loopback ipv4 the
+    # host name resolves to instead.
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None):
+            family, _type, _proto, _canon, sockaddr = info
+            address = str(sockaddr[0])
+            if family == socket.AF_INET and not address.startswith('127.'):
+                return address
+    except Exception:
+        pass
+    return '127.0.0.1'
 
 
-def _legacy_run(
+def legacy_run(
     target: str,
     port: int = 3001,
     *,
@@ -180,81 +191,3 @@ def _legacy_run(
         return proc_st, proc_win
     else:
         return proc_st, None
-
-
-# TODO: rename to "kill_current_app"?
-def kill(
-    port: tp.Optional[int] = None, except_pids: tp.Sequence[int] = ()
-) -> None:
-    """kill current app. if window is shown, also close the window."""
-    if port is None:
-        port = st.get_option('server.port')
-
-    app_pid = os.getpid()
-    if x := os.getenv('SC_WINDOW_PID_AT_PORT_{}'.format(port)):
-        win_pid = int(x)
-    else:
-        win_pid = None
-    if except_pids:
-        assert app_pid not in except_pids and win_pid not in except_pids
-
-    def kill_window_process(pid: int) -> None:
-        parent = psutil.Process(pid)
-        for child in parent.children(recursive=True):
-            if child.pid == app_pid or child.pid in except_pids:
-                continue
-            try:
-                child.kill()
-            except psutil.NoSuchProcess:
-                pass
-        try:
-            parent.kill()
-        except psutil.NoSuchProcess:
-            pass
-
-    def kill_app_process(pid: int) -> None:
-        parent = psutil.Process(pid)
-        for child in parent.children(recursive=True):
-            if child.pid in except_pids:
-                continue
-            try:
-                child.kill()
-            except psutil.NoSuchProcess:
-                pass
-        try:
-            parent.kill()
-        except psutil.NoSuchProcess:
-            pass
-
-    if win_pid:
-        kill_window_process(win_pid)
-    kill_app_process(app_pid)
-
-
-# DELETE
-def _check_package_definition_in_source(source_file: str) -> None:
-    """
-    if source has imported relative module, it must have defined `__package__` -
-    in first of lines.
-    """
-    source_code = fs.load(source_file, 'plain')
-    temp = []
-    for i, line in enumerate(source_code.splitlines()):
-        line = line.lstrip()
-        if line.startswith(
-            ('if __name__ == "__main__"', "if __name__ == '__main__'")
-        ):
-            temp.append(line)
-        if line.startswith(('from .', 'import .')):
-            assert any(x.startswith('__package__ = ') for x in temp), (temp, i)
-            return
-        if temp:
-            temp.append(line)
-
-
-def _get_entrance(caller_dir: str, package_info: str) -> str:
-    if (x := fs.normpath(os.getcwd())) != caller_dir:
-        return x
-    else:
-        assert caller_dir.endswith(x := package_info.replace('.', '/'))
-        return caller_dir[: -len(x)]

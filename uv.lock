@@ -1162,7 +1162,7 @@ wheels = [
 
 [[package]]
 name = "jlsemi-adoc-toolkit"
-version = "2026.9.18a0"
+version = "2026.9.20"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense", marker = "python_full_version >= '3.12'" },
@@ -1177,7 +1177,7 @@ dependencies = [
     { name = "streamlit-pdf-viewer", marker = "python_full_version >= '3.12'" },
 ]
 wheels = [
-    { url = "http://localhost:2131/jlsemi-adoc-toolkit/jlsemi_adoc_toolkit-2026.9.18a0-py3-none-any.whl" },
+    { url = "http://localhost:2131/jlsemi-adoc-toolkit/jlsemi_adoc_toolkit-2026.9.20-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -3069,13 +3069,12 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0a26"
+version = "0.4.0a27"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
     { name = "lk-utils" },
     { name = "neoprint" },
-    { name = "psutil" },
     { name = "pyapp-window" },
     { name = "starlette" },
     { name = "uvicorn", extra = ["standard"] },
@@ -3089,7 +3088,6 @@ st = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "argsense" },
     { name = "asa-gui", marker = "python_full_version >= '3.12'" },
     { name = "faker" },
     { name = "jlsemi-adoc-toolkit", marker = "python_full_version >= '3.12'" },
@@ -3101,10 +3099,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "argsense", specifier = ">=1.1.2", index = "http://localhost:2131/" },
-    { name = "lk-utils", specifier = ">=3.8.2a20", index = "http://localhost:2131/" },
+    { name = "argsense", specifier = ">=1.1.2" },
+    { name = "lk-utils", specifier = ">=3.8.1" },
     { name = "neoprint", specifier = ">=0.1.11", index = "http://localhost:2131/" },
-    { name = "psutil", specifier = ">=7.0.0" },
     { name = "pyapp-window", specifier = ">=2.2.4b0", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
     { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.61.0,!=1.62.*" },
@@ -3115,10 +3112,9 @@ provides-extras = ["st"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "argsense", specifier = ">=1.1.3a1,<1.2.0", index = "http://localhost:2131/" },
     { name = "asa-gui", marker = "python_full_version >= '3.12'", specifier = ">=2026.9.10b0", index = "http://localhost:2131/" },
     { name = "faker", specifier = ">=40.39.0" },
-    { name = "jlsemi-adoc-toolkit", marker = "python_full_version >= '3.12'", specifier = ">=2026.9.18a0" },
+    { name = "jlsemi-adoc-toolkit", marker = "python_full_version >= '3.12'", specifier = ">=2026.9.20" },
     { name = "playwright", specifier = ">=1.63.0" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "streamlit", specifier = ">=1.64.0" },

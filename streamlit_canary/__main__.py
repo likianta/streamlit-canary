@@ -3,12 +3,9 @@ from argsense import cli
 
 from lk_utils import run_cmd_args
 
-from .runner import _check_package_definition_in_source
-
 
 @cli
 def run(file: str, port: int) -> None:
-    _check_package_definition_in_source(file)
     run_cmd_args(
         (
             (sys.executable, '-m', 'streamlit', 'run', file),
