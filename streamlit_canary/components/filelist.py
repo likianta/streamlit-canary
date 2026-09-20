@@ -129,7 +129,7 @@ def _get_last_frame(fback_level: int = 1) -> FrameType:
     frame = currentframe().f_back
     for _ in range(fback_level):
         frame = frame.f_back
-    return frame
+    return t.cast(FrameType, frame)
 
 
 def _get_last_frame_id(fback_level: int = 1) -> str:
@@ -137,5 +137,5 @@ def _get_last_frame_id(fback_level: int = 1) -> str:
 
 
 def _init_tree(dir: str, suffix: t.Optional[str], sort_by: str = 'time'):
-    for f in fs.find_files(dir, suffix, sort_by=sort_by):
+    for f in fs.find_files(dir, suffix, sort_by=sort_by):  # type: ignore
         yield f.name, f.path

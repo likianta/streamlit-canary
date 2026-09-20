@@ -33,4 +33,4 @@ def radio(
         index=index,
         **kwargs
     )
-    return keys[idx]
+    return t.cast(t.Union[int, str], keys[idx])

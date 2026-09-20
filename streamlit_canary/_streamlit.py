@@ -42,11 +42,11 @@ def load() -> ModuleType:
             import streamlit as module
         except ImportError as error:
             raise ImportError(
-                'streamlit is an optional dependency of streamlit-canary: '
-                'this call needs it, but it is not installed. Install it '
-                'with `uv add streamlit` (or `pip install streamlit`). The '
-                'v3 API (`sc.v3`, `sc.Property`, the runtime) works without '
-                'it.'
+                'streamlit is an optional dependency of streamlit-canary: this '
+                'call needs it, but it is not installed. Install it with '
+                '`uv add streamlit` (or `uv add streamlit-canary[st]`). '
+                'The v3 API (`sc.v3`, `sc.Property`, the runtime) works '
+                'without it.'
             ) from error
         _module = module
     return _module

@@ -238,7 +238,7 @@ def tree_select_with_input(
                 on_click=lambda: _internal_update_user_input(
                     st.session_state[keygen('user_recent')]
                 ),
-                width=custom
+                width=custom  # type: ignore
                 and custom.get('recent_button_width', 'content')
                 or 'content',
             )
@@ -247,7 +247,7 @@ def tree_select_with_input(
         if st.button(
             'Browse',
             key=keygen('user_browse'),
-            width=custom
+            width=custom  # type: ignore
             and custom.get('browse_button_width', 'content')
             or 'content',
         ):

@@ -95,12 +95,6 @@ python test/signal_test.py
 python test/event_driven_system/components_v3_demo.py
 ```
 
-> 注意: 全量 `ty check streamlit_canary/` 会对 v1 老模块报出若干 **既存** 问题
-> (`components/filelist.py`, `components/radio.py`, 
-> `components/tree_select/wrappers.py`, `__main__.py`). 改动 v3 相关代码时,
-> 建议只检查目标包, 例如:
-> `ty check streamlit_canary/components_v3/ streamlit_canary/runtime/`
-
 ### 端口说明
 
 我们在本地 (localhost) 提供了 :2200 到 :2229 共 30 个端口专为本项目使用. 目前定义如下:
