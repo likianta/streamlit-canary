@@ -1,12 +1,11 @@
-/* Experimental: the pdf.js engine (see `PdfViewer(enable_pdfjs=True)`).
+/* The pdf.js engine behind `PdfViewer` (see `components_v3/media.py`).
 
-   The browser's built-in viewer keeps its content to itself: the page cannot
-   measure it or restyle it, so a box around one has to be sized by arithmetic
-   (see `70-media.css`). pdf.js draws each page onto a canvas this page owns,
-   so a viewer simply fits its document, and the pages follow the app's own
-   styling.
+   pdf.js draws each page onto a canvas this page owns, so the box simply
+   fits its document and the pages follow the app's own styling. Neither is
+   possible with the browser's built-in viewer, whose content the page can
+   neither measure nor restyle.
 
-   pdf.js is fetched only when a page actually asks for it. */
+   pdf.js is fetched only when a page actually shows a viewer. */
 (function () {
   const LIB = '/static/pdfjs/pdf.min.mjs';
   const WORKER = '/static/pdfjs/pdf.worker.min.mjs';

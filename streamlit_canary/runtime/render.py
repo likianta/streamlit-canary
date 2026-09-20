@@ -1730,87 +1730,26 @@ def _render_toast(comp: Toast) -> str:
     )
 
 
-def _ratio_of(url: str) -> float:
-    """The `?ratio=` a `PdfViewer` URL carries (`0.0` when it has none).
-
-    The document's shape (see `media._page_ratio`), which is what a box sized
-    to its content scales by the width it ends up with.
-    """
-    _, _, tail = url.partition('?ratio=')
-    if not tail:
-        return 0.0
-    token = tail.split('#', 1)[0].split('&', 1)[0]
-    try:
-        return float(token)
-    except ValueError:
-        return 0.0
-
-
 def _render_pdf_viewer(comp: PdfViewer) -> str:
-    """Render a `PdfViewer`: an `<embed>` for the browser's own PDF engine, or
-    a host for the canvases of the bundled pdf.js (`enable_pdfjs=True`).
+    """Render a `PdfViewer`: a box for the bundled pdf.js to draw into.
 
     `src` already holds a loadable URL (the conversion lives on the property,
     see `media._UrlProperty`), so nothing is read or encoded here -- and the
     very same string is what a later `src` patch carries (see
-    `00-connection.js`).
+    `00-connection.js`). `pages_to_render` likewise travels as `data-pages`,
+    for the client to leave the other pages out.
 
-    A `'content'` height is the one case that does not go through
-    `_size_style`: the box is sized by the document's shape rather than by the
-    caller, which is a custom property for the stylesheet to scale (see
-    `media.CONTENT_HEIGHT`), so the width and the `max_height` bound are
-    assembled here by hand.
+    Sizing is the uniform `_size_style` path: pdf.js draws real canvases, so
+    a `'content'` height is the document's own height, and a `max_height`
+    bound simply caps and scrolls that.
     """
-    url = comp.src.get()
-    src = html.escape(url, quote=True)
-    pdfjs = comp._enable_pdfjs
-    content = getattr(comp, '_height', None) == 'content'
-    ratio = _ratio_of(url)
-    if content and not pdfjs and ratio <= 0:
-        # nothing to measure (not a PDF, or no `pikepdf`) and no other way to
-        # tell the built-in viewer how tall it should be: fall back to a
-        # definite box rather than collapsing to the 150px every replaced
-        # element defaults to
-        content = False
-    classes = ['st-pdf-viewer']
-    rules: list[str] = []
-    width_rule = _size_rule(getattr(comp, '_width', None), 'width')
-    if width_rule:
-        rules.append(width_rule)
-    if content:
-        classes.append('st-pdf-viewer--content')
-        if not pdfjs:
-            # the built-in viewer is sized by the document's shape; pdf.js
-            # draws real canvases, so its box just fits them
-            rules.append('--st-pdf-ratio:{:.4f}'.format(ratio))
-        max_height = getattr(comp, '_max_height', None)
-        if isinstance(max_height, int):
-            rules.append(f'max-height:{max_height}px')
-    else:
-        height = getattr(comp, '_height', None)
-        if height == 'content':
-            height = comp._default_height
-        height_rule = _size_rule(
-            height,
-            'height',
-            getattr(comp, '_max_height', None),
-            getattr(comp, '_min_height', None),
-        )
-        if height_rule:
-            rules.append(height_rule)
-    style = _style_attr(rules)
-    css = ' '.join(classes)
-    if pdfjs:
-        pages = ','.join(str(page) for page in comp._pages)
-        return (
-            f'<div class="{css} st-pdf-viewer--pdfjs" data-id="{comp.id}"'
-            f' data-src="{src}" data-pages="{pages}"{style}>'
-            f'<div class="st-pdf-viewer-pages"></div></div>'
-        )
+    src = html.escape(comp.src.get(), quote=True)
+    pages = ','.join(str(page) for page in comp._pages)
     return (
-        f'<div class="{css}" data-id="{comp.id}"{style}>'
-        f'<embed class="st-pdf-viewer-embed" type="application/pdf" '
-        f'src="{src}" /></div>'
+        f'<div class="st-pdf-viewer st-pdf-viewer--pdfjs"'
+        f' data-id="{comp.id}" data-src="{src}" data-pages="{pages}"'
+        f'{_size_style(comp)}>'
+        f'<div class="st-pdf-viewer-pages"></div></div>'
     )
 
 

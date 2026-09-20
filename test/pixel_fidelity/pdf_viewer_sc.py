@@ -1,11 +1,10 @@
 """
 The PDF viewer scenes for the pixel fidelity test -- Streamlit Canary side.
 
-The same two documents as `pdf_viewer_st.py`, drawn by `v3.PdfViewer`. Mind
-the `pages_to_render` split: `streamlit_pdf_viewer` ships the whole document
-and lets pdf.js leave the other pages out, while `v3.PdfViewer` cuts the
-range out of the document server-side (with `pikepdf`), so only the pages
-asked for travel to the browser at all.
+The same two documents as `pdf_viewer_st.py`, drawn by `v3.PdfViewer`, which
+paints with the bundled pdf.js. Note the `pages_to_render` split: both
+viewers ship the whole document and let pdf.js leave the other pages out, so
+`pages_to_render` limits what is *drawn* rather than what is transferred.
 
     python test/pixel_fidelity/pdf_viewer_sc.py
 """

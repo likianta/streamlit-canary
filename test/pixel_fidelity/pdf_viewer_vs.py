@@ -25,27 +25,21 @@ Pseudo-code (the spec this script implements):
     1. Both viewers must claim the box the app asked for: a `height=` of 400
        and of 300, each stretched to the full column width -- the theme
        frame around our panel is inside that box, it does not add to it.
-    2. Both boxes must really draw a document. A viewer that only renders
-       its frame (what an `<embed>` does wherever the browser has no PDF
-       plugin) leaves the inside of the box a single flat colour, so the
-       check looks at the pixels inside the frame, not at the DOM.
-    3. `pages_to_render` must actually limit what the browser receives. This
-       is where the two implementations deliberately part ways, so it is
-       checked on its own rather than compared row by row:
-       `streamlit_pdf_viewer` ships the whole document and hides the extra
-       pages in pdf.js, while `v3.PdfViewer` cuts the range out of the
-       document with `pikepdf` before it is ever base64'd -- the second
-       viewer's payload must therefore hold two pages, not three.
+    2. Both boxes must really draw a document. A viewer that failed to draw
+       leaves the inside of the box a single flat colour, so the check looks
+       at the pixels inside the frame, not at the DOM.
+    3. `pages_to_render` limits what is *drawn*, not what is transferred:
+       both viewers hand the whole document to pdf.js and let it skip the
+       pages not asked for, so each viewer's payload still holds every page.
 
-A note on the browser: playwright's default `chromium_headless_shell` build
-ships no PDF plugin, so an `<embed type="application/pdf">` there paints
-nothing at all. The full chromium build does have it, hence
-`channel='chromium'` below -- without it, section 2 could never pass.
+A note on the browser: both viewers draw with pdf.js onto canvases, so the
+default `chromium_headless_shell` build is enough -- neither needs a PDF
+plugin.
 
 What is deliberately *not* compared, see
-`.trae/documents/pixel_fidelity_caveats.md`: the viewer chrome itself. We
-hand the document to the browser's own engine, so the toolbar and the
-backdrop are Chrome's, while `streamlit_pdf_viewer` draws pdf.js' own.
+`.trae/documents/pixel_fidelity_caveats.md`: the viewer chrome itself.
+`streamlit_pdf_viewer` draws pdf.js' own toolbar and backdrop, while our
+panel frames bare canvases with a theme border.
 """
 
 import base64
@@ -118,14 +112,12 @@ def same(a, b) -> bool:
 def viewer_bytes(url: str) -> bytes:
     """The PDF a viewer was handed.
 
-    Canary publishes the range over HTTP -- a `data:` URL is the document
-    itself and drops the open parameters the viewer needs (see
-    `streamlit_canary.components_v3.media.VIEW_PARAMS`) -- while
-    `streamlit_pdf_viewer` still passes it inline, so both are understood.
+    Canary publishes the document over HTTP under `/media/<hash>` (see
+    `streamlit_canary.components_v3.media._to_url`), while
+    `streamlit_pdf_viewer` passes it inline, so both are understood.
     """
     if url.startswith('/media/'):
-        path = url.split('#', 1)[0]  # the `#` half is for the viewer only
-        with urllib.request.urlopen(SC_URL + path) as res:
+        with urllib.request.urlopen(SC_URL + url) as res:
             return res.read()
     head, _, payload = url.partition(',')
     assert head.startswith('data:application/pdf'), head
@@ -175,9 +167,9 @@ class Report:
 def main() -> int:
     report = Report()
     with sync_playwright() as p:
-        # The full chromium build, not `chromium_headless_shell`: only the
-        # former has the PDF plugin an `<embed>` needs (see the docstring).
-        browser = p.chromium.launch(headless=True, channel='chromium')
+        # The default headless build is enough: both viewers draw with pdf.js
+        # onto canvases and neither needs a PDF plugin (see the docstring).
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(viewport={'width': 1280, 'height': 900})
 
         st_page = context.new_page()
@@ -218,40 +210,32 @@ def main() -> int:
             cmp=lambda a, b: a >= MIN_COLOURS and b >= MIN_COLOURS,
         )
 
-        # -- 3. `pages_to_render` really limits the payload ---------------
-        # Not a row-by-row comparison: the two cut the range in different
-        # places (client-side vs server-side), so each is asserted against
-        # its own expectation instead.
+        # -- 3. `pages_to_render` limits the drawing, not the payload -----
+        # Both viewers hand the whole document to pdf.js and let it skip the
+        # pages not asked for, so each payload holds every page. Asserted
+        # against the document rather than compared row by row.
         sc_src = sc_page.evaluate(
             """(sel) => Array.from(document.querySelectorAll(sel))
-              .map((el) => el.getAttribute('src'))""",
-            SC_VIEWER + '-embed',
+              .map((el) => el.dataset.src)""",
+            SC_VIEWER,
+        )
+        total = len(pikepdf.open(SAMPLE).pages)
+        report.add(
+            'canary viewer 1 ships every page', total, page_count(sc_src[0])
         )
         report.add(
-            'canary viewer 1 ships every page',
-            len(pikepdf.open(SAMPLE).pages),
-            page_count(sc_src[0]),
-        )
-        report.add(
-            'canary viewer 2 ships only {}'.format(list(PAGES)),
-            len(PAGES),
+            'canary viewer 2 ships every page (asked {})'.format(list(PAGES)),
+            total,
             page_count(sc_src[1]),
         )
-        report.add(
-            'canary viewer 2 payload is smaller than viewer 1',
-            True,
-            # measured on the bytes actually served, not on the URL: canary
-            # now hands out a short `/media/<hash>#...` either way
-            len(viewer_bytes(sc_src[1])) < len(viewer_bytes(sc_src[0])),
-        )
-        # The subsetting has to survive the same path the server uses, so the
+        # The conversion has to survive the same path the server uses, so the
         # check runs the converter directly as well.
         report.add(
-            'offline subset of page {}'.format(list(PAGES)),
-            len(PAGES),
+            'offline conversion keeps every page',
+            total,
             # no runtime to publish with, so this exercises the inline
-            # fallback -- the subsetting itself is the same either way
-            page_count(media._to_url(SAMPLE, PAGES, None)),
+            # fallback -- the document is the same either way
+            page_count(media._to_url(SAMPLE, None)),
         )
 
         report.print()

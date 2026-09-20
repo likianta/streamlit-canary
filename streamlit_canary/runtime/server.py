@@ -52,9 +52,9 @@ _ICON_FONT_PATH = (
 _MARKDOWN_PATH = (
     Path(__file__).resolve().parent / 'static' / 'markdown-it.min.js'
 )
-# Bundled pdf.js (Apache-2.0), the other engine a `PdfViewer` can draw with
-# (`enable_pdfjs=True`). Only a page that switches to it ever fetches these,
-# and the allowlist keeps the directory from being walkable.
+# Bundled pdf.js (Apache-2.0), the engine `PdfViewer` draws with. Only a page
+# that actually shows a viewer ever fetches these, and the allowlist keeps the
+# directory from being walkable.
 _PDFJS_DIR = Path(__file__).resolve().parent / 'static' / 'pdfjs'
 _PDFJS_FILES = ('pdf.min.mjs', 'pdf.worker.min.mjs')
 

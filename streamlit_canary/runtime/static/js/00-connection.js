@@ -83,31 +83,14 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
       }
     }
     if (msg.prop === 'src') {
-      // `PdfViewer`: swap the document. Rebuilding the embed node (rather than
-      // only assigning `src`) is what makes the PDF plugin pick a new document
-      // up; the pdf.js engine re-draws instead (see `76-pdf-viewer.js`).
+      // `PdfViewer`: hand the new document to pdf.js, which re-draws the box
+      // (see `76-pdf-viewer.js`).
       const box = el.classList.contains('st-pdf-viewer')
         ? el
         : el.querySelector('.st-pdf-viewer');
       if (box) {
-        if (box.classList.contains('st-pdf-viewer--content')) {
-          // a box sized to its document: the shape travels with the new one
-          const shape = /[?&]ratio=([^&#]+)/.exec(msg.value || '');
-          if (shape) {
-            box.style.setProperty('--st-pdf-ratio', shape[1]);
-          }
-        }
-        if (box.dataset.src !== undefined) {
-          box.dataset.src = msg.value || '';
-          window.scDrawPdfView(box);
-        } else {
-          const embed = box.querySelector('.st-pdf-viewer-embed');
-          if (embed) {
-            const next = embed.cloneNode(false);
-            next.setAttribute('src', msg.value);
-            embed.replaceWith(next);
-          }
-        }
+        box.dataset.src = msg.value || '';
+        window.scDrawPdfView(box);
       }
     }
     if (msg.prop === 'options') {

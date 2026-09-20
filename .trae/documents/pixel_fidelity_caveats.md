@@ -87,31 +87,27 @@
     原版行为: st.number_input 的 stepper 只要组件宽度 <= 7.5rem (其前端常量 `hideNumberInputControls`) 就直接隐藏, 没有竖排这一步.
 
 - PdfViewer
-  - 我们把 PDF 交给浏览器自带的引擎绘制: 渲染出一个 `<embed type="application/pdf">`, `src` 指向运行时的 `/media/<内容哈希>#navpanes=0&zoom=page-width`. 服务器不做栅格化, 前端不打包任何 PDF 引擎.
+  - 我们用自己打包的 pdf.js 把每一页画到 `<canvas>` 上 (引擎在 `runtime/static/pdfjs/`, 由 `/static/pdfjs/<name>` 送出; 只有真的出现 viewer 的页面才会按需下载约 1.6MB 的引擎). 服务器不做任何栅格化, 也不依赖任何 PDF 库.
 
-    为什么不直接内联成 `data:` URL: viewer 的"打开参数"只有 http(s) URL 才会被采纳 —— `data:` URL 本身就是整份文档, `#` 之后的内容会被整个丢掉 (实测确认). 所以 `PdfViewer` 把裁好的字节交给 `Runtime.publish_media` 发布, 再把发布后的 URL 交给前端; 令牌就是内容哈希, 因此同样的字节永远对应同一个 URL, 可以长期缓存 (响应带 `immutable`). 一条页范围几百 KB, 运行时最多留 64 条.
+    为什么不用浏览器自带的引擎 (渲染 `<embed type="application/pdf">`): 那条路线的实现是 —— 服务端用 `pikepdf` 把请求的页范围裁出来, 把裁好的字节交给 `Runtime.publish_media` 发布成 `/media/<内容哈希>`, 再把 URL 连同打开参数 (`#navpanes=0&zoom=page-width`, 即"不展开侧边栏 + 按宽度适配") 交给 `<embed>` (浏览器的默认是 `fit to page`, 那会把整页连页边一起塞进通常很矮的盒子里, 字小到看不清, 所以必须显式指定). 放弃它的原因是: viewer 的内容对页面不透明, 页面既量不到内容高度 (`height: auto` / `fit-content` 在 PDF `<embed>` 上会塌到替换元素通用的 150px), 也改不了它的样式, 于是 `height='content'` 只能靠"算" —— 每份文档一次 `pikepdf` 量高宽比, 再加两个 Chromium 实测的常数 (内置 viewer 自身的留白), 换个浏览器就会差几十 px; 而且它要求浏览器带 PDF 插件 (测试用的 headless chromium 就没有插件, `<embed>` 在那里画不出任何内容), `pages_to_render` 也只能在服务端裁 (`pikepdf`), 因为 `<embed>` 无法被告知该显示哪几页.
 
-    那两个参数 (`VIEW_PARAMS`) 就是"默认不展开侧边栏 + fit to viewport width". 浏览器自己的默认是 `fit to page`, 那会把整页连页边一起塞进通常很矮的盒子里, 字小到看不清.
+    pdf.js 这条路线没有上述任何一条限制: 内容高度是真的 (canvas 撑出来的), 换任何浏览器都一致, `pages_to_render` 由前端负责跳过多余的页, 所以服务端不需要 PDF 库, 也不需要插件. 详细的取舍写在 `components_v3/media.py` 的 `_to_url` 上方的技术备忘里.
 
   - 原版行为: `st.pdf` 只是第三方 `streamlit-pdf` 包的薄封装, 参考应用 `pdf_watermaker` 预览用的是另一个第三方包 `streamlit_pdf_viewer.pdf_viewer`; 两者都要在 iframe 里装进一整套 pdf.js (约 2MB) 才能画出第一页, 且打开时的缩放是 pdf.js 自己的默认值.
 
-  - `pages_to_render` 在**服务端**就把页面范围裁出来 (`pikepdf`), 因此浏览器只收到被要求的那几页; 不传则整份文档原样送出.
+  - `pages_to_render` 由前端在渲染时跳过不需要的页, 因此它限制的是"画多少", 不是"传多少"; 不传则画整份文档.
 
-    原版行为: `streamlit_pdf_viewer` 把整份文档 base64 后交给前端, 由 pdf.js 决定渲染哪几页 —— 传输量不随 `pages_to_render` 减少.
+    原版行为: `streamlit_pdf_viewer` 把整份文档 base64 后交给前端, 由 pdf.js 决定渲染哪几页 —— 传输量不随 `pages_to_render` 减少 (这点我们现在与原版一致).
 
-  - 因此 viewer 的"外框" (工具栏, 页面四周的灰色底) 是浏览器的, 不是我们的: 面板只负责给它套一层主题边框 + 圆角 (`runtime/static/css/70-media.css`), 让它不至于像一块突兀的灰块. 这一层框在内, 不改变 `width` / `height` 指定的盒尺寸.
+  - 页面是我们自己画的 canvas, 所以面板只套一层主题边框 + 圆角 (`runtime/static/css/70-media.css`), 不改变 `width` / `height` 指定的盒尺寸.
 
-    原版行为: 那层外框属于 pdf.js, 是它自己那套工具栏和背景色.
+    原版行为: viewer 的"外框" (工具栏, 页面四周的灰色底) 属于 pdf.js, 是它自己那套工具栏和背景色 —— 因此 `pdf_viewer_vs.py` 有意**不**比较这部分.
 
-  - 前提是浏览器带 PDF 插件. playwright 默认拉的 `chromium_headless_shell` 没有插件, `<embed>` 在那里画不出任何内容 —— 因此 `pdf_viewer_vs.py` 用 `channel='chromium'` 拉起完整版 chromium (它才有插件).
+  - `height='content'` 让盒子高到刚好包住内容, 再由 `max_height` 封顶: 内容不足上限就贴住内容 (Expander 之类的父容器正好包住它, 没有滚动条), 超过上限就停在 `max_height` 并在盒子内部滚动. **只给 `max_height` 不给 `height` 就隐含这个模式** —— 给了一个上限却不给高度时, "按内容" 是唯一说得通的高度. (默认值仍是 `_default_height = 500`: 那是一个固定的高度, 所以 `max_height=1500` 落在 500 的盒子上永远不会生效, 正是它让人误以为 "不到 1500 就 overflow 了".)
 
-  - `height='content'` (`PdfViewer.CONTENT_HEIGHT`) 让盒子高到刚好包住内容, 再由 `max_height` 封顶: 内容不足上限就贴住内容 (Expander 之类的父容器正好包住它, 没有滚动条), 超过上限就停在 `max_height` 并在盒子内部滚动. **只给 `max_height` 不给 `height` 就隐含这个模式** —— 给了一个上限却不给高度时, "按内容" 是唯一说得通的高度. (默认值仍是 `_default_height = 500`: 那是一个固定的高度, 所以 `max_height=1500` 落在 500 的盒子上永远不会生效, 正是它让人误以为 "不到 1500 就 overflow 了".)
+    这里没有几何推算: canvas 的高度就是内容高度, 所以 `height='content'` 是货真价实的 "内容多高就多高", 也不再需要 `?ratio=` 之类的旁路参数.
 
-    原生引擎这条走 CSS 几何推算: 服务端用 `pikepdf` 量出文档的 "高宽比" (各页高/宽之和), 由 `/media/<token>?ratio=<r>` 带出来, 前端在 `container-type: inline-size` 的盒子里按 `calc((100cqw - inset) * ratio + chrome)` 反推高度 (`inset` 20px / `chrome` 88px 是实测 Chromium 内置 viewer 的留白). 为什么不直接让 `<embed>` 自己撑高: 替换元素对 PDF 回报不出内容高度, `height: auto` / `fit-content` 一律塌到 150px 的默认高度. 这层推算依赖浏览器内置 viewer 的版面, 换了浏览器 (或插件没画内容) 就会偏, 所以它是 "贴合内容" 的近似, 不是像素级.
-
-  - `enable_pdfjs=True` (实验开关): 不走浏览器插件, 改用我们打包的 pdf.js 把页面画到 `<canvas>` 上 (`runtime/static/pdfjs/`, 由 `/static/pdfjs/<name>` 送出, 只有打开它的页面才按需下载). 这条路线里的内容高度是真的 (由 canvas 撑出来), 视图也不受浏览器 viewer 影响, 换任何浏览器都一致 —— 代价是首次打开要多下约 1.6MB 的引擎, 而且它绕开了上面那套几何推算 (不再需要 `?ratio=` 的参与). 页面脚本 (`76-pdf-viewer.js`) 复用一份文档缓存 (最多 4 份, 超出即 `destroy()`), `ResizeObserver` 在宽度变化时按新宽度重画, 所以 `height='content'` 在这条路上是货真价实的 "内容多高就多高".
-
-    原版行为: 没有对应开关 —— `streamlit_pdf_viewer` 只有 pdf.js 一种引擎, 也就是我们这条实验路线要做的事.
+  - 页面脚本 (`76-pdf-viewer.js`) 复用一份文档缓存 (最多 4 份, 超出即 `destroy()`), `ResizeObserver` 在宽度变化时按新宽度重画, 所以拖拽缩放最终只触发一次重绘.
 
 - Popover
   - Popover 的展开面板使用高度动画 (120ms), 跟 Selectbox 的展开面板是同一套做法: 从 0 高度展开到内容高度, 展开过程中内容被裁剪, 因此不会溢出, 也不会出现滚动条 (展开结束后若内容超过 max-height, 才恢复为可滚动).

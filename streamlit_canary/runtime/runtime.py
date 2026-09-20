@@ -28,8 +28,8 @@ else:
 
 _MAX_MEDIA = 64
 """How many published media bodies the runtime holds (see `publish_media`).
-One `PdfViewer` page range is a few hundred KB, so the cap keeps a handful of
-MB around -- far more than any one page can point at."""
+A `PdfViewer` document is a few hundred KB, so the cap keeps a handful of MB
+around -- far more than any one page can point at."""
 
 
 def _display_path(path: str) -> str:
@@ -297,11 +297,10 @@ class Runtime:
     def publish_media(self, data: bytes, media_type: str) -> str:
         """Publish `data` and return the URL the client can fetch it from.
 
-        A PDF has to travel over HTTP rather than inside a `data:` URL: only
-        then does the browser's built-in viewer honour the open parameters
-        (`#zoom=`, `#navpanes=`) that `PdfViewer` puts on the end of the URL.
-        A `data:` URL is the whole document in the page and the viewer drops
-        everything after the `#`.
+        `PdfViewer` hands a document over this way rather than inlining it as
+        a `data:` URL: the page HTML stays small (a PDF is often megabytes,
+        and base64 adds a third on top of that), and the client can cache the
+        address across reloads.
 
         The token is the content hash, so the same bytes always come back
         under the same URL -- re-publishing is free, and the client may cache
