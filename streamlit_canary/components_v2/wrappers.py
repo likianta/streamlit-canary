@@ -1,10 +1,10 @@
 import typing as tp
 from functools import partial
 
-import streamlit as st
 from lk_utils import uuid
 
 from .binding import Binding
+from .._streamlit import st
 from ..session import SessionDataV2
 
 

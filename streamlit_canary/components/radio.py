@@ -1,5 +1,6 @@
 import typing as t
-import streamlit as st
+
+from .._streamlit import st
 
 
 def radio(

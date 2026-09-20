@@ -4,8 +4,9 @@ from inspect import currentframe
 from threading import current_thread
 from types import FrameType
 
-import streamlit as st
 from lk_utils import textwrap as tw
+
+from ._streamlit import st
 
 _ClassType = tp.TypeVar('_ClassType', bound=type)
 _plain_state = {}

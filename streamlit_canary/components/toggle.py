@@ -1,6 +1,7 @@
-import streamlit as st
 import typing as tp
 from functools import partial
+
+from .._streamlit import st
 from ..session import init_state
 
 

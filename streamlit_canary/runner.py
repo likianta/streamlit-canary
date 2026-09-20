@@ -5,12 +5,12 @@ import typing as tp
 
 import psutil
 import pyapp_window
-import streamlit as st
 from lk_utils import fs
 from lk_utils import now
 from lk_utils import run_cmd_args
 from lk_utils.subproc import Popen
 
+from ._streamlit import st
 from .runtime import Runtime
 from .runtime import serve
 

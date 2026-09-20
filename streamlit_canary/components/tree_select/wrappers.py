@@ -5,11 +5,11 @@ from collections import deque
 from collections import namedtuple
 from functools import partial
 
-import streamlit as st
 from lk_utils import fs
 
 from .tree_select import T as T0
 from .tree_select import tree_select
+from ..._streamlit import st
 from ...keygen import UniqueKeyGenerator
 from ...session import init_state
 

@@ -3036,7 +3036,7 @@ wheels = [
 
 [[package]]
 name = "streamlit"
-version = "1.63.0"
+version = "1.64.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "altair", version = "6.2.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.12'" },
@@ -3062,14 +3062,14 @@ dependencies = [
     { name = "watchdog", marker = "sys_platform != 'darwin'" },
     { name = "websockets" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ce/8a/ccd27f3d5fb05734659a3c188b2c4014454d263e30ae31bb93445290b9cb/streamlit-1.63.0.tar.gz", hash = "sha256:1ea0121884d5606cf055b8c42600528daf07d0401eaabfc8e22f00e235ea53eb", size = 9911883, upload-time = "2026-09-01T17:12:32.456Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ce/98/399d9b5bea64f0db9a37a800e420ba563dcde293e91d244c7d96acaeb313/streamlit-1.64.0.tar.gz", hash = "sha256:5c3f9a9dec13b5c5197a9c764ebf1a9d77f9e19c1b4af008779cb45c368961a3", size = 9535360, upload-time = "2026-09-15T19:13:53.576Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/18/60/2acf1a5cac2b2fa6b09fea362abf81f210cf25cee40082ab11beb754cf70/streamlit-1.63.0-py3-none-any.whl", hash = "sha256:c24fd38170543ffb749321c801627aaa09068219539d7b81ef77633ea2408b36", size = 10497212, upload-time = "2026-09-01T17:12:30.021Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d7/8e/e635448a7fd6d92211d4ff2150356b8dffd3fcdc05c00511c61110078871/streamlit-1.64.0-py3-none-any.whl", hash = "sha256:4daf63aa9eaa5452d0edc64a5bdb0c4ad25580fe3c62c270455f3c43e9db5098", size = 10093987, upload-time = "2026-09-15T19:13:51.284Z" },
 ]
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0a22"
+version = "0.4.0a24"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3078,7 +3078,6 @@ dependencies = [
     { name = "psutil" },
     { name = "pyapp-window" },
     { name = "starlette" },
-    { name = "streamlit" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchdog" },
 ]
@@ -3091,6 +3090,7 @@ dev = [
     { name = "jlsemi-adoc-toolkit", marker = "python_full_version >= '3.12'" },
     { name = "playwright" },
     { name = "requests" },
+    { name = "streamlit" },
     { name = "streamlit-extras" },
 ]
 
@@ -3102,7 +3102,6 @@ requires-dist = [
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pyapp-window", specifier = ">=2.2.4b0", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
-    { name = "streamlit", specifier = ">=1.61.0,!=1.62.*" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
     { name = "watchdog", specifier = ">=6.0.0" },
 ]
@@ -3115,6 +3114,7 @@ dev = [
     { name = "jlsemi-adoc-toolkit", marker = "python_full_version >= '3.12'", specifier = ">=2026.9.18a0" },
     { name = "playwright", specifier = ">=1.63.0" },
     { name = "requests", specifier = ">=2.34.2" },
+    { name = "streamlit", specifier = ">=1.64.0" },
     { name = "streamlit-extras", specifier = ">=1.6.0" },
 ]
 

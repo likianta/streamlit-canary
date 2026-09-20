@@ -2,11 +2,11 @@ import typing as t
 from inspect import currentframe
 from types import FrameType
 
-import streamlit as st
 from lk_utils import fs
 
 from .button import long_button
 from .. import session
+from .._streamlit import st
 
 _state = session.init_state(default=lambda: {'tree_cache': {}})
 

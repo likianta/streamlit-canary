@@ -4,7 +4,8 @@
 
 - Native execution flow (event-driven, no-rerun).
 - Add pure-Python kernel: `Property`, `Signal`, `StateV2`.
-- Add v3 component library (`sc.v3.*`).
+- Craft new v3 component library (`sc.v3.*`).
+- Mark Streamlit optional dependency.
 
 ### 0.3.2 (2026-07-18)
 

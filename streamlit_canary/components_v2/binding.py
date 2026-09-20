@@ -1,7 +1,7 @@
 import inspect
 import typing as tp
 
-import streamlit as st
+from .._streamlit import st
 
 
 class Binding:

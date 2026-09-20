@@ -1,7 +1,7 @@
 import typing as t
 from contextlib import contextmanager
 
-import streamlit as st
+from .._streamlit import st
 
 
 class Scope:

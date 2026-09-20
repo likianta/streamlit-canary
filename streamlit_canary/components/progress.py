@@ -13,7 +13,7 @@ import typing as tp
 from contextlib import contextmanager
 from time import sleep
 
-import streamlit as st
+from .._streamlit import st
 
 
 @contextmanager

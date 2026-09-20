@@ -1,7 +1,9 @@
 import os
-import streamlit as st
 import typing as t
+
 from lk_utils import fs
+
+from .._streamlit import st
 
 
 def anynum_input(label: str, value: int) -> int:

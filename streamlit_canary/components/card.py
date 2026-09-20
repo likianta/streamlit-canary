@@ -1,6 +1,7 @@
-import streamlit as st
 import typing as t
 from contextlib import contextmanager
+
+from .._streamlit import st
 
 
 @contextmanager

@@ -5,7 +5,7 @@ usage:
     evtkey.set('new value')
 """
 
-import streamlit as st
+from ._streamlit import st
 
 
 def _get_session() -> dict:

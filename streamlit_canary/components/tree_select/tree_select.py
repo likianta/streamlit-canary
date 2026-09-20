@@ -2,12 +2,12 @@ import os
 import typing as tp
 from functools import partial
 
-import streamlit as st
 from lk_utils import fs
 
 from ..container import column
 from ..container import columns
 from ..container import row
+from ..._streamlit import st
 from ...keygen import UniqueKeyGenerator
 from ...keygen import generate_unique_key
 from ...session import init_state

@@ -1,5 +1,6 @@
-from functools import partial
+from .._streamlit import st
 
-import streamlit as st
 
-long_button = partial(st.button, width='stretch')
+def long_button(*args, **kwargs):
+    """A `st.button` that stretches to the width of its container."""
+    return st.button(*args, width='stretch', **kwargs)

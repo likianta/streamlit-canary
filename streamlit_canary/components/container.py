@@ -1,7 +1,7 @@
 import typing as tp
 from contextlib import contextmanager
 
-import streamlit as st
+from .._streamlit import st
 
 
 def row(
@@ -17,7 +17,9 @@ def row(
     )
 
 
-column = st.container
+def column(*args, **kwargs):
+    """`st.container`, wrapped so the import stays lazy (see `_streamlit.py`)."""
+    return st.container(*args, **kwargs)
 
 
 @contextmanager
