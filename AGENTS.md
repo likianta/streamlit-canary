@@ -295,4 +295,14 @@ def ddd(value): ...
   `change` (→ 组件的 `value` Property); 其它事件类型需要在这里扩展.
 - 后端 → 前端: `{"type":"patch","id":"<comp-id>","prop":"<prop-name>","value":...}`.
   `page.js` 已处理的 prop: `text` / `label` / `enabled` / `visible` /
-  `options` (附带 `formatted` 显示文案) / `value` / `rows`.
+  `options` (附带 `formatted` 显示文案) / `value` / `rows` / `candidates` /
+  `placeholder`. 后两个是 `TextInput` 的 (前者重建候选项面板, 后者改提示文字).
+  五个带 placeholder 的组件 (`TextInput` / `TextArea` / `NumberInput` /
+  `Selectbox` / `Multiselect`) 共用**一个公开且可绑定**的 `placeholder` 字段:
+  由 `_shared.py` 的 `_HasPlaceholder` 混入提供 (`self._init_placeholder(...)`,
+  混入而非基类 -- 这些组件已经经由 `_Labeled` / `_OptionsWidget` 汇合, 没有单一的
+  `super()` 可链, 同 `_RowGestures._init_rows`). 三个输入框把它画成 box 的
+  `placeholder` 属性; 两个触发器把它画在"没有东西可选"的位置 (`Selectbox` 是
+  `.st-selectbox-value.is-placeholder`, `Multiselect` 是
+  `.st-multiselect-values.is-placeholder`, 都取 `--st-gray-color`). 补 patch 时
+  按 `.is-placeholder` 找当前正在显示提示的那一个改, 因此在选中状态下不会覆盖标签.

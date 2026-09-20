@@ -41,12 +41,50 @@ def main():
 
     st.menu_button('Menu button', ('Option A', 'Option B', 'Option C'))
 
+    _text_input()
     _radio()
     _slider()
     _table()
     _progress()
     _toggle()
     _exception()
+
+
+_KEY_TEXT = 'text_input/text'
+_KEY_NAME = 'text_input/name'
+
+
+def _text_input() -> None:
+    # The placeholder is the last *committed* name while the box carries a
+    # value of its own, so clearing the box leaves the placeholder alone --
+    # which is what this scene is here to check. Enter (or leaving the box)
+    # commits what was typed, the button commits 'Cindy' *and* puts it in the
+    # box, and clearing commits nothing. The placeholder is part of the
+    # widget's identity in Streamlit, so moving it makes the next run build a
+    # fresh widget -- the session-state value is what it comes back with.
+    if _KEY_NAME not in st.session_state:
+        st.session_state[_KEY_NAME] = 'Alice'
+        st.session_state[_KEY_TEXT] = 'Alice'
+    with st.container(horizontal=True, vertical_alignment='bottom'):
+        st.text_input(
+            'Text input',
+            key=_KEY_TEXT,
+            placeholder=st.session_state[_KEY_NAME],
+            on_change=_commit_typed_text,
+        )
+        st.button('Hi Cindy', on_click=_commit_name, args=('Cindy',))
+
+
+def _commit_typed_text() -> None:
+    # an emptied box is not a commit: only a non-blank text moves the name
+    text = st.session_state[_KEY_TEXT].strip()
+    if text:
+        st.session_state[_KEY_NAME] = text
+
+
+def _commit_name(name: str) -> None:
+    st.session_state[_KEY_NAME] = name
+    st.session_state[_KEY_TEXT] = name
 
 
 def _radio():

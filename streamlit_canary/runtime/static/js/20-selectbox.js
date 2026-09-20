@@ -45,7 +45,15 @@
   // resize a `width='content'` box on every pick.
   function scSetSelectboxValue(root, inner) {
     const val = root ? root.querySelector('.st-selectbox-value') : null;
-    if (val && inner) val.innerHTML = inner.innerHTML;
+    if (!val) return;
+    if (inner) {
+      val.innerHTML = inner.innerHTML;
+      val.classList.remove('is-placeholder');
+    } else {
+      // Nothing to show (the value left the options): back to the hint.
+      val.textContent = root.dataset.placeholder || '';
+      val.classList.add('is-placeholder');
+    }
   }
   // -- Selectbox "accept_new_options" input row --
   function scNewOptionInput(input) {

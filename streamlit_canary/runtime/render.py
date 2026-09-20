@@ -810,7 +810,7 @@ def _render_number_input(comp: NumberInput) -> str:
     step = getattr(comp, '_step', 0) or 0
     min_value = getattr(comp, '_min', None)
     max_value = getattr(comp, '_max', None)
-    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    placeholder = html.escape(str(comp.placeholder.get()))
     width_style = _size_style(comp)
     # `data-value` carries the raw (unformatted) number, which is what the
     # stepper does its arithmetic on.
@@ -873,7 +873,7 @@ def _render_number_input(comp: NumberInput) -> str:
 
 
 def _render_text_area(comp: TextArea) -> str:
-    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    placeholder = html.escape(str(comp.placeholder.get()))
     disabled = '' if comp.enabled.get() else ' disabled'
     # The width belongs to the wrapper; the height belongs to the `<textarea>`
     # (the box itself keeps `width: 100%` so it fills the wrapper).
@@ -906,7 +906,7 @@ def _chevron_svg() -> str:
 
 
 def _render_text_input(comp: TextInput) -> str:
-    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    placeholder = html.escape(str(comp.placeholder.get()))
     disabled = '' if comp.enabled.get() else ' disabled'
     width_style = _size_style(comp)
     candidates = comp.candidates.get()
@@ -961,6 +961,7 @@ def _render_selectbox(comp: Selectbox) -> str:
     options = comp.options.get() or []
     value = comp.value.get()
     fmt = comp.format_func
+    placeholder = html.escape(str(comp.placeholder.get()))
     # Build option items for the custom dropdown panel. Two-layer structure
     # matches Streamlit: outer (padding 0 5px) + inner (padding 0 8px), so
     # the hover background on the inner div is inset from the panel edges.
@@ -976,9 +977,23 @@ def _render_selectbox(comp: Selectbox) -> str:
         f'{render_markup(fmt(o))}</div></div>'
         for o in options
     )
-    # Display text for the trigger button.
-    display_text = render_markup(fmt(value)) if value else '\u200b'
+    # The trigger shows the chosen option, or the placeholder hint while it has
+    # no option to show: `options` may still be empty (a bound list that has
+    # not loaded yet), or `value` may not be among them at all. Looking the
+    # value up -- rather than testing it for truthiness -- keeps `0` / `False`
+    # as legitimate choices.
     arrow_svg = _chevron_svg()
+    if value in options:
+        trigger_text = (
+            f'<span class="st-selectbox-value">'
+            f'{render_markup(fmt(value))}</span>'
+        )
+    else:
+        # A zero-width space keeps an empty trigger from collapsing.
+        hint = placeholder or '\u200b'
+        trigger_text = (
+            f'<span class="st-selectbox-value is-placeholder">{hint}</span>'
+        )
     # `accept_new_options`: an input row at the top of the dropdown lets the
     # user type a value that is not in the list yet.
     accept_new = bool(getattr(comp, '_accept_new_options', False))
@@ -997,6 +1012,9 @@ def _render_selectbox(comp: Selectbox) -> str:
             '</div>'
         )
     root_attrs = f' data-id="{comp.id}"'
+    # Carried so the client can put the hint back when a patch empties the
+    # trigger (`scSetSelectboxValue`).
+    root_attrs += f' data-placeholder="{placeholder}"'
     if accept_new:
         root_attrs += ' data-accept-new="1"'
     disabled = '' if comp.enabled.get() else ' disabled'
@@ -1025,7 +1043,7 @@ def _render_selectbox(comp: Selectbox) -> str:
         f'<button type="button" class="st-selectbox-trigger" '
         f'data-comp-id="{comp.id}"{disabled} '
         f'onclick="scToggleSelectbox(this)">'
-        f'<span class="st-selectbox-value">{display_text}</span>'
+        f'{trigger_text}'
         f'{arrow_svg}'
         f'</button>'
         f'<div class="st-selectbox-dropdown" '
@@ -1040,7 +1058,7 @@ def _render_multiselect(comp: Multiselect) -> str:
     options = list(comp.options.get() or [])
     selected = list(comp.value.get() or [])
     fmt = comp.format_func
-    placeholder = html.escape(str(getattr(comp, '_placeholder', '')))
+    placeholder = html.escape(str(comp.placeholder.get()))
 
     items: list[str] = []
     for i, option in enumerate(options):

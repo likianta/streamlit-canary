@@ -9,11 +9,12 @@ live in `buttons.py`.
 
 import typing as tp
 
-from ._shared import _as_list
+from ._shared import _HasPlaceholder
 from ._shared import _Labeled
 from ._shared import _OptionsWidget
-from ._shared import _prop
 from ._shared import _RowGestures
+from ._shared import _as_list
+from ._shared import _prop
 from .base import Height
 from .base import Width
 from ..kernel import Property
@@ -252,7 +253,7 @@ class Checkbox(_Labeled):
         self.value = _prop(False, value)
 
 
-class Multiselect(_Labeled):
+class Multiselect(_HasPlaceholder, _Labeled):
     """A dropdown for choosing several options (mirrors `st.multiselect`).
 
         with v3.Multiselect(
@@ -281,7 +282,8 @@ class Multiselect(_Labeled):
             its order is the order the trigger shows it in.
         format: callable (value -> text) or a label sequence parallel to
             `options`.
-        placeholder: shown on the trigger while nothing is selected.
+        placeholder: shown on the trigger while nothing is selected
+            (bindable).
         height: `'fixed'` (default: one scrolling line) | `'stretch'` |
             `'content'` | an int px height. See `T.MultiselectHeight`.
 
@@ -290,6 +292,7 @@ class Multiselect(_Labeled):
         options: list — the choices.
         value: list — the selected options; the client sends the whole list
             on each toggle.
+        placeholder: str — the hint shown while nothing is selected.
 
     Signals:
         on_value (via `ms['on_value']` or `ms.value.on_change`)
@@ -311,7 +314,7 @@ class Multiselect(_Labeled):
         *,
         value: tp.Sequence[tp.Any] | Property | None = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
-        placeholder: str = 'Choose an option',
+        placeholder: str | Property = 'Choose options',
         label_visibility: T.LabelVisibility = 'auto',
         height: T.MultiselectHeight | None = None,
         **kwargs: tp.Any,
@@ -338,7 +341,7 @@ class Multiselect(_Labeled):
                 return labels[list(self.options.get()).index(x)]
 
             self.format_func = _by_index
-        self._placeholder = placeholder
+        self._init_placeholder(placeholder)
 
     def _coerce_value(self, values: tp.Any) -> list:
         """Map the client's raw strings back onto the real options."""
@@ -352,7 +355,7 @@ class Multiselect(_Labeled):
         return out
 
 
-class NumberInput(_Labeled):
+class NumberInput(_HasPlaceholder, _Labeled):
     """A numeric input box (mirrors Streamlit's `st.number_input`).
 
     Args:
@@ -371,7 +374,7 @@ class NumberInput(_Labeled):
             even that does not fit (see `page.css`).
         format: optional display formatter, e.g. `hex` (int widgets only).
         width: `int` (px) | 'content' | 'stretch' | None (default).
-        placeholder: hint shown while the box is empty.
+        placeholder: hint shown while the box is empty (bindable).
 
     Properties:
         label: str — rendered above the box.
@@ -379,6 +382,7 @@ class NumberInput(_Labeled):
             event (fired on blur / Enter, or by the stepper); the incoming
             text is parsed with the widget's numeric type, so both `'41'`
             and `'0x29'` are accepted for an int widget.
+        placeholder: str — the hint shown while the box is empty.
 
     Signals:
         on_value: emitted when `value` changes.
@@ -402,7 +406,7 @@ class NumberInput(_Labeled):
         *,
         format: tp.Callable[[tp.Any], str] | None = None,
         width: Width | None = None,
-        placeholder: str = '',
+        placeholder: str | Property = '',
         label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
@@ -437,7 +441,7 @@ class NumberInput(_Labeled):
         self._min = min_value
         self._max = max_value
         self._step = step
-        self._placeholder = placeholder
+        self._init_placeholder(placeholder)
 
     def _coerce_value(self, raw: tp.Any) -> int | float:
         """Parse a client-sent string back with the widget's numeric type."""
@@ -638,7 +642,7 @@ class SelectSlider(_OptionsWidget):
     _default_width = 'stretch'
 
 
-class Selectbox(_OptionsWidget):
+class Selectbox(_HasPlaceholder, _OptionsWidget):
     """A dropdown select component (mirrors Streamlit's `st.selectbox`).
 
     Args:
@@ -647,9 +651,14 @@ class Selectbox(_OptionsWidget):
         format_new_option: converts the typed text into an option value,
             e.g. `lambda x: int(x, 0)` for `'0x30'` / `'48'`. Required when
             `accept_new_options` is on.
+        placeholder: shown on the trigger while no option is picked
+            (bindable). It is drawn whenever the trigger has no option to
+            show -- an empty `options` list (e.g. a bound list that has not
+            loaded yet), or a `value` that is not among them.
 
     Properties:
         label, options, index, value — see `_OptionsWidget`.
+        placeholder: str — the hint shown while no option is picked.
 
     Attributes:
         format_func: Callable[[Any], str] — raw option value → display string
@@ -672,6 +681,7 @@ class Selectbox(_OptionsWidget):
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         accept_new_options: bool = False,
         format_new_option: tp.Callable[[str], tp.Any] | None = None,
+        placeholder: str | Property = 'Choose an option',
         label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
     ) -> None:
@@ -691,6 +701,7 @@ class Selectbox(_OptionsWidget):
             )
         self._accept_new_options = accept_new_options
         self._format_new_option = format_new_option
+        self._init_placeholder(placeholder)
 
     def _on_new_option(self, text: str) -> None:
         """The client typed a value that is not among `options` yet.
@@ -714,13 +725,13 @@ class Selectbox(_OptionsWidget):
         self.value.set(new_value)
 
 
-class TextArea(_Labeled):
+class TextArea(_HasPlaceholder, _Labeled):
     """A multi-line text box (mirrors Streamlit's `st.text_area`).
 
     Args:
         label: the widget label.
         value: initial text (bindable).
-        placeholder: hint shown while the box is empty.
+        placeholder: hint shown while the box is empty (bindable).
         height: box height — `int` px (default 200) | 'stretch' | 'content';
             the text scrolls once it overflows.
         enabled: bool (default True, bindable) — a disabled box is greyed
@@ -732,6 +743,7 @@ class TextArea(_Labeled):
         label: str — rendered above the box.
         value: str — the current text; the client sends a `change` event
             (fired on blur), which sets this property.
+        placeholder: str — the hint shown while the box is empty.
         enabled: bool — whether the box accepts input.
 
     Signals:
@@ -746,7 +758,7 @@ class TextArea(_Labeled):
         label: str | Property = '',
         *,
         value: str | Property = '',
-        placeholder: str = '',
+        placeholder: str | Property = '',
         height: Height | None = None,
         enabled: bool | Property = True,
         width: Width | None = None,
@@ -764,16 +776,16 @@ class TextArea(_Labeled):
         )
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
-        self._placeholder = placeholder
+        self._init_placeholder(placeholder)
 
 
-class TextInput(_Labeled):
+class TextInput(_HasPlaceholder, _Labeled):
     """A single-line text input (mirrors Streamlit's `st.text_input`).
 
     Args:
         label: the widget label.
         value: initial text (bindable).
-        placeholder: hint shown while the box is empty.
+        placeholder: hint shown while the box is empty (bindable).
         enabled: bool (default True, bindable) — a disabled box is greyed
             out and cannot be edited.
         width: `int` px | 'stretch' | 'content' | None (fill parent).
@@ -791,6 +803,7 @@ class TextInput(_Labeled):
         label: str — rendered above the box.
         value: str — the current text; the client sends a `change` event
             (fired on blur / Enter), which sets this property.
+        placeholder: str — the hint shown while the box is empty.
         enabled: bool — whether the box accepts input.
 
     Signals:
@@ -804,7 +817,7 @@ class TextInput(_Labeled):
         label: str | Property = '',
         value: str | Property = '',
         *,
-        placeholder: str = '',
+        placeholder: str | Property = '',
         enabled: bool | Property = True,
         width: Width | None = None,
         help: str = '',
@@ -821,7 +834,7 @@ class TextInput(_Labeled):
         )
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
-        self._placeholder = placeholder
+        self._init_placeholder(placeholder)
         if candidates is None or isinstance(candidates, Property):
             source = tp.cast(tp.Optional[tp.List[str]], candidates)
         else:

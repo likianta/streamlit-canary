@@ -37,6 +37,7 @@ def main():
 
     v3.MenuButton('Menu button', options=('Option A', 'Option B', 'Option C'))
 
+    _text_input()
     _radio()
     _check_group()
     _slider()
@@ -97,6 +98,29 @@ def _bottom_container():
         v3.Text('This card is 200px tall; the button is pinned to its bottom.')
         with v3.BottomContainer():
             v3.Button('Close')
+
+
+def _text_input():
+    with v3.Row('bottom'):
+        # The placeholder is the last *committed* name and the box carries a
+        # value of its own, so clearing the box leaves the placeholder alone.
+        # The client commits on blur / Enter, and the committed text arrives
+        # through `sc._value` (`on_change` itself carries no payload).
+        name = sc.Property('Alice')
+        with v3.TextInput(
+            'Text input', sc.bind(name), placeholder=sc.bind(name)
+        ) as inp:
+
+            @inp.on_submit
+            def _(text: str):
+                if text:
+                    name.set(text)
+
+        with v3.Button('Hi Cindy') as btn:
+
+            @btn.on_click
+            def _():
+                name.set('Cindy')
 
 
 def _toast():

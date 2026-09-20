@@ -92,6 +92,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  /* The hint drawn while the trigger has no option to show (an empty `options`
+     list, or a value that is not among them). Dimmed like the multiselect's
+     own placeholder, so it reads as a hint rather than as a choice. */
+  .st-selectbox-value.is-placeholder {
+    color: var(--st-gray-color);
+  }
   .st-selectbox-arrow {
     color: var(--st-text-color);
     flex-shrink: 0;

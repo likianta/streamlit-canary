@@ -186,6 +186,27 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         if (toggle) toggle.disabled = list.length === 0;
       }
     }
+    if (msg.prop === 'placeholder') {
+      // All five placeholder-carrying widgets share the field (see
+      // `_HasPlaceholder`), so a hint can follow something else -- the scene in
+      // `test/pixel_fidelity/ui_scene_sc.py` makes it the last committed name.
+      // The text-like widgets show it as the box's own attribute; the two
+      // triggers show it *in place of* a missing selection, so only the one
+      // currently showing the hint is redrawn (a picked trigger keeps its
+      // label).
+      const text = msg.value == null ? '' : String(msg.value);
+      const box = el.querySelector('.st-text-input-box, .st-text-area-box');
+      if (box) {
+        box.placeholder = text;
+      } else {
+        el.dataset.placeholder = text;
+        const shown = el.querySelector(
+          '.st-selectbox-value.is-placeholder, ' +
+          '.st-multiselect-values.is-placeholder'
+        );
+        if (shown) shown.textContent = text;
+      }
+    }
     if (msg.prop === 'value') {
       if (el.classList.contains('st-selectbox')) {
         // Custom dropdown: update trigger display + selected marker.

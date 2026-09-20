@@ -112,6 +112,27 @@ def _help_prop(help: str | Property) -> Property[str]:
 # -- shared bases ----------------------------------------------------------
 
 
+class _HasPlaceholder:
+    """Mixin for widgets that show a hint while nothing is picked.
+
+    Fields:
+        placeholder: Property[str] — drawn while the widget holds nothing: an
+            empty box for the three text-like widgets (`TextInput` /
+            `TextArea` / `NumberInput`), an empty selection for the two option
+            triggers (`Selectbox` / `Multiselect`). Bindable, so a hint can
+            follow the state it hints at (see
+            `test/pixel_fidelity/ui_scene_sc.py`).
+
+    A mixin rather than a base: these widgets already meet through `_Labeled`
+    (or `_OptionsWidget`), so there is no single `super()` to chain into and
+    each `__init__` calls `_init_placeholder` directly -- the same
+    arrangement as `_RowGestures._init_rows`.
+    """
+
+    def _init_placeholder(self, placeholder: str | Property = '') -> None:
+        self.placeholder = _prop('', placeholder)
+
+
 class _HasText(Component):
     """Shared base for components carrying a single bindable `text` field.
 
