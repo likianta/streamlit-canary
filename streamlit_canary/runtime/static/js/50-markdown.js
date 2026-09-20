@@ -45,6 +45,49 @@
       ? '<span style="color:' + css + '">'
       : '<span class="st-text-' + color + '">';
   }
+  // Four of the `:name[..]` marks are *effects* rather than colours: the long
+  // form of the emphasis marks, so the wrapped text can be written without
+  // punctuation of its own -- which matters exactly when that text is full of
+  // punctuation, as names and paths are.
+  //     :bold[x]       **x**     <strong>x</strong>
+  //     :italic[x]     *x*       <em>x</em>
+  //     :strike[x]     ~~x~~     <s>x</s>
+  //     :underline[x]  --        <u>x</u>   (markdown has no underline)
+  // Every one of them pushes the *same* token pair markdown-it's own rules
+  // push (type `<tag>_open` / `<tag>_close`, with the tag on the token, which
+  // is what the shared token renderer prints), so the result is identical to
+  // the punctuation form and no renderer rule has to be added for it.
+  const scEffects = {
+    bold: { tag: 'strong', markup: '**' },
+    italic: { tag: 'em', markup: '*' },
+    strike: { tag: 's', markup: '~~' },
+    underline: { tag: 'u', markup: 'u' }
+  };
+  // Where a `:name[..]` mark ends, given the index just past its `[`. The
+  // closing bracket is the one that *balances*: the wrapped text is markdown
+  // of its own, marks included, so the first `]` is not necessarily the end --
+  // `:blue[:italic[a]]` has to wrap `:italic[a]`. A backslash escapes the next
+  // character, which is how a literal `]` is written inside. Returns -1 when
+  // nothing closes the mark, leaving it to render as the plain text it is.
+  function scMarkEnd(src, from) {
+    let depth = 1;
+    let i = from;
+    while (i < src.length) {
+      const ch = src[i];
+      if (ch === '\\') {
+        i += 2;
+        continue;
+      }
+      if (ch === '[') {
+        depth++;
+      } else if (ch === ']') {
+        depth--;
+        if (depth === 0) return i;
+      }
+      i++;
+    }
+    return -1;
+  }
   // Inline rules (rather than a post-pass) so the extensions never fire
   // inside code spans / fenced blocks.
   scMd.inline.ruler.before('emphasis', 'st_markup', function (state, silent) {
@@ -60,18 +103,33 @@
       state.pos += m[0].length;
       return true;
     }
-    m = /^:([a-zA-Z]+)\[([^\]]*)\]/.exec(rest);
+    m = /^:([a-zA-Z]+)\[/.exec(rest);
     if (m === null) {
       return false;
     }
-    if (!silent) {
-      const open = state.push('st_color_open', '', 1);
-      open.meta = { color: m[1] };
-      // The wrapped text is markdown itself, e.g. `:blue[**Connect**]`.
-      state.md.inline.parse(m[2], state.md, state.env, state.tokens);
-      state.push('st_color_close', '', -1);
+    const end = scMarkEnd(rest, m[0].length);
+    if (end < 0) {
+      return false;
     }
-    state.pos += m[0].length;
+    if (!silent) {
+      const effect = scEffects[m[1]];
+      // The wrapped text is markdown itself, e.g. `:blue[**Connect**]` or
+      // `:italic[a *b* c]`, marks nested in marks included.
+      const text = rest.slice(m[0].length, end);
+      if (effect) {
+        const open = state.push(effect.tag + '_open', effect.tag, 1);
+        open.markup = effect.markup;
+        state.md.inline.parse(text, state.md, state.env, state.tokens);
+        const close = state.push(effect.tag + '_close', effect.tag, -1);
+        close.markup = effect.markup;
+      } else {
+        const open = state.push('st_color_open', '', 1);
+        open.meta = { color: m[1] };
+        state.md.inline.parse(text, state.md, state.env, state.tokens);
+        state.push('st_color_close', '', -1);
+      }
+    }
+    state.pos += end + 1;
     return true;
   });
   scMd.renderer.rules.st_material = function (tokens, idx) {
@@ -134,6 +192,36 @@
       }
     });
   });
+  // `sc.set_page_config(..., dunder_literal=True)`: read `__x__` as the name it
+  // is (`__init__`, `__name__`, `__file__`) instead of as emphasis. The flag
+  // rides on the app shell, which is where the page config lands (`render_page`
+  // in the runtime); it is off unless an app asks for it.
+  //
+  // Done on the token stream rather than by rewriting markdown-it's emphasis
+  // rule -- that rule is a long stretch of delimiter scanning, whereas the
+  // token it produced already records which delimiter it matched
+  // (`token.markup`). So a `strong` opened by `__` is just put back as the two
+  // literal underscores it came from: `**bold**` still bolds, `_italic_` is
+  // left as it was, and anything in a code span or a fence is out of reach
+  // (those never reach the inline token stream).
+  if (document.getElementById('app').dataset.dunderLiteral === '1') {
+    scMd.core.ruler.after('inline', 'st_dunder_literal', function (state) {
+      state.tokens.forEach(function (block) {
+        if (block.type !== 'inline' || !block.children) return;
+        block.children = block.children.map(function (token) {
+          if (
+            (token.type === 'strong_open' || token.type === 'strong_close') &&
+            token.markup === '__'
+          ) {
+            const text = new state.Token('text', '', 0);
+            text.content = '__';
+            return text;
+          }
+          return token;
+        });
+      });
+    });
+  }
   // Raw renderers (no holder): used when filling an existing `.st-md`
   // placeholder in place.
   function scMdInline(text) { return scMd.renderInline(String(text)); }

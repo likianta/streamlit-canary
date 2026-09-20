@@ -1785,11 +1785,16 @@ def render_page(
     title: str = 'Streamlit Canary',
     default_theme: str = 'dark',
     layout: str = 'centered',
+    dunder_literal: bool = False,
 ) -> str:
     # The OS preference behind `system` lives in the browser, so the attribute
     # starts on dark and the boot script corrects it before the first paint.
     theme = default_theme if default_theme in ('light', 'dark') else 'dark'
+    # Page config rides on the app shell: `layout` is a class and the markdown
+    # flag is a data attribute, both read by page.js (see `set_page_config`).
     app_attr = ' class="st-wide"' if layout == 'wide' else ''
+    if dunder_literal:
+        app_attr += ' data-dunder-literal="1"'
     return PAGE_TEMPLATE.format(
         title=html.escape(title),
         theme=theme,
