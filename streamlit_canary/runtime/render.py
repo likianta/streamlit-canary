@@ -976,6 +976,16 @@ def _render_selectbox(comp: Selectbox) -> str:
     )
     # Display text for the trigger button.
     display_text = render_markup(fmt(value)) if value else '\u200b'
+    # `_truncate_help` (`TreeSelect`'s location bar): the trigger keeps its own
+    # text, for the client to show as a tooltip -- but only once the box really
+    # cuts it off, which only the browser can tell (see `90-help.js`). The
+    # value goes through `format` so what the tooltip shows is what the
+    # trigger shows, markdown escapes and all.
+    truncate_help = ''
+    if value and getattr(comp, '_truncate_help', False):
+        truncate_help = ' data-truncate-help="{}"'.format(
+            html.escape(fmt(value), quote=True)
+        )
     arrow_svg = _chevron_svg()
     # `accept_new_options`: an input row at the top of the dropdown lets the
     # user type a value that is not in the list yet.
@@ -1022,7 +1032,8 @@ def _render_selectbox(comp: Selectbox) -> str:
         f'<button type="button" class="st-selectbox-trigger" '
         f'data-comp-id="{comp.id}"{disabled} '
         f'onclick="scToggleSelectbox(this)">'
-        f'<span class="st-selectbox-value">{display_text}</span>'
+        f'<span class="st-selectbox-value"{truncate_help}>'
+        f'{display_text}</span>'
         f'{arrow_svg}'
         f'</button>'
         f'<div class="st-selectbox-dropdown" '
@@ -1229,6 +1240,11 @@ def _choice_group_items_html(
     at all: a row with a frozen box has no tick to spend, so the click is
     free.  `TreeSelect` uses it for `..`; the handler is `scOpenRow`, the same
     one the arrow uses, so both gestures arrive as one `open` event.
+
+    `_focus_index` draws one row highlighted -- the row a tree panel came from
+    when it walked back up.  It is read off the component rather than passed
+    in, because the same index has to ride along with an `options` patch as
+    well (see `runtime.py`), and the patch rebuilds every row.
     """
     if not values:
         return _choice_group_empty_html(input_type)
@@ -1236,8 +1252,9 @@ def _choice_group_items_html(
     name = f' name="{input_type}_{comp.id}"' if input_type == 'radio' else ''
     widget_off = not comp.enabled.get()
     box = _choice_box_html(input_type)
+    focused = getattr(comp, '_focus_index', -1)
     item_html = []
-    for option in values:
+    for index, option in enumerate(values):
         frozen = bool(box_disabled(option)) if box_disabled else False
         off = ' disabled' if (frozen or widget_off) else ''
         field = (
@@ -1256,6 +1273,8 @@ def _choice_group_items_html(
         item_cls = 'st-radio-item'
         if frozen:
             item_cls += ' is-box-disabled'
+        if index == focused:
+            item_cls += ' is-highlighted'
         # the label wraps the whole row, so a click on the body of an ordinary
         # row ticks the box by itself and `scHighlightChoice` only adds the
         # highlight; a `body_opens` row spends that click on the walk-in

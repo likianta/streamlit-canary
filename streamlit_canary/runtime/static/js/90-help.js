@@ -4,6 +4,10 @@
   // attribute gets a custom tooltip built from `scRenderParagraphs`. The
   // trigger is the info glyph next to a label, or the button itself (which
   // is how Streamlit wires `st.button`'s help).
+  //
+  // `data-truncate-help` is the same tooltip with its own reason to exist: the
+  // element holds text that is only worth showing while the box cuts it off
+  // (a long path in a narrow toolbar), so it appears on hover only then.
   let scHelpTip = null;
   let scHelpTimer = 0;
   function scHelpTooltipEl() {
@@ -17,8 +21,21 @@
     document.body.appendChild(scHelpTip);
     return scHelpTip;
   }
+  // What a trigger has to say, if anything. `scrollWidth` past the box is
+  // exactly "there is more than fits", so `data-truncate-help` stays quiet
+  // until the text really is cut off -- the element has to clip
+  // (`overflow: hidden` + ellipsis, as `.st-selectbox-value` does) for the
+  // two to differ.
+  function scHelpText(target) {
+    if (target.hasAttribute('data-help')) {
+      return target.getAttribute('data-help');
+    }
+    const md = target.getAttribute('data-truncate-help');
+    if (md === null) return '';
+    return target.scrollWidth > target.clientWidth + 1 ? md : '';
+  }
   function scShowHelp(target) {
-    const md = target.getAttribute('data-help');
+    const md = scHelpText(target);
     if (!md) return;
     const tip = scHelpTooltipEl();
     tip.innerHTML = window.scRenderParagraphs(md);
@@ -56,7 +73,10 @@
     }, 200);
   }
   function scHelpTrigger(node) {
-    return node && node.closest ? node.closest('[data-help]') : null;
+    if (!node || !node.closest) return null;
+    return (
+      node.closest('[data-help]') || node.closest('[data-truncate-help]')
+    );
   }
   // The pane is interactive (links, tables, selectable text), so hovering it
   // has to count as "still on the help".

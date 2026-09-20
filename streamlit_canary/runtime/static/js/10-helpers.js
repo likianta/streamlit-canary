@@ -65,11 +65,16 @@
   // (`scOpenRow`), which is how a tree row's folder is entered.
   // `bodyOpens` lists the indices whose own click walks in, with no button
   // (a frozen box leaves the click free; `..` is the one such row).
+  //
+  // `focused` is the index to draw highlighted -- the row a tree panel came
+  // from when it walked back up (the server sends it with an `options` patch,
+  // since rebuilding the rows is what would otherwise lose the mark).
   function scChoiceItemsHtml(config) {
     const { id, values, labels, inputType, onchange, isChecked } = config;
     const frozen = new Set(config.boxDisabled || []);
     const navigable = new Set(config.navigable || []);
     const opensOnBody = new Set(config.bodyOpens || []);
+    const focused = config.focused;
     const name = inputType === 'radio' ? ` name="radio_${id}"` : '';
     const fmt = window.scRenderMarkup;
     const box =
@@ -100,7 +105,10 @@
       const text =
         `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>`;
       const enter = navigable.has(i) ? scRowEnterHtml() : '';
-      const cls = 'st-radio-item' + (frozen.has(i) ? ' is-box-disabled' : '');
+      const cls =
+        'st-radio-item' +
+        (frozen.has(i) ? ' is-box-disabled' : '') +
+        (i === focused ? ' is-highlighted' : '');
       // the label wraps the whole row: a body click ticks the box by itself,
       // and `scHighlightChoice` adds the highlight on the way past -- unless
       // the row walks in on that click, which is `scOpenRow` (mirrors the

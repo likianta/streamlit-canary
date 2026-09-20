@@ -219,6 +219,13 @@ class Runtime:
                 message['body_opens'] = [
                     i for i, o in enumerate(value or []) if body_opens(o)
                 ]
+            # ... and which row is drawn highlighted (`_focus_index`, which
+            # only `TreeSelect` sets: the row it came from when the panel
+            # walks back up). The rows are rebuilt out of this patch, so the
+            # highlight has to travel with them.
+            focus = getattr(comp, '_focus_index', None)
+            if isinstance(focus, int):
+                message['focused'] = focus
             # CheckGroup in flag mode keeps `value` as a list of booleans
             # parallel to `options` (`options` was a `dict`), so a rebuilt row
             # set also needs those flags to know which rows are ticked.

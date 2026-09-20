@@ -691,6 +691,12 @@ class Selectbox(_OptionsWidget):
             )
         self._accept_new_options = accept_new_options
         self._format_new_option = format_new_option
+        # Whether the trigger carries its own text for a tooltip, shown by the
+        # client only once the box really cuts that text off (see
+        # `render._render_selectbox` and `90-help.js`). `TreeSelect` turns it
+        # on for its location bar, where a path overflows any toolbar but is
+        # still worth reading in full.
+        self._truncate_help = False
 
     def _on_new_option(self, text: str) -> None:
         """The client typed a value that is not among `options` yet.

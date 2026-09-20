@@ -72,6 +72,10 @@ class T:
     SelectionMode = tp.Literal['single', 'multiple', 'multicross']
 
 
+_DRIVES: tp.Optional[tp.Tuple[str, ...]] = None
+"""Every drive root on this machine, once `_list_drives` has looked."""
+
+
 def _norm(path: str) -> str:
     return fs.abspath(path).replace('\\', '/')
 
@@ -96,6 +100,39 @@ def _path_chain(path: str) -> tp.List[str]:
         out.append(acc)
         acc += '/'
     return out
+
+
+def _list_drives() -> tp.Tuple[str, ...]:
+    """Every drive root on this machine, e.g. `('C:/', 'D:/')`.
+
+    Cached in `_DRIVES` on first use: a drive letter does not come and go
+    while the app runs, and finding them is a syscall each time.  Empty where
+    there are no drive letters (a POSIX system) -- the path chain there
+    already starts at the only root, `/`.
+    """
+    global _DRIVES
+    if _DRIVES is None:
+        lister = getattr(os, 'listdrives', None)  # windows only
+        try:
+            roots = lister() if lister else ()
+        except OSError:
+            roots = ()
+        _DRIVES = tuple(_norm(root).rstrip('/') + '/' for root in roots)
+    return _DRIVES
+
+
+def _location_options(directory: str) -> tp.List[str]:
+    """The ladder the location bar offers: the other drives, then the chain.
+
+    `['C:/', 'D:/', 'E:/', 'C:/A', 'C:/A/B', 'C:/A/B/C']` for `C:/A/B/C`:
+    every ancestor (`_path_chain`), so any parent stays one pick away, with
+    the rest of the machine's drives in front of them, so another drive is
+    reachable without typing it out.  The chain's own root is already in the
+    drive list, so it is not repeated.
+    """
+    chain = _path_chain(directory)
+    drives = list(_list_drives())
+    return drives + [rung for rung in chain if rung not in drives]
 
 
 def _filter_func(filter: T.Filter) -> tp.Callable[[str], bool]:
@@ -223,6 +260,10 @@ class _TreeNav:
         self.parent_to_dirnames: dict[str, tp.List[str]] = {}
         self.parent_to_filenames: dict[str, tp.List[str]] = {}
         self.recent: deque = deque(maxlen=20)
+        # the row a node last had in its parent's listing, remembered for
+        # every folder that was listed: walking back up reads it to highlight
+        # the row it came from (see `TreeSelect._focus_index`)
+        self.node_index: dict[str, int] = {}
 
     # -- listings ---------------------------------------------------------
 
@@ -552,7 +593,7 @@ class TreeSelect(_Labeled, Column):
 
     Layout::
 
-        [ /current/folder v ] [refresh] [bucket] [mode]  <- toolbar row
+        [ /current/folder v ] [home] [refresh] [bucket] [mode]  <- toolbar
         ..   (goto parent)            <- one click walks up, no arrow
         subfolder/                              ->
         another-file.txt                 <- scrolls past `height` px
@@ -560,7 +601,11 @@ class TreeSelect(_Labeled, Column):
 
     The toolbar is a row across the top of the panel: a location selectbox
     listing every ancestor of the folder on show -- itself included, so any
-    parent is one pick away -- and then the actions.
+    parent is one pick away -- with the machine's other drives in front of
+    them (`_location_options`), and then the actions: `home` returns to the
+    starting folder, `refresh` re-reads the folder on show.  A path too long
+    for the toolbar is cut off with an ellipsis and shows itself in full on
+    hover (`_truncate_help`).
 
     `_vendored` settles where the Confirm button goes and what frame the
     panel wears.  Left alone (the default) the panel is a standalone widget:
@@ -590,6 +635,13 @@ class TreeSelect(_Labeled, Column):
     and never tickable -- because it is a target rather than a node
     (`_is_nav_up`), and that is what frees its own click for the gesture: one
     click anywhere on the row walks up, so it draws no arrow of its own.
+
+    Walking back up marks where the panel came from: leaving `a/b/c` for
+    `a/b` -- through `..`, or by picking a rung on the ladder -- leaves `c/`'s
+    row highlighted, so the place just left stands out.  The index is
+    remembered per node as folders are listed (`_TreeNav.node_index`) and
+    resolved back to a row by `_focus_index`, since the client's own click
+    highlight is wiped whenever the rows are rebuilt.
 
     `selection_mode` settles how much may be picked at once (see `value`);
     only a set that includes `'multicross'` draws the bucket, and only a set
@@ -689,6 +741,9 @@ class TreeSelect(_Labeled, Column):
         # swaps `options`, which resets `focused_index` and makes a radio fall
         # back to another row
         self._syncing = False
+        # the folder the panel was in before the current one: coming back up
+        # highlights the row that leads there (see `_focus_index`)
+        self._came_from = ''
 
         self.value = Property(
             tp.cast(tp.Union[str, tp.List[str]], _empty_value(initial_mode))
@@ -712,10 +767,18 @@ class TreeSelect(_Labeled, Column):
             with Row('center'):
                 self._location = Selectbox(
                     'Current location',
-                    options=_path_chain(nav.directory),
+                    options=_location_options(nav.directory),
                     value=nav.directory,
                     format=_path_label,
                     label_visibility='collapsed',
+                )
+                # A path is long and the toolbar narrow: the trigger cuts it
+                # off with an ellipsis, so the box carries the full text for
+                # the client to show as a tooltip once that happens (see
+                # `_render_selectbox` and `90-help.js`).
+                self._location._truncate_help = True
+                self._home_btn = IconButton(
+                    'home', help='Go to the starting directory'
                 )
                 self._refresh_btn = IconButton('refresh')
                 if crosses:
@@ -830,6 +893,10 @@ class TreeSelect(_Labeled, Column):
             if directory and directory != self._nav.directory:
                 self._jump(directory)
 
+        @self._home_btn.on_click
+        def _on_home() -> None:
+            self._jump(self._nav.start_directory)
+
         @self._refresh_btn.on_click
         def _on_refresh() -> None:
             self.reload()
@@ -921,6 +988,9 @@ class TreeSelect(_Labeled, Column):
         directory = _norm(directory) if directory else ''
         if directory and fs.isdir(directory):
             self._nav.directory = directory
+        # a wrapper's "open at this folder" is not a walk of the panel's own,
+        # so there is nothing for the new listing to point back at
+        self._came_from = ''
         self._refresh_listing()
 
     def _jump(self, directory: str) -> None:
@@ -929,7 +999,11 @@ class TreeSelect(_Labeled, Column):
         `multiple` drops its picks on the way out -- they belong to the folder
         being left. `multicross` keeps the bucket, which is the whole point of
         crossing folders, and `single` keeps the picked path.
+
+        The folder being left is remembered on the way out, so the new listing
+        can mark the row that leads back to it (see `_focus_index`).
         """
+        self._came_from = self._nav.directory
         if self.mode.get() == _MODE_MULTIPLE:
             self.value.set([])
         self._nav.directory = directory
@@ -964,10 +1038,23 @@ class TreeSelect(_Labeled, Column):
         nav = self._nav
         options = listing_options(nav, self._keeps)
         picked = set(_as_picked(self.value.get()))
+        # Remember where each node sits in its parent's listing, so walking
+        # back up can point at the row it came from (`_focus_index`) even
+        # though the client's own highlight is gone by then.
+        for position, option in enumerate(options):
+            path = option_path(nav, option)
+            if path:
+                nav.node_index[path] = position
+        focus = self._focus_index(options)
         self._syncing = True
         try:
-            self._single_list.options.set(options)
-            self._multi_list.options.set(options)
+            self._single_list._focus_index = focus
+            self._multi_list._focus_index = focus
+            # `notify=True`: the rows are rebuilt out of this patch, so the
+            # highlight travelling with them has to reach the client even when
+            # the options themselves are the ones it already had
+            self._single_list.options.set(options, notify=True)
+            self._multi_list.options.set(options, notify=True)
             # the radio *is* the pick in `single` mode, so it shows what the
             # panel carries (see `_carried_row`)
             self._single_list.value.set(self._carried_row(options))
@@ -981,10 +1068,40 @@ class TreeSelect(_Labeled, Column):
             # `value` goes in before `options` so `_auto_select` finds it
             # already present and does not fall back to the drive root.
             self._location.value.set(nav.directory)
-            self._location.options.set(_path_chain(nav.directory))
+            self._location.options.set(_location_options(nav.directory))
         finally:
             self._syncing = False
         self.on_navigate.emit(nav.directory)
+
+    def _focus_index(self, options: list) -> int:
+        """The row to draw highlighted: the one leading back where we came from.
+
+        Leaving `a/b/c` for `a/b` (the `..` row, or the ladder) leaves `c/`
+        marked, so it is obvious which place was just left.  A jump further
+        than one level -- a distant rung of the ladder, or `home` -- cannot
+        mark the place itself, since it is not a row of the new listing; the
+        row on the way to it is marked instead, which is the path back.
+
+        Where a node sat is remembered per node (`_TreeNav.node_index`), but
+        the index is re-checked against the fresh listing -- the folder may
+        have gained or lost a row since that reading -- and a row found by
+        path is used when it no longer lines up.
+        """
+        origin = self._came_from
+        if not origin:
+            return -1
+        nav = self._nav
+        index = nav.node_index.get(origin, -1)
+        if 0 <= index < len(options):
+            if option_path(nav, options[index]) == origin:
+                return index
+        for position, option in enumerate(options):
+            if option == NAV_UP:
+                continue
+            path = option_path(nav, option)
+            if path and (origin == path or _is_under(origin, path)):
+                return position
+        return -1
 
     def _set_mode(self, mode: str) -> None:
         """Switch the active mode -- only to one `selection_mode` offers."""

@@ -122,6 +122,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           boxDisabled: msg.box_disabled,
           navigable: msg.navigable,
           bodyOpens: msg.body_opens,
+          focused: msg.focused,
         });
         scAlignRowArrows(el);
       }
@@ -143,6 +144,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           boxDisabled: msg.box_disabled,
           navigable: msg.navigable,
           bodyOpens: msg.body_opens,
+          focused: msg.focused,
         });
         scAlignRowArrows(el);
       }
