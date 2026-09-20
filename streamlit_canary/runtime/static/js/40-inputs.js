@@ -36,15 +36,18 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') scClosePopovers(null);
   });
-  // Every panel is `position: fixed`, so it has to follow its trigger -- on
-  // resize, and whenever anything scrolls (the capture phase catches scrolls
-  // inside the app's own scroll containers, not just the window's).
+  // Every panel and every escaped selectbox dropdown is `position: fixed`, so
+  // it has to follow its trigger -- on resize, and whenever anything scrolls
+  // (the capture phase catches scrolls inside the app's own scroll containers,
+  // not just the window's).
   window.addEventListener('resize', () => {
     document.querySelectorAll('.st-popover-panel:not([hidden])')
       .forEach(scPositionPanel);
+    scPositionOpenDropdowns();
     scSyncSegmented(document);
   });
   document.addEventListener('scroll', () => {
     document.querySelectorAll('.st-popover-panel:not([hidden])')
       .forEach(scPositionPanel);
+    scPositionOpenDropdowns();
   }, true);

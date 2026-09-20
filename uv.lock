@@ -3069,7 +3069,7 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0a24"
+version = "0.4.0a26"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3080,6 +3080,11 @@ dependencies = [
     { name = "starlette" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchdog" },
+]
+
+[package.optional-dependencies]
+st = [
+    { name = "streamlit" },
 ]
 
 [package.dev-dependencies]
@@ -3102,9 +3107,11 @@ requires-dist = [
     { name = "psutil", specifier = ">=7.0.0" },
     { name = "pyapp-window", specifier = ">=2.2.4b0", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
+    { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.61.0,!=1.62.*" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
     { name = "watchdog", specifier = ">=6.0.0" },
 ]
+provides-extras = ["st"]
 
 [package.metadata.requires-dev]
 dev = [

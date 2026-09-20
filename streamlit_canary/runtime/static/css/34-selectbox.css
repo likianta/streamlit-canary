@@ -133,14 +133,14 @@
     from { height: 0; overflow: hidden; }
     to { height: var(--st-selectbox-open-height, auto); overflow: hidden; }
   }
-  /* A dropdown opened inside a popover panel (the tree-select toolbar's
-     location bar) has to clear that panel's `overflow` clip the way the
-     panel itself clears its ancestors': a scrollable panel is a clipping
-     ancestor, so an `absolute` dropdown would be cut off at its edge. Such a
-     dropdown is therefore `position: fixed` too -- placed by
-     `scPositionSelectboxDropdown` -- and stacked over the panel's body (its
-     sticky toolbar included) instead of ending at the panel's border. */
-  .st-popover-panel .st-selectbox-dropdown {
+  /* A dropdown whose containing box would cut it off -- anything that scrolls
+     or hides its overflow, from a `height`-capped container to the tree-select
+     toolbar's popover panel -- is promoted to `position: fixed` by
+     `scPositionSelectboxDropdown`, which also places it in viewport
+     coordinates: it then floats over that box instead of ending at its border,
+     the same way the popover panel itself escapes its ancestors. A dropdown
+     with no such ancestor keeps the plain `absolute` placement above. */
+  .st-selectbox-dropdown--fixed {
     position: fixed;
     right: auto;
     z-index: 1000050;

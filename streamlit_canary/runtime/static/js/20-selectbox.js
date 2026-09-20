@@ -93,28 +93,80 @@
   // reports the whole content even while the box is 0 tall, and `max-height`
   // caps tall content (a long option list, a scrolling panel) -- hence the
   // clamp against the computed cap.
-  function scMeasureOpenHeight(el, varName) {
+  function scPanelTargetHeight(el) {
     const cap = parseFloat(getComputedStyle(el).maxHeight);
     const height = el.scrollHeight;
-    el.style.setProperty(
-      varName,
-      (Number.isFinite(cap) ? Math.min(height, cap) : height) + 'px',
-    );
+    return Number.isFinite(cap) ? Math.min(height, cap) : height;
   }
-  // A dropdown that opens inside a popover panel (the tree-select toolbar's
-  // location bar) has to clear that panel's `overflow` clip -- the panel is
-  // scrollable, so an `absolute` dropdown would be cut off at its edge. Like
-  // the panel itself, such a dropdown is `position: fixed` (see page.css) and
-  // placed here in viewport coordinates, aligned to the control it belongs to;
-  // a dropdown outside any panel keeps its plain `absolute` placement.
+  function scMeasureOpenHeight(el, varName) {
+    el.style.setProperty(varName, scPanelTargetHeight(el) + 'px');
+  }
+  // The nearest ancestor that would cut an `absolute` dropdown off at its
+  // edge: anything that scrolls, or hides its overflow -- a `height`-capped
+  // box, a popover panel. The page itself does not count (a dropdown that
+  // reaches the window's edge simply grows the page).
+  function scClippingAncestor(node) {
+    for (
+      let el = node.parentElement;
+      el && el !== document.body && el !== document.documentElement;
+      el = el.parentElement
+    ) {
+      const cs = getComputedStyle(el);
+      if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') {
+        return el;
+      }
+    }
+    return null;
+  }
+  // A dropdown inside a clipping ancestor (the tree-select toolbar's location
+  // bar, any `height`-capped box) has to clear that box's `overflow` clip the
+  // way the popover panel itself clears its ancestors': a scrollable box is a
+  // clipping ancestor, so an `absolute` dropdown would be cut off at its edge.
+  // Such a dropdown is therefore `position: fixed` too (see page.css) and
+  // placed here in viewport coordinates, aligned to the control it belongs to
+  // -- opening upwards when that is where the room is. A dropdown with no such
+  // ancestor keeps its plain `absolute` placement.
   function scPositionSelectboxDropdown(dropdown) {
-    if (!dropdown.closest('.st-popover-panel')) return;
     const control = dropdown.closest('.st-selectbox-control');
     if (!control) return;
+    if (!scClippingAncestor(dropdown)) {
+      dropdown.classList.remove('st-selectbox-dropdown--fixed');
+      dropdown.style.left = '';
+      dropdown.style.width = '';
+      dropdown.style.top = '';
+      dropdown.style.right = '';
+      return;
+    }
+    dropdown.classList.add('st-selectbox-dropdown--fixed');
     const rect = control.getBoundingClientRect();
-    dropdown.style.left = Math.round(rect.left) + 'px';
-    dropdown.style.width = Math.round(rect.width) + 'px';
-    dropdown.style.top = Math.round(rect.bottom + 4) + 'px';
+    const height = scPanelTargetHeight(dropdown);
+    const gap = 4;
+    const viewport = window.innerHeight;
+    // below the control, or above it when that side has room and this one
+    // does not
+    let top = rect.bottom + gap;
+    if (top + height > viewport - gap && rect.top - gap - height > 0) {
+      top = rect.top - gap - height;
+    }
+    // whatever is left, it still may not run past either edge; a dropdown
+    // taller than the window keeps its top visible and scrolls (its own
+    // `max-height` is what makes that reachable)
+    top = Math.max(gap, Math.min(top, viewport - gap - height));
+    const bounds = scPopoverBounds();
+    let left = rect.left;
+    const width = rect.width;
+    if (left + width > bounds.right) left = bounds.right - width;
+    if (left < bounds.left) left = bounds.left;
+    dropdown.style.left = Math.round(left) + 'px';
+    dropdown.style.width = Math.round(width) + 'px';
+    dropdown.style.top = Math.round(top) + 'px';
+    dropdown.style.right = 'auto';
+  }
+  // A fixed dropdown is placed in viewport coordinates, so an open one has to
+  // follow its control whenever anything scrolls or the window is resized.
+  function scPositionOpenDropdowns() {
+    document.querySelectorAll('.st-selectbox-dropdown:not([hidden])')
+      .forEach(scPositionSelectboxDropdown);
   }
   // -- Custom selectbox dropdown interaction --
   function scToggleSelectbox(trigger) {
