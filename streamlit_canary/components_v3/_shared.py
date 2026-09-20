@@ -9,6 +9,7 @@ import typing as tp
 
 from .base import Component
 from ..kernel import Property
+from ..kernel import Signal
 
 _T = tp.TypeVar('_T')
 
@@ -350,6 +351,38 @@ class _RowGestures:
     def _reset_focus(self) -> None:
         """Drop the highlight when the options are rebuilt (indices shift)."""
         self.focused_index.set(-1)
+
+
+class _Submittable:
+    """Mixin for input widgets whose text is committed as a separate act.
+
+    Signals:
+        on_submit: `Signal(str)` — the text was committed on purpose: Enter
+            in a `TextInput` / `NumberInput`, Ctrl+Enter in a `TextArea`, or
+            Enter (equivalently, the "Add" row) in a `Selectbox`'s
+            `accept_new_options` box. Carries the raw text as typed.
+        on_editing_finished: `Signal(str)` — the editing session ended,
+            whether by a submit or by the box losing focus. Carries the text
+            as it stood then. A submit emits both, `on_submit` first.
+
+    The pair is declared together because it describes one act from two
+    angles: `on_submit` is the deliberate commit, `on_editing_finished` the
+    end of the session it belongs to.
+
+    A mixin, like `_HasPlaceholder`: these widgets already meet through
+    `_Labeled`, so there is no single `super()` to chain into and each
+    `__init__` calls `_init_submittable` directly. `Multiselect` carries the
+    pair for symmetry with its siblings, but nothing fires them until it
+    grows an `accept_new_options` box of its own.
+    """
+
+    def _init_submittable(self) -> None:
+        # `_owner_factory` mirrors `on_click`, so a handler can ask for the
+        # widget itself through `@sig.partial(sc._self)`.
+        self.on_submit: Signal = Signal(str, _owner_factory=lambda: self)
+        self.on_editing_finished: Signal = Signal(
+            str, _owner_factory=lambda: self
+        )
 
 
 class _TextVisible(_HasText):

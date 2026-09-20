@@ -44,6 +44,7 @@ from ..kernel import Property
 from ..kernel import Signal
 from ..kernel import bind
 from ._shared import _Labeled
+from ._shared import _Submittable
 from .base import Width
 
 from .buttons import Button
@@ -428,7 +429,7 @@ def bucket_label(path: str, root: str) -> str:
     return entry_label(short + '/' if fs.isdir(path) else short)
 
 
-class PathInput(Column):
+class PathInput(_Submittable, Column):
     """A text input whose text is resolved into an existing path.
 
         with PathInput('Batch file', 'references/.../classic.txt') as box:
@@ -454,9 +455,11 @@ class PathInput(Column):
 
     Signals:
         on_path (via `box['on_path']` or `box.path.on_change`)
-        on_submit: emitted whenever the committed text changes, i.e. the box
-            was submitted (blur / Enter). Refresh anything derived from the
-            text -- a candidate list, say -- from here.
+        on_submit: `Signal(str)` — the box was submitted (Enter), carrying
+            the typed text. `path` has already been re-resolved by then.
+        on_editing_finished: `Signal(str)` — the box finished being edited,
+            whether by a submit or by losing focus. Refresh anything derived
+            from the text -- a candidate list, say -- from here.
     """
 
     def __init__(
@@ -470,8 +473,8 @@ class PathInput(Column):
     ) -> None:
         super().__init__(width=width, **kwargs)
 
+        self._init_submittable()
         self.path = Property('')
-        self.on_submit: Signal = Signal()
         if candidates is None or isinstance(candidates, Property):
             source: tp.Any = candidates
         else:
@@ -487,7 +490,16 @@ class PathInput(Column):
         @self._input.value.on_change
         def _validate() -> None:
             self.path.set(self._resolve(str(self._input['value'])))
-            self.on_submit.emit()
+
+        # The inner box owns the send / blur detection; these two just relay
+        # it outwards under this wrapper's own name.
+        @self._input.on_submit
+        def _relay_submit(text: str) -> None:
+            self.on_submit.emit(text)
+
+        @self._input.on_editing_finished
+        def _relay_editing_finished(text: str) -> None:
+            self.on_editing_finished.emit(text)
 
         @self.path.on_change
         def _follow() -> None:

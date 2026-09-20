@@ -9,9 +9,11 @@
       `<input class="st-selectbox-new-input" type="text" ` +
       `data-comp-id="${id}" placeholder="Type a new value" ` +
       `oninput="scNewOptionInput(this)" ` +
-      `onkeydown="scNewOptionKey(event, this)"/>` +
+      `onkeydown="scNewOptionKey(event, this)" ` +
+      `onblur="scNewOptionBlur(this)"/>` +
       `<div class="st-selectbox-newitem" role="option" ` +
-      `data-comp-id="${id}" onclick="scAddNewOption(this)" hidden>` +
+      `data-comp-id="${id}" onmousedown="event.preventDefault()" ` +
+      `onclick="scAddNewOption(this)" hidden>` +
       '<div class="st-selectbox-option-inner"></div></div></div>'
     );
   }
@@ -60,6 +62,8 @@
     const row = input.closest('.st-selectbox-new');
     const item = row ? row.querySelector('.st-selectbox-newitem') : null;
     if (!item) return;
+    // typing starts a fresh editing session (see `scSendSubmit`)
+    input._scSubmitted = false;
     const text = input.value.trim();
     item.hidden = text === '';
     if (text !== '') {
@@ -72,6 +76,22 @@
     event.preventDefault();
     scAddNewOption(input);
   }
+  // The new-option box was left without submitting. A blank box is not
+  // reported: there is no candidate being edited, so there is no session to
+  // finish (this also keeps the blur that follows an "Add" from reporting the
+  // cleared box a second time).
+  function scNewOptionBlur(input) {
+    if (input._scSubmitted) {
+      input._scSubmitted = false;
+      return;
+    }
+    const text = input.value.trim();
+    if (text === '') return;
+    ws.send(JSON.stringify({
+      type: 'event', id: input.dataset.compId,
+      event: 'new_option_editing_finished', value: text,
+    }));
+  }
   function scAddNewOption(el) {
     // `el` is the input or the "Add: ..." item; both sit inside the root.
     const root = el.closest('.st-selectbox');
@@ -79,6 +99,7 @@
     if (!root || !input) return;
     const text = input.value.trim();
     if (text === '') return;
+    input._scSubmitted = true;
     ws.send(JSON.stringify({
       type: 'event', id: root.dataset.id, event: 'new_option', value: text,
     }));
@@ -277,10 +298,17 @@
     if (dropdown) dropdown.hidden = true;
     if (box) box.removeAttribute('aria-expanded');
   }
-  // Enter commits a TextInput right away; `change` alone would wait for the
-  // box to lose focus (`st.text_input` commits on Enter too).
+  // Enter submits a TextInput / NumberInput right away; `change` alone would
+  // wait for the box to lose focus (`st.text_input` commits on Enter too).
   function scSubmitKey(event, input) {
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    scSendChange(input);
+    scSendSubmit(input);
+  }
+  // Ctrl+Enter submits a TextArea, where plain Enter inserts a newline. Cmd is
+  // accepted as well, so the same habit works on macOS.
+  function scSubmitAreaKey(event, input) {
+    if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
+    scSendSubmit(input);
   }

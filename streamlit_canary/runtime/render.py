@@ -823,7 +823,10 @@ def _render_number_input(comp: NumberInput) -> str:
         data += f' data-max="{max_value}"'
     # A `step` of 0 asks for no stepper at all. The gadget is a single markup
     # for every width: `page.css` stacks it vertically when the box gets
-    # narrow, and hides it when even that does not fit.
+    # narrow, and hides it when even that does not fit. The buttons swallow
+    # the `mousedown` that would otherwise pull focus out of the box -- which
+    # would fire a stale `editing_finished` carrying the pre-step number
+    # before the stepped value is even sent.
     stepper = ''
     if step > 0:
         # Sitting on a bound disables the arrow that would leave the range,
@@ -843,10 +846,12 @@ def _render_number_input(comp: NumberInput) -> str:
             '<span class="st-number-stepper">'
             '<button class="st-number-step" type="button" tabindex="-1" '
             f'title="Decrease"{" disabled" if at_min else ""} '
+            'onmousedown="event.preventDefault()" '
             'onclick="scStepNumber(this, -1)">'
             f'{_ICON_MINUS}</button>'
             '<button class="st-number-step" type="button" tabindex="-1" '
             f'title="Increase"{" disabled" if at_max else ""} '
+            'onmousedown="event.preventDefault()" '
             'onclick="scStepNumber(this, 1)">'
             f'{_ICON_PLUS}</button>'
             '</span>'
@@ -867,7 +872,10 @@ def _render_number_input(comp: NumberInput) -> str:
         f'data-comp-id="{comp.id}"{data} '
         f'value="{html.escape(text)}" '
         f'placeholder="{placeholder}" '
-        f'onchange="scSendChange(this)"/>'
+        f'oninput="this._scSubmitted=false" '
+        f'onchange="scSendChange(this)" '
+        f'onkeydown="scSubmitKey(event, this)" '
+        f'onblur="scSendEditingFinished(this)"/>'
         f'{stepper}</div></div>'
     )
 
@@ -887,7 +895,10 @@ def _render_text_area(comp: TextArea) -> str:
         f'{_widget_label_html(comp)}'
         f'<textarea class="st-text-area-box" data-comp-id="{comp.id}"'
         f'{height_style} placeholder="{placeholder}"{disabled}'
-        f' onchange="scSendChange(this)">'
+        f' oninput="this._scSubmitted=false"'
+        f' onchange="scSendChange(this)"'
+        f' onkeydown="scSubmitAreaKey(event, this)"'
+        f' onblur="scSendEditingFinished(this)">'
         f'{html.escape(str(comp.value.get()))}</textarea>'
         f'</div>'
     )
@@ -916,8 +927,10 @@ def _render_text_input(comp: TextInput) -> str:
         f'data-comp-id="{comp.id}" '
         f'value="{html.escape(str(comp.value.get()))}" '
         f'placeholder="{placeholder}"{disabled} '
+        f'oninput="this._scSubmitted=false" '
         f'onchange="scSendChange(this)" '
-        f'onkeydown="scSubmitKey(event, this)"/>'
+        f'onkeydown="scSubmitKey(event, this)" '
+        f'onblur="scSendEditingFinished(this)"/>'
     )
     if candidates is None:
         return (
@@ -1004,9 +1017,14 @@ def _render_selectbox(comp: Selectbox) -> str:
             f'<input class="st-selectbox-new-input" type="text" '
             f'data-comp-id="{comp.id}" placeholder="Type a new value" '
             f'oninput="scNewOptionInput(this)" '
-            f'onkeydown="scNewOptionKey(event, this)"/>'
+            f'onkeydown="scNewOptionKey(event, this)" '
+            f'onblur="scNewOptionBlur(this)"/>'
             f'<div class="st-selectbox-newitem" role="option" '
-            f'data-comp-id="{comp.id}" onclick="scAddNewOption(this)" hidden>'
+            f'data-comp-id="{comp.id}" '
+            # the item must not take focus, or clicking it blurs the input and
+            # reports an `editing_finished` a moment before the submit
+            f'onmousedown="event.preventDefault()" '
+            f'onclick="scAddNewOption(this)" hidden>'
             '<div class="st-selectbox-option-inner st-truncate-help"></div>'
             '</div>'
             '</div>'

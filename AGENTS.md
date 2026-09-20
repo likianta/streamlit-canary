@@ -223,7 +223,7 @@ when mouse.click(sel):
 - **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`), 静态配置用 `_` 前缀属性(如 `Button._type`).
 - **v2/v3 命名空间**: v2/v3 的新元素不直接暴露在 `__init__.py`, 用 `components_v3` 作为 v3 命名空间 (如 `sc.v3.Button`).
 - **`references/` 只读**: `references/` 目录 (含其中以软链接形式挂载的参考项目) 对 agent 是**只读**的, 不要修改其中的任何文件; 只可读取作为参考.
-- **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/_shared.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
+- **组件复用**: 多个组件共用的字段 / 逻辑抽到 `components_v3/_shared.py` 的私有基类 (`_HasText` / `_Labeled` / `_OptionsWidget` / `_TextVisible`) 或混入 (`_HasPlaceholder` / `_Submittable` / `_RowGestures`, 后者因为在 `_Labeled` 处已汇合而没有单一 `super()` 可链, 各自用 `_init_*` 显式调用). 组件字段在 `__init__` 中用 `_prop(default, source)` 声明, 以同时支持传入普通值或 `Property`.
 - **`label_visibility` 的四个值与 `auto` 默认**: 带 label 的组件 (继承 `_Labeled` / `_OptionsWidget` 的那些) 都接受 `label_visibility`, 取值见 `components_v3/inputs.py` 的 `T.LabelVisibility`: `'auto'` (默认) | `'visible'` | `'hidden'` | `'collapsed'`. `'auto'` 在渲染期由 `runtime/render.py` 的 `_widget_label_html` 判定一次: label 有内容就等同 `'visible'`, 否则等同 `'collapsed'` (空 label 否则仍会占住标签行的 24px + 4px). 注意 `label_visibility` 是静态字段而 `label` 是可绑定的, 所以 `'auto'` 按渲染那一刻的 label 判定, 之后 label 变化不会重新判定 (要动态得先给它加 patch 通道). 新增带 label 的组件请继承 `_Labeled`, 不要自己拼 label 的 HTML -- `_widget_label_html` 是唯一的 label 渲染入口.
 - **组件按 Streamlit 分类分模块**: `components_v3/` 下按 Streamlit API reference 的分类分文件, 模块名统一用复数形式 (`data` / `status` 单复数同形) -- `texts` (Text elements) / `data` / `charts` / `buttons` + `inputs` (Input widgets 一分为二) / `layouts` (Layouts and containers) / `status`; 分类表与官方对照见 `components_v3/__init__.py` 的模块 docstring, 原始分类清单在 `references/streamlit_api_reference_catagory.html`. 组件与 Streamlit 的对应关系 (以及我们自研的部分) 以该 docstring 为准.
 - **前端资源独立存放**: CSS / JS 放在 `runtime/static/` (`markdown-it.min.js` / `theme-*.css` / `fonts`), 用 `lk_utils.fs.load(fs.here(...), 'plain')` 在模块加载期读入; 不要在 Python 里内联大段 CSS / JS. 因此 **改动这些文件后必须重启服务**.
@@ -291,8 +291,29 @@ def ddd(value): ...
 
 - 前端 → 后端: `{"type":"event","id":"<comp-id>","event":"click"}` 或
   `{"type":"event","id":"<comp-id>","event":"change","value":...}`
-- `Runtime.on_event()` 目前只识别 `click` (→ 组件的 `on_click`) 与
-  `change` (→ 组件的 `value` Property); 其它事件类型需要在这里扩展.
+- `Runtime.on_event()` 目前识别: `click` (→ 组件的 `on_click`) /
+  `change` (→ 组件的 `value` Property) / `submit` (→ 先提交 `value`, 再发
+  `on_submit` + `on_editing_finished`) / `editing_finished` (→ 只发
+  `on_editing_finished`) / 任何 `_on_<event>` 钩子 (如 `_on_new_option` 与
+  `_on_new_option_editing_finished`); 其它事件类型需要在这里扩展.
+- **输入型组件的提交信号 (`_Submittable`)**: 文本提交类组件
+  (`TextInput` / `TextArea` / `NumberInput` / `Multiselect`, 以及包一层内部
+  `TextInput` 的 `PathInput`) 都带一对 `Signal[str]` -- `on_submit` 是"有意提交"
+  (TextInput / NumberInput 的 Enter, TextArea 的 Ctrl/Cmd+Enter), 
+  `on_editing_finished` 是"编辑会话结束"(提交会先发 `on_submit` 再发它, 也可只由
+  焦点 blur 触发). 二者由 `_shared.py` 的 `_Submittable` 混入提供
+  (`self._init_submittable()`; 混入而非基类, 理由同 `_HasPlaceholder`).
+  `Selectbox` 的 `accept_new_options` 输入行是**另一个输入框**, 所以有自己的一对
+  `on_new_option_submit` / `on_new_option_editing_finished`, 且只在
+  `accept_new_options=True` 时才创建 (属性是否存在即代表该功能是否开启). 前端
+  提交/失焦的发送函数在 `10-helpers.js` (`scSendSubmit` / `scSendEditingFinished`)
+  与 `20-selectbox.js` (`scNewOptionBlur` / `scAddNewOption`); 键盘映射在
+  `scSubmitKey` (Enter) / `scSubmitAreaKey` (Ctrl+Enter) / `scNewOptionKey`.
+  客户端用 `_scSubmitted` 标记"这一轮已经提交", 以免 Enter 之后跟着的 blur 再报一次
+  `on_editing_finished`; 任何 `oninput` / 步进 (`scStepNumber`) 都会清掉它 (那是新的
+  编辑会话). NumberInput 的两个步进按钮与 selectbox 的 "Add: ..." 行都带
+  `onmousedown="event.preventDefault()"`, 让 mousedown 不把焦点从输入框里夺走
+  (否则会先冒出一个携带步进前旧值 / 未提交文本的 `on_editing_finished`).
 - 后端 → 前端: `{"type":"patch","id":"<comp-id>","prop":"<prop-name>","value":...}`.
   `page.js` 已处理的 prop: `text` / `label` / `enabled` / `visible` /
   `options` (附带 `formatted` 显示文案) / `value` / `rows` / `candidates` /

@@ -34,6 +34,31 @@
     const id = input.dataset.compId;
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.value}));
   }
+  // A deliberate commit (`_Submittable`): Enter in a text / number box,
+  // Ctrl+Enter in a text area, Enter (or the "Add" row) in a selectbox's
+  // new-option box. The server commits the text as the value and emits
+  // `on_submit` + `on_editing_finished`.
+  //
+  // `_scSubmitted` remembers the submit so the blur that follows it is not
+  // reported again: Enter leaves the focus where it is, and clicking away
+  // afterwards would otherwise fire a second `on_editing_finished` for an
+  // editing session that a submit has already ended. Any further typing
+  // clears the flag (`oninput`), because that is a new session.
+  function scSendSubmit(input) {
+    input._scSubmitted = true;
+    const id = input.dataset.compId;
+    ws.send(JSON.stringify({type: 'event', id: id, event: 'submit', value: input.value}));
+  }
+  function scSendEditingFinished(input) {
+    if (input._scSubmitted) {
+      input._scSubmitted = false;
+      return;
+    }
+    const id = input.dataset.compId;
+    ws.send(JSON.stringify({
+      type: 'event', id: id, event: 'editing_finished', value: input.value,
+    }));
+  }
   // Serialize an option value the way the server does (`str(o)`), so a
   // non-scalar option such as the tuple `('f', 'x')` survives the round
   // trip. JSON turns a Python tuple into a JS array whose native toString()

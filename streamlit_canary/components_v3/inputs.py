@@ -13,6 +13,7 @@ from ._shared import _HasPlaceholder
 from ._shared import _Labeled
 from ._shared import _OptionsWidget
 from ._shared import _RowGestures
+from ._shared import _Submittable
 from ._shared import _as_list
 from ._shared import _prop
 from .base import Height
@@ -253,7 +254,7 @@ class Checkbox(_Labeled):
         self.value = _prop(False, value)
 
 
-class Multiselect(_HasPlaceholder, _Labeled):
+class Multiselect(_Submittable, _HasPlaceholder, _Labeled):
     """A dropdown for choosing several options (mirrors `st.multiselect`).
 
         with v3.Multiselect(
@@ -296,6 +297,9 @@ class Multiselect(_HasPlaceholder, _Labeled):
 
     Signals:
         on_value (via `ms['on_value']` or `ms.value.on_change`)
+        on_submit / on_editing_finished: carried for symmetry with the other
+            inputs, but the trigger has no text box to submit, so nothing
+            fires them until `accept_new_options` lands.
     """
 
     format_func: tp.Callable[[tp.Any], str]
@@ -342,6 +346,7 @@ class Multiselect(_HasPlaceholder, _Labeled):
 
             self.format_func = _by_index
         self._init_placeholder(placeholder)
+        self._init_submittable()
 
     def _coerce_value(self, values: tp.Any) -> list:
         """Map the client's raw strings back onto the real options."""
@@ -355,7 +360,7 @@ class Multiselect(_HasPlaceholder, _Labeled):
         return out
 
 
-class NumberInput(_HasPlaceholder, _Labeled):
+class NumberInput(_Submittable, _HasPlaceholder, _Labeled):
     """A numeric input box (mirrors Streamlit's `st.number_input`).
 
     Args:
@@ -386,6 +391,11 @@ class NumberInput(_HasPlaceholder, _Labeled):
 
     Signals:
         on_value: emitted when `value` changes.
+        on_submit: emitted with the box's raw text when it is submitted
+            (Enter). The text is what was typed, not the parsed number.
+        on_editing_finished: emitted with the box's text when editing ends --
+            on a submit, or when the box loses focus. A submit emits both, in
+            that order.
 
     Raises:
         TypeError: `value` is not a number, or `min_value` / `max_value` /
@@ -442,6 +452,7 @@ class NumberInput(_HasPlaceholder, _Labeled):
         self._max = max_value
         self._step = step
         self._init_placeholder(placeholder)
+        self._init_submittable()
 
     def _coerce_value(self, raw: tp.Any) -> int | float:
         """Parse a client-sent string back with the widget's numeric type."""
@@ -667,6 +678,13 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
     Signals:
         on_value (via `sel['on_value']` or `sel.value.on_change`)
         on_options (via `sel['on_options']` or `sel.options.on_change`)
+        on_new_option_submit / on_new_option_editing_finished: the
+            `accept_new_options` input row's own submit pair (`Signal(str)`).
+            The pair exists only on a selectbox built with
+            `accept_new_options=True`. The plain `on_submit` /
+            `on_editing_finished` are deliberately not used here: the trigger
+            is not a text box, so within this widget only the new-option row
+            has something to submit.
     """
 
     _default_width = 'stretch'
@@ -702,15 +720,32 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
         self._accept_new_options = accept_new_options
         self._format_new_option = format_new_option
         self._init_placeholder(placeholder)
+        # The `accept_new_options` row is a text box of its own, so it gets a
+        # submit pair of its own -- the trigger cannot submit, and one widget
+        # must not have two boxes reporting through the same signal. Created
+        # only when that row is drawn, so the attribute's presence doubles as
+        # "this selectbox accepts new options".
+        if accept_new_options:
+            self.on_new_option_submit: Signal = Signal(
+                str, _owner_factory=lambda: self
+            )
+            self.on_new_option_editing_finished: Signal = Signal(
+                str, _owner_factory=lambda: self
+            )
 
     def _on_new_option(self, text: str) -> None:
-        """The client typed a value that is not among `options` yet.
+        """The client submitted a new option from the dropdown's input row.
 
         `format_new_option` turns the raw text (e.g. `'0x30'`) into a value,
         which is appended to `options` (when new) and then selected. Input
         the converter rejects leaves the widget untouched and is reported on
         the server console.
+
+        The submit pair goes out first, so a listener hears the submission
+        even when the converter then rejects it.
         """
+        self.on_new_option_submit.emit(text)
+        self.on_new_option_editing_finished.emit(text)
         convert = self._format_new_option
         try:
             new_value = convert(text) if convert is not None else text
@@ -724,8 +759,12 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
         # `_sync_index` mirrors the new position into `index`.
         self.value.set(new_value)
 
+    def _on_new_option_editing_finished(self, text: str) -> None:
+        """The input row lost focus without a submit."""
+        self.on_new_option_editing_finished.emit(text)
 
-class TextArea(_HasPlaceholder, _Labeled):
+
+class TextArea(_Submittable, _HasPlaceholder, _Labeled):
     """A multi-line text box (mirrors Streamlit's `st.text_area`).
 
     Args:
@@ -748,6 +787,11 @@ class TextArea(_HasPlaceholder, _Labeled):
 
     Signals:
         on_value: emitted when `value` changes.
+        on_submit: emitted with the box's text when Ctrl+Enter is pressed
+            (plain Enter inserts a newline).
+        on_editing_finished: emitted with the box's text when editing ends --
+            on a submit, or when the box loses focus. A submit emits both, in
+            that order.
     """
 
     _default_width = 'stretch'
@@ -777,9 +821,10 @@ class TextArea(_HasPlaceholder, _Labeled):
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
         self._init_placeholder(placeholder)
+        self._init_submittable()
 
 
-class TextInput(_HasPlaceholder, _Labeled):
+class TextInput(_Submittable, _HasPlaceholder, _Labeled):
     """A single-line text input (mirrors Streamlit's `st.text_input`).
 
     Args:
@@ -808,6 +853,10 @@ class TextInput(_HasPlaceholder, _Labeled):
 
     Signals:
         on_value: emitted when `value` changes.
+        on_submit: emitted with the box's text when Enter is pressed.
+        on_editing_finished: emitted with the box's text when editing ends --
+            on a submit, or when the box loses focus. A submit emits both, in
+            that order.
     """
 
     _default_width = 'stretch'
@@ -835,6 +884,7 @@ class TextInput(_HasPlaceholder, _Labeled):
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
         self._init_placeholder(placeholder)
+        self._init_submittable()
         if candidates is None or isinstance(candidates, Property):
             source = tp.cast(tp.Optional[tp.List[str]], candidates)
         else:

@@ -173,6 +173,10 @@
     const text = decimals ? value.toFixed(decimals) : String(value);
     input.dataset.value = text;
     input.value = text;
+    // A step is a fresh edit, like typing (`oninput`), so it reopens the
+    // editing session: a submit earlier in it must not swallow the blur that
+    // ends the new one.
+    input._scSubmitted = false;
     scSyncNumberStepper(input);
     scSendChange(input);
   }

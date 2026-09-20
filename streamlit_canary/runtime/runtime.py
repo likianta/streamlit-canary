@@ -138,10 +138,19 @@ class Runtime:
             change — set the `value` Property (Selectbox / RadioGroup / TextInput
                      / NumberInput), which in turn emits `on_value`
                      (= `value.on_change`).
+            submit — commit the box's text as the value, then emit
+                     `on_submit` followed by `on_editing_finished` (the
+                     `_Submittable` inputs: Enter, Ctrl+Enter, or the
+                     new-option row's Enter).
+            editing_finished — emit `on_editing_finished` (the box lost
+                     focus; the value was already committed by the `change`
+                     event the browser fires alongside it).
 
         A component may also handle an event itself by defining an
         `_on_<event>` method, which receives the raw client value. That is
-        how Tabs consumes `change` and Selectbox consumes `new_option`.
+        how Tabs consumes `change`, Selectbox consumes `new_option` /
+        `new_option_editing_finished`, and the option lists consume `focus`
+        and `open`.
 
         An exception raised by a handler is *caught* and reported to the
         browsers (`_report_error`). Letting it escape would tear the
@@ -163,19 +172,42 @@ class Runtime:
         if event == 'click' and hasattr(comp, 'on_click'):
             comp.on_click.emit()
             return
+        if event == 'submit' and hasattr(comp, 'on_submit'):
+            # The deliberate commit (`_Submittable`). The text becomes the
+            # value first, so a `path` / `format` derived from it is already
+            # up to date when the signals go out. `on_editing_finished`
+            # follows `on_submit`, since a submit also ends the session --
+            # which is what lets a listener subscribe to that signal alone.
+            text = '' if value is None else str(value)
+            self._commit_value(comp, text)
+            comp.on_submit.emit(text)
+            comp.on_editing_finished.emit(text)
+            return
+        if event == 'editing_finished' and hasattr(comp, 'on_editing_finished'):
+            # The box lost focus. The value was already committed by the
+            # `change` event the browser fires alongside this one, so only
+            # the signal goes out.
+            comp.on_editing_finished.emit('' if value is None else str(value))
+            return
         hook = getattr(comp, f'_on_{event}', None)
         if callable(hook):
             hook(value)
             return
         if event == 'change':
-            # Selectbox / RadioGroup / TextInput / NumberInput: set the value
-            # property, which triggers `on_value` and any bound handlers.
-            # A component may expose `_coerce_value` to normalize the raw
-            # client string (e.g. NumberInput parses `'0x29'` into an int).
-            prop = getattr(comp, 'value', None)
-            if isinstance(prop, Property):
-                coerce = getattr(comp, '_coerce_value', None)
-                prop.set(coerce(value) if callable(coerce) else value)
+            self._commit_value(comp, value)
+
+    @staticmethod
+    def _commit_value(comp: Component, value: tp.Any) -> None:
+        """Write a client-reported value onto a component's `value` field.
+
+        Selectbox / RadioGroup / TextInput / NumberInput all carry one. A
+        component may expose `_coerce_value` to normalize the raw client
+        string (e.g. NumberInput parses `'0x29'` into an int).
+        """
+        prop = getattr(comp, 'value', None)
+        if isinstance(prop, Property):
+            coerce = getattr(comp, '_coerce_value', None)
+            prop.set(coerce(value) if callable(coerce) else value)
 
     # -- property change → delta -----------------------------------------
 
