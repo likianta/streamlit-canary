@@ -25,7 +25,7 @@
   }
   .st-text-input-box:focus {
     outline: none;
-    border-color: var(--st-gray-color);
+    border-color: var(--st-primary-color);
   }
   .st-text-input-box:disabled {
     color: var(--st-gray-color);
@@ -54,7 +54,7 @@
   }
   .st-text-area-box:focus {
     outline: none;
-    border-color: var(--st-gray-color);
+    border-color: var(--st-primary-color);
   }
   .st-text-area-box:disabled {
     color: var(--st-gray-color);
@@ -88,7 +88,7 @@
     container-type: inline-size;
   }
   .st-number-box:focus-within {
-    border-color: var(--st-gray-color);
+    border-color: var(--st-primary-color);
   }
   .st-number-box > .st-text-input-box {
     flex: 1 1 auto;

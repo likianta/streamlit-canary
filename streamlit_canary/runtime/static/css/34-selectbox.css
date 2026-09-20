@@ -227,7 +227,7 @@
     outline: none;
   }
   .st-selectbox-new-input:focus {
-    border-color: var(--st-gray-color);
+    border-color: var(--st-primary-color);
   }
   .st-selectbox-newitem {
     padding: 0 5px;
