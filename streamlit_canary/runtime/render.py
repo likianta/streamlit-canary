@@ -964,28 +964,20 @@ def _render_selectbox(comp: Selectbox) -> str:
     # Build option items for the custom dropdown panel. Two-layer structure
     # matches Streamlit: outer (padding 0 5px) + inner (padding 0 8px), so
     # the hover background on the inner div is inset from the panel edges.
+    # The inner div is also what clips a label too long for the row
+    # (`st-truncate-help`), so `90-help.js` can offer the whole label on hover.
     opt_items = ''.join(
         f'<div class="st-selectbox-option" role="option" '
         f'data-value="{html.escape(str(o))}" '
         f'data-comp-id="{comp.id}" '
         f'onclick="scSelectOption(this)" '
         f'{"data-selected" if o == value else ""}>'
-        f'<div class="st-selectbox-option-inner">'
+        f'<div class="st-selectbox-option-inner st-truncate-help">'
         f'{render_markup(fmt(o))}</div></div>'
         for o in options
     )
     # Display text for the trigger button.
     display_text = render_markup(fmt(value)) if value else '\u200b'
-    # `_truncate_help` (`TreeSelect`'s location bar): the trigger keeps its own
-    # text, for the client to show as a tooltip -- but only once the box really
-    # cuts it off, which only the browser can tell (see `90-help.js`). The
-    # value goes through `format` so what the tooltip shows is what the
-    # trigger shows, markdown escapes and all.
-    truncate_help = ''
-    if value and getattr(comp, '_truncate_help', False):
-        truncate_help = ' data-truncate-help="{}"'.format(
-            html.escape(fmt(value), quote=True)
-        )
     arrow_svg = _chevron_svg()
     # `accept_new_options`: an input row at the top of the dropdown lets the
     # user type a value that is not in the list yet.
@@ -1000,7 +992,8 @@ def _render_selectbox(comp: Selectbox) -> str:
             f'onkeydown="scNewOptionKey(event, this)"/>'
             f'<div class="st-selectbox-newitem" role="option" '
             f'data-comp-id="{comp.id}" onclick="scAddNewOption(this)" hidden>'
-            '<div class="st-selectbox-option-inner"></div></div>'
+            '<div class="st-selectbox-option-inner st-truncate-help"></div>'
+            '</div>'
             '</div>'
         )
     root_attrs = f' data-id="{comp.id}"'
@@ -1032,8 +1025,7 @@ def _render_selectbox(comp: Selectbox) -> str:
         f'<button type="button" class="st-selectbox-trigger" '
         f'data-comp-id="{comp.id}"{disabled} '
         f'onclick="scToggleSelectbox(this)">'
-        f'<span class="st-selectbox-value"{truncate_help}>'
-        f'{display_text}</span>'
+        f'<span class="st-selectbox-value">{display_text}</span>'
         f'{arrow_svg}'
         f'</button>'
         f'<div class="st-selectbox-dropdown" '

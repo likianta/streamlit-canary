@@ -5,9 +5,11 @@
   // trigger is the info glyph next to a label, or the button itself (which
   // is how Streamlit wires `st.button`'s help).
   //
-  // `data-truncate-help` is the same tooltip with its own reason to exist: the
-  // element holds text that is only worth showing while the box cuts it off
-  // (a long path in a narrow toolbar), so it appears on hover only then.
+  // `st-truncate-help` marks an element worth a tooltip only while its box
+  // cuts it off -- a dropdown item too long for its row. It shows the
+  // element's *own* content, which is already rendered markup, so a label
+  // carrying a `:material/...:` icon or emphasis reads exactly as the row
+  // does and nothing extra has to travel down for it.
   let scHelpTip = null;
   let scHelpTimer = 0;
   function scHelpTooltipEl() {
@@ -21,33 +23,59 @@
     document.body.appendChild(scHelpTip);
     return scHelpTip;
   }
-  // What a trigger has to say, if anything. `scrollWidth` past the box is
-  // exactly "there is more than fits", so `data-truncate-help` stays quiet
-  // until the text really is cut off -- the element has to clip
-  // (`overflow: hidden` + ellipsis, as `.st-selectbox-value` does) for the
-  // two to differ.
-  function scHelpText(target) {
+  // Is this element cut off? `scrollWidth` past the box is exactly "there is
+  // more than fits", which needs the element to clip (`overflow: hidden`, as
+  // `.st-selectbox-option-inner` does) for the two to differ.
+  function scHelpIsTruncated(target) {
+    return (
+      target.classList.contains('st-truncate-help') &&
+      target.scrollWidth > target.clientWidth + 1
+    );
+  }
+  // What a trigger has to say, if anything. `html` says whether `text` is
+  // already markup (a clipped row's own content) or markdown to render.
+  function scHelpContent(target) {
     if (target.hasAttribute('data-help')) {
-      return target.getAttribute('data-help');
+      return { html: false, text: target.getAttribute('data-help') };
     }
-    const md = target.getAttribute('data-truncate-help');
-    if (md === null) return '';
-    return target.scrollWidth > target.clientWidth + 1 ? md : '';
+    if (scHelpIsTruncated(target)) {
+      return { html: true, text: target.innerHTML };
+    }
+    return null;
   }
   function scShowHelp(target) {
-    const md = scHelpText(target);
-    if (!md) return;
+    const content = scHelpContent(target);
+    if (!content) {
+      // A marked element with room to spare: nothing of its own to show, and
+      // whatever a neighbouring row put up is stale by now.
+      scHideHelp();
+      return;
+    }
     const tip = scHelpTooltipEl();
-    tip.innerHTML = window.scRenderParagraphs(md);
+    tip.innerHTML = content.html
+      ? content.text
+      : window.scRenderParagraphs(content.text);
+    // A clipped label is read-only, so its pane must not swallow the pointer:
+    // the rows under it are what the pointer is there for. Help text keeps its
+    // pointer events (it can carry links).
+    tip.classList.toggle('st-help-tooltip--plain', content.html);
     tip.hidden = false;
     const rect = target.getBoundingClientRect();
     const box = tip.getBoundingClientRect();
-    // Prefer below the trigger; flip above when it would overflow.
+    let left = rect.left;
     let top = rect.bottom + 8;
+    if (content.html) {
+      // Beside the list rather than over it, so the rows the pointer may move
+      // on to stay readable (the pane is wider than a row, and a list is many
+      // rows tall).
+      const list = target.closest('.st-selectbox-dropdown') || target;
+      const beside = list.getBoundingClientRect().right + 8;
+      if (beside + box.width <= window.innerWidth - 4) left = beside;
+    }
+    // Prefer below the trigger; flip above when it would overflow.
     if (top + box.height > window.innerHeight - 4) {
       top = rect.top - box.height - 8;
     }
-    let left = rect.left;
     if (left + box.width > window.innerWidth - 4) {
       left = window.innerWidth - box.width - 4;
     }
@@ -64,8 +92,14 @@
   // Leaving the glyph does not hide the tooltip right away: the pointer needs
   // a moment to cross the gap onto the pane, and arriving there cancels the
   // pending hide. Without the delay the pane closes on the way and can never
-  // be entered.
+  // be entered. A clipped label's pane is not interactive (`--plain`), so
+  // there is nothing to travel onto and it goes the moment the pointer leaves
+  // the row -- which is also what keeps it out of the way of the row below.
   function scScheduleHelpHide() {
+    if (scHelpTip && scHelpTip.classList.contains('st-help-tooltip--plain')) {
+      scHideHelp();
+      return;
+    }
     if (scHelpTimer) clearTimeout(scHelpTimer);
     scHelpTimer = setTimeout(() => {
       scHelpTimer = 0;
@@ -74,9 +108,7 @@
   }
   function scHelpTrigger(node) {
     if (!node || !node.closest) return null;
-    return (
-      node.closest('[data-help]') || node.closest('[data-truncate-help]')
-    );
+    return node.closest('[data-help]') || node.closest('.st-truncate-help');
   }
   // The pane is interactive (links, tables, selectable text), so hovering it
   // has to count as "still on the help".
@@ -101,7 +133,13 @@
     scShowHelp(t);
   });
   document.addEventListener('mouseout', (e) => {
-    if (scHelpTrigger(e.target)) scScheduleHelpHide();
+    const t = scHelpTrigger(e.target);
+    if (!t) return;
+    // Moving onto a child of the same trigger is not leaving it -- the row's
+    // label span is inside the box that carries the marker, and re-showing on
+    // the way in would make the pane blink.
+    if (e.relatedTarget && t.contains(e.relatedTarget)) return;
+    scScheduleHelpHide();
   });
   document.addEventListener('focusin', (e) => {
     const t = scHelpTrigger(e.target);

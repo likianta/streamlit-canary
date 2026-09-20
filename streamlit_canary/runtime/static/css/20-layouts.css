@@ -205,7 +205,12 @@
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1000;
+    /* Above every panel there is, the menu panel included (`40-overlays.css`
+       puts that one at 1000060). A tip hangs off whatever the pointer is on,
+       so it must not disappear under a dropdown, a popover or a dialog it is
+       opened over -- and an escaped dropdown sits as high as 1000050
+       (`34-selectbox.css`). */
+    z-index: 1000100;
     max-width: 672px;
     padding: 6px 12px;
     border: 1px solid var(--st-border-color);
@@ -221,5 +226,11 @@
   }
   .st-help-tooltip[hidden] {
     display: none;
+  }
+  /* A clipped dropdown label puts up the same pane, but there is nothing in it
+     to interact with, and it sits beside a list the pointer still has to
+     travel -- so it stays out of the way (`scShowHelp` in page.js). */
+  .st-help-tooltip--plain {
+    pointer-events: none;
   }
 

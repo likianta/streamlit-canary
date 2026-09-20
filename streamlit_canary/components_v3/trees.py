@@ -603,9 +603,9 @@ class TreeSelect(_Labeled, Column):
     listing every ancestor of the folder on show -- itself included, so any
     parent is one pick away -- with the machine's other drives in front of
     them (`_location_options`), and then the actions: `home` returns to the
-    starting folder, `refresh` re-reads the folder on show.  A path too long
-    for the toolbar is cut off with an ellipsis and shows itself in full on
-    hover (`_truncate_help`).
+    starting folder, `refresh` re-reads the folder on show.  Both the trigger
+    and the ladder's items clip a path too long for them, and a clipped item
+    shows its whole label on hover (`st-truncate-help`).
 
     `_vendored` settles where the Confirm button goes and what frame the
     panel wears.  Left alone (the default) the panel is a standalone widget:
@@ -772,11 +772,6 @@ class TreeSelect(_Labeled, Column):
                     format=_path_label,
                     label_visibility='collapsed',
                 )
-                # A path is long and the toolbar narrow: the trigger cuts it
-                # off with an ellipsis, so the box carries the full text for
-                # the client to show as a tooltip once that happens (see
-                # `_render_selectbox` and `90-help.js`).
-                self._location._truncate_help = True
                 self._home_btn = IconButton(
                     'home', help='Go to the starting directory'
                 )

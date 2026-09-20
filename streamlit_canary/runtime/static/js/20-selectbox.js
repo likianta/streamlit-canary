@@ -25,7 +25,8 @@
       `data-value="${o}" data-comp-id="${id}" ` +
       `onclick="scSelectOption(this)" ` +
       `${o === current ? 'data-selected' : ''}>` +
-      `<div class="st-selectbox-option-inner">${fmt(labels[i])}</div></div>`
+      `<div class="st-selectbox-option-inner st-truncate-help">` +
+      `${fmt(labels[i])}</div></div>`
     ).join('');
     dropdown.innerHTML =
       (el.dataset.acceptNew ? scNewOptionRow(el) : '') + items;
