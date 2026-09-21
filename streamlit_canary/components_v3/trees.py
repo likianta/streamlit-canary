@@ -709,6 +709,15 @@ class TreeSelect(_Labeled, Column):
     Call `reload()` to re-read the folder from disk, `select(path)` to add a
     path that is not in the listing, `clear()` to drop the selection, and
     `resolve()` for the paths the Confirm button reports.
+
+    Drag-and-drop is deliberately absent: a browser hands a page the dropped
+    *entries* -- names, and their contents -- never the path they came from
+    (`File.name` has none, `file.path` is Electron-only, and
+    `webkitGetAsEntry().fullPath` / `webkitRelativePath` are virtual
+    respectively relative).  With no path there is nothing to hand
+    `PathInput`, and a bare name belongs to the *client*: over a LAN it
+    names a folder the server cannot reach.  A dead end by design, not an
+    oversight.
     """
 
     def __init__(

@@ -37,22 +37,24 @@
   .st-btn-text p {
     margin: 0;
   }
+  /* A disabled button keeps its resting colours: hover and press must not
+     repaint it. Hence `:not(:disabled)` on the variant rules below -- a
+     `:disabled:hover` override would have to restate each variant's own
+     background, and it is the `primary` one it used to get wrong (a white
+     label on the secondary, equally white box). */
   .st-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-  }
-  .st-btn:disabled:hover {
-    background-color: var(--st-secondary-background-color);
   }
   .st-btn-secondary {
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
     border-color: var(--st-border-color);
   }
-  .st-btn-secondary:hover {
+  .st-btn-secondary:not(:disabled):hover {
     background-color: var(--st-hover-background-color);
   }
-  .st-btn-secondary:active {
+  .st-btn-secondary:not(:disabled):active {
     background-color: var(--st-active-background-color);
   }
   .st-btn-primary {
@@ -63,11 +65,11 @@
   /* Hover darkens both the background and the border; pressing keeps the
      base background but keeps the hover border. Mirrors Streamlit 1.63,
      where the same colour derives from the primary colour. */
-  .st-btn-primary:hover {
+  .st-btn-primary:not(:disabled):hover {
     background-color: var(--st-primary-color-hover);
     border-color: var(--st-primary-color-hover);
   }
-  .st-btn-primary:active {
+  .st-btn-primary:not(:disabled):active {
     background-color: var(--st-primary-color);
     border-color: var(--st-primary-color-hover);
   }

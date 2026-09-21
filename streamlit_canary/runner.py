@@ -93,13 +93,13 @@ def run(
                     blocking=blocking,
                 )
                 if blocking and proc_v3 is not None:
-                    # the session is over; the server has no reason to outlive 
+                    # the session is over; the server has no reason to outlive
                     # it.
                     proc_v3.terminate()
                 return proc_v3, proc_win
             else:
                 return proc_v3, None
-        
+
         else:
             # callable: the server is this very process
             runtime = Runtime(target)
@@ -120,7 +120,7 @@ def run(
                 if blocking:
                     server.should_exit = True
                 return None, proc_win
-            
+
             else:
                 if blocking:
                     serve(runtime, port=port, host=host)  # blocking
@@ -196,8 +196,8 @@ def _open_window(
         pos=pos,
         size=size,
         blocking=blocking,
-        # `run()` cleans up around the window itself (there is a server behind 
-        # it to shut down), so the window must hand control back on close rather 
+        # `run()` cleans up around the window itself (there is a server behind
+        # it to shut down), so the window must hand control back on close rather
         # than call `sys.exit()`.
         close_window_to_exit=False,
     )
