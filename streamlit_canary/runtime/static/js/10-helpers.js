@@ -34,6 +34,13 @@
     const id = input.dataset.compId;
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: input.value}));
   }
+  // Sent on every keystroke (`TextInput.on_editing`), where `scSendChange`
+  // above only speaks on blur / Enter. The server keeps the two apart: this
+  // one says "the box now reads X", that one commits X as the value.
+  function scSendEditing(input) {
+    const id = input.dataset.compId;
+    ws.send(JSON.stringify({type: 'event', id: id, event: 'editing', value: input.value}));
+  }
   // A deliberate commit (`_Submittable`): Enter in a text / number box,
   // Ctrl+Enter in a text area, Enter (or the "Add" row) in a selectbox's
   // new-option box. The server commits the text as the value and emits

@@ -29,6 +29,13 @@
     user-select: none;
     text-align: center;
   }
+  /* `visible=False` marks the root element with `hidden` (see `_render`), and
+     that attribute only takes effect if the box's own `display` gives way --
+     which the `inline-flex` above otherwise beats, leaving the button on
+     screen. Every other hideable component states this rule for itself. */
+  .st-btn[hidden] {
+    display: none;
+  }
   /* Multi-line labels render one `<p>` per markdown paragraph (like
      Streamlit), so the button keeps a tight two-line box. */
   .st-btn-text {

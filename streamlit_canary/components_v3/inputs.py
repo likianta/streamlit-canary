@@ -843,6 +843,12 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
             it, and a non-empty one opens a working panel. Whether the caret
             exists is a build-time choice -- a later patch only swaps the
             contents (any `None` sent afterwards reads as an empty list).
+        accept_new_options: whether the panel also offers the text as it
+            stands, in an "Add: ..." row drawn the way `Selectbox` draws its
+            own (default `False`). The row shows while the box has text, and
+            taking it commits that text -- the very thing a submit does --
+            which is how a `PathInput` jumps to a path pasted into it. It
+            brings the panel and its caret along even with nothing to list.
 
     Properties:
         label: str — rendered above the box.
@@ -853,6 +859,9 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
 
     Signals:
         on_value: emitted when `value` changes.
+        on_editing: emitted with the box's text on every keystroke. `value`
+            itself is only committed on blur / Enter, so this is how a caller
+            can follow what is being typed before it lands.
         on_submit: emitted with the box's text when Enter is pressed.
         on_editing_finished: emitted with the box's text when editing ends --
             on a submit, or when the box loses focus. A submit emits both, in
@@ -872,6 +881,7 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         help: str = '',
         label_visibility: T.LabelVisibility = 'auto',
         candidates: tp.Iterable[str] | Property | None = None,
+        accept_new_options: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -883,8 +893,12 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         )
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
+        self._accept_new_options = accept_new_options
         self._init_placeholder(placeholder)
         self._init_submittable()
+        # not part of `_Submittable`: this box is the only one whose client
+        # reports the text while it is still being typed.
+        self.on_editing: Signal = Signal(str)
         if candidates is None or isinstance(candidates, Property):
             source = tp.cast(tp.Optional[tp.List[str]], candidates)
         else:
@@ -893,6 +907,9 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         self.candidates = _prop(
             tp.cast(tp.Optional[tp.List[str]], None), source
         )
+
+    def _on_editing(self, value: tp.Any) -> None:
+        self.on_editing.emit('' if value is None else str(value))
 
 
 class Toggle(_Labeled):

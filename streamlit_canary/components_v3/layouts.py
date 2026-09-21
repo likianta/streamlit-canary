@@ -442,15 +442,35 @@ class Row(Component):
     Args:
         vertical_alignment: "top" (default) | "center" | "bottom" — how
             children align on the cross axis.
+        hide_when_empty: whether the row also counts as hidden while every
+            child of it is hidden (default `False`). A row that exists only
+            to be filled in later -- a bar handed out for a caller to add
+            its own widgets to -- would otherwise still cost its parent one
+            gap, because a zero-height box is a box all the same.
+
+            This is decided per render, so the row is back as soon as
+            anything inside it is there when the render happens. A child
+            that a *patch* turns visible later does not bring the row back:
+            patches reach the elements they name, not their parent.
     """
 
     def __init__(
         self,
         vertical_alignment: tp.Literal['top', 'center', 'bottom'] = 'top',
+        *,
+        hide_when_empty: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(**kwargs)
         self._vertical_alignment = vertical_alignment
+        self._hide_when_empty = hide_when_empty
+
+    def is_hidden(self) -> bool:
+        if super().is_hidden():
+            return True
+        if not self._hide_when_empty:
+            return False
+        return not any(not child.is_hidden() for child in self.children)
 
 
 class Space(Component):

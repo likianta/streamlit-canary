@@ -241,6 +241,13 @@
   .st-selectbox-newitem:hover > .st-selectbox-option-inner {
     background-color: var(--st-border-color);
   }
+  /* The same row, but standing among the candidate rows of a `TextInput`
+     panel instead of in a row of its own, so it keeps their pitch. */
+  .st-text-input-candidates .st-selectbox-newitem {
+    display: flex;
+    align-items: center;
+    height: 40px;
+  }
 
   /* TextInput `candidates`: an editable box framed exactly like a Selectbox
      trigger, whose caret unfolds the very same panel above. Only the input's

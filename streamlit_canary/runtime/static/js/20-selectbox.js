@@ -59,17 +59,43 @@
   }
   // -- Selectbox "accept_new_options" input row --
   function scNewOptionInput(input) {
-    const row = input.closest('.st-selectbox-new');
-    const item = row ? row.querySelector('.st-selectbox-newitem') : null;
-    if (!item) return;
     // typing starts a fresh editing session (see `scSendSubmit`)
     input._scSubmitted = false;
+    scNewOptionEcho(input);
+  }
+  // The "Add: ..." row, filled in from whichever box feeds it: the box
+  // `Selectbox` spells into the row, or a `TextInput`'s own box
+  // (`accept_new_options`). `scPickCandidate` reads the row, so the text is
+  // carried on `data-value` as well as shown.
+  function scNewOptionEcho(input) {
+    const root = input.closest('[data-accept-new]');
+    const item = root ? root.querySelector('.st-selectbox-newitem') : null;
+    if (!item) return;
     const text = input.value.trim();
     item.hidden = text === '';
+    item.dataset.value = text;
     if (text !== '') {
       const inner = item.querySelector('.st-selectbox-option-inner');
       if (inner) inner.textContent = 'Add: "' + text + '"';
     }
+  }
+  // Taking the `TextInput` "Add: ..." row is the same thing as submitting the
+  // text it echoes, so it goes out as a `submit` rather than as the `change` a
+  // candidate pick sends (`scPickCandidate`): the owner is told the text was
+  // committed, not merely that the box now reads it.
+  function scAcceptNewOption(item) {
+    const root = item.closest('.st-text-input-candidates');
+    if (!root) return;
+    const input = root.querySelector('input.st-text-input-box');
+    if (!input) return;
+    const text = input.value.trim();
+    if (text === '') return;
+    input.value = text;
+    scSendSubmit(input);
+    const dropdown = root.querySelector('.st-selectbox-dropdown');
+    const box = root.querySelector('.st-selectbox-trigger');
+    if (dropdown) dropdown.hidden = true;
+    if (box) box.removeAttribute('aria-expanded');
   }
   function scNewOptionKey(event, input) {
     if (event.key !== 'Enter') return;

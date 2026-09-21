@@ -921,28 +921,41 @@ def _render_text_input(comp: TextInput) -> str:
     disabled = '' if comp.enabled.get() else ' disabled'
     width_style = _size_style(comp)
     candidates = comp.candidates.get()
-    extra_cls = '' if candidates is None else ' st-text-input-candidates-input'
+    accept_new = bool(getattr(comp, '_accept_new_options', False))
+    # `accept_new_options` needs the panel too -- that is where its row lives
+    # -- so it brings the caret along even with no list to show.
+    framed = candidates is not None or accept_new
+    extra_cls = ' st-text-input-candidates-input' if framed else ''
+    # a `TextInput` is the box its "Add: ..." row echoes, so the row has to
+    # follow the text as it is typed; a `Selectbox` spells the row's own box
+    # in instead (see `scNewOptionInput`)
+    echo = '; scNewOptionEcho(this)' if accept_new else ''
     box = (
         f'<input class="st-text-input-box{extra_cls}" type="text" '
         f'data-comp-id="{comp.id}" '
         f'value="{html.escape(str(comp.value.get()))}" '
         f'placeholder="{placeholder}"{disabled} '
-        f'oninput="this._scSubmitted=false" '
+        f'oninput="this._scSubmitted=false; scSendEditing(this){echo}" '
         f'onchange="scSendChange(this)" '
         f'onkeydown="scSubmitKey(event, this)" '
         f'onblur="scSendEditingFinished(this)"/>'
     )
-    if candidates is None:
+    if not framed:
         return (
             f'<div class="st-text-input" data-id="{comp.id}"{width_style}>'
             f'{_widget_label_html(comp)}{box}</div>'
         )
     # `candidates`: frame the box like a `Selectbox` trigger, and let a caret
     # unfold the very same panel `Selectbox` draws.
-    caret_disabled = '' if candidates else ' disabled'
+    caret_disabled = '' if (candidates or accept_new) else ' disabled'
+    # the client finds the "Add: ..." row through this: the root that takes
+    # new options, and the row inside it (`scNewOptionEcho`)
+    accept_attr = ' data-accept-new="1"' if accept_new else ''
+    rows = _text_new_option_html(comp) if accept_new else ''
+    rows += _text_candidates_html(comp, candidates or ())
     return (
         f'<div class="st-text-input st-text-input-candidates" '
-        f'data-id="{comp.id}"{width_style}>'
+        f'data-id="{comp.id}"{accept_attr}{width_style}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-selectbox-control">'
         f'<div class="st-selectbox-trigger st-text-input-candidates-box">'
@@ -953,8 +966,28 @@ def _render_text_input(comp: TextInput) -> str:
         f'{_chevron_svg()}</button>'
         f'</div>'
         f'<div class="st-selectbox-dropdown" data-comp-id="{comp.id}" '
-        f'hidden>{_text_candidates_html(comp, candidates)}</div>'
+        f'hidden>{rows}</div>'
         f'</div></div>'
+    )
+
+
+def _text_new_option_html(comp: TextInput) -> str:
+    """The `TextInput` half of `accept_new_options`.
+
+    `Selectbox` spells a text box of its own into its panel's first row and
+    lets that box be the new value (`_render_selectbox`). A `TextInput` is
+    already a box, so this row is only an echo of it: `scNewOptionEcho` fills
+    in the label while the text is typed, and taking the row submits that text
+    (`scAcceptNewOption`) -- the same as pressing Enter in the box.
+    """
+    return (
+        f'<div class="st-selectbox-newitem" role="option" '
+        f'data-comp-id="{comp.id}" data-value="" '
+        # the row must not take focus, or clicking it reports an
+        # `editing_finished` carrying the text a moment before the click
+        f'onmousedown="event.preventDefault()" '
+        f'onclick="scAcceptNewOption(this)" hidden>'
+        '<div class="st-selectbox-option-inner st-truncate-help"></div></div>'
     )
 
 

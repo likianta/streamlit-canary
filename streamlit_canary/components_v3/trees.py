@@ -45,6 +45,7 @@ from ..kernel import Signal
 from ..kernel import bind
 from ._shared import _Labeled
 from ._shared import _Submittable
+from .base import Component
 from .base import Width
 
 from .buttons import Button
@@ -446,11 +447,16 @@ class PathInput(_Submittable, Column):
         width: see `Column`.
         candidates: the box's suggestions (bindable); see `TextInput`.
             `None` (the default) draws no caret -- a plain text box.
+        accept_new_options: offer the typed text itself as a takeable row of
+            that panel (see `TextInput`), so a pasted-in path can be taken
+            from the panel as well as submitted.
 
     Properties:
         path: str — the resolved absolute path ('' when it does not exist).
             Setting it re-writes the text, so callers can push a picked path
-            into the box without touching the input directly.
+            into the box without touching the input directly. `show` does
+            that too, and also tidies a box that already reads that path in
+            some other spelling (backslashes, a `..`).
         candidates: list[str] | None — the box's dropdown suggestions.
 
     Signals:
@@ -469,6 +475,7 @@ class PathInput(_Submittable, Column):
         *,
         width: Width | None = None,
         candidates: tp.Iterable[str] | Property | None = None,
+        accept_new_options: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -484,7 +491,11 @@ class PathInput(_Submittable, Column):
         self.candidates.set_or_bind(source)
         with self:
             self._input = TextInput(
-                label, value=value, width='stretch', candidates=self.candidates
+                label,
+                value=value,
+                width='stretch',
+                candidates=self.candidates,
+                accept_new_options=accept_new_options,
             )
 
         @self._input.value.on_change
@@ -495,6 +506,10 @@ class PathInput(_Submittable, Column):
         # it outwards under this wrapper's own name.
         @self._input.on_submit
         def _relay_submit(text: str) -> None:
+            # a submit ends the typing, so this is when the box can be tidied:
+            # a path pasted with backslashes, or with a `..` inside it, ends up
+            # shown in the form it resolved to
+            self._show(self._resolve(text))
             self.on_submit.emit(text)
 
         @self._input.on_editing_finished
@@ -503,13 +518,28 @@ class PathInput(_Submittable, Column):
 
         @self.path.on_change
         def _follow() -> None:
-            # Only a resolved path is written back: an empty one means the
-            # text is still incomplete, and must be left alone.
-            path = self.path.get()
-            if path and str(self._input['value']) != path:
-                self._input.value.set(path)
+            self._show(self.path.get())
 
         self.path.set(self._resolve(str(value)))
+
+    def show(self, path: str) -> None:
+        """Make `path` the value, and make the box read it.
+
+        `path.set` on its own only re-writes the box when the value actually
+        changes; this also covers a box that is already on that path, spelled
+        some other way -- with backslashes, a trailing separator, a `..`.
+        """
+        self.path.set(path)
+        self._show(path)
+
+    def _show(self, path: str) -> None:
+        """Write a resolved path into the box, if the box reads otherwise.
+
+        Only a resolved path is written back: an empty one means the text is
+        still incomplete, and must be left alone.
+        """
+        if path and str(self._input['value']) != path:
+            self._input.value.set(path)
 
     @staticmethod
     def _resolve(raw: str) -> str:
@@ -683,6 +713,10 @@ class TreeSelect(_Labeled, Column):
             Layout note above).  Only `TreeSelectWithInput` passes `True`.
         border: whether the panel draws its own frame.  Left `None` it is
             `not _vendored`, so a standalone panel is framed by default.
+        show_confirm_button: whether the Confirm button is shown (default
+            `True`). With `False` the button is hidden rather than skipped:
+            the bottom bar it lives in stays built, which is what a caller
+            hangs its own actions off (see `Widgets`).
 
     Properties:
         value: str | list[str] — the selection. `single` keeps one path (`''`
@@ -710,6 +744,26 @@ class TreeSelect(_Labeled, Column):
     path that is not in the listing, `clear()` to drop the selection, and
     `resolve()` for the paths the Confirm button reports.
 
+    Widgets:
+        The sub-components worth reaching into, for a caller that wants to
+        extend the panel rather than just read it:
+
+            'bottom_bar': the `Row` under the listing that holds the Confirm
+                button. Entering it appends siblings to that very row, after
+                the button -- a panel's own extra actions, say:
+
+                    with tree.widgets['bottom_bar']:
+                        v3.Button('Open input folder')
+
+                It is always built, so it can be entered even when the
+                Confirm button is hidden.  A vendored panel wraps the row in
+                a `FloatingContainer` (that is what floats it to the corner);
+                the row is the same either way.  It is built
+                `hide_when_empty`, so a panel whose bar nobody fills in does
+                not carry an empty line at its foot.
+            'confirm_button': the button itself, built even when hidden, so a
+                caller can still reach it (`on_click`, `label`, `visible`).
+
     Drag-and-drop is deliberately absent: a browser hands a page the dropped
     *entries* -- names, and their contents -- never the path they came from
     (`File.name` has none, `file.path` is Electron-only, and
@@ -735,6 +789,7 @@ class TreeSelect(_Labeled, Column):
         ] = _MODE_SINGLE,
         _vendored: bool = False,
         border: bool | None = None,
+        show_confirm_button: bool = True,
         **kwargs: tp.Any,
     ) -> None:
         if border is None:
@@ -765,6 +820,9 @@ class TreeSelect(_Labeled, Column):
         # the folder the panel was in before the current one: coming back up
         # highlights the row that leads there (see `_focus_index`)
         self._came_from = ''
+        # a row the next listing should point at instead, for a wrapper's
+        # jump that has somewhere definite in mind (`_goto`)
+        self._point_at: tp.Union[str, int] = ''
 
         self.value = Property(
             tp.cast(tp.Union[str, tp.List[str]], _empty_value(initial_mode))
@@ -854,19 +912,36 @@ class TreeSelect(_Labeled, Column):
                     navigable=_is_enterable,
                     body_opens=_is_nav_up,
                 )
-            # The Confirm button is the panel's "done" action: a wrapper
-            # hooks `on_submit` to fold the popover away (the panel itself
-            # must not know about its parent). A vendored panel floats it
-            # into the corner, where it stays put while the listing scrolls;
-            # a standalone one keeps it under the listing, in the ordinary
-            # flow.
+            # The bottom bar is where the panel's "done" action lives: a
+            # wrapper hooks `on_submit` to fold the popover away (the panel
+            # itself must not know about its parent). A vendored panel floats
+            # the bar into the corner, where it stays put while the listing
+            # scrolls; a standalone one keeps it under the listing, in the
+            # ordinary flow. Either way it is built, and always *around a
+            # `Row`*, so `widgets['bottom_bar']` is somewhere to add siblings
+            # -- including when the Confirm button is hidden. That row bows
+            # out while it has nothing to show, so a panel nobody extends
+            # does not pay for it with a gap it cannot use.
             if _vendored:
+                # a floating cluster is a `Column` (it may not sit inside a
+                # `Row`) and lays its children out in a row of its own, so the
+                # bar rides inside it rather than being it.
                 with FloatingContainer('bottom-right'):
-                    self._confirm_btn = Button('Confirm', type='primary')
+                    bottom_bar = Row('center', hide_when_empty=True)
             else:
+                bottom_bar = Row('center', hide_when_empty=True)
+            with bottom_bar:
                 self._confirm_btn = Button(
-                    'Confirm', type='primary', width='stretch'
+                    'Confirm',
+                    # 'content' in a floating cluster (which hugs it), full
+                    # width under the listing, as before
+                    width=None if _vendored else 'stretch',
+                    visible=show_confirm_button,
                 )
+            self.widgets: tp.Dict[str, Component] = {
+                'bottom_bar': bottom_bar,
+                'confirm_button': self._confirm_btn,
+            }
 
         # -- handlers -------------------------------------------------------
 
@@ -917,9 +992,11 @@ class TreeSelect(_Labeled, Column):
         def _on_refresh() -> None:
             self.reload()
 
-        @self._confirm_btn.on_click
-        def _on_confirm() -> None:
-            self.on_submit.emit(self.resolve())
+        if show_confirm_button:
+
+            @self._confirm_btn.on_click
+            def _on_confirm() -> None:
+                self.on_submit.emit(self.resolve())
 
         if crosses:
 
@@ -999,14 +1076,21 @@ class TreeSelect(_Labeled, Column):
                 return str(option)
         return ''
 
-    def _goto(self, directory: str) -> None:
-        """Point the panel at a folder and re-list it (used by the wrappers)."""
+    def _goto(self, directory: str, point_at: tp.Union[str, int] = '') -> None:
+        """Point the panel at a folder and re-list it (used by the wrappers).
+
+        `point_at` says which row of the new listing should carry the
+        highlight, for a jump that knows where it is going: a path that is one
+        of its rows, or leads to one, or a row number when nothing more
+        specific can be said. Left out, the listing starts unmarked -- a
+        wrapper's jump is not a walk of the panel's own, so it has nothing to
+        point back at.
+        """
         directory = _norm(directory) if directory else ''
         if directory and fs.isdir(directory):
             self._nav.directory = directory
-        # a wrapper's "open at this folder" is not a walk of the panel's own,
-        # so there is nothing for the new listing to point back at
         self._came_from = ''
+        self._point_at = point_at
         self._refresh_listing()
 
     def _jump(self, directory: str) -> None:
@@ -1020,6 +1104,7 @@ class TreeSelect(_Labeled, Column):
         can mark the row that leads back to it (see `_focus_index`).
         """
         self._came_from = self._nav.directory
+        self._point_at = ''
         if self.mode.get() == _MODE_MULTIPLE:
             self.value.set([])
         self._nav.directory = directory
@@ -1098,12 +1183,20 @@ class TreeSelect(_Labeled, Column):
         mark the place itself, since it is not a row of the new listing; the
         row on the way to it is marked instead, which is the path back.
 
+        A wrapper's jump brings a row of its own to mark (`_goto`): a path
+        that is one of these rows, or leads to one.  A *number* is taken as
+        the row itself, which is the best a jump can say when the path it has
+        is not in the listing at all -- a file the filter drops.
+
         Where a node sat is remembered per node (`_TreeNav.node_index`), but
         the index is re-checked against the fresh listing -- the folder may
         have gained or lost a row since that reading -- and a row found by
         path is used when it no longer lines up.
         """
-        origin = self._came_from
+        target, self._point_at = self._point_at, ''
+        if isinstance(target, int):
+            return target if 0 <= target < len(options) else -1
+        origin = target or self._came_from
         if not origin:
             return -1
         nav = self._nav
@@ -1170,8 +1263,15 @@ class TreeSelectWithInput(Column):
     panel's location selectbox (see `TreeSelect`), which follows the browsed
     folder by itself -- so there is nothing here to keep in step.
 
-    Typing (or picking) a folder points the panel there; a file joins the
-    panel's selection.  The selection survives browsing -- `clear()` drops it.
+    Typing, pasting (or picking) a folder points the panel there.  A file
+    takes the panel to the folder holding it, with its own row marked, and
+    joins the panel's selection.  A file the filter drops has no row to mark,
+    so the listing simply starts at its top.  The selection survives browsing
+    -- `clear()` drops it.
+
+    The path box takes a pasted path from outside as readily as a picked one:
+    it offers the text as it stands in its panel (`accept_new_options`), and
+    Enter submits it.
 
     Args:
         label: the path input's label.
@@ -1226,7 +1326,9 @@ class TreeSelectWithInput(Column):
 
         with self:
             with Row('bottom'):
-                self._path_input = PathInput(label, first_path)
+                self._path_input = PathInput(
+                    label, first_path, accept_new_options=True
+                )
                 self._recent = Recent(
                     'Recent', visible=self._has_recent, max_height=280
                 )
@@ -1296,10 +1398,14 @@ class TreeSelectWithInput(Column):
     # -- internals ----------------------------------------------------------
 
     def _commit(self, path: str) -> None:
-        """Resolve a typed / picked path into a selection or a jump.
+        """Resolve a typed / pasted / picked path into a selection or a jump.
 
-        A folder moves the panel there, while a file joins the panel's
-        selection (`single` replaces it, the multi modes add it).
+        A folder moves the panel there.  A file moves it to the folder holding
+        that file and marks the file's own row, so a path from outside lands
+        on the thing it names; the box then shows that folder, since the file
+        itself is not somewhere to browse.  A file the listing will not show
+        -- the filter dropped it -- has no row to mark, so the listing starts
+        at its top instead.
         """
         path = path.strip()
         if not path:
@@ -1310,13 +1416,29 @@ class TreeSelectWithInput(Column):
             # A half-typed path is not an error, just not a value yet.
             self._tree.clear()
             return
-        self._path_input.path.set(path)
         if fs.isdir(path):
+            self._set_box(path)
             self._tree._goto(path)
-        else:
+            return
+        directory = fs.parent(path)
+        # the box shows that folder, since the file is not somewhere to
+        # browse; setting it re-enters here for the folder, so this goes
+        # before the jump below, which has the last word on the marked row
+        self._set_box(directory)
+        keeps = bool(self._keeps(fs.basename(path)))
+        if keeps:
+            # the file is one of the rows, so it is also a thing to pick --
+            # this is what a typed-in file has always done
             self._tree.select(path)
             self._nav.remember(path)
             self._refresh_recent()
+        # the pick (if any) re-lists on its own, so it goes first and this
+        # jump has the last word on which row is marked
+        self._tree._goto(directory, point_at=path if keeps else 0)
+
+    def _set_box(self, path: str) -> None:
+        """Show a resolved path in the path box."""
+        self._path_input.show(path)
 
     def _refresh_recent(self) -> None:
         recent = list(self._nav.recent)

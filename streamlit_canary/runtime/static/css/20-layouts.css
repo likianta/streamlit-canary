@@ -12,6 +12,12 @@
     align-items: flex-start;
     margin-bottom: 8px;
   }
+  /* `flex` above beats the `hidden` attribute, so a hidden row has to give up
+     its display here. Without this an empty row -- a bar waiting to be filled
+     in -- still costs its parent a gap (`Row(hide_when_empty=True)`). */
+  .st-row[hidden] {
+    display: none;
+  }
   /* Streamlit gives every element of a horizontal container `flex-grow: 1`
      plus a flex basis taken from the element's type: `fit-content` for most
      elements, `8rem` for the input-like widgets and `14rem` for the large
