@@ -3,7 +3,7 @@
 Pseudo-code (the spec this script implements):
 
     1. Open a scene with a `TextInput`, a `TextArea`, a `NumberInput`, and a
-       `Selectbox(accept_new_options=True)`. Every signal emission is appended
+       `Selectbox(accept_new_option=True)`. Every signal emission is appended
        to a server-side log drawn into a `Text('LOG|...')` element; the browser
        reads it back through the element's raw `data-md` source.
     2. TextInput, Enter:
@@ -84,7 +84,7 @@ def scene() -> None:
     box['sb'] = sb = v3.Selectbox(
         'Select',
         ('x', 'y'),
-        accept_new_options=True,
+        accept_new_option=True,
         format_new_option=lambda text: text,
         key='sb',
     )

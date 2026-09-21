@@ -209,7 +209,7 @@
     background: var(--st-border-color);
     border-radius: 3px;
   }
-  /* `accept_new_options`: the "type a new value" row at the top of the
+  /* `accept_new_option`: the "type a new value" row at the top of the
      dropdown, plus the "Add: ..." affordance below it. */
   .st-selectbox-new {
     padding: 5px 5px 0;

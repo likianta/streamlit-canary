@@ -303,9 +303,9 @@ def ddd(value): ...
   `on_editing_finished` 是"编辑会话结束"(提交会先发 `on_submit` 再发它, 也可只由
   焦点 blur 触发). 二者由 `_shared.py` 的 `_Submittable` 混入提供
   (`self._init_submittable()`; 混入而非基类, 理由同 `_HasPlaceholder`).
-  `Selectbox` 的 `accept_new_options` 输入行是**另一个输入框**, 所以有自己的一对
+  `Selectbox` 的 `accept_new_option` 输入行是**另一个输入框**, 所以有自己的一对
   `on_new_option_submit` / `on_new_option_editing_finished`, 且只在
-  `accept_new_options=True` 时才创建 (属性是否存在即代表该功能是否开启). 前端
+  `accept_new_option=True` 时才创建 (属性是否存在即代表该功能是否开启). 前端
   提交/失焦的发送函数在 `10-helpers.js` (`scSendSubmit` / `scSendEditingFinished`)
   与 `20-selectbox.js` (`scNewOptionBlur` / `scAddNewOption`); 键盘映射在
   `scSubmitKey` (Enter) / `scSubmitAreaKey` (Ctrl+Enter) / `scNewOptionKey`.

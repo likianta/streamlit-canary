@@ -1,6 +1,6 @@
   // -- Selectbox options rendering -----------------------------------------
   // Shared by the initial render's patch path: rebuilding the dropdown must
-  // re-create the "accept_new_options" input row, since `innerHTML` replaces
+  // re-create the "accept_new_option" input row, since `innerHTML` replaces
   // the whole subtree.
   function scNewOptionRow(el) {
     const id = el.dataset.id;
@@ -57,7 +57,7 @@
       val.classList.add('is-placeholder');
     }
   }
-  // -- Selectbox "accept_new_options" input row --
+  // -- Selectbox "accept_new_option" input row --
   function scNewOptionInput(input) {
     // typing starts a fresh editing session (see `scSendSubmit`)
     input._scSubmitted = false;
@@ -65,7 +65,7 @@
   }
   // The "Add: ..." row, filled in from whichever box feeds it: the box
   // `Selectbox` spells into the row, or a `TextInput`'s own box
-  // (`accept_new_options`). `scPickCandidate` reads the row, so the text is
+  // (`accept_new_option`). `scPickCandidate` reads the row, so the text is
   // carried on `data-value` as well as shown.
   function scNewOptionEcho(input) {
     const root = input.closest('[data-accept-new]');

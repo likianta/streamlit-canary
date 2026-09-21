@@ -447,7 +447,7 @@ class PathInput(_Submittable, Column):
         width: see `Column`.
         candidates: the box's suggestions (bindable); see `TextInput`.
             `None` (the default) draws no caret -- a plain text box.
-        accept_new_options: offer the typed text itself as a takeable row of
+        accept_new_option: offer the typed text itself as a takeable row of
             that panel (see `TextInput`), so a pasted-in path can be taken
             from the panel as well as submitted.
 
@@ -475,7 +475,7 @@ class PathInput(_Submittable, Column):
         *,
         width: Width | None = None,
         candidates: tp.Iterable[str] | Property | None = None,
-        accept_new_options: bool = False,
+        accept_new_option: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -495,7 +495,7 @@ class PathInput(_Submittable, Column):
                 value=value,
                 width='stretch',
                 candidates=self.candidates,
-                accept_new_options=accept_new_options,
+                accept_new_option=accept_new_option,
             )
 
         @self._input.value.on_change
@@ -1270,7 +1270,7 @@ class TreeSelectWithInput(Column):
     -- `clear()` drops it.
 
     The path box takes a pasted path from outside as readily as a picked one:
-    it offers the text as it stands in its panel (`accept_new_options`), and
+    it offers the text as it stands in its panel (`accept_new_option`), and
     Enter submits it.
 
     Args:
@@ -1327,7 +1327,7 @@ class TreeSelectWithInput(Column):
         with self:
             with Row('bottom'):
                 self._path_input = PathInput(
-                    label, first_path, accept_new_options=True
+                    label, first_path, accept_new_option=True
                 )
                 self._recent = Recent(
                     'Recent', visible=self._has_recent, max_height=280
@@ -1513,7 +1513,7 @@ class TreeSelectDualPane(Column):
                 'Current location',
                 options=tuple(sorted(nav.parent_to_dirnames)),
                 value=nav.directory,
-                accept_new_options=True,
+                accept_new_option=True,
                 format_new_option=lambda x: x.strip(),
             )
             with Row():

@@ -44,7 +44,7 @@ def app() -> None:
     box['select'] = sb = v3.Selectbox(
         'Select',
         ('x', 'y'),
-        accept_new_options=True,
+        accept_new_option=True,
         format_new_option=lambda text: text,
         key='sb',
     )
@@ -156,7 +156,7 @@ check('number value parsed from the text', box['number'].value.get() == 41)
 check('number on_submit carries the raw text', ('ni.submit', '0x29') in result)
 
 # ---------------------------------------------------------------------------
-# 5. Selectbox accept_new_options: its own pair
+# 5. Selectbox accept_new_option: its own pair
 # ---------------------------------------------------------------------------
 print('5. Selectbox new-option row')
 

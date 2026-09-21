@@ -360,7 +360,7 @@ class _Submittable:
         on_submit: `Signal(str)` — the text was committed on purpose: Enter
             in a `TextInput` / `NumberInput`, Ctrl+Enter in a `TextArea`, or
             Enter (equivalently, the "Add" row) in a `Selectbox`'s
-            `accept_new_options` box. Carries the raw text as typed.
+            `accept_new_option` box. Carries the raw text as typed.
         on_editing_finished: `Signal(str)` — the editing session ended,
             whether by a submit or by the box losing focus. Carries the text
             as it stood then. A submit emits both, `on_submit` first.
@@ -373,7 +373,7 @@ class _Submittable:
     `_Labeled`, so there is no single `super()` to chain into and each
     `__init__` calls `_init_submittable` directly. `Multiselect` carries the
     pair for symmetry with its siblings, but nothing fires them until it
-    grows an `accept_new_options` box of its own.
+    grows an `accept_new_option` box of its own.
     """
 
     def _init_submittable(self) -> None:

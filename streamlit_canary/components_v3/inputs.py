@@ -299,7 +299,7 @@ class Multiselect(_Submittable, _HasPlaceholder, _Labeled):
         on_value (via `ms['on_value']` or `ms.value.on_change`)
         on_submit / on_editing_finished: carried for symmetry with the other
             inputs, but the trigger has no text box to submit, so nothing
-            fires them until `accept_new_options` lands.
+            fires them until `accept_new_option` lands.
     """
 
     format_func: tp.Callable[[tp.Any], str]
@@ -657,11 +657,11 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
     """A dropdown select component (mirrors Streamlit's `st.selectbox`).
 
     Args:
-        accept_new_options: allow typing a value that is not among
+        accept_new_option: allow typing a value that is not among
             `options` yet — an input row appears at the top of the dropdown.
         format_new_option: converts the typed text into an option value,
             e.g. `lambda x: int(x, 0)` for `'0x30'` / `'48'`. Required when
-            `accept_new_options` is on.
+            `accept_new_option` is on.
         placeholder: shown on the trigger while no option is picked
             (bindable). It is drawn whenever the trigger has no option to
             show -- an empty `options` list (e.g. a bound list that has not
@@ -679,9 +679,9 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
         on_value (via `sel['on_value']` or `sel.value.on_change`)
         on_options (via `sel['on_options']` or `sel.options.on_change`)
         on_new_option_submit / on_new_option_editing_finished: the
-            `accept_new_options` input row's own submit pair (`Signal(str)`).
+            `accept_new_option` input row's own submit pair (`Signal(str)`).
             The pair exists only on a selectbox built with
-            `accept_new_options=True`. The plain `on_submit` /
+            `accept_new_option=True`. The plain `on_submit` /
             `on_editing_finished` are deliberately not used here: the trigger
             is not a text box, so within this widget only the new-option row
             has something to submit.
@@ -697,7 +697,7 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
         index: int | Property | None = None,
         value: tp.Any = None,
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
-        accept_new_options: bool = False,
+        accept_new_option: bool = False,
         format_new_option: tp.Callable[[str], tp.Any] | None = None,
         placeholder: str | Property = 'Choose an option',
         label_visibility: T.LabelVisibility = 'auto',
@@ -712,20 +712,20 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
             label_visibility=label_visibility,
             **kwargs,
         )
-        if accept_new_options and format_new_option is None:
+        if accept_new_option and format_new_option is None:
             raise TypeError(
-                'Selectbox(accept_new_options=True) needs a '
+                'Selectbox(accept_new_option=True) needs a '
                 '`format_new_option` callable to convert the typed text.'
             )
-        self._accept_new_options = accept_new_options
+        self._accept_new_option = accept_new_option
         self._format_new_option = format_new_option
         self._init_placeholder(placeholder)
-        # The `accept_new_options` row is a text box of its own, so it gets a
+        # The `accept_new_option` row is a text box of its own, so it gets a
         # submit pair of its own -- the trigger cannot submit, and one widget
         # must not have two boxes reporting through the same signal. Created
         # only when that row is drawn, so the attribute's presence doubles as
         # "this selectbox accepts new options".
-        if accept_new_options:
+        if accept_new_option:
             self.on_new_option_submit: Signal = Signal(
                 str, _owner_factory=lambda: self
             )
@@ -843,7 +843,7 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
             it, and a non-empty one opens a working panel. Whether the caret
             exists is a build-time choice -- a later patch only swaps the
             contents (any `None` sent afterwards reads as an empty list).
-        accept_new_options: whether the panel also offers the text as it
+        accept_new_option: whether the panel also offers the text as it
             stands, in an "Add: ..." row drawn the way `Selectbox` draws its
             own (default `False`). The row shows while the box has text, and
             taking it commits that text -- the very thing a submit does --
@@ -881,7 +881,7 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         help: str = '',
         label_visibility: T.LabelVisibility = 'auto',
         candidates: tp.Iterable[str] | Property | None = None,
-        accept_new_options: bool = False,
+        accept_new_option: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -893,7 +893,7 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         )
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
-        self._accept_new_options = accept_new_options
+        self._accept_new_option = accept_new_option
         self._init_placeholder(placeholder)
         self._init_submittable()
         # not part of `_Submittable`: this box is the only one whose client

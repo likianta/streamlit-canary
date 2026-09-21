@@ -921,8 +921,8 @@ def _render_text_input(comp: TextInput) -> str:
     disabled = '' if comp.enabled.get() else ' disabled'
     width_style = _size_style(comp)
     candidates = comp.candidates.get()
-    accept_new = bool(getattr(comp, '_accept_new_options', False))
-    # `accept_new_options` needs the panel too -- that is where its row lives
+    accept_new = bool(getattr(comp, '_accept_new_option', False))
+    # `accept_new_option` needs the panel too -- that is where its row lives
     # -- so it brings the caret along even with no list to show.
     framed = candidates is not None or accept_new
     extra_cls = ' st-text-input-candidates-input' if framed else ''
@@ -972,7 +972,7 @@ def _render_text_input(comp: TextInput) -> str:
 
 
 def _text_new_option_html(comp: TextInput) -> str:
-    """The `TextInput` half of `accept_new_options`.
+    """The `TextInput` half of `accept_new_option`.
 
     `Selectbox` spells a text box of its own into its panel's first row and
     lets that box be the new value (`_render_selectbox`). A `TextInput` is
@@ -1040,9 +1040,9 @@ def _render_selectbox(comp: Selectbox) -> str:
         trigger_text = (
             f'<span class="st-selectbox-value is-placeholder">{hint}</span>'
         )
-    # `accept_new_options`: an input row at the top of the dropdown lets the
+    # `accept_new_option`: an input row at the top of the dropdown lets the
     # user type a value that is not in the list yet.
-    accept_new = bool(getattr(comp, '_accept_new_options', False))
+    accept_new = bool(getattr(comp, '_accept_new_option', False))
     new_row = ''
     if accept_new:
         new_row = (
