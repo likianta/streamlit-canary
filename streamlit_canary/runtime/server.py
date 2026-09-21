@@ -14,6 +14,8 @@ import os
 import sys
 from pathlib import Path
 
+import uvicorn
+from lk_utils import run_new_thread
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import FileResponse
@@ -197,8 +199,6 @@ def serve(runtime: Runtime, port: int = 3001, host: str = '0.0.0.0') -> None:
     `localhost` -- the two URLs `runner.run` prints. Pass
     `host='127.0.0.1'` to keep it reachable from this machine only.
     """
-    import uvicorn
-
     runtime.build()
     app = create_app(runtime)
     # TODO or DELETE: file watcher & reload banner needs to be refactored or
@@ -206,6 +206,31 @@ def serve(runtime: Runtime, port: int = 3001, host: str = '0.0.0.0') -> None:
     # and the "Source file changed" notice idle; a rerun is a manual action
     # from the toolbar instead (see page.js).
     uvicorn.run(app, host=host, port=port, log_level='warning')
+
+
+def serve_async(
+    runtime: Runtime, port: int = 3001, host: str = '0.0.0.0'
+) -> uvicorn.Server:
+    """Build the runtime and serve it from a background thread.
+
+    The non-blocking twin of `serve`, for a caller whose own thread is
+    needed elsewhere -- a native window takes the main thread over until it
+    is closed. uvicorn notices it is off the main thread and leaves the
+    signal handlers alone (see `Server.capture_signals`), so this is a
+    supported way to run it.
+
+    Returns the `uvicorn.Server`. Its `.started` turns true once the port is
+    bound (worth waiting for before a window is pointed at the url), and
+    setting `.should_exit = True` stops it. The thread is a daemon, so it
+    also dies with the process -- which is what a desktop session wants:
+    close the window, and the server goes with it.
+    """
+    runtime.build()
+    app = create_app(runtime)
+    cfg = uvicorn.Config(app, host=host, port=port, log_level='warning')
+    svr = uvicorn.Server(cfg)
+    run_new_thread(svr.run)
+    return svr
 
 
 def _log(message: str) -> None:

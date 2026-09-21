@@ -2,10 +2,11 @@
 Event-driven runtime package.
 
 Exposes:
-    Runtime    — owns the component tree and routes events
-    create_app — build a Starlette app from a Runtime
-    serve      — build + start the uvicorn server
-    run_app    — convenience: app function + port → running server
+    Runtime     — owns the component tree and routes events
+    create_app  — build a Starlette app from a Runtime
+    serve       — build + start the uvicorn server (blocking)
+    serve_async — the same, on a background thread (for a native window)
+    run_app     — convenience: app function + port → running server
 """
 
 import typing as tp
@@ -15,6 +16,7 @@ from .render import render_tree
 from .runtime import Runtime
 from .server import create_app
 from .server import serve
+from .server import serve_async
 from .server import WebSocketClient
 from .watcher import add_watch_file
 from .watcher import add_watch_folder
