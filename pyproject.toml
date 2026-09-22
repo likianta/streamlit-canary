@@ -1,6 +1,6 @@
 [project]
 name = "streamlit-canary"
-version = "0.4.0a37"
+version = "0.4.0a51"
 description = "LK-flavored Streamlit components."
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
 license = "MIT"
@@ -24,14 +24,15 @@ requires = ["hatchling>=1.29.0"]
 dev = [
     # "argsense>=1.1.3a1,<1.2.0",
     "asa-gui>=2026.9.10b0; python_version >= '3.12'",
+    "depsland>=0.13.0b18; python_version >= '3.12'",
     "faker>=40.39.0",
     "jlsemi-adoc-toolkit>=2026.9.20; python_version >= '3.12'",
     # "jurigged>=0.6.1",
     "playwright>=1.63.0",
     # "psutil>=7.0.0",
-    "requests>=2.34.2",
+    # "requests>=2.34.2",
     "streamlit>=1.64.0",
-    "streamlit-extras>=1.6.0",
+    # "streamlit-extras>=1.6.0",
     # "watchfiles>=1.2.0",
 ]
 
@@ -52,6 +53,15 @@ homepage = "https://github.com/likianta/streamlit-canary"
 [tool.hatch.build.targets.wheel]
 packages = ["streamlit_canary"]
 
+[tool.lk.pyproject-manager]
+ignore-unused-packages = [
+    "asa-gui",
+    "depsland",
+    "faker",
+    "jlsemi-adoc-toolkit",
+    "playwright",
+]
+
 [tool.ruff]
 line-length = 80
 
@@ -68,6 +78,9 @@ relative-imports-order = "closest-to-furthest"
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 83
 
 # [tool.ty.environment]
 # extra-paths = ["./lib"]
@@ -95,6 +108,7 @@ url = "http://localhost:2131/"
 airmise = { index = "likianta" }
 # argsense = { index = "likianta" }
 asa-gui = { index = "likianta" }
+depsland = { index = "likianta" }
 # lk-utils = { index = "likianta" }
 neoprint = { index = "likianta" }
 pyapp-window = { index = "likianta" }
