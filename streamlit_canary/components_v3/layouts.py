@@ -369,9 +369,13 @@ class Popover(_HasText):
             v3.Checkbox('Lock self', value=True)
 
     Opening/closing is handled entirely on the client, so it never reruns.
-    The one exception is `close()`: it asks the client to fold the panel away
-    while leaving the trigger in place, which a widget such as `TreeSelect`
-    uses to dismiss its own panel once the user confirms.
+    What does reach the server are the two ends of it: `close()` asks the
+    client to fold the panel away while leaving the trigger in place, which a
+    widget such as `TreeSelect` uses to dismiss its own panel once the user
+    confirms; and `on_open` / `on_close` report a panel that came up or went
+    away -- which is how a caller does its work only while the panel is up
+    (drawing a preview, say) instead of on every change of whatever the panel
+    is about.
 
     Args:
         label: the trigger label (bindable).
@@ -394,6 +398,11 @@ class Popover(_HasText):
     Properties:
         text: str — the trigger label (bindable).
         visible: bool — whether the popover is shown.
+
+    Signals:
+        on_open: the panel was unfolded (no payload).
+        on_close: the panel was folded away (no payload) -- by any means: the
+            trigger, a click outside, Escape, or `close()`.
 
     Note:
         The trigger's chevron is *swapped* between `expand_more` and
@@ -427,6 +436,19 @@ class Popover(_HasText):
         # counter is how it asks for a close instead: `close()` bumps it and
         # the client folds the panel away on the patch.
         self._close = Property(0)
+        # The other direction: the client tells us when the panel came up or
+        # went away, so a caller can wait for that instead of guessing (see the
+        # class docstring).
+        self.on_open: Signal = Signal()
+        self.on_close: Signal = Signal()
+
+    def _on_close(self, _value: tp.Any = None) -> None:
+        """The client folded the panel away."""
+        self.on_close.emit()
+
+    def _on_open(self, _value: tp.Any = None) -> None:
+        """The client unfolded the panel."""
+        self.on_open.emit()
 
     def close(self) -> None:
         """Fold the panel shut, the way an outside click would.

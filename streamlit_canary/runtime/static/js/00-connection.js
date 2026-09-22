@@ -74,7 +74,11 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
     if (msg.prop === '_close') {
       const panel = el.querySelector('.st-popover-panel');
       const trigger = el.querySelector('.st-popover-trigger');
-      if (panel) panel.hidden = true;
+      // only a panel that was actually up has a close to report
+      if (panel && !panel.hidden) {
+        panel.hidden = true;
+        scNotifyPopover(el, false);
+      }
       if (trigger) {
         trigger.setAttribute('aria-expanded', 'false');
         scSwapChevron(

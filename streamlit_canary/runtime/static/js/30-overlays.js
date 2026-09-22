@@ -132,6 +132,17 @@
     }));
   }
   // -- Custom popover interaction (toggle is client-only; no rerun) --
+  // A panel is folded away from several places -- its own trigger, another
+  // panel opening, a click outside, Escape, `Popover.close()` -- so telling
+  // the server about it happens here, once, rather than at each of them. The
+  // open half is in `scTogglePopover`, the only place a panel goes up.
+  function scNotifyPopover(root, open) {
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: root.dataset.id,
+      event: open ? 'open' : 'close',
+    }));
+  }
   function scClosePopovers(except) {
     document.querySelectorAll('.st-popover-panel:not([hidden])').forEach(p => {
       // Skip the panel being opened and any panel that *contains* it: a
@@ -142,6 +153,7 @@
       const root = p.closest('.st-popover');
       const t = root ? root.querySelector('.st-popover-trigger') : null;
       if (t) t.setAttribute('aria-expanded', 'false');
+      if (root) scNotifyPopover(root, false);
     });
   }
   // The app content box (page padding excluded). The floating panel is kept
@@ -314,6 +326,7 @@
     scSwapChevron(
       trigger, '.st-popover-chevron', 'expand_more', 'expand_less', false
     );
+    scNotifyPopover(root, false);
   }
   // Dropping an item sends a `reduce` event; the widget removes it from
   // `options` and patches the list back.
@@ -338,9 +351,11 @@
     if (isOpen) {
       panel.hidden = true;
       trigger.setAttribute('aria-expanded', 'false');
+      scNotifyPopover(root, false);
     } else {
       panel.hidden = false;
       trigger.setAttribute('aria-expanded', 'true');
+      scNotifyPopover(root, true);
       scPositionPanel(panel);
       // Measured after the placement pass, so a row-aligned panel is sized
       // from its final width. The chevron is swapped, not animated.
