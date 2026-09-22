@@ -659,9 +659,16 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
     Args:
         accept_new_option: allow typing a value that is not among
             `options` yet — an input row appears at the top of the dropdown.
+            A submitted value that is not among `options` is put *first*
+            (the one just typed is the one being reached for) and picked.
         format_new_option: converts the typed text into an option value,
-            e.g. `lambda x: int(x, 0)` for `'0x30'` / `'48'`. Required when
-            `accept_new_option` is on.
+            e.g. `lambda x: int(x, 0)` for `'0x30'` / `'48'`. Without one the
+            text itself is the value. Unused when `take_new_option` is given.
+        take_new_option: replaces that whole behaviour with your own, and is
+            called with the typed text. Nothing is added to `options` and
+            nothing is picked unless the callable does it — which is what a
+            box that *goes* somewhere (a path bar, say) wants instead of an
+            option list that grows.
         placeholder: shown on the trigger while no option is picked
             (bindable). It is drawn whenever the trigger has no option to
             show -- an empty `options` list (e.g. a bound list that has not
@@ -699,6 +706,7 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
         format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
         accept_new_option: bool = False,
         format_new_option: tp.Callable[[str], tp.Any] | None = None,
+        take_new_option: tp.Callable[[str], None] | None = None,
         placeholder: str | Property = 'Choose an option',
         label_visibility: T.LabelVisibility = 'auto',
         **kwargs: tp.Any,
@@ -712,13 +720,14 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
             label_visibility=label_visibility,
             **kwargs,
         )
-        if accept_new_option and format_new_option is None:
+        if take_new_option is not None and format_new_option is not None:
             raise TypeError(
-                'Selectbox(accept_new_option=True) needs a '
-                '`format_new_option` callable to convert the typed text.'
+                'Selectbox(take_new_option=...) owns what happens to the '
+                'typed text, so `format_new_option` would never run.'
             )
         self._accept_new_option = accept_new_option
         self._format_new_option = format_new_option
+        self._take_new_option = take_new_option
         self._init_placeholder(placeholder)
         # The `accept_new_option` row is a text box of its own, so it gets a
         # submit pair of its own -- the trigger cannot submit, and one widget
@@ -736,16 +745,21 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
     def _on_new_option(self, text: str) -> None:
         """The client submitted a new option from the dropdown's input row.
 
-        `format_new_option` turns the raw text (e.g. `'0x30'`) into a value,
-        which is appended to `options` (when new) and then selected. Input
-        the converter rejects leaves the widget untouched and is reported on
-        the server console.
-
         The submit pair goes out first, so a listener hears the submission
-        even when the converter then rejects it.
+        even when the value is then rejected or dropped.
+
+        With `take_new_option` the caller owns the rest. Otherwise
+        `format_new_option` turns the raw text (e.g. `'0x30'`) into a value,
+        which goes to the front of `options` (when it is new) and is picked;
+        a converter that rejects the text leaves the widget untouched and is
+        reported on the server console.
         """
         self.on_new_option_submit.emit(text)
         self.on_new_option_editing_finished.emit(text)
+        take = self._take_new_option
+        if take is not None:
+            take(text)
+            return
         convert = self._format_new_option
         try:
             new_value = convert(text) if convert is not None else text
@@ -754,7 +768,8 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
             return
         options = list(self.options.get() or [])
         if new_value not in options:
-            options.append(new_value)
+            # newest first: what was just typed is what is being reached for
+            options.insert(0, new_value)
             self.options.set(options)
         # `_sync_index` mirrors the new position into `index`.
         self.value.set(new_value)

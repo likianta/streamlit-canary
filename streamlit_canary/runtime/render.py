@@ -1254,7 +1254,7 @@ def _row_enter_html() -> str:
     aimed at interactive content inside it, so the button opens the row
     without ticking its box on the way.  The click is reported as an `open`
     event (see `scOpenRow`), which `_NavigationGroup` in
-    `components_v3/trees.py` picks up -- that is where this gesture is
+    `components_v3/trees/` picks up -- that is where this gesture is
     defined; the generic group widgets know nothing about it.
     """
     return (

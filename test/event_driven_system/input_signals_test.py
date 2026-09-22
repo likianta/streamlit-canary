@@ -169,8 +169,18 @@ check(
     'on_new_option_editing_finished followed',
     ('sb.new_option_editing_finished', 'z') in result,
 )
-check('the new option was appended', 'z' in box['select'].options.get())
+check(
+    'the new option goes to the front',
+    list(box['select'].options.get()) == ['z', 'x', 'y'],
+)
 check('the new option was selected', box['select'].value.get() == 'z')
+
+result = fire('sb', 'new_option', 'x')
+check(
+    'a value already listed is picked, not added again',
+    list(box['select'].options.get()) == ['z', 'x', 'y']
+    and box['select'].value.get() == 'x',
+)
 
 result = fire('sb', 'new_option_editing_finished', 'q')
 check(
@@ -178,6 +188,31 @@ check(
     result == [('sb.new_option_editing_finished', 'q')],
 )
 check('a blur adds nothing', 'q' not in box['select'].options.get())
+
+taken: list = []
+hook_box = v3.Selectbox(
+    'Hooked',
+    ('x', 'y'),
+    accept_new_option=True,
+    take_new_option=lambda text: taken.append(text),
+)
+hook_box._on_new_option('hello')
+check('take_new_option owns the text', taken == ['hello'])
+check(
+    'and leaves options and value alone',
+    list(hook_box.options.get()) == ['x', 'y'] and hook_box.value.get() == 'x',
+)
+try:
+    v3.Selectbox(
+        'Both',
+        ('x',),
+        accept_new_option=True,
+        format_new_option=lambda text: text,
+        take_new_option=lambda text: None,
+    )
+    check('both new-option hooks at once is refused', False)
+except TypeError:
+    check('both new-option hooks at once is refused', True)
 
 # ---------------------------------------------------------------------------
 # 6. PathInput relays its inner box's pair

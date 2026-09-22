@@ -36,7 +36,13 @@ streamlit-canary/
 │   │   ├── inputs.py         # 取值类 (Input widgets 的输入部分)
 │   │   ├── layouts.py        # 布局与容器 (Layouts and containers)
 │   │   ├── status.py         # 状态元素 (Status elements)
-│   │   └── trees.py          # 自研文件夹浏览器 (TreeSelect 家族)
+│   │   └── trees/                        # 自研文件夹浏览器 (TreeSelect 家族)
+│   │       ├── __init__.py               # 导出 PathInput / Recent / TreeSelect 家族
+│   │       ├── _shared.py                # 导航, 选项, 路径的私有助手
+│   │       ├── path_input.py             # 路径输入框
+│   │       ├── recent.py                 # 最近路径下拉
+│   │       ├── tree_select.py            # TreeSelect / TreeSelectWithInput
+│   │       └── tree_select_dual_pane.py  # 双栏 TreeSelect
 │   ├── runtime/              # 事件驱动运行时
 │   │   ├── runtime.py        # Runtime: 持久组件树 + 事件路由 + delta 广播
 │   │   ├── render.py         # 组件树 → HTML
