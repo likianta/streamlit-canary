@@ -320,21 +320,28 @@
   .st-row > .st-btn-icon { flex: 0 0 auto; }
 
   /* -- Toast stack (canary-only) -- */
-  /* A fixed overlay in the bottom-right corner. Collapsed, the toasts pile
-     up into a compact stack: the newest sits in front, and every older toast
-     is scaled down and tucked behind it (a negative `margin-top`), so only
-     its top edge peeks out. Hovering the stack swaps that overlap for a
-     normal gap and resets the scale, fanning the pile out into a readable
-     list -- `transition` animates both. The whole effect is CSS -- page.js
-     only appends / removes the items. (Modelled on the "Pines" toast.) */
+  /* A fixed overlay in the top-right corner. Collapsed, the toasts pile up
+     into a compact stack: the newest sits in front and anchors the top, and
+     every older toast is scaled down and tucked behind it (a negative
+     `margin-top`), so only its bottom edge peeks out. Hovering the stack
+     swaps that overlap for a normal gap and resets the scale, fanning the
+     pile out into a readable list -- `transition` animates both. The whole
+     effect is CSS -- page.js only appends / removes the items. (Modelled on
+     the "Pines" toast.) */
   .st-toast-stack {
     --st-toast-overlap: -28px;  /* collapsed: each toast over the previous */
     position: fixed;
     right: 16px;
-    bottom: 16px;
+    /* Clear the developer toolbar: the ⋮ menu is a 32px button pinned at
+       `top: 16px; right: 16px` with a higher z-index, so it owns the corner
+       itself -- a toast drawn there could not be reached with the mouse. */
+    top: 56px;
     z-index: 1000;
     display: flex;
-    flex-direction: column;
+    /* reversed, so the newest message -- the last child, the way `messages`
+       is ordered -- is the topmost box: the pile grows downwards from the
+       pinned top edge */
+    flex-direction: column-reverse;
     align-items: flex-end;
   }
   .st-toast-stack[hidden] { display: none; }
@@ -349,7 +356,7 @@
     padding: 8px 12px;
     margin-top: var(--st-toast-overlap);
     transform: scale(var(--st-toast-scale, 1));
-    transform-origin: top right;
+    transform-origin: bottom right;
     border: 1px solid var(--st-border-color-light);
     border-radius: var(--st-base-radius);
     background-color: var(--st-secondary-background-color);
@@ -360,7 +367,9 @@
     animation: st-toast-in 0.25s ease;
     transition: margin-top 0.25s ease, transform 0.25s ease;
   }
-  .st-toast:first-child { margin-top: 0; }
+  /* the newest (the last child) anchors the pile's top edge; a margin there
+     would only push the whole stack down from it */
+  .st-toast:last-child { margin-top: 0; }
   /* Depth from the newest toast (the last child): the further back it sits,
      the smaller it reads -- that is what turns the stack into a "pile".
      Hovering the stack resets every scale to 1. */
@@ -391,7 +400,7 @@
   @keyframes st-toast-in {
     from {
       opacity: 0;
-      transform: translateY(10px) scale(var(--st-toast-scale, 1));
+      transform: translateY(-10px) scale(var(--st-toast-scale, 1));
     }
     to {
       opacity: 1;

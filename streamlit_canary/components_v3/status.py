@@ -303,17 +303,23 @@ def _toast_duration(value: tp.Any) -> int | None:
 
 
 class Toast(Component):
-    """A stack of transient notifications, pinned to the page's bottom-right.
+    """A stack of transient notifications, pinned to the page's top-right.
+
+    You rarely declare one yourself: `sc.toast(...)` reaches the page's single
+    stack on its own, and that stack is a `Toast` the runtime creates for the
+    page if the app did not. Declare it only when you want the element to sit
+    at a particular spot in the tree, or to drive the stack by hand.
 
         toast = v3.Toast()
         ...
         toast.show('Saved!', icon=':material/check:')
 
     Messages accumulate (oldest first, capped at `_max_visible`). Collapsed,
-    the stack piles up: the newest sits in front and every older toast is
-    scaled down, peeking out from behind it. Hovering the pile fans it out
-    into an evenly spaced, readable list (a canary-only touch, modelled on the
-    "Pines" toast; Streamlit shows a single toast at a time).
+    the stack piles up: the newest sits in front and on top, and every older
+    toast is scaled down and tucked behind it, so only its bottom edge peeks
+    out. Hovering the pile fans it out into an evenly spaced, readable list
+    (a canary-only touch, modelled on the "Pines" toast; Streamlit shows a
+    single toast at a time).
 
     Each message auto-dismisses after its `duration` (mirroring `st.toast`:
     `'short'` 4s, `'long'` 10s, `'infinite'`, or a positive second count);

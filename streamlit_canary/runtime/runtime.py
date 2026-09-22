@@ -22,14 +22,29 @@ from ..kernel import Property
 if tp.TYPE_CHECKING:
     from .server import WebSocketClient
     from ..components_v3.base import Component
+    from ..components_v3.status import Toast
 else:
     Component = tp.Any
     WebSocketClient = tp.Any
+    Toast = tp.Any
 
 _MAX_MEDIA = 64
 """How many published media bodies the runtime holds (see `publish_media`).
 A `PdfViewer` document is a few hundred KB, so the cap keeps a handful of MB
 around -- far more than any one page can point at."""
+
+_current_runtime: tp.Optional['Runtime'] = None
+"""The runtime that came up most recently in this process.
+
+`Component._active_runtime` is only set for the duration of `build()`, so an
+event handler -- which runs long after -- has no other way back to the tree.
+One process serves one app, so a single slot is enough (in a test that stands
+up several runtimes, the newest one wins)."""
+
+
+def get_current_runtime() -> tp.Optional['Runtime']:
+    """The runtime this process is serving an app with, if any."""
+    return _current_runtime
 
 
 def _display_path(path: str) -> str:
@@ -85,6 +100,8 @@ class _LogTee:
 
 class Runtime:
     def __init__(self, app_func: tp.Callable[[], None]) -> None:
+        global _current_runtime
+        _current_runtime = self
         self._app_func = app_func
         self._components: dict[str, Component] = {}
         self._roots: list[Component] = []
@@ -106,6 +123,11 @@ class Runtime:
         Component._active_runtime = self
         try:
             self._app_func()
+            # `sc.toast()` broadcasts through one shared stack, so the page
+            # gets one whether or not the app asked for it. Ensured *after*
+            # the app has run, so an app that declares a `v3.Toast` of its own
+            # keeps that element instead.
+            self._ensure_toast_host()
         finally:
             Component._active_runtime = None
         # roots are the components created outside any `with` block.
@@ -355,6 +377,54 @@ class Runtime:
     def get_media(self, token: str) -> tp.Optional[tuple[str, bytes]]:
         """The `(media type, body)` published under `token`, if still held."""
         return self._media.get(token)
+
+    # -- toast -------------------------------------------------------------
+
+    def toast(
+        self, text: str, *, icon: str = '', duration: str | int = 'short'
+    ) -> None:
+        """Push a message onto the page's toast stack.
+
+        The stack is the shared element `_ensure_toast_host` hands out, so a
+        toast fired from any event handler -- or from the build itself -- lands
+        on the same corner of the page. See `sc.toast` for the public form.
+        """
+        self._ensure_toast_host().show(text, icon=icon, duration=duration)
+
+    def _ensure_toast_host(self) -> Toast:
+        """The page's toast stack, created on first use.
+
+        An app rarely declares a `v3.Toast` of its own: `sc.toast()` needs a
+        single element to broadcast through, so `build()` makes sure one is
+        there either way. An app that *does* declare one keeps it -- the first
+        `Toast` found is the shared one, so both routes write to the same
+        element.
+        """
+        # avoid circular import at module load time
+        from ..components_v3.base import Component as _Component
+        from ..components_v3.status import Toast as _Toast
+
+        for comp in self._components.values():
+            if isinstance(comp, _Toast):
+                return comp
+        # a component only registers itself while a build is running, and this
+        # may well be called later (from an event handler) -- so lend it the
+        # runtime for the moment the element takes to construct.
+        previous = _Component._active_runtime
+        _Component._active_runtime = self
+        try:
+            host = _Toast(key='sc-toast')
+        finally:
+            _Component._active_runtime = previous
+        self._roots.append(host)
+        if self._built:
+            # `build()` observed every Property of the tree it found; a host
+            # born after it still needs that wiring to reach the client.
+            for name, prop in host._iter_properties():
+                prop.on_change.connect(
+                    lambda c=host, n=name: self._on_prop_change(c, n)
+                )
+        return host
 
     # TODO or DELETE: file watcher & reload banner needs to be refactored or
     # be deleted. Nothing reaches these any more: the watcher is not started

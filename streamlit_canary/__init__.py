@@ -38,6 +38,7 @@ from .runner import run
 from .runtime import add_watch_file
 from .runtime import add_watch_folder
 from .runtime import set_page_config
+from .runtime import toast
 from .session import dump_state
 from .session import init_shared_data
 from .session import init_state

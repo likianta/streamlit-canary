@@ -7,6 +7,8 @@ Exposes:
     serve       — build + start the uvicorn server (blocking)
     serve_async — the same, on a background thread (for a native window)
     run_app     — convenience: app function + port → running server
+    set_page_config — page title / layout / theme
+    toast       — push a toast onto the page's shared stack
 """
 
 import typing as tp
@@ -14,6 +16,7 @@ import typing as tp
 from .render import render_page
 from .render import render_tree
 from .runtime import Runtime
+from .runtime import get_current_runtime
 from .server import create_app
 from .server import serve
 from .server import serve_async
@@ -62,3 +65,41 @@ def set_page_config(
 
 def get_page_config() -> dict[str, tp.Any]:
     return dict(_page_config)
+
+
+# ---------------------------------------------------------------------------
+# toast
+# ---------------------------------------------------------------------------
+
+
+def toast(text: str, *, icon: str = '', duration: str | int = 'short') -> None:
+    """
+    Show a toast in the top-right corner of the page (mirrors `st.toast`).
+
+    Call it from anywhere -- an event handler, a helper, or the app function
+    itself. There is no element to declare first: every call writes to the
+    page's single toast stack, which the runtime brings into being on its own.
+
+    ```python
+    with v3.Button('Make toast') as btn:
+
+        @btn.on_click
+        def _() -> None:
+            sc.toast('Saved!', icon=':material/check:')
+    ```
+
+    Args:
+        text: The message. It is rendered as markdown, so `:material/..:`
+            icons and the `:color[..]` spans all work.
+        icon: An optional icon drawn before the text.
+        duration: `'short'` (4 seconds) | `'long'` (10 seconds) |
+            `'infinite'` | a positive number of seconds. Hovering the stack
+            pauses the countdown. A toast can also be dismissed with its ✕.
+    """
+    runtime = get_current_runtime()
+    if runtime is None:
+        raise RuntimeError(
+            'sc.toast() needs a running app, but no runtime has come up in '
+            'this process yet.'
+        )
+    runtime.toast(text, icon=icon, duration=duration)
