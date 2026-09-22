@@ -23,6 +23,7 @@ from ._shared import (
     _is_under,
     _as_picked,
     _bucket_text,
+    _check_initial_mode,
     _check_selection_mode,
     _empty_value,
     _is_multi,
@@ -137,6 +138,10 @@ class TreeSelect(_Labeled, Column):
             tuple of them -- e.g. `('single', 'multicross')` -- offers a
             segmented control over exactly those, starting with the first;
             the sequence is respected whichever way you order it.
+        initial_mode: which of `selection_mode` to open in (default: its
+            first entry). A mode the tuple no longer offers falls back to
+            that first entry, so a remembered mode can be handed straight
+            back (see `mode`).
         _vendored: whether the panel is delivered inside a wrapper's frame,
             which also floats the Confirm button into the corner (see the
             Layout note above).  Only `TreeSelectWithInput` passes `True`.
@@ -154,6 +159,10 @@ class TreeSelect(_Labeled, Column):
             whole bucket. Prefer `select` / `clear` over writing it: those
             keep the listing in step.
         mode: str — the active mode (never `'any'`).
+        directory: str — the folder the listing shows (read-only; an
+            absolute, forward-slash path). Left alone it is
+            `start_directory`; the panel's own walking and a wrapper's jump
+            move it. Read it to remember where the user was.
 
     Signals:
         on_value (via `tree['on_value']` or `tree.value.on_change`)
@@ -213,6 +222,7 @@ class TreeSelect(_Labeled, Column):
         filter: T.Filter = None,
         height: int | None = None,
         help: str | Property = '',
+        initial_mode: tp.Optional[str] = None,
         label_visibility: str = 'auto',
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
@@ -237,7 +247,7 @@ class TreeSelect(_Labeled, Column):
         self._vendored = _vendored
 
         selection_mode = _check_selection_mode(selection_mode)
-        initial_mode = selection_mode[0]
+        initial_mode = _check_initial_mode(initial_mode, selection_mode)
         keeps = _filter_func(filter)
         nav = _TreeNav(start_directory)
         self._nav = nav
@@ -316,7 +326,7 @@ class TreeSelect(_Labeled, Column):
                     self._mode_control = Selectbox(
                         'Selection mode',
                         options=selection_mode,
-                        index=0,
+                        index=selection_mode.index(initial_mode),
                         format=lambda m: _MODE_LABELS[m],
                         label_visibility='collapsed',
                         width='content',
@@ -457,6 +467,16 @@ class TreeSelect(_Labeled, Column):
         """Drop the selection (`''` in `single` mode, `[]` in the others)."""
         self.value.set(_empty_value(self.mode.get()))
         self._refresh_listing()
+
+    @property
+    def directory(self) -> str:
+        """The folder the listing shows (see `Properties`).
+
+        Read-only: the panel's own walking, and a wrapper's jump, are what
+        move it -- writing it behind their back would leave the listing,
+        the location bar and the mode control out of step.
+        """
+        return self._nav.directory
 
     def open_path(self, path: str) -> None:
         """Land on what `path` names.
@@ -753,6 +773,7 @@ class TreeSelectWithInput(Column):
         show_recent: keep a "Recent" dropdown of the picked paths.
         height: max height of the "Browse" panel in px (default 500).
         width: see `Column`.
+        initial_mode: which of `selection_mode` to open in -- see `TreeSelect`.
         selection_mode: how the panel lets nodes be picked -- see `TreeSelect`.
 
     Properties:
@@ -760,6 +781,8 @@ class TreeSelectWithInput(Column):
             `TreeSelect.value`, so `'single'` holds one path and the multi
             modes hold a list. Write through the panel (`select` / `clear`).
         mode: str — the panel's active mode (mirrors `TreeSelect.mode`).
+        directory: str — the folder the panel shows (mirrors
+            `TreeSelect.directory`).
 
     Signals:
         on_value (via `sel['on_value']` or `sel.value.on_change`)
@@ -774,6 +797,7 @@ class TreeSelectWithInput(Column):
         show_recent: bool = False,
         height: int = 500,
         width: Width | None = None,
+        initial_mode: tp.Optional[str] = None,
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
@@ -813,6 +837,7 @@ class TreeSelectWithInput(Column):
                         nav.directory,
                         filter=filter,
                         height=None,
+                        initial_mode=initial_mode,
                         selection_mode=selection_mode,
                         # the path box takes a pasted path as readily as a
                         # picked one, so the panel's own ladder does too
@@ -866,6 +891,11 @@ class TreeSelectWithInput(Column):
     def clear(self) -> None:
         """Drop the panel's selection (see `TreeSelect.clear`)."""
         self._tree.clear()
+
+    @property
+    def directory(self) -> str:
+        """The folder the panel shows (see `TreeSelect.directory`)."""
+        return self._tree.directory
 
     def reload(self) -> None:
         """Re-read the browsed folder from disk (same as the panel's button)."""

@@ -331,13 +331,28 @@ def _bucket_text(value: tp.Any) -> str:
     return ':material/bucket_check: {}'.format(len(_as_picked(value)))
 
 
+def _check_initial_mode(mode: tp.Optional[str], modes: tuple) -> str:
+    """Settle which of `modes` a panel opens in.
+
+    Left out, it is the first entry of `selection_mode`. A mode the panel
+    no longer offers falls back to that first entry rather than raising: an
+    `initial_mode` is a *preference*, and the usual caller hands back what
+    was saved last time (see `TreeSelect(initial_mode=)`) -- a panel whose
+    `selection_mode` has since changed should open, not refuse to start.
+    """
+    if mode is None or mode not in modes:
+        return modes[0]
+    return mode
+
+
 def _check_selection_mode(mode: tp.Union[str, tp.Iterable[str]]) -> tuple:
     """Normalize a `selection_mode` keyword into the modes to offer.
 
     A lone literal (the usual case) becomes a one-element tuple, so the rest
     of the class only ever deals with a tuple: the first entry is the mode
-    the panel starts in, and more than one entry gets the segmented control
-    that switches between them. Repeats are dropped, order is kept.
+    the panel starts in (`initial_mode` overrides that), and more than one
+    entry gets the segmented control that switches between them. Repeats are
+    dropped, order is kept.
     """
     modes = (mode,) if isinstance(mode, str) else tuple(mode)
     if not modes:
