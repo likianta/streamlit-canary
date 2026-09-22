@@ -35,9 +35,9 @@ primitives, the v3 build uses:
 """
 
 from ._shared import T
-from .path_input import PathInput
 from .recent import Recent
 from .tree_select import TreeSelect
 from .tree_select import TreeSelectWithInput
 from .tree_select_dual_pane import TreeSelectDualPane
 from .tree_select_dual_pane import TreeSelectDualPaneWithInput
+from ..inputs import PathInput

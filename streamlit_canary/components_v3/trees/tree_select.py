@@ -6,18 +6,18 @@ import typing as tp
 from lk_utils import fs
 
 from ._shared import (
-    T,
-    _norm,
-    _location_options,
-    _filter_func,
-    NAV_UP,
-    entry_label,
-    _path_label,
+    _MODE_LABELS,
+    _MODE_MULTICROSS,
+    _MODE_MULTIPLE,
+    _MODE_SINGLE,
     _NavCheckGroup,
     _NavRadioGroup,
     _TreeNav,
-    listing_options,
-    option_path,
+    NAV_UP,
+    T,
+    _location_options,
+    _filter_func,
+    _path_label,
     _is_enterable,
     _is_nav_up,
     _is_under,
@@ -30,12 +30,10 @@ from ._shared import (
     _is_multicross,
     _is_single,
     bucket_label,
-    _MODE_LABELS,
-    _MODE_MULTICROSS,
-    _MODE_MULTIPLE,
-    _MODE_SINGLE,
+    entry_label,
+    listing_options,
+    option_path,
 )
-from .path_input import PathInput
 from .recent import Recent
 from .._shared import _Labeled
 from ..base import Component
@@ -43,6 +41,7 @@ from ..base import Width
 from ..buttons import Button
 from ..buttons import IconButton
 from ..inputs import CheckGroup
+from ..inputs import PathInput
 from ..inputs import RadioGroup
 from ..inputs import ReducibleGroup
 from ..inputs import Selectbox
@@ -491,7 +490,7 @@ class TreeSelect(_Labeled, Column):
         Text that resolves to nothing -- half-typed, or simply not there --
         clears the pick rather than raising.
         """
-        text = _norm(path.strip())
+        text = fs.abspath(path.strip())
         if not text or not fs.exist(text):
             self.clear()
             return
@@ -570,7 +569,7 @@ class TreeSelect(_Labeled, Column):
         wrapper's jump is not a walk of the panel's own, so it has nothing to
         point back at.
         """
-        directory = _norm(directory) if directory else ''
+        directory = fs.abspath(directory) if directory else ''
         if directory and fs.isdir(directory):
             self._nav.directory = directory
         self._came_from = ''
@@ -852,8 +851,8 @@ class TreeSelectWithInput(Column):
         self.mode.bind(self._tree.mode)
 
         if initial_is_file:
-            self._tree.select(_norm(first_path))
-            nav.remember(_norm(first_path))
+            self._tree.select(fs.abspath(first_path))
+            nav.remember(fs.abspath(first_path))
 
         # -- handlers -------------------------------------------------------
 
@@ -911,11 +910,11 @@ class TreeSelectWithInput(Column):
         kept file is remembered as a pick, which is what fills that list.
         """
         text = path.strip()
-        if not text or not fs.exist(_norm(text)):
+        if not text or not fs.exist(fs.abspath(text)):
             # A half-typed path is not an error, just not a value yet.
             self._tree.clear()
             return
-        full = _norm(text)
+        full = fs.abspath(text)
         self._set_box(full if fs.isdir(full) else fs.parent(full))
         if not fs.isdir(full) and self._keeps(fs.basename(full)):
             self._nav.remember(full)

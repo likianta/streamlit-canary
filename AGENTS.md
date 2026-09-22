@@ -39,7 +39,6 @@ streamlit-canary/
 │   │   └── trees/                        # 自研文件夹浏览器 (TreeSelect 家族)
 │   │       ├── __init__.py               # 导出 PathInput / Recent / TreeSelect 家族
 │   │       ├── _shared.py                # 导航, 选项, 路径的私有助手
-│   │       ├── path_input.py             # 路径输入框
 │   │       ├── recent.py                 # 最近路径下拉
 │   │       ├── tree_select.py            # TreeSelect / TreeSelectWithInput
 │   │       └── tree_select_dual_pane.py  # 双栏 TreeSelect
@@ -114,8 +113,8 @@ python test/event_driven_system/components_v3_demo.py
 2205: ASA GUI 副本应用. 也就是我们正在用 v3 组件重写并测试的应用.
 2206: PyProject Manager 原版应用.
 2207: PyProject Manager 副本应用. 也就是我们正在用 v3 组件重写并测试的应用.
-2208: Depsland AppBuilder 原版应用 (暂未开始).
-2209: Depsland AppBuilder 副本应用 (暂未开始).
+2208: 未使用, 待定义.
+2209: 未使用, 待定义.
 2210: PDF Watermaker 原版应用.
 2211: PDF Watermaker 副本应用.
 2212...2229: 暂未定义, 未来会根据需要添加.

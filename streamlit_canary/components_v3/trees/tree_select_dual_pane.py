@@ -5,12 +5,12 @@ import typing as tp
 
 from lk_utils import fs
 
-from .path_input import PathInput
 from .recent import Recent
-from ._shared import T, _norm, _filter_func, _call, _TreeNav
+from ._shared import _TreeNav, T, _call, _filter_func
 from ..base import Width
 from ..buttons import Button
 from ..buttons import IconButton
+from ..inputs import PathInput
 from ..inputs import RadioGroup
 from ..inputs import Selectbox
 from ..inputs import TextInput
@@ -281,7 +281,7 @@ class TreeSelectDualPane(Column):
         path = path.strip()
         if not path:
             return
-        path = _norm(path)
+        path = fs.abspath(path)
         if not fs.exist(path):
             return
         if not fs.isdir(path):
@@ -343,12 +343,12 @@ class TreeSelectDualPaneWithInput(Column):
         custom = custom or {}
         first_path = start_directory or os.getcwd()
         if node_type == 'file':
-            result = _norm(first_path) if fs.isfile(first_path) else ''
+            result = fs.abspath(first_path) if fs.isfile(first_path) else ''
         else:
             result = (
-                _norm(first_path)
+                fs.abspath(first_path)
                 if fs.isdir(first_path)
-                else fs.parent(_norm(first_path))
+                else fs.parent(fs.abspath(first_path))
             )
         nav = _TreeNav(
             first_path if fs.isdir(first_path) else fs.parent(first_path)
@@ -428,7 +428,7 @@ class TreeSelectDualPaneWithInput(Column):
         if not path:
             self.value.set('')
             return
-        path = _norm(path)
+        path = fs.abspath(path)
         if not fs.exist(path):
             # A half-typed path is not an error, just not a value yet.
             self.value.set('')

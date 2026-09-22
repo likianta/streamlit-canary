@@ -23,10 +23,6 @@ _DRIVES: tp.Optional[tp.Tuple[str, ...]] = None
 """Every drive root on this machine, once `_list_drives` has looked."""
 
 
-def _norm(path: str) -> str:
-    return fs.abspath(path).replace('\\', '/')
-
-
 def _path_chain(path: str) -> tp.List[str]:
     """Every ancestor of `path`, itself included, outermost first.
 
@@ -37,7 +33,7 @@ def _path_chain(path: str) -> tp.List[str]:
     """
     if not path:
         return []
-    parts = _norm(path).split('/')
+    parts = fs.abspath(path).split('/')
     out = [parts[0] + '/']
     acc = out[0]
     for part in parts[1:]:
@@ -64,7 +60,7 @@ def _list_drives() -> tp.Tuple[str, ...]:
             roots = lister() if lister else ()
         except OSError:
             roots = ()
-        _DRIVES = tuple(_norm(root).rstrip('/') + '/' for root in roots)
+        _DRIVES = tuple(fs.abspath(root) + '/' for root in roots)
     return _DRIVES
 
 
@@ -202,7 +198,7 @@ class _TreeNav:
     """
 
     def __init__(self, start_directory: str) -> None:
-        self.start_directory = _norm(start_directory or os.getcwd())
+        self.start_directory = fs.abspath(start_directory or os.getcwd())
         self.directory = self.start_directory
         self.parent_to_dirnames: dict[str, tp.List[str]] = {}
         self.parent_to_filenames: dict[str, tp.List[str]] = {}
