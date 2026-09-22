@@ -54,7 +54,14 @@
     cursor: not-allowed;
   }
   .st-btn-secondary {
-    background-color: var(--st-secondary-background-color);
+    /* A button rests on a hair-lighter-than-page fill (Streamlit's
+       `lightenedBg05`) rather than on `secondaryBg`. The hover / pressed
+       fills below are translucent overlays: over `secondaryBg` -- which is
+       itself roughly that much overlay over the page -- they composite back
+       to the colour they started from, so hover used to look like nothing at
+       all. Over the lifted page colour they read as the two distinct states
+       Streamlit draws. */
+    background-color: var(--st-lightened-bg-05);
     color: var(--st-text-color);
     border-color: var(--st-border-color);
   }

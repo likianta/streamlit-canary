@@ -79,11 +79,31 @@
   .st-selectbox--content > .st-selectbox-control > .st-selectbox-sizer {
     grid-area: 1 / 1;
   }
-  /* No border-color change on hover — matches Streamlit's behavior. The focus
-     border is the only decoration: Streamlit adds no focus ring. */
+  /* The focus border is the trigger's only border decoration -- Streamlit adds
+     no focus ring. Hover / press move the fill instead, see below. */
   .st-selectbox-trigger:focus {
     outline: none;
     border-color: var(--st-primary-color);
+  }
+  /* Hover / press feedback (a canary-only touch): Streamlit leaves the
+     trigger's fill alone in both states -- measured on 1.63, rest, hover and
+     press are all `secondaryBg` (see `pixel_fidelity_caveats.md`). It is the
+     overlay the button uses for its own hover / press, painted *over* this
+     control's fill rather than replacing it -- which is what a
+     `background-image` gradient does. A plain `background-color` would swap
+     the opaque `secondaryBg` for a translucent colour, and composited over
+     the page that lands back on `secondaryBg`: invisible. */
+  .st-selectbox-trigger:not(:disabled):hover {
+    background-image: linear-gradient(
+      var(--st-hover-background-color),
+      var(--st-hover-background-color)
+    );
+  }
+  .st-selectbox-trigger:not(:disabled):active {
+    background-image: linear-gradient(
+      var(--st-active-background-color),
+      var(--st-active-background-color)
+    );
   }
   .st-selectbox-value {
     flex: 1;

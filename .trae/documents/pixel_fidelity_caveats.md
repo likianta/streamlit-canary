@@ -150,6 +150,16 @@
 
     原版行为: 只有连续点击 chevron 图标, 才能折叠/展开. 重复点击输入框, 会变成文字选择状态. 这是因为原版的 accept_new_options 功能与设计耦合导致的缺陷.
 
+  - 鼠标悬浮 / 按下触发器时, 触发器的底色会加深一档 (Selectbox 与 Multiselect 的触发器都是如此): 用的是与按钮相同的 hover / active 叠加色 (`--st-hover-background-color` / `--st-active-background-color`), 但以 `background-image` 渐变的形式 **叠加在触发器自身底色之上**, 而不是替换它.
+
+    原版行为: st.selectbox 的触发器在 hover / 按下时底色完全不变 -- 实测 1.63 下, 静止 / hover / 按下三态都是同一个 `secondaryBg` (该组件子树里没有任何后代对 hover 有反应). 这是我们有意多出来的反馈, 为的是让这个"长得像按钮"的触发器与按钮在交互反馈上保持一致.
+
+    实现上必须用渐变叠加: 若直接把 `background-color` 换成那个半透明叠加色, 它会与页面底色合成, 而触发器静止色 (`secondaryBg`) 本身就约等于"页面底色 + 同样多的叠加色", 于是合成结果又回到 `secondaryBg` —— 肉眼等于没有变化. (按钮那边因为静止色是 `lightenedBg05` 而不是 `secondaryBg`, 才可以直接换 `background-color`, 见 `Button` 一节.)
+
+  - 触发器的宽度可能比原版宽 8px: 因为我们在"当前值"与 chevron 之间留了 8px 的最小间距 (`gap: 8px`), 原版没有这一段. 触发器的宽度是内容撑出来的 (场景没显式给宽度时), 所以这 8px 直接体现在宽度上, 并连带影响展开面板与面板内条目的宽度.
+
+    原版行为: st.selectbox 的值与 chevron 之间没有间距, 因此内容撑宽时它的触发器比我们窄 8px. 像素对比中若看到触发器 / 面板 / 高亮框的宽度差 8px, 就是这一处; 注意高亮框相对**它自己的**触发器的内缩量两版是一致的 (约 12px), 这也是 `compare_selectbox_expanded.py` 的断言口径.
+
 - Tab
   - 切换 tab 时, tab indicator line 使用变速动画: 线条先拉伸到覆盖新旧两个 tab, 再收缩到新 tab 上 (每段都是先快后慢的 quad 曲线, 营造出 "粘性" 的拖拽感), 总时长 200ms.
 

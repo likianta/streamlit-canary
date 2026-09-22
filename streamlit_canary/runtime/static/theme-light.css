@@ -31,6 +31,15 @@
     --st-code-text-color: #158237;                     /* = greenTextColor */
     --st-dataframe-border-color: rgba(49, 51, 63, 0.1);
     --st-dataframe-header-background-color: #f8f9fb;   /* = bgMix */
+    /* `lightenedBg05 = lighten(bgColor, 2.5%)`: the resting fill of a
+       button-shaped control (button / popover trigger / menu button), which
+       sits on a hair lighter than the page. It is deliberately *not*
+       `secondaryBg`: the hover and pressed fills are translucent overlays,
+       and `secondaryBg` is itself about that much overlay over `bgColor`, so
+       hovering a `secondaryBg` box composites back to nearly the same colour
+       -- which reads as "hover does nothing". Light's `bgColor` is already
+       white, so the lift is a no-op here. */
+    --st-lightened-bg-05: #ffffff;
     --st-base-radius: 8px;                             /* radii.default */
     --st-button-radius: 8px;                           /* radii.button  */
     --st-font: "Source Sans", sans-serif;

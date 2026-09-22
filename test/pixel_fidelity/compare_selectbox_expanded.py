@@ -85,6 +85,12 @@ HOVER_ROW = 2
 # highlight without being sensitive to jitter.
 HOVER_FRAME_BUDGET = 6
 EPS = 0.6
+# Our controls are 32px tall where Streamlit's are 40px. That is deliberate --
+# the shared `--st-control-height` token, so a row of controls reads as one
+# flat belt -- and listed in `.trae/documents/pixel_fidelity_caveats.md`
+# ("Control height", "控件统一高度"). The height row below therefore asserts
+# that documented gap instead of equality.
+CONTROL_HEIGHT_DELTA = 8
 
 # Installed before the popup opens. Every frame records what the control and
 # the items look like, so a colour that fades in shows up as a value history.
@@ -595,8 +601,17 @@ def main() -> int:
         report.add(
             'highlight box radius', st['inner']['radius'], sc['inner']['radius']
         )
+        # The item box follows the control's width, and our control rides 8px
+        # wider than Streamlit's (the gutter its trigger keeps between the
+        # value and the chevron -- see the caveats doc, "Selectbox"). So the
+        # two absolute widths are *expected* to differ; what has to hold is
+        # the inset: the popup stretches to the control and the box sits a
+        # fixed distance inside it, whichever control it belongs to.
         report.add(
-            'highlight box width', st['inner']['width'], sc['inner']['width']
+            'highlight box width (inset from its control)',
+            round(st['control']['width'] - st['inner']['width'], 2),
+            round(sc['control']['width'] - sc['inner']['width'], 2),
+            lambda a, b: abs(a - b) <= EPS,
         )
         report.add_predicate(
             'the highlight box fills the item row',
@@ -629,7 +644,10 @@ def main() -> int:
             sc['gap_below_control'],
         )
         report.add(
-            'control height', st['control']['height'], sc['control']['height']
+            'control height',
+            st['control']['height'],
+            sc['control']['height'],
+            lambda a, b: a - b == CONTROL_HEIGHT_DELTA,
         )
         report.add(
             'control background',

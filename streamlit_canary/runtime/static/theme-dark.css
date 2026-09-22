@@ -73,6 +73,9 @@
     --st-active-background-color: rgba(172, 177, 195, 0.25);
     --st-overlay-color: rgba(0, 0, 0, 0.6);
     --st-shadow-rgb: 0, 0, 0;
+    /* `lightenedBg05 = lighten(bgColor, 2.5%)` -- see the light theme for why
+       a button rests on this instead of `secondaryBg`. */
+    --st-lightened-bg-05: #131720;
     /* The copy chip sitting on top of a code block. */
     --st-code-toolbar-background-color: #131720;
     /* Alert backgrounds: Streamlit's `<name>BackgroundColor`, i.e. the
