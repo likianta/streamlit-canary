@@ -2536,7 +2536,7 @@ wheels = [
 
 [[package]]
 name = "pyapp-window"
-version = "2.2.4b3"
+version = "2.2.4"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
@@ -2546,7 +2546,7 @@ dependencies = [
     { name = "toga", marker = "sys_platform != 'linux'" },
 ]
 wheels = [
-    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.2.4b3-py3-none-any.whl" },
+    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.2.4-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -3186,7 +3186,7 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0a48"
+version = "0.4.0a56"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3218,7 +3218,7 @@ requires-dist = [
     { name = "argsense", specifier = ">=1.1.2" },
     { name = "lk-utils", specifier = ">=3.8.1" },
     { name = "neoprint", specifier = ">=0.1.11", index = "http://localhost:2131/" },
-    { name = "pyapp-window", specifier = ">=2.2.4b3", index = "http://localhost:2131/" },
+    { name = "pyapp-window", specifier = ">=2.2.4", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
     { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.61.0,!=1.62.*" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },

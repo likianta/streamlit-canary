@@ -12,6 +12,10 @@
   .st-table-scroll {
     overflow: auto;
     border: 0.8px solid var(--st-dataframe-border-color);
+    /* Round the frame the way a bordered `Container` does. `overflow` then
+       clips the table's own square corners to fit, so a filled header row
+       rounds with it instead of poking past the arc. */
+    border-radius: var(--st-base-radius);
   }
   .st-table-table {
     display: inline-table;

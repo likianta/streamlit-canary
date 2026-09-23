@@ -172,6 +172,8 @@
 
     原版行为: st.table 在数据为空时仍然绘制出一个空表格 (占据一块高度).
 
+  - [不是差异, 记在这里以免被 "修" 回去] 表格外框是圆角, 且与原版取值相同. 我们的 `.st-table-scroll` 取 `border-radius: var(--st-base-radius)` (8px, 与带边框的 `Container` 同值); 原版包住 `<table>` 的那个滚动盒子实测也是 `border-radius: 8px` (`overflow: auto`, `border-top-width: 1px`). 因为该盒子本就 `overflow: auto`, 浏览器会把表格自身的方角裁到弧内 -- 带底色的表头行 (`header_background=True`) 也跟着圆弧, 不会从角上探出去.
+
 - Theme
   - 两套主题 (浅色 / 深色) 各自声明 `color-scheme` (`light` / `dark`), 让浏览器把我们没有自己绘制的界面 -- 滚动条, 文本光标, 以及应用之外的画布 -- 也按当前主题上色. 否则暗色模式下 `Popover` 面板 (行对齐面板的常驻滚动条槽位) 与 `Code` 代码块的滚动条仍是亮色, 跟四周的深色格不入.
 
