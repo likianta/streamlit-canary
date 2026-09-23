@@ -34,7 +34,6 @@ from ._shared import (
     listing_options,
     option_path,
 )
-from .recent import Recent
 from .._shared import _Labeled
 from ..base import Component
 from ..base import Width
@@ -45,16 +44,17 @@ from ..inputs import PathInput
 from ..inputs import RadioGroup
 from ..inputs import ReducibleGroup
 from ..inputs import Selectbox
-from ..layouts import Column
+from ..layouts import Container
 from ..layouts import FloatingContainer
 from ..layouts import Popover
 from ..layouts import Row
 from ...kernel import Property
 from ...kernel import Signal
+from ...kernel import _value
 from ...kernel import bind
 
 
-class TreeSelect(_Labeled, Column):
+class TreeSelect(_Labeled, Container):
     """The single-pane tree browser: a folder listing that navigates itself.
 
         with Popover('Browse', panel_align='row', panel_max_height=500):
@@ -74,7 +74,8 @@ class TreeSelect(_Labeled, Column):
     listing every ancestor of the folder on show -- itself included, so any
     parent is one pick away -- with the machine's other drives in front of
     them (`_location_options`), and then the actions: `home` returns to the
-    starting folder, `refresh` re-reads the folder on show.  Both the trigger
+    home folder (`home_directory`, which defaults to where the panel
+    opened), `refresh` re-reads the folder on show.  Both the trigger
     and the ladder's items clip a path too long for them, and a clipped item
     shows its whole label on hover (`st-truncate-help`).
 
@@ -127,10 +128,14 @@ class TreeSelect(_Labeled, Column):
             label, so an empty one costs no height) | `'visible'` | `'hidden'`
             | `'collapsed'`. See `inputs.T.LabelVisibility`.
         help: optional markdown tooltip shown next to the label.
+        home_directory: where the `home` button goes back to; left out it is
+            `start_directory`, so `home` means "back where I opened".
+            Passed alone it only moves that button -- the folder the panel
+            opens in stays `start_directory`.
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
         height: optional cap in px on the listing, after which it scrolls.
             Left `None` when an enclosing `Popover` does the scrolling.
-        width: see `Column`.
+        width: see `Container`.
         selection_mode: `'single'` (one node, the default), `'multiple'`
             (nodes of the folder being browsed -- leaving it drops them), or
             `'multicross'` (nodes gathered across folders into a bucket). A
@@ -221,6 +226,7 @@ class TreeSelect(_Labeled, Column):
         filter: T.Filter = None,
         height: int | None = None,
         help: str | Property = '',
+        home_directory: str = '',
         initial_mode: tp.Optional[str] = None,
         label_visibility: str = 'auto',
         selection_mode: tp.Union[
@@ -250,6 +256,14 @@ class TreeSelect(_Labeled, Column):
         keeps = _filter_func(filter)
         nav = _TreeNav(start_directory)
         self._nav = nav
+        # where the Home button leads. Kept apart from `start_directory`,
+        # which is what the listing opens on (and what the bucket labels
+        # itself against); left out, the two are the same place.
+        self._home_dir = (
+            fs.abspath(home_directory)
+            if home_directory
+            else nav.start_directory
+        )
         self._keeps = keeps
         self._selection_mode = selection_mode
         # guards every pick handler while the listing is rebuilt: re-listing
@@ -296,9 +310,7 @@ class TreeSelect(_Labeled, Column):
                     ),
                     label_visibility='collapsed',
                 )
-                self._home_btn = IconButton(
-                    'home', help='Go to the starting directory'
-                )
+                self._home_btn = IconButton('home')
                 self._refresh_btn = IconButton('refresh')
                 if crosses:
                     # The bucket holds the cross-folder haul. It rides in a
@@ -335,7 +347,7 @@ class TreeSelect(_Labeled, Column):
             # is both predicates), and both float the "enter" arrow on their
             # folders (`_is_enterable`) -- the arrow is what moves the panel
             # for a node row, so a row's own click is free to just tick it.
-            with Column(visible=bind(self.mode, _is_single)):
+            with Container(visible=bind(self.mode, _is_single)):
                 self._single_list = _NavRadioGroup(
                     'Folder contents',
                     options=(),
@@ -346,7 +358,7 @@ class TreeSelect(_Labeled, Column):
                     navigable=_is_enterable,
                     body_opens=_is_nav_up,
                 )
-            with Column(visible=bind(self.mode, _is_multi)):
+            with Container(visible=bind(self.mode, _is_multi)):
                 self._multi_list = _NavCheckGroup(
                     'Folder contents',
                     options=(),
@@ -368,7 +380,7 @@ class TreeSelect(_Labeled, Column):
             # out while it has nothing to show, so a panel nobody extends
             # does not pay for it with a gap it cannot use.
             if _vendored:
-                # a floating cluster is a `Column` (it may not sit inside a
+                # a floating cluster is a `Container` (it may not sit inside a
                 # `Row`) and lays its children out in a row of its own, so the
                 # bar rides inside it rather than being it.
                 with FloatingContainer('bottom-right'):
@@ -431,7 +443,7 @@ class TreeSelect(_Labeled, Column):
 
         @self._home_btn.on_click
         def _on_home() -> None:
-            self._jump(self._nav.start_directory)
+            self._jump(self._home_dir)
 
         @self._refresh_btn.on_click
         def _on_refresh() -> None:
@@ -720,60 +732,25 @@ class TreeSelect(_Labeled, Column):
         return [p for p in (option_path(nav, o) for o in ticked) if p]
 
 
-class TreeSelectWithInput(Column):
-    """A path input plus the single-pane browser in a "Browse" popover.
+class TreeSelectWithInput(Container):
+    """
+    A path input plus a single-pane browser in a "Browse" popover.
 
-        sel = v3.TreeSelectWithInput(
-            'Batch file', 'references/.../classic.txt', filter='.txt'
-        )
-        ...
-        path = sel.value.get()
+    Usage:
+        with v3.TreeSelectWithInput(
+            'Select a file',
+            'data/sample',
+            filter='.txt',  # or multi-filter: filter=('.txt', '.csv', '.xlsx')
+        ) as tree:
+            ...
+            path = tree.value.get()
 
-    Layout::
-
-        [ path input .................... ] [ Recent ] [ Browse v ]
-        +-- "Browse" popover (spans the header row) ------------------+
-        | [ /current/folder v ] [refresh] [bucket] [mode] <- toolbar  |
-        | ..        (goto parent)                                     |
-        | subfolder/                                                  |
-        | another-file.txt              <- scrolls past `height` px   |
-        |                              [ Confirm ]   <- floats bottom |
-        +-------------------------------------------------------------+
-
-    The panel is a `TreeSelect`; the popover stretches it from the path
-    input's left edge to the header row's right edge.  A single click on a row
-    ticks / picks it, and the folder rows float an "enter" arrow to walk into
-    them (a click on `..` itself walks up; see `TreeSelect`).  The panel
-    carries its own toolbar (the location
-    selectbox plus refresh, and the bucket and the mode control when
-    `selection_mode` calls for them) across its top, with its Confirm
-    button in the bottom-right corner, so the Confirm stays reachable while
-    the listing scrolls.  Confirm folds this popover away (through
-    `TreeSelect.on_submit`).
-
-    The path input is a plain text box: the ancestor ladder rides on the
-    panel's location selectbox (see `TreeSelect`), which follows the browsed
-    folder by itself -- so there is nothing here to keep in step.
-
-    Typing, pasting (or picking) a folder points the panel there.  A file
-    takes the panel to the folder holding it, with its own row marked, and
-    joins the panel's selection.  A file the filter drops has no row to mark,
-    so the listing simply starts at its top.  The selection survives browsing
-    -- `clear()` drops it.
-
-    The path box takes a pasted path from outside as readily as a picked one:
-    it offers the text as it stands in its panel (`accept_new_option`), and
-    Enter submits it.
-
-    Args:
-        label: the path input's label.
-        start_directory: the starting file or folder (default: the cwd).
-        filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
-        show_recent: keep a "Recent" dropdown of the picked paths.
-        height: max height of the "Browse" panel in px (default 500).
-        width: see `Column`.
-        initial_mode: which of `selection_mode` to open in -- see `TreeSelect`.
-        selection_mode: how the panel lets nodes be picked -- see `TreeSelect`.
+    The box is the panel's other half. A path it resolves to -- typed,
+    pasted, or handed in as `start_directory` -- moves the browser (and the
+    panel's own location bar) onto the folder that holds it; the panel's
+    picks come back out through `value`. The box also keeps its own list of
+    the paths it has resolved (`PathInput.candidates`), which is what the
+    "Recent" dropdown used to offer here.
 
     Properties:
         value: str | list[str] — the panel's selection; this mirrors
@@ -782,9 +759,6 @@ class TreeSelectWithInput(Column):
         mode: str — the panel's active mode (mirrors `TreeSelect.mode`).
         directory: str — the folder the panel shows (mirrors
             `TreeSelect.directory`).
-
-    Signals:
-        on_value (via `sel['on_value']` or `sel.value.on_change`)
     """
 
     def __init__(
@@ -793,13 +767,12 @@ class TreeSelectWithInput(Column):
         start_directory: str = '',
         *,
         filter: T.Filter = None,
-        show_recent: bool = False,
-        height: int = 500,
-        width: Width | None = None,
         initial_mode: tp.Optional[str] = None,
+        panel_height: int = 500,
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
+        width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
@@ -807,29 +780,23 @@ class TreeSelectWithInput(Column):
         first_path = start_directory or os.getcwd()
         initial_is_file = bool(start_directory) and fs.isfile(first_path)
         nav = _TreeNav(fs.parent(first_path) if initial_is_file else first_path)
-        self._nav = nav
-        self._keeps = _filter_func(filter)
-        self._show_recent = show_recent
 
         # `value` / `mode` mirror the panel's, so a caller reads the selection
         # right here; writes go through the panel (`select` / `clear`).
         self.value = Property(tp.cast(tp.Union[str, tp.List[str]], ''))
         self.mode = Property(_MODE_SINGLE)
-        self._has_recent = Property(False)
-        # set while `_refresh_recent` adopts the newest path into the dropdown:
-        # that is a display update, not a pick, so `_commit` must not run
-        self._recent_quiet = False
 
         with self:
             with Row('bottom'):
+                # `candidates=[]` makes the box its own history: it starts
+                # with `first_path` and keeps every path it resolves to (see
+                # `PathInput.candidates`) -- the "Recent" dropdown's job, done
+                # where the paths are actually entered.
                 self._path_input = PathInput(
-                    label, first_path, accept_new_option=True
-                )
-                self._recent = Recent(
-                    'Recent', visible=self._has_recent, max_height=280
+                    label, first_path, candidates=[], accept_new_option=True
                 )
                 self._browse_popover = Popover(
-                    'Browse', panel_align='row', panel_max_height=height
+                    'Browse', panel_align='row', panel_max_height=panel_height
                 )
                 with self._browse_popover:
                     self._tree = TreeSelect(
@@ -852,26 +819,24 @@ class TreeSelectWithInput(Column):
 
         if initial_is_file:
             self._tree.select(fs.abspath(first_path))
-            nav.remember(fs.abspath(first_path))
 
         # -- handlers -------------------------------------------------------
 
-        @self._path_input.value.on_change
-        def _on_path_typed() -> None:
-            self._commit(self._path_input.value.get())
-
-        @self._recent.value.on_change
-        def _on_recent_picked() -> None:
-            if self._recent_quiet:
+        @self._path_input.value.on_change.partial(_value)
+        def _on_path_typed(norm_path: str) -> None:
+            # a path only reaches the box once it resolves, so `norm_path` is
+            # either something real or `''` (the box was emptied, or left
+            # half typed) -- and an empty one has nowhere to send the panel
+            if not norm_path:
                 return
-            self._commit(str(self._recent['value']))
-
-        @self._tree.value.on_change
-        def _on_panel_picked() -> None:
-            # the panel's picks feed "Recent" (a tick is a pick too)
-            for path in _as_picked(self._tree.value.get()):
-                self._nav.remember(path)
-            self._refresh_recent()
+            # the box is the panel's other half: a path typed / pasted into it
+            # moves the browser -- and with it the panel's location bar -- onto
+            # the folder that holds it
+            if fs.isdir(norm_path):
+                norm_dir = norm_path
+            else:
+                norm_dir = fs.parent(norm_path)
+            self._tree._jump(norm_dir)
 
         @self._tree.on_submit
         def _on_tree_submitted(_paths: tp.Iterable[str]) -> None:
@@ -882,8 +847,6 @@ class TreeSelectWithInput(Column):
             # (`_tree.resolve()`), so a caller that needs them reads them
             # there rather than through this wrapper.
             self._browse_popover.close()
-
-        self._refresh_recent()
 
     # -- public api ---------------------------------------------------------
 
@@ -899,43 +862,3 @@ class TreeSelectWithInput(Column):
     def reload(self) -> None:
         """Re-read the browsed folder from disk (same as the panel's button)."""
         self._tree.reload()
-
-    # -- internals ----------------------------------------------------------
-
-    def _commit(self, path: str) -> None:
-        """Show a typed / pasted / picked path, and move the panel onto it.
-
-        The moving is the panel's own (`TreeSelect.open_path`); what belongs
-        to this wrapper is the box the caller sees and the "Recent" list. A
-        kept file is remembered as a pick, which is what fills that list.
-        """
-        text = path.strip()
-        if not text or not fs.exist(fs.abspath(text)):
-            # A half-typed path is not an error, just not a value yet.
-            self._tree.clear()
-            return
-        full = fs.abspath(text)
-        self._set_box(full if fs.isdir(full) else fs.parent(full))
-        if not fs.isdir(full) and self._keeps(fs.basename(full)):
-            self._nav.remember(full)
-            self._refresh_recent()
-        # last, because it has the last word on which row is marked
-        self._tree.open_path(full)
-
-    def _set_box(self, path: str) -> None:
-        """Show a resolved path in the path box."""
-        self._path_input.show(path)
-
-    def _refresh_recent(self) -> None:
-        recent = list(self._nav.recent)
-        self._has_recent.set(bool(recent) and self._show_recent)
-        self._recent.options.set(recent)
-        if recent and self._recent['value'] not in recent:
-            # show the newest entry without *picking* it: `_on_recent_picked`
-            # runs `_commit`, which navigates for a folder -- and displaying a
-            # path in the dropdown is not a pick
-            self._recent_quiet = True
-            try:
-                self._recent.value.set(recent[0])
-            finally:
-                self._recent_quiet = False
