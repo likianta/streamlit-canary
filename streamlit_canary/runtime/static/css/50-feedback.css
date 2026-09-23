@@ -426,7 +426,19 @@
     line-height: normal;
     color: var(--st-text-color);
   }
-  .st-progress-text:empty { display: none; }
+  /* `label_visibility` -- the caption is the bar's label row (`Progress`).
+     `auto` is decided here rather than at render time: `text` arrives by
+     patch, so a class baked once could not follow it. */
+  .st-progress-text--auto:empty { display: none; }
+  .st-progress-text--hidden { visibility: hidden; }
+  .st-progress-text--collapsed { display: none; }
+  /* `visible` / `hidden` hold the row whether or not there is a caption to
+     draw: an empty one would otherwise shrink to its 8px margin and shift
+     everything below it the moment `text` arrives by patch. */
+  .st-progress-text--visible:empty,
+  .st-progress-text--hidden:empty {
+    min-height: 1lh;
+  }
   .st-progress-track {
     position: relative;
     width: 100%;

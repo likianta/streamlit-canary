@@ -1614,6 +1614,10 @@ def _render_progress(comp: Progress) -> str:
     (animated) bar. The bar is hidden while `visible` is false, so a
     long-running step can toggle it like a spinner.
 
+    The caption is the bar's label row -- it sits above the track, where a
+    widget's label sits -- so `label_visibility` picks whether that row is
+    drawn at all. `auto`, the default, leaves the call to `:empty`.
+
     The caption sits *above* the track, as it does in Streamlit, and the
     fill is a square-ended rectangle: Streamlit keeps the bar at full width
     and slides it with `transform: translateX(-(100 - percent)%)`, so the
@@ -1627,11 +1631,15 @@ def _render_progress(comp: Progress) -> str:
         pct = max(0, min(100, int(value)))
         bar = f'<div class="st-progress-bar" style="width:{pct}%"></div>'
     # the caption stays in the tree even when empty: a `text` patch has to
-    # land somewhere, and `:empty` keeps it from taking up space meanwhile.
+    # land somewhere. Which row it is drawn as is baked in, except for
+    # `auto`, which is left to `:empty` -- the caption is filled by patch, so
+    # a decision taken here could not follow it.
+    visibility = getattr(comp, '_label_visibility', 'auto')
+    cls = 'st-progress-text st-progress-text--{}'.format(visibility)
     text = render_markup(str(comp.text.get()))
     return (
         f'<div class="st-progress" data-id="{comp.id}">'
-        f'<div class="st-progress-text">{text}</div>'
+        f'<div class="{cls}">{text}</div>'
         f'<div class="st-progress-track">{bar}</div>'
         f'</div>'
     )

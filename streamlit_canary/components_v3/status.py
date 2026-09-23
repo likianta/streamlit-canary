@@ -13,6 +13,7 @@ from ._shared import _TextVisible
 from ._shared import _visible_when_filled
 from .base import Component
 from ..kernel import Property
+from ..kernel import pending_updates
 
 
 class Callout(_TextVisible):
@@ -152,6 +153,11 @@ class Progress(_HasText):
         value: completion percentage — an int between 0 and 100, or `None`
             for an indeterminate (animated) bar. Bindable.
         text:  an optional caption shown under the bar (bindable).
+        label_visibility: how the caption row is drawn -- `'auto'` (the
+            default) shows it while `text` is non-empty and collapses it
+            while blank, `'visible'` / `'hidden'` keep the row either way
+            (drawn or hidden), and `'collapsed'` drops it from the layout.
+            See `inputs.T.LabelVisibility`.
         visible: whether the bar is shown (default False, bindable), so a
             long-running step can toggle it like a spinner.
         total: how many steps the bar is driven through (see `update`).
@@ -185,12 +191,17 @@ class Progress(_HasText):
         value: int | None | Property = None,
         *,
         text: str | Property = '',
+        label_visibility: str = 'auto',
         visible: bool | Property = False,
         total: int = 0,
         auto_close: bool = True,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(text, visible=visible, **kwargs)
+        # the caption is the bar's label row -- it sits above the track,
+        # where a widget's label sits -- so that is the row
+        # `label_visibility` drives. Static, like the rest of the family.
+        self._label_visibility = label_visibility
         self.value: Property[int | None] = Property(None)
         if isinstance(value, Property):
             self.value.bind(value)
@@ -249,6 +260,18 @@ class Progress(_HasText):
         """Hide the bar (the value stays, so it can be shown again)."""
         self['visible'] = False
 
+    def reset(self, text: str = '', value: int = 0) -> None:
+        """Put the bar back to its idle state.
+
+        `text` and `value` are written inside one `pending_updates`, so a
+        listener -- and the browser -- sees a single settled bar instead of a
+        caption that clears while the bar is still full. Visibility is left
+        alone; `close` is what hides the bar.
+        """
+        with pending_updates():
+            self.text.set(text)
+            self.value.set(value)
+
 
 class Spinner(_TextVisible):
     """A spinner indicator.
@@ -299,6 +322,17 @@ class Spinner(_TextVisible):
     def __exit__(self, *exc: tp.Any) -> bool:
         self.visible.set(self._prev_visible)
         return super().__exit__(*exc)
+
+    def reset(self, text: str = '') -> None:
+        """Clear the label.
+
+        Mirrors `Progress.reset` -- the one field a spinner carries is its
+        text, and it is written inside a `pending_updates` so the call reads
+        the same way at the call site. Visibility is left alone; the `with`
+        block already restores what it found.
+        """
+        with pending_updates():
+            self.text.set(text)
 
 
 class Success(Callout):

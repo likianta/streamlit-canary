@@ -215,10 +215,6 @@ when mouse.click(sel):
 - 使用 `ruff check` 检查代码风格, 使用 `ruff format` 格式化代码.
 - 每当完成修改后, 运行 `ty check`、`ruff check`、`ruff format` 确认无误.
 
-补充说明: 如果涉及到文件改动, 并且产生 git 差异, 则在回复的末尾给我提供一个 commit 信息参考 (不要自己提交, 我会复制这个信息然后手动提交).
-
-Commit 信息格式: 英文, 全小写字符, 建议在 50 字符以内, 如果改动过多导致信息过多, 可以省略不重要的内容. 参考我最近几次历史提交信息文本风格.
-
 ## 6. 代码风格
 
 - 优先使用 `<str>.format` 而不是 `f-string`.
@@ -231,7 +227,15 @@ Commit 信息格式: 英文, 全小写字符, 建议在 50 字符以内, 如果�
 - 同一模块内的 class 按字母序排列 (私有基类因为要先于使用者定义, 可集中放在文件前部, 如 `components_v3/_shared.py`).
 - 在代码注释 (`#` 开头的注释), `print(...)` 以及 `Exception(...)` 中使用小写字母开头的句子. 在函数注解 (docstring) 以及 triple-quoted strings 中, 使用规范的大小写格式.
 
-## 7. 架构约束
+## 7. 代码提交
+
+如果涉及到文件改动, 并且产生 git 差异, 则在回复的末尾给我提供一个 commit 信息参考 (不要自己提交, 我会复制这个信息然后手动提交).
+
+Commit 信息格式: 英文, 全小写字符, 建议在 50 字符以内, 如果改动过多导致信息过多, 可以省略不重要的内容. 参考我最近几次历史提交信息文本风格.
+
+如果只修改了 gitignore 文件, 没有产生 git 差异, 则不需要提供 commit 信息参考.
+
+## 8. 架构约束
 
 - **State 和 Components 统一读写风格**: `.get()` / `.set()` / `__getitem__` / `__setitem__` / `on_change`, 降低理解负担.
 - **组件属性**: 可响应字段用 `Property` (如 `Text.text`, `Selectbox.value`, `Button.type`), 静态配置用 `_` 前缀属性(如 `Code._language`, `LogPanel._source`, `Callout._kind`). 由别的字段派生的展示字段 (如 `ToggleButton.type` 跟它自己的 `value` 走) 用 `_shared._derive` 造一个**只读** `Property` (`_ReadOnlyProperty`): 能读能监听 (照常收发 patch), 但 `.set(...)` / `comp['x'] = ...` 会抛 `AttributeError` (内部更新走 `_write`), 免得被外部改成和来源不一致. 另有 `_visible_when_filled` 派生 `visible` (可写, 语义见下条).
@@ -260,22 +264,7 @@ Commit 信息格式: 英文, 全小写字符, 建议在 50 字符以内, 如果�
 - **Web 服务器非阻塞**: 必须非阻塞启动, 可用 StopCommand 停止.
 - **Python 3.12+**: 使用现代语法 (`type | type` 联合, `match` 等).
 
-## 8. Kernel 事件约定 (Property / Signal)
-
-- **`on_change` 不默认传参**: `Property.set()` 触发时调用 `Signal.emit()`, **不会** 把 Property 自身作为第一个参数传给 handler.
-- **Signal 的参数声明**: 构造 `Signal` 时用类型声明 `emit()` 的载荷 -- `*args` 是位置参数, `**kwargs` 是命名参数 (命名参数也可以按位置顺序传入). 例如 `Signal(bool, reason=str)` 的 `emit(ok, reason='...')` 和 `emit(ok, '...')` 等价; handler 收到的始终是按声明顺序排列的位置参数. 不声明参数则是自由形式, `emit()` 原样透传 (内置的 `Signal()` 都是这种, 因为它们不携带载荷). 声明之后, 参数缺失 / 多传 / 拼错关键字都会在 `emit()` 处立即抛 `TypeError`.
-- **按需注入 owner**: 用 `Signal.partial(...)` 绑定特殊标记来拿到 owner:
-  - `sc._self` → handler 收到 owner (触发变更的 Property handle)
-  - `sc._value` → handler 收到 owner 的当前值 (`owner.get()`)
-  - 普通值原样绑定在参数列表最前面
-- **立即触发**: `@sig.emit_now` 注册 handler 并立刻 emit 一次; 若同时需要注入 owner, 用 `@sig.partial(sc._self).emit_now`.
-- **Property 可独立使用**: `count = sc.Property(0)` 是自包含的响应式值 (`get` / `set` / `on_change`).
-- **挂到 StateV2 / Component 上**: 在 `__init__` 里赋值成实例属性 (如 `self.count = sc.Property(0)`); `PropertyHost._iter_properties()` 通过扫描实例 `__dict__` 发现它们, 因此每个实例各持一份, 互不共享. (类属性写法也能用, 但会被该类所有实例共享, 只适合单实例场景.)
-- **按注解声明字段**: `PropertyHost` (StateV2 / Component) 在 `__init__` 时扫描类注解, 为 `sc.Property[...]` / `sc.Signal[...]` 注解的字段分别创建实例自己的 Property / Signal, 因此 `__init__` 里不必再写一遍 (仍可写, 后写的会覆盖). 只认 `Property` / `Property[T]` 与 `Signal` / `Signal[T]`, 普通注解 (如 `current_scope: str`) 不参与; `Signal[T]` 等价于 `Signal(T)`, 多个位置参数写成 `Signal[T, U]`. 类体内的同名值给 `Property` 作默认值 (`age: sc.Property[int] = 0`), 给 `Signal` 则是声明它的参数 (`changed: sc.Signal = sc.Signal(bool, reason=str)`); 类级别的句柄只贡献声明部分 (default / 参数), 不会把句柄本身交给实例 (那会被所有实例共享). 子类的 `__init__` 记得调用 `super().__init__()`.
-- **值或绑定二选一**: 构造参数用 `p.set_or_bind(x)` 统一处理 -- `x` 是 `Property` 就 `bind` (此后跟随其变化), 否则 `set`. `sc.bind(source, transform)` 用于创建匿名绑定 Property, 例如 `v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))`.
-- **`sc.bind` 的源里可以放 Signal**: `sc.bind((prop, signal), transform)` 中的 Signal 是**触发器**, 不是值 -- 它一 emit 就强制重算并强制通知; `transform` 只收到 Property 的值 (按声明顺序), Signal 不占位置 (所以加一个 Signal 不会让 `x[0]` / `x[1]` 错位). 典型用途: 选项值不变但渲染文案变了 (见下一条), 例如 `options=sc.bind((state.name_to_project, state.project_revamped), lambda x: list(x[0].keys()))`. 单独一个 Signal (没有 Property 陪它) 是用法错误, 会抛 `TypeError`.
-- **强制通知会穿透绑定链**: `p.set(v, notify=True)` 不只表示"值没变也通知一次", 而是一次 *forced* 通知 -- 含义是"值以外的东西变了, 请重画". 它会沿绑定链一路传下去 (每一跳都用 `notify=True` 同步自己的目标), 所以 `state.x.set(v, True)` 能让**间接**绑定、甚至隔了好几跳的 widget 属性重新发 patch. 这一跳是必需的: widget 总是把传入的 property 用 `set_or_bind` 绑到自己的 property 上, 于是"你给的 property"和"runtime 实际监听/打 patch 的 property"之间隔着至少一跳. 两个用例: ① 就地改了 dict (`state.d.get()['k'] = v; state.d.set(state.d.get(), True)`) -- 同一个对象比较相等, 不强制的话没有任何下游会动; ② 渲染依赖了值以外的状态, 比如 `Radio(format=...)` 读的是版本号, 而版本号不在选项值里. 注意: `notify=None` 的普通变更不会被强制, 所以"没变化就什么都不做"这个默认行为不受影响.
-- **批处理里监听方的异常延后抛出**: `with sc.pending_updates():` 结束时, 某个监听方抛错不会中断这一批的通知 -- 错误先收集, 等所有 property 都被通知到之后再抛 (只有一个时原样抛出, 多个合并成 `ExceptionGroup`), 这样一个坏掉的监听方不会饿死其余的. 若 block 自身也抛了错, 批处理侧的错只作为 note (`__notes__`) 附在它上面, 不会把它顶掉.
+## 9. Kernel 事件约定 (Property / Signal)
 
 示例:
 
@@ -294,53 +283,3 @@ def ccc(prop): ...
 @count.on_change.partial(sc._value)   # 收到当前值
 def ddd(value): ...
 ```
-
-## 9. 新增一个 v3 组件的流程
-
-一个 v3 组件通常涉及以下几处改动:
-
-1. `components_v3/<分类>.py` -- 定义 class (按字母序插入, 优先复用 `_shared.py` 的私有基类); 在 `components_v3/__init__.py` 里导出. 分类怎么选见 §7 "组件按 Streamlit 分类分模块".
-2. `runtime/render.py` -- 新增 `_render_xxx(comp)`, 并在 `_render()` 的分发链里加一个 `isinstance(comp, Xxx)` 分支 (必须放在最后的兜底分支之前).
-3. `runtime/static/page.css` -- 组件的样式.
-4. `runtime/static/page.js` -- 需要回传事件时加发送函数 (参照 `scSendChange` / `scSendCheck`); 需要响应 delta 时, 在 patch 分支里按 `el.classList.contains('st-xxx')` 处理.
-
-协议约定:
-
-- 前端 → 后端: `{"type":"event","id":"<comp-id>","event":"click"}` 或
-  `{"type":"event","id":"<comp-id>","event":"change","value":...}`
-- `Runtime.on_event()` 目前识别: `click` (→ 组件的 `on_click`) /
-  `change` (→ 组件的 `value` Property) / `submit` (→ 先提交 `value`, 再发
-  `on_submit` + `on_editing_finished`) / `editing_finished` (→ 只发
-  `on_editing_finished`) / 任何 `_on_<event>` 钩子 (如 `_on_new_option` 与
-  `_on_new_option_editing_finished`); 其它事件类型需要在这里扩展.
-- **输入型组件的提交信号 (`_Submittable`)**: 文本提交类组件
-  (`TextInput` / `TextArea` / `NumberInput` / `Multiselect`, 以及包一层内部
-  `TextInput` 的 `PathInput`) 都带一对 `Signal[str]` -- `on_submit` 是"有意提交"
-  (TextInput / NumberInput 的 Enter, TextArea 的 Ctrl/Cmd+Enter), 
-  `on_editing_finished` 是"编辑会话结束"(提交会先发 `on_submit` 再发它, 也可只由
-  焦点 blur 触发). 二者由 `_shared.py` 的 `_Submittable` 混入提供
-  (`self._init_submittable()`; 混入而非基类, 理由同 `_HasPlaceholder`).
-  `Selectbox` 的 `accept_new_option` 输入行是**另一个输入框**, 所以有自己的一对
-  `on_new_option_submit` / `on_new_option_editing_finished`, 且只在
-  `accept_new_option=True` 时才创建 (属性是否存在即代表该功能是否开启). 前端
-  提交/失焦的发送函数在 `10-helpers.js` (`scSendSubmit` / `scSendEditingFinished`)
-  与 `20-selectbox.js` (`scNewOptionBlur` / `scAddNewOption`); 键盘映射在
-  `scSubmitKey` (Enter) / `scSubmitAreaKey` (Ctrl+Enter) / `scNewOptionKey`.
-  客户端用 `_scSubmitted` 标记"这一轮已经提交", 以免 Enter 之后跟着的 blur 再报一次
-  `on_editing_finished`; 任何 `oninput` / 步进 (`scStepNumber`) 都会清掉它 (那是新的
-  编辑会话). NumberInput 的两个步进按钮与 selectbox 的 "Add: ..." 行都带
-  `onmousedown="event.preventDefault()"`, 让 mousedown 不把焦点从输入框里夺走
-  (否则会先冒出一个携带步进前旧值 / 未提交文本的 `on_editing_finished`).
-- 后端 → 前端: `{"type":"patch","id":"<comp-id>","prop":"<prop-name>","value":...}`.
-  `page.js` 已处理的 prop: `text` / `label` / `enabled` / `visible` /
-  `options` (附带 `formatted` 显示文案) / `value` / `rows` / `candidates` /
-  `placeholder`. 后两个是 `TextInput` 的 (前者重建候选项面板, 后者改提示文字).
-  五个带 placeholder 的组件 (`TextInput` / `TextArea` / `NumberInput` /
-  `Selectbox` / `Multiselect`) 共用**一个公开且可绑定**的 `placeholder` 字段:
-  由 `_shared.py` 的 `_HasPlaceholder` 混入提供 (`self._init_placeholder(...)`,
-  混入而非基类 -- 这些组件已经经由 `_Labeled` / `_OptionsWidget` 汇合, 没有单一的
-  `super()` 可链, 同 `_RowGestures._init_rows`). 三个输入框把它画成 box 的
-  `placeholder` 属性; 两个触发器把它画在"没有东西可选"的位置 (`Selectbox` 是
-  `.st-selectbox-value.is-placeholder`, `Multiselect` 是
-  `.st-multiselect-values.is-placeholder`, 都取 `--st-gray-color`). 补 patch 时
-  按 `.is-placeholder` 找当前正在显示提示的那一个改, 因此在选中状态下不会覆盖标签.
