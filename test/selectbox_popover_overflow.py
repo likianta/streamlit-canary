@@ -2,7 +2,7 @@
 
 Pseudo-code (the spec this script implements):
 
-    1. Open the scene: a `Column(max_height=120)` holding a selectbox near
+    1. Open the scene: a `Container(max_height=120)` holding a selectbox near
        its top, the same nested one level deeper, a selectbox in plain flow,
        a selectbox inside a row-aligned `Popover` panel, a
        `TreeSelect(max_height=200)` (the reported case: its toolbar's
@@ -79,14 +79,14 @@ EPS = 1.0
 def scene() -> None:
     # 1. the reported shape: a selectbox inside a height-capped box that
     # scrolls, with more content under it than the box can show
-    with v3.Column(max_height=120, border=True):
+    with v3.Container(max_height=120, border=True):
         v3.Space(height=60)
         v3.Selectbox('Current location', OPTIONS, key='capped')
         v3.Space(height=400)
 
     # 2. the same, one box deeper
-    with v3.Column(max_height=120, border=True):
-        with v3.Column():
+    with v3.Container(max_height=120, border=True):
+        with v3.Container():
             v3.Space(height=60)
             v3.Selectbox('Nested location', OPTIONS, key='nested')
         v3.Space(height=400)
@@ -100,7 +100,7 @@ def scene() -> None:
     with v3.Row('center'):
         v3.TextInput('Path', key='panel-input')
         with v3.Popover('Browse', panel_align='row', panel_max_height=160):
-            with v3.Column():
+            with v3.Container():
                 v3.Space(height=40)
                 v3.Selectbox('In a panel', OPTIONS, key='panel')
                 v3.Space(height=200)
@@ -111,7 +111,7 @@ def scene() -> None:
 
     # 6. to be scrolled to the bottom of the window: no room below
     v3.Space(height=700)
-    with v3.Column(max_height=120, border=True):
+    with v3.Container(max_height=120, border=True):
         v3.Space(height=60)
         v3.Selectbox('Near the bottom', OPTIONS, key='bottom')
 

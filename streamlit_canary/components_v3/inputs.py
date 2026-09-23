@@ -21,7 +21,7 @@ from ._shared import _as_list
 from ._shared import _prop
 from .base import Height
 from .base import Width
-from .layouts import Column
+from .layouts import Container
 from ..kernel import Property
 from ..kernel import Signal
 from ..kernel import _undefined
@@ -479,7 +479,7 @@ def _candidate_capacity(seed_size: int) -> int:
     return max(20, (seed_size + 9) // 10 * 10)
 
 
-class PathInput(_Submittable, Column):
+class PathInput(_Submittable, Container):
     """A text input whose text is resolved into an existing path.
 
     The path is always in absolute, forward-slash form, and it stays empty

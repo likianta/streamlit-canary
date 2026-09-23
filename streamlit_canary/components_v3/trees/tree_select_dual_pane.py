@@ -15,6 +15,7 @@ from ..inputs import RadioGroup
 from ..inputs import Selectbox
 from ..inputs import TextInput
 from ..layouts import Column
+from ..layouts import Container
 from ..layouts import Dialog
 from ..layouts import Popover
 from ..layouts import Row
@@ -24,7 +25,7 @@ from ...kernel import Property
 from ...kernel import Signal
 
 
-class TreeSelectDualPane(Column):
+class TreeSelectDualPane(Container):
     """The two-column tree browser.
 
     Left column navigates subfolders (back / forward / refresh / new folder);
@@ -87,7 +88,7 @@ class TreeSelectDualPane(Column):
             )
             with Row():
                 with Column(weight=3.5):
-                    with Column(height=height):
+                    with Container(height=height):
                         with Row('center'):
                             self._back_btn = IconButton(
                                 'arrow_back', help='Back'
@@ -101,7 +102,7 @@ class TreeSelectDualPane(Column):
                             self._new_folder_btn = IconButton(
                                 'create_new_folder', help='Create new folder'
                             )
-                        self._new_folder_panel = Column(
+                        self._new_folder_panel = Container(
                             visible=self._new_folder_open, animated=True
                         )
                         with self._new_folder_panel:
@@ -116,8 +117,8 @@ class TreeSelectDualPane(Column):
                             max_height=height - 96,
                         )
                 with Column(weight=6.5):
-                    with Column(height=height):
-                        self._preview_panel = Column(
+                    with Container(height=height):
+                        self._preview_panel = Container(
                             border=True, visible=self._has_subfolder_preview
                         )
                         with self._preview_panel:
@@ -291,7 +292,7 @@ class TreeSelectDualPane(Column):
         self._after_move()
 
 
-class TreeSelectDualPaneWithInput(Column):
+class TreeSelectDualPaneWithInput(Container):
     """A path input plus the two-column browser in a modal dialog.
 
         sel = v3.TreeSelectDualPaneWithInput('Waveform file', 'a.mat')
@@ -315,7 +316,7 @@ class TreeSelectDualPaneWithInput(Column):
         custom: optional builder hooks, mirroring v1's customization points.
             Recognized keys: `'place0'`..`'place3'` are called (with no
             arguments) around the path input / recent / browse buttons.
-        width: see `Column`.
+        width: see `Container`.
 
     Properties:
         value: str — the committed path ('' while nothing is committed).
@@ -361,8 +362,8 @@ class TreeSelectDualPaneWithInput(Column):
         self.value = Property('')
         self._browsing = Property(False)
         self._has_recent = Property(False)
-        # see `TreeSelectWithInput.__init__` -- here the adopt only re-enters
-        # `_commit`, but the guard is the same
+        # set while `_refresh_recent` adopts the newest path into the dropdown:
+        # that is a display update, not a pick, so `_commit` must not run
         self._recent_quiet = False
         if result:
             self.value.set(result)

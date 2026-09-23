@@ -1,12 +1,3 @@
-"""Layouts and containers: Streamlit's "Layouts and containers"
-(`api-reference/layout`).
-
-`Bottom` (an alias of `BottomContainer`), `BottomContainer`, `Cell`, `Column`
-and its `Container` alias, `Dialog`, `Expander`, `Floating` (an alias of
-`FloatingContainer`), `FloatingContainer`, `Grid`, `Popover`, `Row`, `Space`,
-`Tabs` (with its private `_TabPanel`).
-"""
-
 import typing as tp
 
 from ._shared import _HasText
@@ -34,13 +25,13 @@ class Cell(Component):
         self._col = col
 
 
-class Column(Component):
+class Container(Component):
     """Vertical layout container.
 
     Args:
         width:  `int` (px) | 'stretch' | 'content' | None (fill parent).
         weight: flex-grow ratio when laid out inside a `Row`, e.g. a
-            `(5, 2)` split is `Column(weight=5)` + `Column(weight=2)`;
+            `(5, 2)` split is `Container(weight=5)` + `Container(weight=2)`;
             None keeps the default equal share.
         border: whether to draw a bordered container around the children.
         height: fixed height in px; the content scrolls when it overflows
@@ -53,7 +44,7 @@ class Column(Component):
         animated: transition the height when `visible` flips, instead of
             appearing/disappearing instantly (mirrors an expander body). Use
             it for blocks that a button reveals, e.g.
-            `Column(visible=state.show, animated=True)`.
+            `Container(visible=state.show, animated=True)`.
     """
 
     def __init__(
@@ -72,16 +63,15 @@ class Column(Component):
         self._animated = animated
 
 
-Container = Column
-#   alias of `Column`, mirroring Streamlit's `st.container`.
+Column = Container  # alias
 
 
-class BottomContainer(Column):
+class BottomContainer(Container):
     """A container that sticks to the bottom of its parent layout.
 
-    Used exactly like `Container` / `Column`, except that the layout pushes
-    it down, so a card can keep its actions at the bottom and a dialog can
-    pin a button to its base:
+    Used exactly like `Container`, except that the layout pushes it down, so a 
+    card can keep its actions at the bottom and a dialog can pin a button to 
+    its base:
 
         with v3.Container(height=320):
             v3.Text('...')
@@ -91,20 +81,13 @@ class BottomContainer(Column):
     Streamlit's `st.bottom` is only allowed at the root; this one works in
     any layout (a canary-only difference, see
     `.trae/documents/pixel_fidelity_caveats.md`).
-
-    Args:
-        see `Column`.
-
-    (Placed right after `Column` rather than in strict alphabetical order:
-    it subclasses `Column`, so its base has to be defined first.)
     """
 
     def __init__(self, **kwargs: tp.Any) -> None:
         super().__init__(**kwargs)
 
 
-Bottom = BottomContainer
-"""Alias of `BottomContainer`."""
+Bottom = BottomContainer  # alias
 
 
 class Dialog(Component):
@@ -209,7 +192,7 @@ _FLOAT_POSITIONS = (
 )
 
 
-class FloatingContainer(Column):
+class FloatingContainer(Container):
     """A container that sticks to a corner of the layout it sits in.
 
         with v3.Popover('Browse', panel_max_height=420):
@@ -234,18 +217,17 @@ class FloatingContainer(Column):
     whatever room the parent has to spare.)  Between the two, everything else
     the parent holds is reachable by scrolling.
 
-    Only a vertical layout may hold one -- a `Column` (or `Container`), a
-    `Popover`, a `Dialog`, or the app root -- since the corner's horizontal
-    half comes from `align-self`, which a `Row` would fight.  Anything else
-    raises `ValueError`.
+    Only a vertical layout may hold one -- a `Popover`, a `Dialog`, or the app 
+    root -- since the corner's horizontal half comes from `align-self`, which a 
+    `Row` would fight.  Anything else raises `ValueError`.
 
     Args:
         position: the corner to stick to (required) -- `'top-left'`,
             `'top-center'`, `'top-right'`, `'bottom-left'`,
             `'bottom-center'`, or `'bottom-right'`.
-        **kwargs: see `Column`.
+        **kwargs: see `Container`.
 
-    A floating box *is* a `Column` underneath, so `width` / `visible` and the
+    A floating box *is* a `Container` underneath, so `width` / `visible` and the
     other container keywords still apply.
     """
 
@@ -259,10 +241,10 @@ class FloatingContainer(Column):
         super().__init__(**kwargs)
         parent = self._parent
         if parent is not None and not isinstance(
-            parent, (Column, Popover, Dialog)
+            parent, (Container, Popover, Dialog)
         ):
             raise ValueError(
-                'FloatingContainer must sit in a Column, Popover, Dialog or '
+                'FloatingContainer must sit in a Container, Popover, Dialog or '
                 'the app root, not in {}'.format(type(parent).__name__)
             )
         self._position = position

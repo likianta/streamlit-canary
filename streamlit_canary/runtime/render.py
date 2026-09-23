@@ -37,7 +37,7 @@ from ..components_v3.inputs import ToggleBox
 
 from ..components_v3.layouts import BottomContainer
 from ..components_v3.layouts import Cell
-from ..components_v3.layouts import Column
+from ..components_v3.layouts import Container
 from ..components_v3.layouts import Dialog
 from ..components_v3.layouts import Expander
 from ..components_v3.layouts import FloatingContainer
@@ -180,7 +180,7 @@ def _render_element(comp: Component) -> str:
         )
     if isinstance(comp, Space):
         return _render_space(comp)
-    # Checked before `Column`, which `FloatingContainer` subclasses.
+    # Checked before `Container`, which `FloatingContainer` subclasses.
     if isinstance(comp, FloatingContainer):
         children = ''.join(_render(c) for c in comp.children)
         return (
@@ -188,10 +188,11 @@ def _render_element(comp: Component) -> str:
             f' data-id="{comp.id}"'
             f'{_style_attr(_bounds_style(comp, scroll=True))}>{children}</div>'
         )
-    if isinstance(comp, Column):
+    if isinstance(comp, Container):
         children = ''.join(_render(c) for c in comp.children)
-        # A `Column` that also carries a widget label (`TreeSelect`, through
-        # `_Labeled`) draws it at the top of the panel, above the toolbar.
+        # A `Container` that also carries a widget label (`TreeSelect`,
+        # through `_Labeled`) draws it at the top of the panel, above the
+        # toolbar.
         if isinstance(comp, _Labeled):
             children = _widget_label_html(comp) + children
         border_cls = (

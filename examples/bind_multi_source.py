@@ -110,7 +110,7 @@ def bind_multi_source_demo():
         _log(report_log, 'report    {}'.format(report.get()))
 
     # -- ui -----------------------------------------------------------------
-    with sc.v3.Column():
+    with sc.v3.Container():
         sc.v3.Title('Binding several sources')
 
         with sc.v3.Row():

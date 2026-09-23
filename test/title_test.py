@@ -76,8 +76,8 @@ ok = (
     )
     and ok
 )
-with v3.Column() as outer:
-    with v3.Column():
+with v3.Container() as outer:
+    with v3.Container():
         PageTitle('Nested')
 ok = (
     check(
