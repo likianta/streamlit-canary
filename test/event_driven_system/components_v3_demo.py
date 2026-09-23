@@ -92,7 +92,7 @@ print('3. Button.on_click signal')
 
 b = Button('Go', type='primary')
 check('label stored', b.text.get() == 'Go')
-check('type stored', b._type == 'primary')
+check('type stored', b.type.get() == 'primary')
 check('on_click is a Signal', isinstance(b.on_click, Signal))
 
 clicks = [0]

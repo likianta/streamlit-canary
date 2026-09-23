@@ -856,9 +856,9 @@ class TreeSelectWithInput(Column):
 
         # -- handlers -------------------------------------------------------
 
-        @self._path_input.path.on_change
+        @self._path_input.value.on_change
         def _on_path_typed() -> None:
-            self._commit(self._path_input.path.get())
+            self._commit(self._path_input.value.get())
 
         @self._recent.value.on_change
         def _on_recent_picked() -> None:

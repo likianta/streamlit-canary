@@ -414,9 +414,9 @@ class TreeSelectDualPaneWithInput(Column):
                 return
             self._commit(str(self._recent['value']))
 
-        @self._path_input.path.on_change
+        @self._path_input.value.on_change
         def _on_path_typed() -> None:
-            path = self._path_input.path.get()
+            path = self._path_input.value.get()
             self._commit(path) if path else self.value.set('')
 
         self._refresh_recent()
@@ -440,7 +440,7 @@ class TreeSelectDualPaneWithInput(Column):
             self.value.set(path)
             self._nav.remember(path)
             self._nav.directory = path if fs.isdir(path) else fs.parent(path)
-        self._path_input.path.set(path)
+        self._path_input.value.set(path)
         self._refresh_recent()
 
     def _refresh_recent(self) -> None:

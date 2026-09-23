@@ -33,7 +33,7 @@ from ..components_v3.inputs import SelectSlider
 from ..components_v3.inputs import Selectbox
 from ..components_v3.inputs import TextArea
 from ..components_v3.inputs import TextInput
-from ..components_v3.inputs import Toggle
+from ..components_v3.inputs import ToggleBox
 
 from ..components_v3.layouts import BottomContainer
 from ..components_v3.layouts import Cell
@@ -59,6 +59,7 @@ from ..components_v3.status import Toast
 from ..components_v3.texts import Caption
 from ..components_v3.texts import Code
 from ..components_v3.texts import Markdown
+from ..components_v3.texts import PageTitle
 from ..components_v3.texts import Text
 from ..components_v3.texts import Title
 from ..kernel.property import Property
@@ -260,9 +261,16 @@ def _render_element(comp: Component) -> str:
         text = render_markup(str(comp.text.get()))
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
+        # `PageTitle` is a `Title` that names the tab as well: the extra class
+        # is what page.js looks for when the text changes. The first paint's
+        # own `<title>` is set by `render_page`, below.
+        page = ' st-page-title' if isinstance(comp, PageTitle) else ''
+        align = getattr(comp, '_horizontal_alignment', 'left')
+        # left is the default alignment, so only the other two need a class
+        align_cls = '' if align == 'left' else f' st-title--{align}'
         return (
-            f'<h1 class="st-title" data-id="{comp.id}"{_size_style(comp)}>'
-            f'{text}{help_html}</h1>'
+            f'<h1 class="st-title{align_cls}{page}" data-id="{comp.id}"'
+            f'{_size_style(comp)}>{text}{help_html}</h1>'
         )
     if isinstance(comp, Caption):
         text = render_markup(str(comp.text.get()))
@@ -308,7 +316,7 @@ def _render_element(comp: Component) -> str:
         return _render_progress(comp)
     if isinstance(comp, AltairChart):
         return _render_altair_chart(comp)
-    if isinstance(comp, Toggle):
+    if isinstance(comp, ToggleBox):
         return _render_toggle(comp)
     if isinstance(comp, Checkbox):
         return _render_checkbox(comp)
@@ -509,9 +517,10 @@ def _help_icon_html(help_text: tp.Any) -> str:
 
 def _render_button(comp: Button) -> str:
     label = _render_paragraphs(str(comp.text.get()))
-    btn_type = getattr(comp, '_type', 'secondary')
     # Streamlit: type="secondary" is default, "primary" is the accent button.
-    st_type = 'primary' if btn_type == 'primary' else 'secondary'
+    # A live `type` change rides the `type` patch (see `00-connection.js`),
+    # which swaps this same class.
+    st_type = 'primary' if comp.type.get() == 'primary' else 'secondary'
     cls = f'st-btn st-btn-{st_type}'
     if getattr(comp, '_icon_only', False):
         cls += ' st-btn-icon'
@@ -1468,7 +1477,7 @@ def _render_checkbox(comp: Checkbox) -> str:
     )
 
 
-def _render_toggle(comp: Toggle) -> str:
+def _render_toggle(comp: ToggleBox) -> str:
     checked = ' checked' if comp.value.get() else ''
     return (
         f'<div class="st-toggle" data-id="{comp.id}"{_size_style(comp)}>'
@@ -1762,6 +1771,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div id="app"{app_attr}>{body}</div>
 <script src="/static/markdown-it.js"></script>
+<script src="/static/emoji-shortcodes.js"></script>
 <script>
 {page_js}
 </script>
@@ -1849,6 +1859,27 @@ def _render_log_panel(comp: LogPanel) -> str:
     )
 
 
+def _walk_tree(roots: tp.Iterable[Component]) -> tp.Iterator[Component]:
+    """Every component in the tree, each parent before its children."""
+    for comp in roots:
+        yield comp
+        yield from _walk_tree(comp.children)
+
+
+def _find_page_title(roots: tp.Iterable[Component]) -> str:
+    """The text of the last `PageTitle` in the tree, `''` if there is none.
+
+    It names the document's own `<title>`, so the first paint already carries
+    the name the app asked for; a later change rides the ordinary `text` patch
+    from there (page.js keeps `document.title` in step).
+    """
+    found = ''
+    for comp in _walk_tree(roots):
+        if isinstance(comp, PageTitle):
+            found = str(comp.text.get())
+    return found
+
+
 def render_page(
     roots: tp.Iterable[Component],
     title: str = 'Streamlit Canary',
@@ -1856,9 +1887,15 @@ def render_page(
     layout: str = 'centered',
     dunder_literal: bool = False,
 ) -> str:
+    # the body and the page title below both walk the roots, so materialize
+    # them once -- the caller may well hand us a generator
+    roots = list(roots)
     # The OS preference behind `system` lives in the browser, so the attribute
     # starts on dark and the boot script corrects it before the first paint.
     theme = default_theme if default_theme in ('light', 'dark') else 'dark'
+    # A `PageTitle` has the last word on the tab's name: it is the app saying
+    # so on the page, where `set_page_config` only sets a default.
+    title = _find_page_title(roots) or title
     # Page config rides on the app shell: `layout` is a class and the markdown
     # flag is a data attribute, both read by page.js (see `set_page_config`).
     app_attr = ' class="st-wide"' if layout == 'wide' else ''

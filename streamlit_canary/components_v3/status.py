@@ -28,15 +28,30 @@ class Callout(_TextVisible):
     The base itself carries the success palette, because that is what the
     shared `.st-alert-container` rule holds -- the variants only override it.
 
+    Args:
+        text: the message (bindable; `:color[..]` markup allowed).
+        visible: whether the alert is shown (default True, bindable). A blank
+            `text` has nothing to draw, so this is the caller's flag ANDed
+            with the content test (see `_visible_when_filled`): the box hides
+            either because there is nothing to show or because the caller
+            switched it off.
+
     Properties:
         text:    str  — the message (bindable; `:color[..]` markup allowed)
-        visible: bool — whether the alert is shown (bindable). Like every
-            `_TextVisible` box it defaults to **False**, which is what keeps a
-            `Spinner` out of the way until it is entered; an alert that is
-            simply there therefore needs `visible=True`, or a binding.
+        visible: bool — whether the alert is shown (bindable).
     """
 
     _kind = 'success'
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        visible: bool | Property = True,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, visible=visible, **kwargs)
+        self.visible = _visible_when_filled(self.text, visible)
 
 
 class Error(Callout):
@@ -260,6 +275,15 @@ class Spinner(_TextVisible):
     # Visibility remembered by `__enter__` and restored by `__exit__`; a
     # class-level default keeps subclasses from re-declaring the signature.
     _prev_visible = False
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        visible: bool | Property = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, visible=visible, **kwargs)
 
     def __call__(self, text: str = '') -> 'Spinner':
         """Set the spinner text and return `self` (chainable)."""

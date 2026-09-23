@@ -37,14 +37,13 @@ def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
 def _is_blank(value: tp.Any) -> bool:
     """Whether a data source draws nothing.
 
-    `None`, an empty sequence and a whitespace-only string all count, so a
-    `Code` / `Markdown` holding only spaces hides instead of leaving an empty
-    frame behind.
+    `None`, an empty string and an empty sequence all count. A whitespace-only
+    string does *not*: writing one is how an element keeps its place while
+    showing nothing (`v3.Title(' ')`), the way `st.title('')` still occupies a
+    line -- see `_visible_when_filled`.
     """
     if value is None:
         return True
-    if isinstance(value, str):
-        return not value.strip()
     return not value
 
 
@@ -56,6 +55,10 @@ def _visible_when_filled(
     `Table` / `Code` / `Markdown` have nothing to draw while their data is
     blank, so rather than leaving an empty frame behind they hide -- and come
     back as soon as the (possibly bound) value fills in.
+
+    "Blank" means `None` or empty (`_is_blank`); a whitespace-only string is
+    content, so `Title(' ')` keeps its line while showing nothing -- the way
+    to ask for `st.title('')`'s empty row.
 
     `explicit` is the caller's own `visible` (the base-class argument) ANDed
     in, so the widget hides either because there is nothing to draw or because
@@ -79,6 +82,39 @@ def _visible_when_filled(
         explicit.on_change.connect(sync)
     sync()
     return visible
+
+
+class _ReadOnlyProperty(Property):
+    """A `Property` a caller may read (and watch) but not write.
+
+    `set` -- what `prop.set(...)` and `comp['x'] = ...` call -- is refused, so
+    a derived field cannot be forced out of step with what it derives from.
+    The owning component updates it through `_write` (see `_derive`).
+    """
+
+    def set(self, value: tp.Any, notify: tp.Optional[bool] = None) -> None:
+        raise AttributeError(
+            'this is a derived, read-only property; change the value it is '
+            'derived from instead'
+        )
+
+    def _write(self, value: tp.Any, notify: tp.Optional[bool] = None) -> None:
+        super().set(value, notify)
+
+
+def _derive(
+    source: Property, transform: tp.Callable[[tp.Any], tp.Any]
+) -> Property:
+    """A read-only `Property` mirroring `transform(source.get())`.
+
+    Used for a field the component owns and the caller only reads, e.g.
+    `ToggleButton.type` (on -> "primary", off -> "secondary"). Writing it
+    raises, so it can never disagree with `source`.
+    """
+    out = _ReadOnlyProperty()
+    out._write(transform(source.get()))
+    source.on_change.connect(lambda: out._write(transform(source.get())))
+    return out
 
 
 def _dedent_help(value: tp.Any) -> str:
@@ -151,13 +187,18 @@ class _HelpText(_HasText):
     """Shared base for text elements that also carry a `help` tooltip.
 
     Mirrors Streamlit, whose text and heading elements (`st.text`,
-    `st.caption`, `st.title`) all accept `help`. Used by Caption, Text and
-    Title.
+    `st.caption`, `st.title`) all accept `help`. Used by Caption, Markdown,
+    Text and Title.
 
     Fields:
         text: Property[str] — the displayed text (bindable).
         help: Property[str] — markdown tooltip shown next to the text
             (bindable; bind it when the text depends on state).
+        visible: Property[bool] — whether the text is drawn (bindable). A
+            blank `text` has nothing to draw, so this is the caller's flag
+            ANDed with the content test (see `_visible_when_filled`): the
+            element hides either because there is nothing to show or because
+            the caller switched it off.
 
     `width` defaults to `'auto'` (mirroring Streamlit's markdown family): the
     text stretches inside a vertical container and shrinks to its content
@@ -171,10 +212,12 @@ class _HelpText(_HasText):
         text: str | Property = '',
         *,
         help: str | Property = '',
+        visible: bool | Property = True,
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, **kwargs)
+        super().__init__(text, visible=visible, **kwargs)
         self.help = _help_prop(help)
+        self.visible = _visible_when_filled(self.text, visible)
 
 
 class _Labeled(Component):
@@ -388,16 +431,12 @@ class _Submittable:
 class _TextVisible(_HasText):
     """Shared base for status boxes: a `text` plus a bindable `visible`.
 
-    The flag itself lives on `Component`; these boxes only default it *off*,
-    so a `Spinner` stays out of the way until it is entered. Used by Spinner
-    and by the `Callout` family.
+    The flag itself lives on `Component` (default `True`); this base leaves
+    the default to its users, because the two families want opposite things.
+    `Spinner` starts it *off*, so it stays out of the way until it is
+    entered. The `Callout` family starts it *on*, and hides only while its
+    message is blank (see `_visible_when_filled`).
     """
 
-    def __init__(
-        self,
-        text: str | Property = '',
-        *,
-        visible: bool | Property = False,
-        **kwargs: tp.Any,
-    ) -> None:
-        super().__init__(text, visible=visible, **kwargs)
+    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
+        super().__init__(text, **kwargs)

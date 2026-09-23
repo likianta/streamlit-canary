@@ -1,12 +1,14 @@
 """Button-style widgets: the first half of Streamlit's "Input widgets"
 (`api-reference/widgets`), which we split in two.
 
-`Button`, `IconButton`, `MenuButton`. The value inputs live in `inputs.py`.
+`Button`, `IconButton`, `MenuButton`, `ToggleButton`. The value inputs live
+in `inputs.py`.
 """
 
 import typing as tp
 
 from ._shared import _as_list
+from ._shared import _derive
 from ._shared import _HasText
 from ._shared import _help_prop
 from ._shared import _prop
@@ -21,11 +23,17 @@ class Button(_HasText):
 
     Args:
         label:   button text (stored in the reactive `text` Property).
-        type:    "secondary" (default) | "primary".
+        type:    "secondary" (default) | "primary" (bindable).
         width:   "content" (default) | "stretch" — stretch fills parent width.
         help:    markdown tooltip text; a plain string or a bound value
             (`sc.bind(...)`) when the text depends on state.
         enabled: bool (default True) | bound value (`sc.bind(...)`).
+
+    Properties:
+        text:    str  — the label (bindable).
+        type:    str  — "secondary" | "primary" (bindable).
+        enabled: bool — whether the button can be clicked (bindable).
+        help:    str  — markdown tooltip (bindable).
 
     Signals:
         on_click: emitted when the user clicks the button. A handler may
@@ -38,7 +46,7 @@ class Button(_HasText):
         self,
         label: str | Property = '',
         *,
-        type: str = 'secondary',
+        type: str | Property = 'secondary',
         help: str | Property | None = None,
         width: Width | None = None,
         enabled: bool | Property = True,
@@ -52,9 +60,10 @@ class Button(_HasText):
         # `help` is reactive too: Streamlit recomputes it on every rerun, so
         # a no-rerun port needs a bound Property to reach the same effect.
         self.help = _help_prop('' if help is None else help)
-        # `type` is static config, not a reactive Property (`width` is
-        # collected by the base class).
-        self._type = type
+        # `type` is reactive as well (`width` is collected by the base class):
+        # binding it lets a button turn primary / secondary at runtime, e.g.
+        # a step that becomes the "confirm" action.
+        self.type = _prop('secondary', type)
         # `Signal(_owner_factory=...)` mirrors `Property.on_change`, so
         # `@btn.on_click.partial(sc._self)` hands the handler this button.
         self.on_click: Signal = Signal(_owner_factory=lambda: self)
@@ -168,3 +177,68 @@ class MenuButton(Popover):
             if str(option) == str(value):
                 return option
         return value
+
+
+# Alphabetically last, but that is fine: it subclasses `Button`, defined
+# first (the same reason `_shared.py`'s private bases sit up front).
+class ToggleButton(Button):
+    """A button that stays lit while its `value` is on (a canary extra).
+
+        with v3.ToggleButton('Bold') as bold:
+            @bold.value.on_change
+            def _(): ...
+
+    Clicking flips `value`; the button draws with `type="primary"` while it
+    is true and `"secondary"` while false. There is no `type` argument: that
+    field is *derived* from `value` and read-only, so the two can never
+    disagree (writing it raises).
+
+    Args:
+        label: the button text (bindable).
+        value: the initial on / off state (bindable -- pass a `Property` to
+            follow the state it toggles).
+        help / width / enabled: see `Button`.
+        on_click: extra handler, run *after* `value` has flipped, so it sees
+            the new state (also attachable with `@tb.on_click`).
+
+    Properties:
+        value: bool — the toggle state (bindable; a click flips it).
+        type: str — derived & read-only: "primary" while on, else
+            "secondary".
+
+    Signals:
+        on_click, and `value.on_change` (via `tb.value.on_change` /
+        `tb['on_value']`).
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        value: bool | Property = False,
+        on_click: tp.Callable[[], None] | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        # `Button` has a `type` argument; a toggle's follows `value`, so
+        # refuse it here rather than letting the base swallow it silently.
+        if 'type' in kwargs:
+            raise TypeError(
+                'ToggleButton takes no `type`: it follows `value` (primary '
+                'while on, secondary while off)'
+            )
+        # `super().__init__` gets `on_click=None`: the caller's handler is
+        # wired below, after `_flip`, so it observes the state the click just
+        # produced rather than the one before it.
+        super().__init__(label, on_click=None, **kwargs)
+        self.value = _prop(False, value)
+        # The look follows the state; `_derive` makes it read-only so a
+        # caller cannot force the two apart.
+        self.type = _derive(
+            self.value, lambda on: 'primary' if on else 'secondary'
+        )
+        self.on_click.connect(self._flip)
+        if on_click is not None:
+            self.on_click.connect(on_click)
+
+    def _flip(self) -> None:
+        self.value.set(not self.value.get())

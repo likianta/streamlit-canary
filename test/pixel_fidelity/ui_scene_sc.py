@@ -31,6 +31,21 @@ def main():
         ':orange[:material/brightness_auto:]'
     )
 
+    # The other shortcode library: `:name:` expands to a plain emoji
+    # character, where `:material/..:` draws a Material Symbols ligature. A
+    # name Streamlit does not know (`:notanemoji:`) stays as it was typed,
+    # and either kind can be wrapped by a colour / effect mark.
+    v3.Markdown(
+        'Emoji shortcodes: '
+        ':smile: '
+        ':maple_leaf: '
+        ':four_leaf_clover: '
+        ':+1: '
+        ':100: '
+        ':orange[:heart:] '
+        'and :notanemoji: stays literal'
+    )
+
     v3.SegmentedControl(
         'Segmented control', ('Option A', 'Option B', 'Option C')
     )

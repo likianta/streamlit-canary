@@ -26,25 +26,6 @@
     color: var(--st-text-color);
     cursor: pointer;
   }
-  /* Hover / press feedback -- the same canary-only touch the selectbox
-     trigger carries: Streamlit keeps the trigger's fill at `secondaryBg` in
-     all three states. The overlay goes on as a `background-image` gradient,
-     i.e. painted *over* this trigger's own fill; a plain `background-color`
-     would swap the opaque `secondaryBg` for a translucent colour, and
-     composited over the page that lands back on `secondaryBg` (invisible).
-     See `pixel_fidelity_caveats.md`. */
-  .st-multiselect-trigger:hover {
-    background-image: linear-gradient(
-      var(--st-hover-background-color),
-      var(--st-hover-background-color)
-    );
-  }
-  .st-multiselect-trigger:active {
-    background-image: linear-gradient(
-      var(--st-active-background-color),
-      var(--st-active-background-color)
-    );
-  }
   .st-multiselect-values {
     font-size: 14px;
     line-height: 1.6;

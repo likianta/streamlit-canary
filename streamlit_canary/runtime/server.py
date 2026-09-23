@@ -54,6 +54,10 @@ _ICON_FONT_PATH = (
 _MARKDOWN_PATH = (
     Path(__file__).resolve().parent / 'static' / 'markdown-it.min.js'
 )
+# Emoji shortcode table (`:smile:`) the markdown rule reads. Generated, and
+# served the same separate-file way for the same reason (see
+# `test/gen_emoji_shortcodes.py`).
+_EMOJI_PATH = Path(__file__).resolve().parent / 'static' / 'emoji-shortcodes.js'
 # Bundled pdf.js (Apache-2.0), the engine `PdfViewer` draws with. Only a page
 # that actually shows a viewer ever fetches these, and the allowlist keeps the
 # directory from being walkable.
@@ -115,6 +119,11 @@ def create_app(runtime: Runtime) -> Starlette:
         if not _MARKDOWN_PATH.is_file():
             return Response(status_code=404)
         return FileResponse(_MARKDOWN_PATH, media_type='text/javascript')
+
+    async def emoji_endpoint(request: Request) -> Response:
+        if not _EMOJI_PATH.is_file():
+            return Response(status_code=404)
+        return FileResponse(_EMOJI_PATH, media_type='text/javascript')
 
     async def pdfjs_endpoint(request: Request) -> Response:
         # see `_PDFJS_FILES` -- the media type matters, since the page imports
@@ -184,6 +193,7 @@ def create_app(runtime: Runtime) -> Starlette:
             Route('/fonts/source-code.woff2', code_font_endpoint),
             Route('/fonts/material-symbols.woff2', icon_font_endpoint),
             Route('/static/markdown-it.js', markdown_endpoint),
+            Route('/static/emoji-shortcodes.js', emoji_endpoint),
             Route('/static/pdfjs/{name}', pdfjs_endpoint),
             Route('/media/{token}', media_endpoint),
             WebSocketRoute('/ws', ws_endpoint),

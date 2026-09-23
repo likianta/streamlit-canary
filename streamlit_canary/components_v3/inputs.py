@@ -3,11 +3,12 @@
 
 `CheckGroup`, `Checkbox`, `Multiselect`, `NumberInput`, `PathInput`, `Radio`
 (an alias of `RadioGroup`), `RadioGroup`, `ReducibleGroup`, `SegmentedControl`,
-`SelectSlider`, `Selectbox`, `TextArea`, `TextInput`, `Toggle`. The buttons
-live in `buttons.py`.
+`SelectSlider`, `Selectbox`, `TextArea`, `TextInput`, `Toggle` (an alias of
+`ToggleBox`), `ToggleBox`. The buttons live in `buttons.py`.
 """
 
 import typing as tp
+from collections import deque
 
 from lk_utils import fs
 
@@ -468,10 +469,38 @@ class NumberInput(_Submittable, _HasPlaceholder, _Labeled):
             return self.value.get()
 
 
-class PathInput(_Submittable, Column):
+def _candidate_capacity(seed_size: int) -> int:
+    """How many paths a `PathInput` may end up remembering.
+
+    At least 20, so even a tiny seed has room to grow; a bigger seed rounds
+    up to the next ten (23 -> 30), so the memory is not full the moment the
+    first new path arrives.
     """
-    A text input whose text is resolved into an existing path.
-    Path is always absolute, forward-slash form.
+    return max(20, (seed_size + 9) // 10 * 10)
+
+
+class PathInput(_Submittable, Column):
+    """A text input whose text is resolved into an existing path.
+
+    The path is always in absolute, forward-slash form, and it stays empty
+    while the text is not a path that exists yet -- which is what lets a
+    wrapper fall back to the enclosing directory while a file name is still
+    being typed.
+
+    Fields:
+        value: str -- the resolved path, `""` when there is none. Bindable.
+        candidates: list[str] | Property | None -- the suggestions behind the
+            box, the same field `TextInput` takes, but with a memory of its
+            own. A plain sequence seeds that memory: every path this box
+            resolves to joins it (newest first, no duplicates), up to a
+            capacity of at least 20 -- a larger seed rounds up to the next
+            ten (23 -> 30) -- and the panel lists whatever it holds in
+            alphabetical order. Hand in a `Property` to own the list
+            yourself (nothing is remembered then), or `None` for no panel.
+
+    Signals:
+        on_submit / on_editing_finished -- relayed from the inner `TextInput`
+            (see `_Submittable`); both carry the text as typed.
     """
 
     def __init__(
@@ -487,12 +516,18 @@ class PathInput(_Submittable, Column):
         super().__init__(width=width, **kwargs)
 
         self._init_submittable()
-        self.path = Property('')
+        self.value = Property('')
+        # The memory behind `candidates`, and only for a literal sequence:
+        # it is `None` when the caller hands in a `Property` (theirs to fill)
+        # or nothing at all (no panel to fill).
+        self._memory: tp.Optional[tp.Deque[str]] = None
         if candidates is None or isinstance(candidates, Property):
             source: tp.Any = candidates
         else:
             # materialize, so a one-shot iterable does not go stale
-            source = list(candidates)
+            seed = list(candidates)
+            self._memory = deque(seed, maxlen=_candidate_capacity(len(seed)))
+            source = self._show_candidates()
         self.candidates = Property(tp.cast(tp.Optional[tp.List[str]], None))
         self.candidates.set_or_bind(source)
         with self:
@@ -506,7 +541,7 @@ class PathInput(_Submittable, Column):
 
         @self._input.value.on_change
         def _validate() -> None:
-            self.path.set(self._resolve(str(self._input['value'])))
+            self.value.set(self._resolve(str(self._input['value'])))
 
         # The inner box owns the send / blur detection; these two just relay
         # it outwards under this wrapper's own name.
@@ -522,20 +557,24 @@ class PathInput(_Submittable, Column):
         def _relay_editing_finished(text: str) -> None:
             self.on_editing_finished.emit(text)
 
-        @self.path.on_change
-        def _follow() -> None:
-            self._show(self.path.get())
+        @self.value.on_change
+        def _remember() -> None:
+            self._add_candidate(self.value.get())
 
-        self.path.set(self._resolve(str(value)))
+        @self.value.on_change
+        def _follow() -> None:
+            self._show(self.value.get())
+
+        self.value.set(self._resolve(str(value)))
 
     def show(self, path: str) -> None:
         """Make `path` the value, and make the box read it.
 
-        `path.set` on its own only re-writes the box when the value actually
+        `value.set` on its own only re-writes the box when the value actually
         changes; this also covers a box that is already on that path, spelled
         some other way -- with backslashes, a trailing separator, a `..`.
         """
-        self.path.set(path)
+        self.value.set(path)
         self._show(path)
 
     def _show(self, path: str) -> None:
@@ -546,6 +585,32 @@ class PathInput(_Submittable, Column):
         """
         if path and str(self._input['value']) != path:
             self._input.value.set(path)
+
+    def _add_candidate(self, path: str) -> None:
+        """Remember a path the box just resolved to, and refresh the panel.
+
+        Only a path that resolved is worth keeping (unresolved text is `""`),
+        and only when the memory exists -- a caller-supplied `Property` is
+        theirs to fill. A path already remembered is left where it is, so the
+        memory never reorders itself; each new one goes in front, and past the
+        capacity the oldest drops off the back, so it stays a window of recent
+        paths.
+        """
+        if self._memory is None or not path or path in self._memory:
+            return
+        self._memory.appendleft(path)
+        self.candidates.set(self._show_candidates())
+
+    def _show_candidates(self) -> tp.List[str]:
+        """What the panel lists: the memory, in alphabetical order.
+
+        The memory itself is ordered by when each path was met (newest
+        first); today we hand the panel a sorted copy. TODO: a second
+        ordering style could offer the memory's own order instead.
+        """
+        if self._memory is None:
+            return []
+        return sorted(self._memory)
 
     @staticmethod
     def _resolve(raw: str) -> str:
@@ -1018,11 +1083,12 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         self.on_editing.emit('' if value is None else str(value))
 
 
-class Toggle(_Labeled):
+class ToggleBox(_Labeled):
     """An on/off switch (mirrors Streamlit's `st.toggle`).
 
     Same fields as `Checkbox`; only the visual differs (a sliding switch
-    instead of a tick box).
+    instead of a tick box). `Toggle` is the short alias (`Toggle = ToggleBox`),
+    kept so existing code reads the same.
 
     Args:
         label: the widget label (bindable).
@@ -1049,3 +1115,6 @@ class Toggle(_Labeled):
     ) -> None:
         super().__init__(label, label_visibility=label_visibility, **kwargs)
         self.value = _prop(False, value)
+
+
+Toggle = ToggleBox  # alias

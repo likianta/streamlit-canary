@@ -27,6 +27,7 @@ from .base import Component
 from .buttons import Button
 from .buttons import IconButton
 from .buttons import MenuButton
+from .buttons import ToggleButton
 
 from .charts import AltairChart
 
@@ -46,6 +47,7 @@ from .inputs import Selectbox
 from .inputs import TextArea
 from .inputs import TextInput
 from .inputs import Toggle
+from .inputs import ToggleBox
 
 from .layouts import Bottom
 from .layouts import BottomContainer
@@ -77,6 +79,7 @@ from .status import Warning
 from .texts import Caption
 from .texts import Code
 from .texts import Markdown
+from .texts import PageTitle
 from .texts import Text
 from .texts import Title
 

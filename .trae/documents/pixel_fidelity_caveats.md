@@ -150,12 +150,6 @@
 
     原版行为: 只有连续点击 chevron 图标, 才能折叠/展开. 重复点击输入框, 会变成文字选择状态. 这是因为原版的 accept_new_options 功能与设计耦合导致的缺陷.
 
-  - 鼠标悬浮 / 按下触发器时, 触发器的底色会加深一档 (Selectbox 与 Multiselect 的触发器都是如此): 用的是与按钮相同的 hover / active 叠加色 (`--st-hover-background-color` / `--st-active-background-color`), 但以 `background-image` 渐变的形式 **叠加在触发器自身底色之上**, 而不是替换它.
-
-    原版行为: st.selectbox 的触发器在 hover / 按下时底色完全不变 -- 实测 1.63 下, 静止 / hover / 按下三态都是同一个 `secondaryBg` (该组件子树里没有任何后代对 hover 有反应). 这是我们有意多出来的反馈, 为的是让这个"长得像按钮"的触发器与按钮在交互反馈上保持一致.
-
-    实现上必须用渐变叠加: 若直接把 `background-color` 换成那个半透明叠加色, 它会与页面底色合成, 而触发器静止色 (`secondaryBg`) 本身就约等于"页面底色 + 同样多的叠加色", 于是合成结果又回到 `secondaryBg` —— 肉眼等于没有变化. (按钮那边因为静止色是 `lightenedBg05` 而不是 `secondaryBg`, 才可以直接换 `background-color`, 见 `Button` 一节.)
-
   - 触发器的宽度可能比原版宽 8px: 因为我们在"当前值"与 chevron 之间留了 8px 的最小间距 (`gap: 8px`), 原版没有这一段. 触发器的宽度是内容撑出来的 (场景没显式给宽度时), 所以这 8px 直接体现在宽度上, 并连带影响展开面板与面板内条目的宽度.
 
     原版行为: st.selectbox 的值与 chevron 之间没有间距, 因此内容撑宽时它的触发器比我们窄 8px. 像素对比中若看到触发器 / 面板 / 高亮框的宽度差 8px, 就是这一处; 注意高亮框相对**它自己的**触发器的内缩量两版是一致的 (约 12px), 这也是 `compare_selectbox_expanded.py` 的断言口径.
@@ -202,6 +196,7 @@
 - 我们使用 `enabled` 来控制组件可交互性, 而原版是 `disabled`.
 - NumberInput 的 stepper 需要显式设置 `step` 参数才会显示.
 - `v3.Radio` 更名为 `v3.RadioGroup` (名字与 `v3.CheckGroup` 对称). `Radio` 作为别名指向 `RadioGroup`.
+- `v3.Toggle` 更名为 `v3.ToggleBox`; `Toggle` 保留为别名 (`Toggle = ToggleBox`), 所以现有 `v3.Toggle` 写法照常可用. 仅换名字, 行为与外观不变 (DOM 类名仍是 `st-toggle`).
 - 我们新增了 `v3.CheckGroup` (多选的分组控件, 样式与 `v3.RadioGroup` 一致, 但选项用方形 box 且可多选); 原版没有对应组件. 它还多一个 `focused_index` 属性 (被点击文本 "高亮" 的那一行的下标, -1 表示无), 便于 "进入高亮节点" 这类按钮: `btn.enabled = sc.bind(cg.focused_index, lambda i: i >= 0)`. 另外 `cg.on_change` 是 `cg.value.on_change` (即 `cg['on_value']`) 的简写 —— 组件上一个 `on_change` 属性, 免得写长串 (注意这是**组件级**的便利属性, 目前只有 `CheckGroup` 有; 别的组件还是走 `cg['on_value']`).
 - `v3.CheckGroup` 的 `options` 也接受 `dict[str, bool]`: 键直接充当选项文本, 值表示该选项初始是否勾选. 这种 (flag 模式) 下 `.value` 不再是 `options` 的子集, 而是与 `options` **平行的一串 bool** —— 客户端回报的仍然是勾选文本, 由 `_coerce_value` 翻译成这串 bool; 服务端渲染与前端补丁都靠 `st-check-group--flags` 这个类名按位置读勾选状态, 所以 `options` 变更时服务端要把当前 flags 一并塞进 options 补丁 (`msg.flags`), 否则重建出来的行会全部掉勾. 普通的 list / tuple 形式完全不受影响 (`value` 仍是选项的子集).
 - 我们新增了 `v3.ReducibleGroup` (用 `v3.MenuButton` 选项行的样式, 但每行右侧多一个悬浮时才出现的 `x`, 点击即把该项从列表移除并发出 `on_reduce`); 原版没有对应组件.
@@ -213,7 +208,7 @@
 - `v3.RadioGroup` / `v3.CheckGroup` 的选项行可以携带三个按行判定的谓词, 渲染时各算成类名/属性并通过 `options` 补丁以"命中下标列表"的形式推给前端 (JS 无法求值 Python 谓词, 和 `box_disabled` 同一机制): `box_disabled` 把命中的选项的 box 冻结 (字段 disabled + 行加 `.is-box-disabled`, 画得暗一些), `navigable` 让命中的行多出上面那个 `->` 箭头, `body_opens` 让命中的行把整行点击从"高亮"换成"进入" (走 `scOpenRow`). 另外 `RadioGroup` 也有 `focused_index` (和 `CheckGroup` 一致); 这份行状态 (点击高亮 + `focus` 事件回传) 抽到了私有基类 `_RowGestures`. 行上不再有任何双击手势: `on_open` 现在只在 `_NavigationGroup` 上定义, 由箭头 (或 `body_opens` 行的整行点击) 触发.
 - `TreeSelectWithInput` / `TreeSelectDualPaneWithInput` 的 "Recent" 下拉: 列表被替换时, 内部 radio 会自己 adopt 最新一条 (`_auto_select`), 而这次 adopt 看起来跟"用户挑了一项"一模一样 —— 以前包装器会因此跑一遍 `_commit`, 于是"面板里勾一个文件夹"会把面板一起带走. 现在 `Recent` 用与 `_auto_select` 相同的判据预先记下它将 adopt 哪一项, 回传时跳过它: 列表刷新不再伪装成挑选, 而真·下拉挑选仍照常 `_commit` (文件夹 → 面板跳过去, 文件 → 加入选中).
 - 我们新增了 `v3.FloatingContainer` (`v3.Floating` 是它的别名): 吸附在父布局某个角落的容器, 见上面 UI 差异一节的 `FloatingContainer`.
+- 我们新增了 `v3.ToggleButton`: 一个 `Button` 子类, 点击即翻转它自己的 `value` (`Property[bool]`), 并据此换装 —— `value` 为真画 `primary`, 为假画 `secondary` (借既有的 `type` patch 就地换类). 它**没有** `type` 参数: 那个字段由 `value` *派生* 且只读 (`_shared._derive` / `_ReadOnlyProperty`, 写它会抛 `AttributeError`), 所以二者不会脱节; `on_click` 的处理器在翻转之后才跑, 读到的就是点击后的新状态. 原版没有对应组件 (`st.button` 不持有状态, `st.toggle` 又不长成按钮的样子).
 - `v3.Popover` 多一个 `close()` 方法: popover 的开合状态本来只存在于浏览器端 (触发器负责开合, 点外部关闭), 服务端读不到, 所以 `close()` 只是把一个 `_close` 计数器 +1 并推给前端, 前端收到这个 patch 就把面板折起来 (触发器保持原位). `TreeSelectWithInput` 的 Confirm 就是靠它收起面板.
-- `visible` 是 **组件基类** 的属性: `Component.__init__` 统一声明 (默认 True, 可绑定), `Component.is_hidden()` 是唯一解释它的地方. 因此任何组件都能 `visible=...`, 渲染端也只在 `render._render` 一处把 `hidden` 打到根元素上. 例外: `Code` / `Markdown` / `Table` 的 `visible` 是「内容非空」与构造参数的 **AND
-** —— 内容为空即隐藏, 显式 `visible=False` 也隐藏 (两者都满足才渲染).
+- `visible` 是 **组件基类** 的属性: `Component.__init__` 统一声明 (默认 True, 可绑定), `Component.is_hidden()` 是唯一解释它的地方. 因此任何组件都能 `visible=...`, 渲染端也只在 `render._render` 一处把 `hidden` 打到根元素上. 有一族组件的 `visible` 是「内容非空」与构造参数的 **AND** (`_visible_when_filled`): 内容为空 (字面为空, 见 `_is_blank`) 即隐藏, 显式 `visible=False` 也隐藏 (两者都满足才渲染). 它们是 `Code` / `Markdown` / `Table` / `PdfViewer` / `LogPanel`, 以及**全部文本元素** (`Text` / `Title` / `Caption` / `PageTitle`, 由 `_HelpText` 统一提供) 和 `Callout` 族 (`Info` / `Error` / `Success` / `Warning`). 因此空白文本不再留空框, 其 `visible` 参数默认都是 **True**. 想要像 `st.title('')` 那样占住一整行 (原版空 title 仍渲染一个空 `h1`), 就写一个空格占位符 (`v3.Title(' ')`) -- 空格算内容, 不算空 (只有真正为空 / `None` 才隐藏). 两个例外是 `Spinner` / `Progress`: 它们的 `visible` 默认 **False** (是显式的开关, 不由内容决定), 因为那是"用时才现身"的指示器. (`PageTitle` 即使被隐藏也仍按它的 `text` 命名标签页, 见 `render._find_page_title`.)
 - 我们新增了 `v3.LogPanel` (原版没有对应组件): 把 app 写到终端的内容 (`source='stdout'` 默认, 或 `'stderr'`) 实时搬到页面上 —— 一行一条, 最新的在底部, 并随新行滚动保持在视口内. 缓冲区上限 `_max_lines` (500), 满了丢最旧的; 一行都没有时面板自己隐藏, 所以不打印的 app 不会多出一个空框. 捕获要包两层: 替换 `sys.stdout` / `sys.stderr`, 同时把 neoprint 在导入时就存下的那个句柄 (`neoprint.console._stdout`, 被 `Console.print` 读取) 也指向同一个 tee —— 只换 `sys.stdout` 的话, 凡是从 `streamlit_canary` 内部打印、被 neoprint 加了装饰的输出都会绕过 tee; 反过来 tee 总是先照常写回真正的流, 终端输出不受影响. tee 另外按行缓冲, 因为 `print(a, b)` 是一段段 `write` 进来的, 而面板要的是整行. 行尾/行中的 ANSI 颜色码会被丢掉: 浏览器没有终端来解释它们, 留着只会显示成乱码 (所谓"去掉颜色码, 纯文本显示").

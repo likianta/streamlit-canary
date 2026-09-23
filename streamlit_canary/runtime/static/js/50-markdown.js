@@ -103,6 +103,25 @@
       state.pos += m[0].length;
       return true;
     }
+    // `:smile:` -- the GitHub-style emoji shortcodes, resolved through the
+    // table in `emoji-shortcodes.js` (generated from the node-emoji data
+    // Streamlit itself expands with, so the two agree name for name).
+    // Streamlit puts the bare character in the text -- no wrapper element,
+    // no `role="img"` -- so a text token is all this is. `\+1` / `-1` are
+    // spelled out because `\w` covers neither, and a name the table does not
+    // know (`:notanemoji:`) is left exactly as it was typed.
+    m = /^:(\+1|-1|[\w-]+):/.exec(rest);
+    if (m !== null) {
+      const emoji = (window.SC_EMOJI || {})[m[1]];
+      if (emoji !== undefined) {
+        if (!silent) {
+          const token = state.push('text', '', 0);
+          token.content = emoji;
+        }
+        state.pos += m[0].length;
+        return true;
+      }
+    }
     m = /^:([a-zA-Z]+)\[/.exec(rest);
     if (m === null) {
       return false;
@@ -285,6 +304,10 @@
       scSetMarkdown(el.querySelector('.st-progress-text'), value);
     } else {
       scSetMarkdown(el, value);
+      // `PageTitle` names the tab as well. The text as written, not the
+      // rendered markdown: that is what the server put in `<title>` on the
+      // first paint, and what Streamlit's own `page_title` would show.
+      if (el.classList.contains('st-page-title')) document.title = value;
     }
   }
   // Route a Table extra (`title` / `caption` / `footer`) delta. An emptied

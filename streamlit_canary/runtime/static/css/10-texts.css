@@ -7,6 +7,10 @@
     margin-bottom: 16px;
     line-height: 1.25;
   }
+  /* `Title(horizontal_alignment=...)`. Left is the default and the `h1` is a
+     block that fills its box, so only the other two need a rule. */
+  .st-title--center { text-align: center; }
+  .st-title--right { text-align: right; }
 
   /* Text */
   .st-text {

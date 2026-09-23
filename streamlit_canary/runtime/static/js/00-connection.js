@@ -58,6 +58,13 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         if (box) box.disabled = !msg.value;
       }
     }
+    if (msg.prop === 'type' && el.classList.contains('st-btn')) {
+      // A button's accent is reactive: swap the palette class in place (the
+      // server maps anything but "primary" to "secondary", as it does on the
+      // first paint).
+      el.classList.toggle('st-btn-primary', msg.value === 'primary');
+      el.classList.toggle('st-btn-secondary', msg.value !== 'primary');
+    }
     if (msg.prop === 'visible') {
       if (el.classList.contains('st-reveal')) {
         // Server-driven reveal: reuse the expander's height animation.
