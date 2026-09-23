@@ -192,16 +192,29 @@
     gap: 0;
     min-width: 0;
     overflow-x: hidden;
-    /* `scroll` rather than `auto`: the scrollbar's width stays out of the
-       content for the whole open animation (see the keyframes), so the
-       listing and the toolbar over it never shift as the panel settles. Its
-       height is measured to fit the listing exactly, so `auto` would drop the
-       scrollbar again on the last frame and hand that width back.
-       `scrollbar-gutter: stable` then keeps that width reserved while the
-       animation clips the overflow to `hidden`, so the gutter does not
-       collapse and spring back mid-run. */
-    overflow-y: scroll;
+    /* `auto`, so a panel tall enough for its content shows no scrollbar at
+       all: a `scroll` box always paints one, and the browser's own tracked
+       bar then reads as an empty scrollbar (a track with arrows and no
+       thumb). `scrollbar-gutter: stable` still keeps the gutter reserved for
+       the whole open animation -- the keyframes clip the overflow to
+       `hidden` -- so the listing and the toolbar over it never shift as the
+       panel settles, and a panel that really does overflow gets its bar
+       without shoving the content sideways on the last frame. */
+    overflow-y: auto;
     scrollbar-gutter: stable;
+  }
+  /* A themed slim scrollbar, the same one the `Selectbox` dropdown wears
+     (`34-selectbox.css`): a panel taller than its cap scrolls with it
+     instead of falling back to the browser's chunky native bar. */
+  .st-popover-panel::-webkit-scrollbar {
+    width: 6px;
+  }
+  .st-popover-panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .st-popover-panel::-webkit-scrollbar-thumb {
+    background: var(--st-border-color);
+    border-radius: 3px;
   }
   /* A section bar (a `Row` that is not the sticky toolbar) keeps the panel's
      side gutters, so the widgets inside it line up with the other children. */

@@ -14,7 +14,9 @@
       `<div class="st-selectbox-newitem" role="option" ` +
       `data-comp-id="${id}" onmousedown="event.preventDefault()" ` +
       `onclick="scAddNewOption(this)" hidden>` +
-      '<div class="st-selectbox-option-inner"></div></div></div>'
+      // matches the server-rendered row: a clipped "Add: ..." gets a tooltip
+      '<div class="st-selectbox-option-inner st-truncate-help"></div>' +
+      '</div></div>'
     );
   }
   function scRenderSelectboxOptions(el, values, labels, id) {
@@ -281,7 +283,10 @@
       `<div class="st-selectbox-option" role="option" ` +
       `data-value="${v}" data-comp-id="${id}" ` +
       `onclick="scPickCandidate(this)">` +
-      `<div class="st-selectbox-option-inner">${fmt(v)}</div></div>`
+      // `st-truncate-help`: a clipped path gets the row's own content as a
+      // hover tooltip, like a `Selectbox` option (see `90-help.js`)
+      `<div class="st-selectbox-option-inner st-truncate-help">` +
+      `${fmt(v)}</div></div>`
     ).join('');
   }
   function scToggleCandidates(toggle) {

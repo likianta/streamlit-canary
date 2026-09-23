@@ -60,7 +60,11 @@ def _list_drives() -> tp.Tuple[str, ...]:
             roots = lister() if lister else ()
         except OSError:
             roots = ()
-        _DRIVES = tuple(fs.abspath(root) + '/' for root in roots)
+        # `fs.abspath('C:\\')` is already `'C:/'`, so appending another slash
+        # would give `'C://'` -- which the chain's own `'C:/'` then fails to
+        # match, leaving the root listed twice (and spelled with a double
+        # slash). Normalize to exactly one trailing slash instead.
+        _DRIVES = tuple(fs.abspath(root).rstrip('/') + '/' for root in roots)
     return _DRIVES
 
 

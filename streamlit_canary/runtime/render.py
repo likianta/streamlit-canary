@@ -1014,7 +1014,10 @@ def _text_candidates_html(comp: TextInput, candidates: tp.Sequence) -> str:
         f'<div class="st-selectbox-option" role="option" '
         f'data-value="{html.escape(str(candidate))}" '
         f'data-comp-id="{comp.id}" onclick="scPickCandidate(this)">'
-        f'<div class="st-selectbox-option-inner">'
+        # `st-truncate-help`: a path too long for the row is clipped, and
+        # `90-help.js` then offers the whole of it on hover -- the same
+        # affordance a `Selectbox` option row has.
+        f'<div class="st-selectbox-option-inner st-truncate-help">'
         f'{render_markup(str(candidate))}</div></div>'
         for candidate in candidates
     )
