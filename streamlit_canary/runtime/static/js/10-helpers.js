@@ -57,6 +57,9 @@
     ws.send(JSON.stringify({type: 'event', id: id, event: 'submit', value: input.value}));
   }
   function scSendEditingFinished(input) {
+    // the box is no longer being edited, so a path-like one goes back to
+    // showing its tail (see `scTruncateStartEl`)
+    scTruncateStartEl(input);
     if (input._scSubmitted) {
       input._scSubmitted = false;
       return;
@@ -65,6 +68,33 @@
     ws.send(JSON.stringify({
       type: 'event', id: id, event: 'editing_finished', value: input.value,
     }));
+  }
+  // A path-like box shows its tail rather than its head: the last segment is
+  // the part worth reading, and the box is too narrow for the whole path. The
+  // server marks such a box `st-truncate-start`; on an `<input>` that means
+  // scrolling it to its end -- the CSS rule of the same name elides the *text*
+  // spans instead, an input being unable to take the `direction` or the
+  // `::before` / `::after` marks it uses. A box being edited is left alone, so
+  // the caret keeps its place.
+  function scTruncateStartEl(box) {
+    if (!box || !box.classList.contains('st-truncate-start')) return;
+    if (document.activeElement === box) return;
+    box.scrollLeft = box.scrollWidth;
+  }
+  // Bring every marked box under `root` (the whole document by default) to its
+  // tail. A box that has not been laid out yet -- the tab holding it is still
+  // hidden, say -- has no width to scroll within, so each one is also watched
+  // for its next resize: that is what covers the tab being opened later, the
+  // window resizing, and a change of font.
+  const scTruncateObserver = new ResizeObserver((entries) => {
+    entries.forEach((entry) => scTruncateStartEl(entry.target));
+  });
+  function scTruncateStart(root) {
+    (root || document).querySelectorAll('input.st-truncate-start')
+      .forEach((box) => {
+        scTruncateStartEl(box);
+        scTruncateObserver.observe(box);
+      });
   }
   // Serialize an option value the way the server does (`str(o)`), so a
   // non-scalar option such as the tuple `('f', 'x')` survives the round

@@ -54,17 +54,22 @@ streamlit-canary/
 ├── examples/
 │   ├── click_counter.py      # 计数器示例 (最小 v3 演示用例)
 │   └── ...
-├── test/                     # 测试与演示 (你可以在本目录下根据需要创建新的测试脚本)
-│   ├── event_driven_system/        # v3 事件驱动测试
-│   │   ├── components_v3_demo.py   # 纯 Python 组件树 / 信号演示
+├── test/                               # 测试与演示 (你可以在本目录下根据需要创建新的测试脚本)
+│   ├── event_driven_system/            # v3 事件驱动测试
+│   │   ├── components_v3_demo.py       # 纯 Python 组件树 / 信号演示
 │   │   └── ...
-│   ├── pixel_fidelity/       # UI 像素级对齐的试验脚本
+│   ├── pixel_fidelity/                 # UI 像素级对齐的试验脚本
+│   ├── rewrite_third_party_projects/   # 基于 v3 组件重写第三方项目
+│   │   ├── asa_gui_copy/
+│   │   ├── pdf_watermaker_copy/
+│   │   ├── pyproject_manager_copy/
+│   │   └── ...
 │   └── ...
 ├── references/               # 参考资源
 │   ├── asa_gui/              # 原版基于 Streamlit 的演示应用, 运行在 localhost:2204
 │   ├── pdf_watermaker/       # 原版基于 Streamlit 的演示应用, 运行在 localhost:2210
 │   ├── pyproject_manager/    # 原版基于 Streamlit 的演示应用, 运行在 localhost:2206
-│   ├── streamlit/            # Streamlit 源码
+│   ├── streamlit/            # Streamlit (v1.63.0) 源码
 │   └── ...                   # 截图, 参考图等
 ├── .trae/documents/          # 设计/路线图文档与像素对比差异说明
 ├── pyproject.toml            # 项目配置
@@ -81,10 +86,10 @@ streamlit-canary/
 uv sync
 
 # 运行 v3 测试应用
-python test/event_driven_system/pyproject_manager_copy/app.py     # :2207
+python test/rewrite_third_party_projects/pyproject_manager_copy/app.py  # :2207
 
 # 运行最小 v3 demo (计数器, 参考用法见其 docstring)
-python test/event_driven_system/demo_click_counter.py             # :2201
+python test/event_driven_system/demo_click_counter.py  # :2201
 
 # 运行原版 (用于对比)
 # 原版 pyproject-manager 运行在 :2206

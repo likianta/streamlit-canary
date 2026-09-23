@@ -10,5 +10,5 @@
 /test/event_driven_system/pdf_watermaker_copy/
 /test/event_driven_system/pyproject_manager_copy
 /test/pixel_fidelity/sample.pdf
-/test/third_party_projects_rewrite/
+/test/rewrite_third_party_projects/
 __pycache__/

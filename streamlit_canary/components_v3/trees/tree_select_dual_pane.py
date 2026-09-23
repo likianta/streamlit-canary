@@ -85,6 +85,8 @@ class TreeSelectDualPane(Container):
                 value=nav.directory,
                 accept_new_option=True,
                 format_new_option=lambda x: x.strip(),
+                # the bar reads from its tail (see `TreeSelect._location`)
+                truncate_start=True,
             )
             with Row():
                 with Column(weight=3.5):

@@ -72,16 +72,19 @@
     from { height: 0; overflow: hidden; }
     to { height: var(--st-popover-open-height, auto); overflow: hidden; }
   }
-  /* The row-aligned panel animates `height` only, leaving `overflow` to its
-     base rule for the whole run. Its toolbar is right-aligned in a box whose
-     scrollbar eats into the content width, so were the scrollbar to arrive
-     only as the animation ended, everything beside it -- the toolbar most
-     visibly -- would be shoved a scrollbar-width sideways on the last frame.
-     Paired with the base `overflow-y: scroll` below, the panel is scrollable
-     from the first frame and nothing moves. */
+  /* The row-aligned panel grows its `height` and clips the overflow for the
+     whole run, like `st-popover-panel-in` -- were the scrollbar to stay live,
+     the still-short box would overflow its content and paint a scrollbar
+     thumb that vanishes on the last frame (a flicker the user sees). Its
+     toolbar, though, is right-aligned in a box whose scrollbar eats into the
+     content width, so clipping alone would shift everything beside it -- the
+     toolbar most visibly -- a scrollbar-width sideways when the base rule's
+     `overflow-y: scroll` returns. The base `scrollbar-gutter: stable` below
+     keeps that width reserved throughout, so the clipped run does not move
+     either. */
   @keyframes st-popover-panel-grow-in {
-    from { height: 0; }
-    to { height: var(--st-popover-open-height, auto); }
+    from { height: 0; overflow-y: hidden; }
+    to { height: var(--st-popover-open-height, auto); overflow-y: hidden; }
   }
   .st-popover-panel--row {
     animation-name: st-popover-panel-grow-in;
@@ -193,8 +196,12 @@
        content for the whole open animation (see the keyframes), so the
        listing and the toolbar over it never shift as the panel settles. Its
        height is measured to fit the listing exactly, so `auto` would drop the
-       scrollbar again on the last frame and hand that width back. */
+       scrollbar again on the last frame and hand that width back.
+       `scrollbar-gutter: stable` then keeps that width reserved while the
+       animation clips the overflow to `hidden`, so the gutter does not
+       collapse and spring back mid-run. */
     overflow-y: scroll;
+    scrollbar-gutter: stable;
   }
   /* A section bar (a `Row` that is not the sticky toolbar) keeps the panel's
      side gutters, so the widgets inside it line up with the other children. */

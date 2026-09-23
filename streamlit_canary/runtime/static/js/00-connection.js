@@ -279,6 +279,9 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         const box = el.querySelector('.st-text-input-box, .st-text-area-box');
         // Don't clobber what the user is currently typing.
         if (box && box.value !== msg.value) box.value = msg.value;
+        // a path-like box reads from its tail, and the new value is a new
+        // string to bring that tail of (see `scTruncateStartEl`)
+        if (box) scTruncateStartEl(box);
       }
       if (el.classList.contains('st-number-input')) {
         const box = el.querySelector('.st-text-input-box');

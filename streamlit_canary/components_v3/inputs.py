@@ -537,6 +537,9 @@ class PathInput(_Submittable, Container):
                 width='stretch',
                 candidates=self.candidates,
                 accept_new_option=accept_new_option,
+                # a path is read from its tail: the file or folder name at the
+                # end is what tells one path from another
+                truncate_start=True,
             )
 
         @self._input.value.on_change
@@ -829,6 +832,11 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
             (bindable). It is drawn whenever the trigger has no option to
             show -- an empty `options` list (e.g. a bound list that has not
             loaded yet), or a `value` that is not among them.
+        truncate_start: whether a label too wide for the trigger shows its
+            tail rather than its head (default `False`). Meant for a
+            path-like value, whose last segment is the part worth reading;
+            the trigger's text is then elided on the left
+            (`st-truncate-start` in the stylesheet).
 
     Properties:
         label, options, index, value — see `_OptionsWidget`.
@@ -865,6 +873,7 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
         take_new_option: tp.Callable[[str], None] | None = None,
         placeholder: str | Property = 'Choose an option',
         label_visibility: T.LabelVisibility = 'auto',
+        truncate_start: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -882,6 +891,7 @@ class Selectbox(_HasPlaceholder, _OptionsWidget):
                 'typed text, so `format_new_option` would never run.'
             )
         self._accept_new_option = accept_new_option
+        self._truncate_start = truncate_start
         self._format_new_option = format_new_option
         self._take_new_option = take_new_option
         self._init_placeholder(placeholder)
@@ -1020,6 +1030,11 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
             taking it commits that text -- the very thing a submit does --
             which is how a `PathInput` jumps to a path pasted into it. It
             brings the panel and its caret along even with nothing to list.
+        truncate_start: whether a value too wide for the box shows its tail
+            rather than its head (default `False`). Meant for a path, whose
+            last segment is the part worth reading: the box clips without an
+            ellipsis, so the tail is brought into view by scrolling it (see
+            `scTruncateStart` in the frontend).
 
     Properties:
         label: str — rendered above the box.
@@ -1053,6 +1068,7 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         label_visibility: T.LabelVisibility = 'auto',
         candidates: tp.Iterable[str] | Property | None = None,
         accept_new_option: bool = False,
+        truncate_start: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(
@@ -1065,6 +1081,7 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         self.value = _prop('', value)
         self.enabled = _prop(True, enabled)
         self._accept_new_option = accept_new_option
+        self._truncate_start = truncate_start
         self._init_placeholder(placeholder)
         self._init_submittable()
         # not part of `_Submittable`: this box is the only one whose client

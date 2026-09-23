@@ -114,9 +114,12 @@
   scInitAltairCharts();
   scBootPdfViews();
   scSyncSegmented(document);
+  // path-like boxes show their tails (see `scTruncateStart`)
+  scTruncateStart(document);
   document.fonts.ready.then(() => {
     scSyncSegmented(document);
     scAlignRowArrows(document);
+    scTruncateStart(document);
   });
   document.querySelectorAll('.st-tabs').forEach(scObserveTabs);
   document.querySelectorAll('.st-toast-stack').forEach(scArmToasts);

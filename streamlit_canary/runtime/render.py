@@ -936,12 +936,19 @@ def _render_text_input(comp: TextInput) -> str:
     # -- so it brings the caret along even with no list to show.
     framed = candidates is not None or accept_new
     extra_cls = ' st-text-input-candidates-input' if framed else ''
+    # a path-like box shows its tail: the client scrolls it to the end (an
+    # `<input>` clips without an ellipsis, so there is no CSS way to elide it
+    # on the left -- see `scTruncateStart`)
+    truncate_cls = (
+        ' st-truncate-start' if getattr(comp, '_truncate_start', False) else ''
+    )
     # a `TextInput` is the box its "Add: ..." row echoes, so the row has to
     # follow the text as it is typed; a `Selectbox` spells the row's own box
     # in instead (see `scNewOptionInput`)
     echo = '; scNewOptionEcho(this)' if accept_new else ''
     box = (
-        f'<input class="st-text-input-box{extra_cls}" type="text" '
+        f'<input class="st-text-input-box{extra_cls}{truncate_cls}" '
+        f'type="text" '
         f'data-comp-id="{comp.id}" '
         f'value="{html.escape(str(comp.value.get()))}" '
         f'placeholder="{placeholder}"{disabled} '
@@ -1039,16 +1046,21 @@ def _render_selectbox(comp: Selectbox) -> str:
     # value up -- rather than testing it for truthiness -- keeps `0` / `False`
     # as legitimate choices.
     arrow_svg = _chevron_svg()
+    # a path-like trigger shows its tail (see `.st-truncate-start`)
+    truncate_cls = (
+        ' st-truncate-start' if getattr(comp, '_truncate_start', False) else ''
+    )
     if value in options:
         trigger_text = (
-            f'<span class="st-selectbox-value">'
+            f'<span class="st-selectbox-value{truncate_cls}">'
             f'{render_markup(fmt(value))}</span>'
         )
     else:
         # A zero-width space keeps an empty trigger from collapsing.
         hint = placeholder or '\u200b'
         trigger_text = (
-            f'<span class="st-selectbox-value is-placeholder">{hint}</span>'
+            f'<span class="st-selectbox-value is-placeholder{truncate_cls}">'
+            f'{hint}</span>'
         )
     # `accept_new_option`: an input row at the top of the dropdown lets the
     # user type a value that is not in the list yet.

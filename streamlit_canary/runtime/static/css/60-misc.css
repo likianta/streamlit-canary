@@ -159,6 +159,28 @@
   }
   .st-select-slider-options { display: none; }
 
+  /* ---- Left-side elision for path-like text ---------------------------
+     A path is read from its tail: the last segment (the file or folder name)
+     is what tells one path from another, so a box too narrow for the whole
+     thing should drop the shared prefix rather than the name. `direction: rtl`
+     moves the clip -- and the `text-overflow: ellipsis` with it -- to the
+     left, while the two zero-width LTR marks keep neutral characters at the
+     string's ends (a leading `/`, a trailing `.`) in logical order: an RTL
+     paragraph would otherwise flip them outward.
+
+     A `<input>` can take neither the marks (a replaced element has no
+     `::before` / `::after`) nor the `direction` (which would shuffle its own
+     text), so its box is exempted here and scrolls to its tail instead --
+     see `scTruncateStart` in the frontend. */
+  .st-truncate-start:not(input) {
+    direction: rtl;
+    text-align: left;
+  }
+  .st-truncate-start:not(input)::before,
+  .st-truncate-start:not(input)::after {
+    content: '\200E';
+  }
+
   /* ---- Vertical rhythm -------------------------------------------------
      A flex/grid container owns the spacing between its stacked children via
      `gap`, so the per-widget `margin-bottom` declared above is dropped

@@ -309,6 +309,9 @@ class TreeSelect(_Labeled, Container):
                         self._take_typed_path if accept_new_option else None
                     ),
                     label_visibility='collapsed',
+                    # the bar reads from its tail: the folder you are in is the
+                    # last rung, and the shared prefix is the noise
+                    truncate_start=True,
                 )
                 self._home_btn = IconButton('home')
                 self._refresh_btn = IconButton('refresh')
@@ -791,16 +794,21 @@ class TreeSelectWithInput(Container):
                 # `candidates=[]` makes the box its own history: it starts
                 # with `first_path` and keeps every path it resolves to (see
                 # `PathInput.candidates`) -- the "Recent" dropdown's job, done
-                # where the paths are actually entered.
-                self._path_input = PathInput(
-                    label, first_path, candidates=[], accept_new_option=True
-                )
+                # where the paths are actually entered. No
+                # `accept_new_option`: the box already resolves what is typed
+                # (on blur / Enter), and the "Add: ..." row it would draw only
+                # shows as a stray blank item in the dropdown.
+                self._path_input = PathInput(label, first_path, candidates=[])
                 self._browse_popover = Popover(
                     'Browse', panel_align='row', panel_max_height=panel_height
                 )
                 with self._browse_popover:
                     self._tree = TreeSelect(
-                        nav.directory,
+                        # keyword: `TreeSelect`'s first positional parameter is
+                        # its `label`, so passing the folder here would land on
+                        # the wrong field and leave the panel opening on the
+                        # cwd instead of the path box's folder
+                        start_directory=nav.directory,
                         filter=filter,
                         height=None,
                         initial_mode=initial_mode,
