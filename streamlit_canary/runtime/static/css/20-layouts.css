@@ -159,6 +159,10 @@
     gap: var(--st-vgap);
     min-width: 0;
   }
+  /* Both boxes set their own `display`, which beats the global `[hidden]`
+     rule -- so each states it for itself, as every hideable box does. */
+  .st-grid[hidden] { display: none; }
+  .st-grid-cell[hidden] { display: none; }
 
   /* Widget label */
   .st-widget-label {
