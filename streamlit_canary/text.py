@@ -1,8 +1,52 @@
 import re
+import sys
 import typing as tp
 from functools import partial
 
 _MARK_START = re.compile(r':[a-zA-Z]+\[')
+
+# Font stacks for `font_family=sc.MONOSPACED`. The browser walks the list in
+# order and takes the first family the *viewer's* machine has, so the split by
+# platform only decides what to try first -- and every stack ends in the
+# generic `monospace` keyword, which always resolves to something.
+#
+# Windows: "Cascadia Code" is what Windows Terminal defaults to and what ships
+# with Windows 11 (on 10 it comes with the Terminal app, so a plain 10 may not
+# have it). `Consolas` is the fallback -- the monospace every Windows since
+# Vista installs, and what the generic keyword resolves to as well.
+# macOS: `ui-monospace` is the system UI monospace (SF Mono) -- the family
+# macOS itself uses for monospaced text -- then the two it has shipped for
+# years. `SF Mono` is spelled out too because not every browser knows the
+# keyword, though the font is not one users can pick in Font Book.
+# Linux: no single default across distros. DejaVu Sans Mono is the one nearly
+# every distro installs; Liberation Mono and Noto Sans Mono cover most of the
+# rest, and the keyword takes whatever the desktop configured.
+# the multi-word names are quoted with single quotes: the value travels into
+# an HTML `style` attribute, which is delimited by double quotes (and would be
+# ended early by one inside).
+_MONOSPACED_STACKS = {
+    'darwin': "ui-monospace, 'SF Mono', Menlo, Monaco, monospace",
+    'win32': "'Cascadia Code', Consolas, monospace",
+}
+_MONOSPACED_LINUX = (
+    "'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono', monospace"
+)
+
+MONOSPACED = _MONOSPACED_STACKS.get(sys.platform, _MONOSPACED_LINUX)
+
+# The size that belongs with `MONOSPACED`: a text element drawing in it also
+# gets this `font-size` (see `render.py`'s `_text_style`), unless the caller
+# passed a `font_size` of their own.
+#
+# A monospace face is drawn larger on its em than a proportional one, so at the
+# same pixel size it reads bigger. Measured against this page's font (Source
+# Sans) at 160px, 'Cascadia Code' has a ~6% taller x-height and a ~39% wider
+# advance -- the width is what dominates, which is why a monospaced paragraph
+# looks heavier even when the letters are barely taller. `0.875em` is the code
+# size Streamlit's own themes use, i.e. code set one step below prose; it also
+# brings the x-height back to within a few percent of the body text (0.94em
+# would match it exactly).
+MONOSPACED_SIZE = '0.875em'
 
 
 def _mark_end(src: str, from_: int) -> int:

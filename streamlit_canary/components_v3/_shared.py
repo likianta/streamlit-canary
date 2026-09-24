@@ -207,6 +207,15 @@ class _HelpText(_HasText):
             ANDed with the content test (see `_visible_when_filled`): the
             element hides either because there is nothing to show or because
             the caller switched it off.
+        font_family: str — the CSS `font-family` to draw the text in (static,
+            not bindable). Empty means inherit, i.e. the page's own font;
+            `sc.MONOSPACED` is the stack to reach for when the text has to
+            line up in columns (a log, an ASCII table).
+        font_size: str — a CSS length to draw the text at (static). Empty
+            leaves it to the stylesheet, i.e. the shared body size -- with one
+            exception: `font_family=sc.MONOSPACED` brings `0.875em` along,
+            because a monospace face reads a size larger at the same pixels
+            (see `MONOSPACED_SIZE`). Pass a length here to override that.
 
     `width` defaults to `'auto'` (mirroring Streamlit's markdown family): the
     text stretches inside a vertical container and shrinks to its content
@@ -221,10 +230,14 @@ class _HelpText(_HasText):
         *,
         help: str | Property = '',
         visible: bool | Property = True,
+        font_family: str = '',
+        font_size: str = '',
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(text, visible=visible, **kwargs)
         self.help = _help_prop(help)
+        self._font_family = font_family
+        self._font_size = font_size
         self.visible = _visible_when_filled(self.text, visible)
 
 

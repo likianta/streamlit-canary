@@ -63,6 +63,8 @@ from ..components_v3.texts import PageTitle
 from ..components_v3.texts import Text
 from ..components_v3.texts import Title
 from ..kernel.property import Property
+from ..text import MONOSPACED
+from ..text import MONOSPACED_SIZE
 
 # ---------------------------------------------------------------------------
 # Markdown: parsed in the browser (see `page.js` and the bundled markdown-it)
@@ -285,14 +287,14 @@ def _render_element(comp: Component) -> str:
         align_cls = '' if align == 'left' else f' st-title--{align}'
         return (
             f'<h1 class="st-title{align_cls}{page}" data-id="{comp.id}"'
-            f'{_size_style(comp)}>{text}{help_html}</h1>'
+            f'{_text_style(comp)}>{text}{help_html}</h1>'
         )
     if isinstance(comp, Caption):
         text = render_markup(str(comp.text.get()))
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
         return (
-            f'<div class="st-caption" data-id="{comp.id}"{_size_style(comp)}>'
+            f'<div class="st-caption" data-id="{comp.id}"{_text_style(comp)}>'
             f'{text}{help_html}</div>'
         )
     if isinstance(comp, Text):
@@ -301,7 +303,7 @@ def _render_element(comp: Component) -> str:
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
         return (
-            f'<div class="st-text" data-id="{comp.id}"{_size_style(comp)}>'
+            f'<div class="st-text" data-id="{comp.id}"{_text_style(comp)}>'
             f'{text}{help_html}</div>'
         )
     if isinstance(comp, Markdown):
@@ -312,7 +314,7 @@ def _render_element(comp: Component) -> str:
         help_html = _help_icon_html(help_text) if help_text else ''
         return (
             f'<div class="st-markdown" data-id="{comp.id}"'
-            f'{_size_style(comp)}>'
+            f'{_text_style(comp)}>'
             f'{text}{help_html}</div>'
         )
     if isinstance(comp, Spinner):
@@ -755,8 +757,38 @@ def _width_style(comp: Component) -> str:
 
 def _style_attr(rules: tp.Sequence[str]) -> str:
     """The ` style="..."` attribute a list of declarations produces ('' if
-    the list is empty, so the element carries no `style` at all)."""
-    return f' style="{";".join(rules)}"' if rules else ''
+    the list is empty, so the element carries no `style` at all).
+
+    The declarations are escaped for the attribute, because a value may carry
+    double quotes of its own -- a `font-family` stack does -- and an unescaped
+    one would end the attribute right there. The browser decodes the entities
+    before it parses the CSS, so the declaration arrives intact.
+    """
+    if not rules:
+        return ''
+    declarations = html.escape(';'.join(rules), quote=True)
+    return f' style="{declarations}"'
+
+
+def _size_rules(comp: Component) -> list[str]:
+    """The inline width / height declarations a component's own size yields.
+
+    Split out of `_size_style` so a text element can extend the very same list
+    with its `font_family` (see `_text_style`) instead of writing a second
+    `style` attribute -- an element takes only one.
+    """
+    return [
+        rule
+        for name in ('width', 'height')
+        if (
+            rule := _size_rule(
+                getattr(comp, f'_{name}', None),
+                name,
+                getattr(comp, f'_max_{name}', None),
+                getattr(comp, f'_min_{name}', None),
+            )
+        )
+    ]
 
 
 def _size_style(comp: Component) -> str:
@@ -773,18 +805,35 @@ def _size_style(comp: Component) -> str:
     the API yet. A layout that builds its own `style` (a flex weight, grid
     tracks) takes the same bounds from `_bounds_style` instead.
     """
-    rules = [
-        rule
-        for name in ('width', 'height')
-        if (
-            rule := _size_rule(
-                getattr(comp, f'_{name}', None),
-                name,
-                getattr(comp, f'_max_{name}', None),
-                getattr(comp, f'_min_{name}', None),
-            )
-        )
-    ]
+    return _style_attr(_size_rules(comp))
+
+
+def _text_style(comp: Component) -> str:
+    """`_size_style`, plus the `font_family` / `font_size` a text element
+    asked for.
+
+    `font-family` is inherited, so declaring it on the root is enough: the
+    markdown placeholder inside, and the `<p>` under that, both follow. The
+    element that receives it is the one `_HelpText` stores it on (empty when
+    the caller did not ask for a family, which leaves the page font in place).
+
+    The canary's own monospace stack (`sc.MONOSPACED`) also brings the size
+    that belongs with it -- see `MONOSPACED_SIZE`; an explicit `font_size`
+    takes precedence.
+    """
+    rules = _size_rules(comp)
+    family = getattr(comp, '_font_family', '')
+    size = getattr(comp, '_font_size', '')
+    if family:
+        rules.append(f'font-family:{family}')
+        if not size and family == MONOSPACED and not isinstance(comp, Title):
+            # `MONOSPACED_SIZE` is *relative* to body text, so it belongs to
+            # the elements that draw at the body size. A `Title` carries a
+            # size of its own (0.875em would resolve against the parent and
+            # shrink the heading); pass `font_size` to change its size.
+            size = MONOSPACED_SIZE
+    if size:
+        rules.append(f'font-size:{size}')
     return _style_attr(rules)
 
 

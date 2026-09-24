@@ -112,6 +112,11 @@ class Markdown(_HelpText):
             `_HelpText`).
         visible: the base-class flag, ANDed with the content test above --
             see `_visible_when_filled`.
+        font_family: the CSS `font-family` to draw the source in -- see
+            `_HelpText`. `sc.MONOSPACED` suits a block that has to line up in
+            columns (a log, an ASCII table).
+        font_size: a CSS length to draw it at -- see `_HelpText`. Empty keeps
+            the shared size, and `sc.MONOSPACED` already brings `0.875em`.
 
     Properties:
         text: str — the markdown source.
@@ -125,6 +130,8 @@ class Markdown(_HelpText):
         *,
         help: str | Property = '',
         visible: bool | Property = True,
+        font_family: str = '',
+        font_size: str = '',
         **kwargs: tp.Any,
     ) -> None:
         # tidy the source on the way in, so the renderer and the "is there
@@ -135,7 +142,14 @@ class Markdown(_HelpText):
             if isinstance(text, Property)
             else _dedent_block(str(text))
         )
-        super().__init__(text, help=help, visible=visible, **kwargs)
+        super().__init__(
+            text,
+            help=help,
+            visible=visible,
+            font_family=font_family,
+            font_size=font_size,
+            **kwargs,
+        )
 
 
 class Text(_HelpText):
@@ -175,6 +189,10 @@ class Title(_HelpText):
             `_HelpText`).
         visible: the base-class flag, ANDed with the content test above --
             see `_visible_when_filled`.
+        font_family: the CSS `font-family` to draw the heading in -- see
+            `_HelpText` (`sc.MONOSPACED` when the heading has to line up with
+            the text under it).
+        font_size: a CSS length to draw it at -- see `_HelpText`.
     """
 
     def __init__(
@@ -184,9 +202,18 @@ class Title(_HelpText):
         *,
         help: str | Property = '',
         visible: bool | Property = True,
+        font_family: str = '',
+        font_size: str = '',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, help=help, visible=visible, **kwargs)
+        super().__init__(
+            text,
+            help=help,
+            visible=visible,
+            font_family=font_family,
+            font_size=font_size,
+            **kwargs,
+        )
         self._horizontal_alignment = _validate_alignment(
             horizontal_alignment, 'horizontal_alignment'
         )
