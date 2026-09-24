@@ -12,9 +12,10 @@
   .st-title--center { text-align: center; }
   .st-title--right { text-align: right; }
 
-  /* Text */
+  /* Text / Markdown / TextArea all draw at the Callout's size, which is the
+     body size -- and that is what Streamlit draws all of them at. */
   .st-text {
-    font-size: 14px;
+    font-size: var(--st-base-font-size);
     color: var(--st-text-color);
     margin-bottom: 8px;
   }
@@ -34,9 +35,10 @@
      nothing but a space, so the holder is empty as well and there is no
      white space left to preserve. `min-height` is what keeps the row. */
   .st-md-block[data-md=' '] { min-height: 1lh; }
-  /* A `v3.Markdown()` block: same rhythm as `.st-text`, but it keeps the
-     body font size (Streamlit's markdown is `st.markdown`, not `st.text`). */
+  /* A `v3.Markdown()` block: same rhythm and same size as `.st-text` above,
+     only the wrapper differs. */
   .st-markdown {
+    font-size: var(--st-base-font-size);
     color: var(--st-text-color);
     margin-bottom: 8px;
   }

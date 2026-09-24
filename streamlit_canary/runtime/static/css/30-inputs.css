@@ -44,7 +44,7 @@
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
     font-family: var(--st-font);
-    font-size: 14px;
+    font-size: var(--st-base-font-size);
     line-height: 1.6;
     box-sizing: border-box;
     resize: vertical;

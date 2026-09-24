@@ -22,7 +22,8 @@
   }
   .st-alert-text p {
     margin: 0;
-    font-size: 16px;
+    /* the size the text components share -- see `10-texts.css` */
+    font-size: var(--st-base-font-size);
     color: inherit;
   }
   /* Alert variants: the base colours above are the success palette, so the
