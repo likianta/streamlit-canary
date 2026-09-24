@@ -37,13 +37,19 @@ def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
 def _is_blank(value: tp.Any) -> bool:
     """Whether a data source draws nothing.
 
-    `None`, an empty string and an empty sequence all count. A whitespace-only
-    string does *not*: writing one is how an element keeps its place while
-    showing nothing (`v3.Title(' ')`), the way `st.title('')` still occupies a
-    line -- see `_visible_when_filled`.
+    `None`, an empty string and an empty sequence all count, and so does a
+    string of nothing but whitespace -- with a single exception, the lone
+    space. `' '` is how an element keeps its place while showing nothing
+    (`v3.Title(' ')`), the way `st.title('')` still occupies a line. Every
+    other whitespace-only string (`'\\t'`, `'\\n'`, `'  '`) is blank, so a
+    component that tidies its input first (`Markdown` dedents and trims)
+    leaves nothing behind instead of an invisible row -- see
+    `_visible_when_filled`.
     """
     if value is None:
         return True
+    if isinstance(value, str):
+        return value != ' ' and not value.strip()
     return not value
 
 
@@ -56,9 +62,11 @@ def _visible_when_filled(
     blank, so rather than leaving an empty frame behind they hide -- and come
     back as soon as the (possibly bound) value fills in.
 
-    "Blank" means `None` or empty (`_is_blank`); a whitespace-only string is
-    content, so `Title(' ')` keeps its line while showing nothing -- the way
-    to ask for `st.title('')`'s empty row.
+    "Blank" means `None` or empty (`_is_blank`); the lone space is content,
+    so `Title(' ')` keeps its line while showing nothing -- the way to ask
+    for `st.title('')`'s empty row. Any other whitespace-only string counts
+    as blank, and a component that tidies its input runs that tidying before
+    this test (so `Markdown('\\n')` is blank too).
 
     `explicit` is the caller's own `visible` (the base-class argument) ANDed
     in, so the widget hides either because there is nothing to draw or because

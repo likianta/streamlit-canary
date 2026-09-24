@@ -286,7 +286,13 @@
   }
   // Route a `text` / `label` delta to the element that holds the markdown.
   function scPatchText(el, value) {
-    if (
+    if (el.classList.contains('st-text')) {
+      // `Text` draws its value as written (no markdown), so a patch is a
+      // text swap -- `textContent` escapes on the way in. Swapping the
+      // holder rather than the root leaves the help glyph beside it alone.
+      const holder = el.querySelector(':scope > .st-plain');
+      if (holder) holder.textContent = value;
+    } else if (
       el.classList.contains('st-selectbox') ||
       el.classList.contains('st-radio')
     ) {

@@ -22,6 +22,18 @@
      to stay in the DOM so its text can be patched later). It renders nothing
      anyway, and hiding it keeps it out of a parent flex container's `gap`. */
   .st-text:empty { display: none; }
+  /* `Text` draws its value as written, so runs of whitespace and any
+     newlines are kept instead of collapsing -- and a lone space is what
+     keeps the row (`v3.Text(' ')`). */
+  .st-plain { white-space: pre-wrap; }
+  /* The same lone space, for the components that parse markdown: without
+     this it collapses and the row measures zero. Scoped to that one source
+     so real markdown keeps collapsing runs of spaces, as markdown does. */
+  .st-md[data-md=' '] { white-space: pre-wrap; }
+  /* Block context loses it twice over -- markdown-it drops a block that is
+     nothing but a space, so the holder is empty as well and there is no
+     white space left to preserve. `min-height` is what keeps the row. */
+  .st-md-block[data-md=' '] { min-height: 1lh; }
   /* A `v3.Markdown()` block: same rhythm as `.st-text`, but it keeps the
      body font size (Streamlit's markdown is `st.markdown`, not `st.text`). */
   .st-markdown {

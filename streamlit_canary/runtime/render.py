@@ -76,8 +76,9 @@ def render_markup(text: str) -> str:
     with the bundled markdown-it. The server only transports the source in
     `data-md`; `page.js` fills the placeholder on load and again on every
     delta patch, so the full markdown syntax works everywhere markdown is
-    accepted -- `Text` / `Caption` / `Title`, widget labels, radio options,
-    alerts, button labels and `help` tooltips.
+    accepted -- `Caption` / `Title`, widget labels, radio options, alerts,
+    button labels and `help` tooltips. `Text` is the exception: it mirrors
+    `st.text` and draws its value as written (see `_render_plain`).
 
     Inline context: no `<p>` wrapper is implied (use `_render_paragraphs`
     for multi-paragraph bodies). Streamlit's own `:color[..]` and
@@ -90,6 +91,17 @@ def render_markup(text: str) -> str:
     """
     escaped = html.escape(str(text), quote=True)
     return f'<span class="st-md" data-md="{escaped}"></span>'
+
+
+def _render_plain(text: str) -> str:
+    """Emit a plain-text holder -- what `Text` draws into.
+
+    Escaped, not markdown: `Text` mirrors `st.text`, whose value is shown as
+    written. The holder gives a `text` patch something to swap that is not the
+    root, so the help glyph beside it is left alone (the same reason the
+    markdown placeholders exist).
+    """
+    return f'<span class="st-plain">{html.escape(str(text))}</span>'
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +296,8 @@ def _render_element(comp: Component) -> str:
             f'{text}{help_html}</div>'
         )
     if isinstance(comp, Text):
-        text = render_markup(str(comp.text.get()))
+        # plain text, not markdown: `Text` mirrors `st.text`.
+        text = _render_plain(str(comp.text.get()))
         help_text = _help_text(comp)
         help_html = _help_icon_html(help_text) if help_text else ''
         return (
