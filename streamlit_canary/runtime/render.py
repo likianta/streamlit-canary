@@ -82,11 +82,13 @@ def render_markup(text: str) -> str:
     Inline context: no `<p>` wrapper is implied (use `_render_paragraphs`
     for multi-paragraph bodies). Streamlit's own `:color[..]` and
     `:material/..:` extensions are applied by `page.js` as well.
+
+    The placeholder is emitted even for blank text: its class is how a
+    `text` patch knows which renderer to use, and which element to land in,
+    so it has to exist from the first paint. An empty one takes no space --
+    the holder itself carries no margin.
     """
-    raw = str(text)
-    if raw == '':
-        return ''
-    escaped = html.escape(raw, quote=True)
+    escaped = html.escape(str(text), quote=True)
     return f'<span class="st-md" data-md="{escaped}"></span>'
 
 
@@ -361,11 +363,12 @@ def _render_paragraphs(text: str) -> str:
 
     Block-context counterpart of `render_markup`: markdown-it wraps each
     block in `<p>`, matching Streamlit's behavior (a blank line starts a new
-    paragraph, a single newline inside one is a soft break).
+    paragraph, a single newline inside one is a soft break). `st-md-block`
+    is nothing but this marker -- no stylesheet keys off it -- so a blank
+    source keeps its placeholder for the reason given in `render_markup`:
+    without it a patch cannot tell that this element means paragraphs.
     """
     raw = str(text).strip('\n')
-    if raw == '':
-        return ''
     escaped = html.escape(raw, quote=True)
     return f'<div class="st-md st-md-block" data-md="{escaped}"></div>'
 

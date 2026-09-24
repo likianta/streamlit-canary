@@ -265,7 +265,9 @@
   }
   // Find the markdown holder of an element: the placeholder itself, or a
   // *direct* child placeholder (keeps sibling content such as the help
-  // glyph intact).
+  // glyph intact). The server emits the placeholder even for blank text, so
+  // there is one to find from the first paint -- that class is what says
+  // whether the value is inline or paragraphs.
   function scMarkdownHolder(el) {
     if (el.classList.contains('st-md')) return el;
     return el.querySelector(':scope > .st-md');
@@ -293,6 +295,11 @@
       scSetMarkdown(el.querySelector('.st-btn-text') || el, value);
     } else if (el.classList.contains('st-spinner')) {
       scSetMarkdown(el.querySelector('.st-spinner-text'), value);
+    } else if (el.classList.contains('st-expander')) {
+      // the label lives in the header, so its placeholder is not a direct
+      // child of the expander -- without this the fallback below would
+      // replace the whole expander (header and body) with the label
+      scSetMarkdown(el.querySelector('.st-expander-label'), value);
     } else if (el.classList.contains('st-code')) {
       const codeEl = el.querySelector('code');
       if (codeEl) codeEl.textContent = value;
