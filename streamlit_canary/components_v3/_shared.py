@@ -192,11 +192,11 @@ class _HasText(Component):
 
 
 class _HelpText(_HasText):
-    """Shared base for text elements that also carry a `help` tooltip.
+    """
+    Shared base for text elements that also carry a `help` tooltip.
 
-    Mirrors Streamlit, whose text and heading elements (`st.text`,
-    `st.caption`, `st.title`) all accept `help`. Used by Caption, Markdown,
-    Text and Title.
+    Mirrors Streamlit, whose text and heading elements (`st.text`, `st.caption`, 
+    `st.title`) all accept `help`. Used by Caption, Markdown, Text and Title.
 
     Fields:
         text: Property[str] — the displayed text (bindable).
@@ -209,11 +209,11 @@ class _HelpText(_HasText):
             the caller switched it off.
         font_family: str — the CSS `font-family` to draw the text in (static,
             not bindable). Empty means inherit, i.e. the page's own font;
-            `sc.MONOSPACED` is the stack to reach for when the text has to
-            line up in columns (a log, an ASCII table).
+            `sc.MONOSPACE` is the stack to reach for when the text has to line 
+            up in columns (a log, an ASCII table).
         font_size: str — a CSS length to draw the text at (static). Empty
             leaves it to the stylesheet, i.e. the shared body size -- with one
-            exception: `font_family=sc.MONOSPACED` brings `0.875em` along,
+            exception: `font_family=sc.MONOSPACE` brings `0.875em` along,
             because a monospace face reads a size larger at the same pixels
             (see `MONOSPACED_SIZE`). Pass a length here to override that.
 

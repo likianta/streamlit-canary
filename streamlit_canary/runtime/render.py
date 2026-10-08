@@ -63,7 +63,7 @@ from ..components_v3.texts import PageTitle
 from ..components_v3.texts import Text
 from ..components_v3.texts import Title
 from ..kernel.property import Property
-from ..text import MONOSPACED
+from ..text import MONOSPACE
 from ..text import MONOSPACED_SIZE
 
 # ---------------------------------------------------------------------------
@@ -817,7 +817,7 @@ def _text_style(comp: Component) -> str:
     element that receives it is the one `_HelpText` stores it on (empty when
     the caller did not ask for a family, which leaves the page font in place).
 
-    The canary's own monospace stack (`sc.MONOSPACED`) also brings the size
+    The canary's own monospace stack (`sc.MONOSPACE`) also brings the size
     that belongs with it -- see `MONOSPACED_SIZE`; an explicit `font_size`
     takes precedence.
     """
@@ -826,7 +826,7 @@ def _text_style(comp: Component) -> str:
     size = getattr(comp, '_font_size', '')
     if family:
         rules.append(f'font-family:{family}')
-        if not size and family == MONOSPACED and not isinstance(comp, Title):
+        if not size and family == MONOSPACE and not isinstance(comp, Title):
             # `MONOSPACED_SIZE` is *relative* to body text, so it belongs to
             # the elements that draw at the body size. A `Title` carries a
             # size of its own (0.875em would resolve against the parent and

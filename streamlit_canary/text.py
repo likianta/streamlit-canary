@@ -5,7 +5,7 @@ from functools import partial
 
 _MARK_START = re.compile(r':[a-zA-Z]+\[')
 
-# Font stacks for `font_family=sc.MONOSPACED`. The browser walks the list in
+# Font stacks for `font_family=sc.MONOSPACE`. The browser walks the list in
 # order and takes the first family the *viewer's* machine has, so the split by
 # platform only decides what to try first -- and every stack ends in the
 # generic `monospace` keyword, which always resolves to something.
@@ -32,9 +32,9 @@ _MONOSPACED_LINUX = (
     "'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono', monospace"
 )
 
-MONOSPACED = _MONOSPACED_STACKS.get(sys.platform, _MONOSPACED_LINUX)
+MONOSPACE = _MONOSPACED_STACKS.get(sys.platform, _MONOSPACED_LINUX)
 
-# The size that belongs with `MONOSPACED`: a text element drawing in it also
+# The size that belongs with `MONOSPACE`: a text element drawing in it also
 # gets this `font-size` (see `render.py`'s `_text_style`), unless the caller
 # passed a `font_size` of their own.
 #

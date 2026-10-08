@@ -51,7 +51,7 @@ from .text import bold
 from .text import dim
 from .text import gray
 from .text import green
-from .text import MONOSPACED
+from .text import MONOSPACE
 from .text import magenta
 from .text import orange
 from .text import red
