@@ -932,11 +932,3 @@ class SingleTreeSelectWithInput(Container):
     def reload(self) -> None:
         """Re-read the browsed folder from disk (same as the panel's button)."""
         self._tree.reload()
-
-
-# The pre-`Single*` spelling, kept because trees are referred to from other
-# projects. The class is `SingleTreeSelect` now -- the family also has a
-# `DualTreeSelect` and a `ClassicTreeSelect`, so the plain name had to say
-# which pane it is.
-TreeSelect = SingleTreeSelect  # alias
-TreeSelectWithInput = SingleTreeSelectWithInput  # alias

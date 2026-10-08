@@ -458,8 +458,3 @@ class DualTreeSelectWithInput(Container):
                 self._recent.value.set(recent[0])
             finally:
                 self._recent_quiet = False
-
-
-# The pre-`Dual*` spelling (see the note at the end of `single_pane.py`).
-TreeSelectDualPane = DualTreeSelect  # alias
-TreeSelectDualPaneWithInput = DualTreeSelectWithInput  # alias

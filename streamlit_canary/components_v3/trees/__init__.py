@@ -2,11 +2,7 @@ from ._shared import T
 from .cascading import ClassicTreeSelect
 from .dual_pane import DualTreeSelect
 from .dual_pane import DualTreeSelectWithInput
-from .dual_pane import TreeSelectDualPane
-from .dual_pane import TreeSelectDualPaneWithInput
 from .recent import Recent
 from .single_pane import SingleTreeSelect
 from .single_pane import SingleTreeSelectWithInput
-from .single_pane import TreeSelect
-from .single_pane import TreeSelectWithInput
 from ..inputs import PathInput
