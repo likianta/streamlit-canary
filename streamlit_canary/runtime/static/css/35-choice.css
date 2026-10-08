@@ -131,6 +131,48 @@
     transform: translateX(4px);
     outline: 2px solid var(--st-primary-color);
   }
+  /* The collapse / expand button a cascading tree puts in front of a folder's
+     box (see `_row_toggle_html`). Unlike the "enter" arrow it is always
+     drawn: a tree's chevrons *are* the affordance, so they may not wait for a
+     hover. It is also the row's indent -- the cell carries the depth as a
+     left margin -- and a row with nothing to fold keeps the cell empty, so
+     the boxes of one level still line up on one x. The chevron points right
+     while the folder is folded and turns a quarter turn when it opens; that
+     turn is the whole of the "it can be opened / it is open" signal. */
+  .st-row-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* A square, so the hover chip has room around the glyph. */
+    width: 20px;
+    height: 20px;
+    margin-left: calc(var(--st-tree-depth, 0) * 20px);
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--st-text-color);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .st-row-toggle.is-empty {
+    cursor: default;
+  }
+  .st-row-toggle .st-icon {
+    display: inline-block;
+    transition: transform 120ms ease;
+  }
+  .st-row-toggle.is-expanded .st-icon {
+    transform: rotate(90deg);
+  }
+  .st-row-toggle:hover {
+    background-color: var(--st-hover-background-color);
+  }
+  .st-row-toggle:focus-visible {
+    outline: 2px solid var(--st-primary-color);
+  }
   /* The arrow *is* the row's "enter" action, so the text underlines while the
      pointer rests on it -- or anywhere in its tolerance zone, since `::after`
      is part of the button -- and the pair then reads as a single link. The
@@ -240,6 +282,33 @@
   }
   .st-check-group .st-radio-item:has(input:checked) .st-checkbox-box svg {
     opacity: 1;
+  }
+  /* The half-ticked box of a folder with only *part* of its subtree picked
+     (`indeterminate` in `ClassicTreeSelect`, sent as `data-indeterminate` on
+     the field). The box is filled like a ticked one -- it reads as "on" --
+     and the checkmark gives way to a dash, which is the shape a native
+     tri-state box has. The mark is dropped from the layout rather than
+     hidden, so the dash lands centred on its own. */
+  .st-check-group
+    .st-radio-item:has(input[data-indeterminate])
+    .st-checkbox-box {
+    border-color: var(--st-primary-color);
+    background-color: var(--st-primary-color);
+  }
+  .st-check-group
+    .st-radio-item:has(input[data-indeterminate])
+    .st-checkbox-box
+    svg {
+    display: none;
+  }
+  .st-check-group
+    .st-radio-item:has(input[data-indeterminate])
+    .st-checkbox-box::after {
+    content: '';
+    width: 8px;
+    height: 2px;
+    border-radius: 1px;
+    background-color: var(--st-on-primary-color);
   }
   /* A frozen row (`box_disabled`, e.g. `TreeSelect`'s `..`): its field is
      disabled, so the box never ticks and is drawn dimmed instead. The rest of

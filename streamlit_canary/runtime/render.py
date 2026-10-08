@@ -206,7 +206,7 @@ def _render_element(comp: Component) -> str:
         )
     if isinstance(comp, Container):
         children = ''.join(_render(c) for c in comp.children)
-        # A `Container` that also carries a widget label (`TreeSelect`,
+        # A `Container` that also carries a widget label (`SingleTreeSelect`,
         # through `_Labeled`) draws it at the top of the panel, above the
         # toolbar.
         if isinstance(comp, _Labeled):
@@ -1354,6 +1354,36 @@ def _row_enter_html() -> str:
     )
 
 
+def _row_toggle_html(expanded: tp.Optional[bool]) -> str:
+    """The collapse / expand button a cascading row carries left of its box.
+
+    `expanded` is `None` for a row with nothing to fold -- a file, or a folder
+    that holds nothing this panel would show.  The button's place is still
+    kept, as an empty cell, so the boxes of one level line up on one x
+    whatever mix of files and folders that level happens to hold.
+
+    Like the "enter" arrow it rides inside the row's `<label>`, which is safe:
+    a label ignores clicks aimed at interactive content inside it, so this
+    folds the folder without ticking its box on the way.  The click is
+    reported as a `toggle` event (see `scToggleRow`), which `_NavigationGroup`
+    in `components_v3/trees/` picks up -- `ClassicTreeSelect` is the one that
+    uses it.
+
+    The chevron points right while the folder is folded and turns a quarter
+    turn when it opens; `35-choice.css` does the turning, this only says
+    which state the row is in.
+    """
+    if expanded is None:
+        return '<span class="st-row-toggle is-empty"></span>'
+    cls = 'st-row-toggle is-expanded' if expanded else 'st-row-toggle'
+    name = 'Collapse' if expanded else 'Expand'
+    return (
+        f'<button class="{cls}" type="button" aria-label="{name}" '
+        f'onclick="scToggleRow(event, this)">'
+        f'{render_markup(":material/keyboard_arrow_right:")}</button>'
+    )
+
+
 def _choice_group_items_html(
     comp: RadioGroup | CheckGroup,
     values: tp.Sequence[tp.Any],
@@ -1364,6 +1394,10 @@ def _choice_group_items_html(
     box_disabled: tp.Callable[[tp.Any], bool] | None = None,
     navigable: tp.Callable[[tp.Any], bool] | None = None,
     body_opens: tp.Callable[[tp.Any], bool] | None = None,
+    depth_of: tp.Callable[[tp.Any], int] | None = None,
+    expandable: tp.Callable[[tp.Any], bool] | None = None,
+    expanded: tp.Callable[[tp.Any], bool] | None = None,
+    indeterminate: tp.Callable[[tp.Any], bool] | None = None,
 ) -> str:
     """The option-item shell shared by `RadioGroup` and `CheckGroup`.
 
@@ -1383,14 +1417,29 @@ def _choice_group_items_html(
     `is-box-disabled` for the dimmed box.
 
     `navigable` marks the options that carry a trailing "enter" button (see
-    `_row_enter_html`) -- `TreeSelect` uses it for its folders.  That button
+    `_row_enter_html`) -- `SingleTreeSelect` uses it for its folders.  That button
     is the only way to walk into a row; the row's own click still just ticks
     it.
 
     `body_opens` marks the options whose *own* click walks in, with no button
     at all: a row with a frozen box has no tick to spend, so the click is
-    free.  `TreeSelect` uses it for `..`; the handler is `scOpenRow`, the same
+    free.  `SingleTreeSelect` uses it for `..`; the handler is `scOpenRow`, the same
     one the arrow uses, so both gestures arrive as one `open` event.
+
+    `depth_of` marks the options that sit below the panel's own folder, and
+    how far below: the row is inset by it.  Left out, every row sits flush
+    left -- what a flat listing wants, since it shows one folder.
+
+    `expandable` marks the options that carry a collapse / expand button
+    (see `_row_toggle_html`), and `expanded` says whether that folder is
+    currently open: its chevron turns a quarter turn.  Both belong to a
+    cascading panel (`ClassicTreeSelect`), the only one that lists a whole
+    hierarchy at once.
+
+    `indeterminate` marks the options whose box is drawn half-ticked: a
+    folder with only *some* of its descendants picked.  Three states are the
+    tick model's business rather than a widget's, so they arrive as this
+    predicate rather than as part of the group.
 
     `_focus_index` draws one row highlighted -- the row a tree panel came from
     when it walked back up.  It is read off the component rather than passed
@@ -1408,10 +1457,12 @@ def _choice_group_items_html(
     for index, option in enumerate(values):
         frozen = bool(box_disabled(option)) if box_disabled else False
         off = ' disabled' if (frozen or widget_off) else ''
+        half = bool(indeterminate and indeterminate(option))
+        mark = ' data-indeterminate="1"' if half else ''
         field = (
             f'<span class="st-radio-input-wrap">'
             f'<input type="{input_type}"{name} '
-            f'value="{html.escape(str(option))}" '
+            f'value="{html.escape(str(option))}"{mark} '
             f'{"checked" if is_checked(option) else ""}{off} '
             f'onchange="{on_change}(this)" '
             f'data-comp-id="{comp.id}"/></span>'
@@ -1421,6 +1472,16 @@ def _choice_group_items_html(
             f'<p>{render_markup(fmt(option))}</p></div>'
         )
         enter = _row_enter_html() if (navigable and navigable(option)) else ''
+        # A cascading panel insets a row by its depth and puts a collapse /
+        # expand button in front of its box.  Both are opt-in: without
+        # `depth_of` a listing keeps the markup it always had.
+        depth = depth_of(option) if depth_of else 0
+        indent = f' style="--st-tree-depth:{depth}"' if depth else ''
+        toggle = ''
+        if depth_of is not None:
+            folds = bool(expandable and expandable(option))
+            opened = bool(expanded and expanded(option)) if folds else None
+            toggle = _row_toggle_html(opened)
         item_cls = 'st-radio-item'
         if frozen:
             item_cls += ' is-box-disabled'
@@ -1434,9 +1495,9 @@ def _choice_group_items_html(
         item_html.append(
             f'<label class="{item_cls}">{field}'
             f'<div class="st-radio-item-body">'
-            f'<div class="st-radio-item-row" '
+            f'<div class="st-radio-item-row"{indent} '
             f'onclick="{row_click}(event, this)">'
-            f'{box}{text}{enter}'
+            f'{toggle}{box}{text}{enter}'
             f'</div></div></label>'
         )
     return ''.join(item_html)
@@ -1460,6 +1521,10 @@ def _render_choice_group(
         box_disabled=getattr(comp, '_box_disabled', None),
         navigable=getattr(comp, '_navigable', None),
         body_opens=getattr(comp, '_body_opens', None),
+        depth_of=getattr(comp, '_depth_of', None),
+        expandable=getattr(comp, '_expandable', None),
+        expanded=getattr(comp, '_expanded', None),
+        indeterminate=getattr(comp, '_indeterminate', None),
     )
     root_cls = base_cls
     if getattr(comp, '_horizontal', False):

@@ -54,11 +54,11 @@ from ...kernel import _value
 from ...kernel import bind
 
 
-class TreeSelect(_Labeled, Container):
+class SingleTreeSelect(_Labeled, Container):
     """The single-pane tree browser: a folder listing that navigates itself.
 
         with Popover('Browse', panel_align='row', panel_max_height=500):
-            tree = v3.TreeSelect(filter='.txt')
+            tree = v3.SingleTreeSelect(filter='.txt')
         ...
         picked = tree.value.get()
 
@@ -83,7 +83,7 @@ class TreeSelect(_Labeled, Container):
     panel wears.  Left alone (the default) the panel is a standalone widget:
     the button sits under the listing, in the ordinary flow, and the panel
     draws its own `border`.  A wrapper that already lives inside a frame --
-    `TreeSelectWithInput`, inside a popover -- passes `_vendored=True`
+    `SingleTreeSelectWithInput`, inside a popover -- passes `_vendored=True`
     instead: the button rides in a `FloatingContainer` in the panel's
     corner, staying put while the listing scrolls beneath it (and, being
     sticky, keeping its place in the flow, so no row can end up hidden under
@@ -148,7 +148,7 @@ class TreeSelect(_Labeled, Container):
             back (see `mode`).
         _vendored: whether the panel is delivered inside a wrapper's frame,
             which also floats the Confirm button into the corner (see the
-            Layout note above).  Only `TreeSelectWithInput` passes `True`.
+            Layout note above).  Only `SingleTreeSelectWithInput` passes `True`.
         border: whether the panel draws its own frame.  Left `None` it is
             `not _vendored`, so a standalone panel is framed by default.
         show_confirm_button: whether the Confirm button is shown (default
@@ -179,7 +179,7 @@ class TreeSelect(_Labeled, Container):
             resolved absolute paths (see `resolve`);
             a pick another pick already covers is dropped, so a ticked folder
             stands in for everything under it. A wrapper such as
-            `TreeSelectWithInput` listens for it to dismiss the popover it
+            `SingleTreeSelectWithInput` listens for it to dismiss the popover it
             opened.
 
     Call `reload()` to re-read the folder from disk, `select(path)` to add a
@@ -346,31 +346,37 @@ class TreeSelect(_Labeled, Container):
                         width='content',
                     )
             # The two lists differ only in how many nodes they may pick. Both
-            # freeze `..` and route its body click to the walk-up (`_is_nav_up`
-            # is both predicates), and both float the "enter" arrow on their
-            # folders (`_is_enterable`) -- the arrow is what moves the panel
-            # for a node row, so a row's own click is free to just tick it.
+            # freeze `..` and route its body click to the walk-up (one test is
+            # both predicates), and both float the "enter" arrow on their
+            # folders -- the arrow is what moves the panel for a node row, so a
+            # row's own click is free to just tick it.
+            #
+            # Every row-inspection hook goes in through `_row_extras`, which
+            # `ClassicTreeSelect` overrides to teach these same two groups
+            # about indentation and collapse / expand buttons.
             with Container(visible=bind(self.mode, _is_single)):
                 self._single_list = _NavRadioGroup(
                     'Folder contents',
                     options=(),
-                    format=entry_label,
+                    format=self._entry_label,
                     label_visibility='collapsed',
                     max_height=height,
-                    box_disabled=_is_nav_up,
-                    navigable=_is_enterable,
-                    body_opens=_is_nav_up,
+                    box_disabled=self._is_nav_up,
+                    navigable=self._is_enterable,
+                    body_opens=self._is_nav_up,
+                    **self._row_extras(),
                 )
             with Container(visible=bind(self.mode, _is_multi)):
                 self._multi_list = _NavCheckGroup(
                     'Folder contents',
                     options=(),
-                    format=entry_label,
+                    format=self._entry_label,
                     label_visibility='collapsed',
                     max_height=height,
-                    box_disabled=_is_nav_up,
-                    navigable=_is_enterable,
-                    body_opens=_is_nav_up,
+                    box_disabled=self._is_nav_up,
+                    navigable=self._is_enterable,
+                    body_opens=self._is_nav_up,
+                    **self._row_extras(),
                 )
             # The bottom bar is where the panel's "done" action lives: a
             # wrapper hooks `on_submit` to fold the popover away (the panel
@@ -414,18 +420,13 @@ class TreeSelect(_Labeled, Container):
                 # `..` is frozen, so its box cannot be ticked; the walk-up is
                 # its row's own click (`_on_single_open`)
                 return
-            self.value.set(option_path(self._nav, option))
+            self.value.set(self._option_path(option))
 
         @self._multi_list.value.on_change
         def _on_multi_toggle() -> None:
             if self._syncing:
                 return
-            # drop this folder's previous picks, then add the ticked ones, so
-            # picks made in other folders survive -- that is what makes
-            # `multicross` a cross-folder gathering
-            listed = self._listed_paths()
-            kept = [p for p in _as_picked(self.value.get()) if p not in listed]
-            self.value.set(kept + self._ticked_paths())
+            self._apply_ticks()
 
         @self._single_list.on_open
         def _on_single_open(index: int) -> None:
@@ -557,6 +558,67 @@ class TreeSelect(_Labeled, Container):
                 self.value.set(picked)
         self._refresh_listing()
 
+    # -- row model ----------------------------------------------------------
+    #
+    # What a listing row *is* is the one thing a cascading panel has to say
+    # differently: it lists several levels at once, so there a row is spelled
+    # out in full, it is indented by its depth, and its box can be drawn
+    # half-ticked.  The definitions below describe the flat case -- one
+    # folder on show, rows named relative to it -- and `ClassicTreeSelect`
+    # (see `cascading.py`) overrides the ones it disagrees with.
+
+    def _apply_ticks(self) -> None:
+        """Fold the ticked rows back into the selection.
+
+        Drop this folder's previous picks, then add the ticked ones, so picks
+        made in other folders survive -- that is what makes `multicross` a
+        cross-folder gathering.  A cascading panel has more to say here: a
+        ticked folder stands for its whole subtree (see `cascading.py`).
+        """
+        listed = self._listed_paths()
+        kept = [p for p in _as_picked(self.value.get()) if p not in listed]
+        self.value.set(kept + self._ticked_paths())
+
+    def _entry_label(self, option: tp.Any) -> str:
+        """How a row is drawn (the listing group's `format`)."""
+        return entry_label(option)
+
+    def _is_enterable(self, option: tp.Any) -> bool:
+        """Whether a row carries the "enter" arrow (`navigable`)."""
+        return _is_enterable(option)
+
+    def _is_nav_up(self, option: tp.Any) -> bool:
+        """Whether a row is `..` (`box_disabled` and `body_opens`)."""
+        return _is_nav_up(option)
+
+    def _is_ticked(self, option: tp.Any, picked: tp.Set[str]) -> bool:
+        """Whether a row's box is ticked, given the paths `value` holds.
+
+        A flat panel ticks a row exactly when its own path is picked.  A
+        cascading one also ticks a row that a picked *ancestor* covers: the
+        pick stands for the whole subtree, so every row inside it is ticked
+        too (see `cascading.py`).
+        """
+        return self._option_path(option) in picked
+
+    def _listing_options(self) -> list:
+        """The rows of the panel, top to bottom."""
+        return listing_options(self._nav, self._keeps)
+
+    def _option_path(self, option: tp.Any) -> str:
+        """The absolute path a row stands for (`''` for `..`)."""
+        return option_path(self._nav, option)
+
+    def _row_extras(self) -> dict:
+        """Extra row-inspection hooks for the listing groups.
+
+        Handed to `_NavRadioGroup` / `_NavCheckGroup` as further keyword
+        arguments (see `_NavigationGroup`); a flat panel needs none of them,
+        since every row sits flush left, none of them folds, and none of them
+        is half-ticked.
+        """
+        return {}
+
     # -- internals ----------------------------------------------------------
 
     def _carried_row(self, options: list) -> str:
@@ -570,7 +632,7 @@ class TreeSelect(_Labeled, Container):
         if not current or self.mode.get() != _MODE_SINGLE:
             return ''
         for option in options:
-            if option != NAV_UP and option_path(self._nav, option) == current:
+            if option != NAV_UP and self._option_path(option) == current:
                 return str(option)
         return ''
 
@@ -619,9 +681,8 @@ class TreeSelect(_Labeled, Container):
 
     def _listed_paths(self) -> set:
         """The absolute paths of every node the listing currently shows."""
-        nav = self._nav
         options = self._multi_list.options.get() or ()
-        return {p for p in (option_path(nav, o) for o in options) if p}
+        return {p for p in (self._option_path(o) for o in options) if p}
 
     def _open_row(self, group: RadioGroup | CheckGroup, index: tp.Any) -> None:
         """Walk into the place a row stands for.
@@ -640,17 +701,17 @@ class TreeSelect(_Labeled, Container):
         if option == NAV_UP:
             self._jump(self._nav.parent_of())
         elif option.endswith('/'):
-            self._jump(self._nav.child(option[:-1]))
+            self._jump(self._option_path(option))
 
     def _refresh_listing(self) -> None:
         nav = self._nav
-        options = listing_options(nav, self._keeps)
+        options = self._listing_options()
         picked = set(_as_picked(self.value.get()))
         # Remember where each node sits in its parent's listing, so walking
         # back up can point at the row it came from (`_focus_index`) even
         # though the client's own highlight is gone by then.
         for position, option in enumerate(options):
-            path = option_path(nav, option)
+            path = self._option_path(option)
             if path:
                 nav.node_index[path] = position
         focus = self._focus_index(options)
@@ -667,9 +728,10 @@ class TreeSelect(_Labeled, Container):
             # panel carries (see `_carried_row`)
             self._single_list.value.set(self._carried_row(options))
             # the check group re-ticks what was picked before, so walking back
-            # into a folder shows its ticks again
+            # into a folder shows its ticks again. The membership test is the
+            # overridable part: a cascading panel ticks a covered row too.
             self._multi_list.value.set(
-                [o for o in options if option_path(nav, o) in picked]
+                [o for o in options if self._is_ticked(o, picked)]
             )
             # the ladder is the panel's location bar: the current folder is
             # the last rung, so a fresh listing reads as "you are here".
@@ -735,12 +797,12 @@ class TreeSelect(_Labeled, Container):
         return [p for p in (option_path(nav, o) for o in ticked) if p]
 
 
-class TreeSelectWithInput(Container):
+class SingleTreeSelectWithInput(Container):
     """
     A path input plus a single-pane browser in a "Browse" popover.
 
     Usage:
-        with v3.TreeSelectWithInput(
+        with v3.SingleTreeSelectWithInput(
             'Select a file',
             'data/sample',
             filter='.txt',  # or multi-filter: filter=('.txt', '.csv', '.xlsx')
@@ -757,11 +819,11 @@ class TreeSelectWithInput(Container):
 
     Properties:
         value: str | list[str] — the panel's selection; this mirrors
-            `TreeSelect.value`, so `'single'` holds one path and the multi
+            `SingleTreeSelect.value`, so `'single'` holds one path and the multi
             modes hold a list. Write through the panel (`select` / `clear`).
-        mode: str — the panel's active mode (mirrors `TreeSelect.mode`).
+        mode: str — the panel's active mode (mirrors `SingleTreeSelect.mode`).
         directory: str — the folder the panel shows (mirrors
-            `TreeSelect.directory`).
+            `SingleTreeSelect.directory`).
     """
 
     def __init__(
@@ -803,8 +865,8 @@ class TreeSelectWithInput(Container):
                     'Browse', panel_align='row', panel_max_height=panel_height
                 )
                 with self._browse_popover:
-                    self._tree = TreeSelect(
-                        # keyword: `TreeSelect`'s first positional parameter is
+                    self._tree = SingleTreeSelect(
+                        # keyword: `SingleTreeSelect`'s first positional parameter is
                         # its `label`, so passing the folder here would land on
                         # the wrong field and leave the panel opening on the
                         # cwd instead of the path box's folder
@@ -859,14 +921,22 @@ class TreeSelectWithInput(Container):
     # -- public api ---------------------------------------------------------
 
     def clear(self) -> None:
-        """Drop the panel's selection (see `TreeSelect.clear`)."""
+        """Drop the panel's selection (see `SingleTreeSelect.clear`)."""
         self._tree.clear()
 
     @property
     def directory(self) -> str:
-        """The folder the panel shows (see `TreeSelect.directory`)."""
+        """The folder the panel shows (see `SingleTreeSelect.directory`)."""
         return self._tree.directory
 
     def reload(self) -> None:
         """Re-read the browsed folder from disk (same as the panel's button)."""
         self._tree.reload()
+
+
+# The pre-`Single*` spelling, kept because trees are referred to from other
+# projects. The class is `SingleTreeSelect` now -- the family also has a
+# `DualTreeSelect` and a `ClassicTreeSelect`, so the plain name had to say
+# which pane it is.
+TreeSelect = SingleTreeSelect  # alias
+TreeSelectWithInput = SingleTreeSelectWithInput  # alias

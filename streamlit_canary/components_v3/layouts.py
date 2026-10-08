@@ -69,8 +69,8 @@ Column = Container  # alias
 class BottomContainer(Container):
     """A container that sticks to the bottom of its parent layout.
 
-    Used exactly like `Container`, except that the layout pushes it down, so a 
-    card can keep its actions at the bottom and a dialog can pin a button to 
+    Used exactly like `Container`, except that the layout pushes it down, so a
+    card can keep its actions at the bottom and a dialog can pin a button to
     its base:
 
         with v3.Container(height=320):
@@ -217,8 +217,8 @@ class FloatingContainer(Container):
     whatever room the parent has to spare.)  Between the two, everything else
     the parent holds is reachable by scrolling.
 
-    Only a vertical layout may hold one -- a `Popover`, a `Dialog`, or the app 
-    root -- since the corner's horizontal half comes from `align-self`, which a 
+    Only a vertical layout may hold one -- a `Popover`, a `Dialog`, or the app
+    root -- since the corner's horizontal half comes from `align-self`, which a
     `Row` would fight.  Anything else raises `ValueError`.
 
     Args:
@@ -353,7 +353,7 @@ class Popover(_HasText):
     Opening/closing is handled entirely on the client, so it never reruns.
     What does reach the server are the two ends of it: `close()` asks the
     client to fold the panel away while leaving the trigger in place, which a
-    widget such as `TreeSelect` uses to dismiss its own panel once the user
+    widget such as `SingleTreeSelect` uses to dismiss its own panel once the user
     confirms; and `on_open` / `on_close` report a panel that came up or went
     away -- which is how a caller does its work only while the panel is up
     (drawing a preview, say) instead of on every change of whatever the panel

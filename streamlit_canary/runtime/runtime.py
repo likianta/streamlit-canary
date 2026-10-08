@@ -258,7 +258,7 @@ class Runtime:
                     i for i, o in enumerate(value or []) if box_disabled(o)
                 ]
             # ... and which rows carry the "enter" button (`_navigable`, which
-            # only `TreeSelect`'s private navigation groups set) -- same
+            # only `SingleTreeSelect`'s private navigation groups set) -- same
             # reason.
             navigable = getattr(comp, '_navigable', None)
             if callable(navigable):
@@ -273,8 +273,26 @@ class Runtime:
                 message['body_opens'] = [
                     i for i, o in enumerate(value or []) if body_opens(o)
                 ]
+            # ... and how a cascading tree's rows are drawn (`_depth_of`,
+            # `_expandable` / `_expanded`, `_indeterminate` -- which only
+            # `ClassicTreeSelect` sets): the inset, the collapse / expand
+            # button and the half-ticked box all ride along, since rebuilding
+            # the rows is exactly what draws them.
+            depth_of = getattr(comp, '_depth_of', None)
+            if callable(depth_of):
+                message['depth'] = [depth_of(o) for o in (value or [])]
+            for key, attr in (
+                ('expandable', '_expandable'),
+                ('expanded', '_expanded'),
+                ('indeterminate', '_indeterminate'),
+            ):
+                check = getattr(comp, attr, None)
+                if callable(check):
+                    message[key] = [
+                        i for i, o in enumerate(value or []) if check(o)
+                    ]
             # ... and which row is drawn highlighted (`_focus_index`, which
-            # only `TreeSelect` sets: the row it came from when the panel
+            # only `SingleTreeSelect` sets: the row it came from when the panel
             # walks back up). The rows are rebuilt out of this patch, so the
             # highlight has to travel with them.
             focus = getattr(comp, '_focus_index', None)

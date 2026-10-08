@@ -102,12 +102,21 @@ def entry_label(option: tp.Any) -> str:
     Folders carry a trailing `'/'` (see `listing_options`); the nav row gets
     an orange folder icon plus a gray hint, so it reads as an action rather
     than as a node.
+
+    A row may also be an absolute path: a cascading panel lists several
+    levels at once, so there a row is spelled out in full (see
+    `cascading.py`).  Such a row shows its own name only -- the indent, not
+    the path, is what says how deep it sits.
     """
     name = str(option)
     if name == NAV_UP:
         return ':orange[:material/folder:] .. :gray[(goto parent)]'
-    escaped = name.replace('__', '\\_\\_')
-    if escaped.endswith('/'):
+    folder = name.endswith('/')
+    bare = name.rstrip('/')
+    if '/' in bare:
+        bare = bare.rsplit('/', 1)[1]
+    escaped = (bare + '/' if folder else bare).replace('__', '\\_\\_')
+    if folder:
         return ':material/folder: {}'.format(escaped)
     return ':material/description: {}'.format(escaped)
 
@@ -126,7 +135,7 @@ def _call(hook: tp.Optional[tp.Callable]) -> None:
 class _NavigationGroup:
     """Mixin: a listing whose folder rows carry an "enter" arrow.
 
-    `TreeSelect` needs two gestures on one row: a single click on the row body
+    `SingleTreeSelect` needs two gestures on one row: a single click on the row body
     ticks / picks it -- the box's own label wraps the whole row, so the
     browser does that by itself -- while a folder floats a small `->` just
     right of its text once the pointer is over the row. 32px of clearance, not
@@ -146,8 +155,8 @@ class _NavigationGroup:
 
     The arrow is deliberately *not* a `CheckGroup` feature: it is opinionated
     about what a row means -- a folder, a place to go -- which is
-    `TreeSelect`'s business rather than a widget's. Hence these subclasses,
-    which only `TreeSelect` builds, plus the other half of the contract in
+    `SingleTreeSelect`'s business rather than a widget's. Hence these subclasses,
+    which only `SingleTreeSelect` builds, plus the other half of the contract in
     `render.py` (`_row_enter_html`, and the `navigable` / `body_opens` index
     lists an `options` patch carries for the JS rebuild).
 
@@ -156,12 +165,27 @@ class _NavigationGroup:
             arrow (see `_is_enterable`).
         body_opens: marks the options a click on the row itself walks into,
             with no arrow involved (see `_is_nav_up`).
+        depth_of: marks how far below the panel's own folder an option sits,
+            which is what the row is indented by. Left out, every row sits
+            flush left -- what a flat panel wants, since it lists one folder.
+            A cascading panel lists several levels at once and passes it.
+        expandable: marks the options that carry a collapse / expand button
+            (see `_row_toggle_html`) -- the folders with something inside.
+        expanded: whether such a row is currently expanded; the button's
+            chevron turns a quarter turn for it (`is-expanded`).
+        indeterminate: marks the options whose box is drawn half-ticked: a
+            folder with only *some* of its descendants picked, in the multi
+            modes. (A folder whose every descendant is picked is ticked it
+            itself -- see `cascading.py`.)
 
     Signals:
         on_open (via `group.on_open`) — a row was entered, through its arrow
             or, for a `body_opens` row, through the click on the row itself;
             the payload is the row index. The gesture is its own event, so
             walking into a folder never doubles as a tick of that row.
+        on_toggle (via `group.on_toggle`) — a row's collapse / expand button
+            was clicked; the payload is the row index. Also its own event, so
+            folding a folder never doubles as a tick of it.
     """
 
     def __init__(
@@ -169,12 +193,21 @@ class _NavigationGroup:
         *args: tp.Any,
         navigable: tp.Callable[[tp.Any], bool] | None = None,
         body_opens: tp.Callable[[tp.Any], bool] | None = None,
+        depth_of: tp.Callable[[tp.Any], int] | None = None,
+        expandable: tp.Callable[[tp.Any], bool] | None = None,
+        expanded: tp.Callable[[tp.Any], bool] | None = None,
+        indeterminate: tp.Callable[[tp.Any], bool] | None = None,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.on_open: Signal = Signal(int)
+        self.on_toggle: Signal = Signal(int)
         self._navigable = navigable
         self._body_opens = body_opens
+        self._depth_of = depth_of
+        self._expandable = expandable
+        self._expanded = expanded
+        self._indeterminate = indeterminate
 
     def _on_open(self, value: tp.Any) -> None:
         """Relay a row's "enter" arrow to `on_open` (see `scOpenRow`)."""
@@ -183,6 +216,18 @@ class _NavigationGroup:
         except (TypeError, ValueError):
             return
         self.on_open.emit(index)
+
+    def _on_toggle(self, value: tp.Any) -> None:
+        """Relay a row's collapse / expand button to `on_toggle`.
+
+        Same shape as `_on_open`, and for the same reason: the gesture is its
+        own event, so folding a folder cannot be mistaken for ticking it.
+        """
+        try:
+            index = int(value)
+        except (TypeError, ValueError):
+            return
+        self.on_toggle.emit(index)
 
 
 class _NavCheckGroup(_NavigationGroup, CheckGroup):
@@ -209,7 +254,7 @@ class _TreeNav:
         self.recent: deque = deque(maxlen=20)
         # the row a node last had in its parent's listing, remembered for
         # every folder that was listed: walking back up reads it to highlight
-        # the row it came from (see `TreeSelect._focus_index`)
+        # the row it came from (see `SingleTreeSelect._focus_index`)
         self.node_index: dict[str, int] = {}
 
     # -- listings ---------------------------------------------------------
@@ -272,13 +317,21 @@ def option_path(nav: _TreeNav, option: tp.Any) -> str:
     """The absolute path a listing row stands for.
 
     `..` is a pure action, not a node, so it maps to `''`.
+
+    A row is spelled either as a bare name relative to the folder on show (a
+    flat listing -- see `listing_options`) or as an absolute path (a
+    cascading one, which lists several levels at once; see `cascading.py`).
+    The former is joined onto `nav.directory`; the latter is already the
+    answer.
     """
     name = str(option)
     if name == NAV_UP:
         return ''
-    if name.endswith('/'):
-        return nav.child(name[:-1])
-    return nav.child(name)
+    bare = name[:-1] if name.endswith('/') else name
+    drive = len(bare) > 1 and bare[1] == ':'  # `C:/...`
+    if bare.startswith('/') or drive:
+        return bare
+    return nav.child(bare)
 
 
 _MODE_SINGLE = 'single'
@@ -320,7 +373,7 @@ def _is_under(path: str, folder: str) -> bool:
 
 
 def _as_picked(value: tp.Any) -> list:
-    """`TreeSelect.value` as a list of paths (the multi modes' shape)."""
+    """`SingleTreeSelect.value` as a list of paths (the multi modes' shape)."""
     if isinstance(value, list):
         return list(value)
     return [value] if value else []
@@ -337,7 +390,7 @@ def _check_initial_mode(mode: tp.Optional[str], modes: tuple) -> str:
     Left out, it is the first entry of `selection_mode`. A mode the panel
     no longer offers falls back to that first entry rather than raising: an
     `initial_mode` is a *preference*, and the usual caller hands back what
-    was saved last time (see `TreeSelect(initial_mode=)`) -- a panel whose
+    was saved last time (see `SingleTreeSelect(initial_mode=)`) -- a panel whose
     `selection_mode` has since changed should open, not refuse to start.
     """
     if mode is None or mode not in modes:

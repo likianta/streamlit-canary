@@ -1,4 +1,4 @@
-"""`TreeSelect(home_directory=)`: what the toolbar's Home button goes back to.
+"""`SingleTreeSelect(home_directory=)`: what the toolbar's Home button goes back to.
 
 Run:  python test/tree_home_directory_test.py
 
@@ -17,7 +17,7 @@ import time
 import streamlit_canary as sc
 from lk_utils import fs
 from playwright.sync_api import sync_playwright
-from streamlit_canary.components_v3.trees import TreeSelect
+from streamlit_canary.components_v3.trees import SingleTreeSelect
 
 v3 = sc.v3
 
@@ -40,7 +40,7 @@ def rule(text: str) -> None:
 # == 1. left out, home is where the panel opens =============================
 
 rule('1. the default')
-tree = TreeSelect('Pick', HERE)
+tree = SingleTreeSelect('Pick', HERE)
 ok = check('without it, home is the start', tree._home_dir == HERE)
 ok = check('the panel opens there', tree._nav.directory == HERE) and ok
 ok = check('and it is remembered', tree._nav.start_directory == HERE) and ok
@@ -48,7 +48,7 @@ ok = check('and it is remembered', tree._nav.start_directory == HERE) and ok
 # == 2. an explicit one only moves the button ===============================
 
 rule('2. an explicit home_directory')
-tree = TreeSelect('Pick', HERE, home_directory=UP)
+tree = SingleTreeSelect('Pick', HERE, home_directory=UP)
 ok = check('home follows it', tree._home_dir == UP)
 ok = check('the panel still opens at the start', tree._nav.directory == HERE)
 ok = (
@@ -76,7 +76,7 @@ ok = (
 # == 4. a relative path is resolved =========================================
 
 rule('4. a relative home_directory')
-tree = TreeSelect('Pick', HERE, home_directory='.')
+tree = SingleTreeSelect('Pick', HERE, home_directory='.')
 ok = check('resolved against the cwd', tree._home_dir == fs.abspath('.')) and ok
 
 # == 5. in a browser ========================================================
@@ -84,7 +84,7 @@ ok = check('resolved against the cwd', tree._home_dir == fs.abspath('.')) and ok
 
 def scene() -> None:
     sc.set_page_config('home directory')
-    v3.TreeSelect('Pick', HERE, home_directory=UP, key='tree')
+    v3.SingleTreeSelect('Pick', HERE, home_directory=UP, key='tree')
 
 
 _LOCATION_JS = "() => document.querySelector('.st-selectbox-value').textContent"

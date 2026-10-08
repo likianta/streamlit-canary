@@ -25,7 +25,7 @@ from ...kernel import Property
 from ...kernel import Signal
 
 
-class TreeSelectDualPane(Container):
+class DualTreeSelect(Container):
     """The two-column tree browser.
 
     Left column navigates subfolders (back / forward / refresh / new folder);
@@ -85,7 +85,7 @@ class TreeSelectDualPane(Container):
                 value=nav.directory,
                 accept_new_option=True,
                 format_new_option=lambda x: x.strip(),
-                # the bar reads from its tail (see `TreeSelect._location`)
+                # the bar reads from its tail (see `SingleTreeSelect._location`)
                 truncate_start=True,
             )
             with Row():
@@ -294,10 +294,10 @@ class TreeSelectDualPane(Container):
         self._after_move()
 
 
-class TreeSelectDualPaneWithInput(Container):
+class DualTreeSelectWithInput(Container):
     """A path input plus the two-column browser in a modal dialog.
 
-        sel = v3.TreeSelectDualPaneWithInput('Waveform file', 'a.mat')
+        sel = v3.DualTreeSelectWithInput('Waveform file', 'a.mat')
         ...
         path = sel.value.get()
 
@@ -305,7 +305,7 @@ class TreeSelectDualPaneWithInput(Container):
 
         [ path input ......... ] [ Recent ] [ Browse ]
         (Browse opens a modal dialog holding the two-column
-        `TreeSelectDualPane`)
+        `DualTreeSelect`)
 
     Args:
         label: the path input's label.
@@ -388,7 +388,7 @@ class TreeSelectDualPaneWithInput(Container):
             )
             self._dialog = Dialog(title, visible=self._browsing, width='large')
             with self._dialog:
-                self._tree = TreeSelectDualPane(
+                self._tree = DualTreeSelect(
                     nav.directory,
                     filter=filter,
                     height=tree_panel_height,
@@ -458,3 +458,8 @@ class TreeSelectDualPaneWithInput(Container):
                 self._recent.value.set(recent[0])
             finally:
                 self._recent_quiet = False
+
+
+# The pre-`Dual*` spelling (see the note at the end of `single_pane.py`).
+TreeSelectDualPane = DualTreeSelect  # alias
+TreeSelectDualPaneWithInput = DualTreeSelectWithInput  # alias

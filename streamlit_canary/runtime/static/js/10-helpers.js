@@ -136,6 +136,13 @@
     const frozen = new Set(config.boxDisabled || []);
     const navigable = new Set(config.navigable || []);
     const opensOnBody = new Set(config.bodyOpens || []);
+    // A cascading tree's extras (see `ClassicTreeSelect`): `depth` is the only
+    // one sent as a plain list, since every row has a depth -- its presence is
+    // also what tells this builder the listing is a tree.
+    const depth = config.depth;
+    const folds = new Set(config.expandable || []);
+    const opened = new Set(config.expanded || []);
+    const half = new Set(config.indeterminate || []);
     const focused = config.focused;
     const name = inputType === 'radio' ? ` name="radio_${id}"` : '';
     const fmt = window.scRenderMarkup;
@@ -157,16 +164,28 @@
     }
     return values.map((o, i) => {
       const off = frozen.has(i) ? ' disabled' : '';
+      const ind = half.has(i) ? ' data-indeterminate="1"' : '';
       // `isChecked` is handed the index as well, because a flag-mode
       // CheckGroup reads its ticks by position (see `st-check-group--flags`).
       const field =
         `<span class="st-radio-input-wrap">` +
-        `<input type="${inputType}"${name} value="${scOptionAttr(o)}" ` +
+        `<input type="${inputType}"${name} value="${scOptionAttr(o)}"${ind} ` +
         `${isChecked(o, i) ? 'checked' : ''}${off} onchange="${onchange}(this)" ` +
         `data-comp-id="${id}"/></span>`;
       const text =
         `<div class="st-radio-markdown"><p>${fmt(labels[i])}</p></div>`;
       const enter = navigable.has(i) ? scRowEnterHtml() : '';
+      // The tree's two extras: the row is inset by how deep it sits, and a
+      // folder that holds something gets a collapse / expand button in front
+      // of its box (mirrors the server's `_choice_group_items_html`).
+      const indent =
+        depth && depth[i] ? ` style="--st-tree-depth:${depth[i]}"` : '';
+      let toggle = '';
+      if (depth) {
+        toggle = folds.has(i)
+          ? scRowToggleHtml(opened.has(i))
+          : scRowToggleEmptyHtml();
+      }
       const cls =
         'st-radio-item' +
         (frozen.has(i) ? ' is-box-disabled' : '') +
@@ -179,8 +198,9 @@
       return (
         `<label class="${cls}">${field}` +
         `<div class="st-radio-item-body">` +
-        `<div class="st-radio-item-row" ` +
+        `<div class="st-radio-item-row"${indent} ` +
         `onclick="${rowClick}(event, this)">` +
+        toggle +
         box +
         text +
         enter +
@@ -199,6 +219,24 @@
       `onclick="scOpenRow(event, this)">` +
       `${window.scRenderMarkup(':material/arrow_forward:')}</button>`
     );
+  }
+
+  // The collapse / expand button a cascading row carries left of its box
+  // (mirrors the server's `_row_toggle_html`). It rides inside the row's
+  // `<label>`, so aiming at it folds the folder rather than ticking it. A row
+  // with nothing to fold keeps the cell as an empty span, so the boxes of one
+  // level still line up on one x.
+  function scRowToggleHtml(expanded) {
+    const cls = expanded ? 'st-row-toggle is-expanded' : 'st-row-toggle';
+    const name = expanded ? 'Collapse' : 'Expand';
+    return (
+      `<button class="${cls}" type="button" aria-label="${name}" ` +
+      `onclick="scToggleRow(event, this)">` +
+      `${window.scRenderMarkup(':material/keyboard_arrow_right:')}</button>`
+    );
+  }
+  function scRowToggleEmptyHtml() {
+    return '<span class="st-row-toggle is-empty"></span>';
   }
 
   // A click on a row's body highlights that row and mirrors it on the
@@ -239,6 +277,25 @@
       type: 'event',
       id: root.dataset.id,
       event: 'open',
+      value: items.indexOf(item),
+    }));
+  }
+  // Fold or open the folder a row stands for: the button reports its own
+  // event, so the gesture never doubles as a tick of that row (the same shape
+  // as `scOpenRow`, and `_NavigationGroup` handles both the same way).
+  function scToggleRow(event, el) {
+    event.preventDefault();
+    event.stopPropagation();
+    const item = el.closest('.st-radio-item');
+    if (!item) return;
+    const root = item.closest('.st-check-group, .st-radio');
+    if (!root) return;
+    const items = Array.from(
+      item.parentElement.querySelectorAll('.st-radio-item'));
+    ws.send(JSON.stringify({
+      type: 'event',
+      id: root.dataset.id,
+      event: 'toggle',
       value: items.indexOf(item),
     }));
   }

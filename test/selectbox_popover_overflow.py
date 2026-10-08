@@ -5,7 +5,7 @@ Pseudo-code (the spec this script implements):
     1. Open the scene: a `Container(max_height=120)` holding a selectbox near
        its top, the same nested one level deeper, a selectbox in plain flow,
        a selectbox inside a row-aligned `Popover` panel, a
-       `TreeSelect(max_height=200)` (the reported case: its toolbar's
+       `SingleTreeSelect(max_height=200)` (the reported case: its toolbar's
        "Current location" bar), and one more capped selectbox to be scrolled
        to near the bottom of the window.
     2. For every selectbox that sits inside a box which scrolls or hides its
@@ -107,7 +107,7 @@ def scene() -> None:
 
     # 5. the real-world case: the tree browser's toolbar, whose whole panel
     # is capped (so the location bar's dropdown was cut off at 200px)
-    v3.TreeSelect(start_directory='test', max_height=200)
+    v3.SingleTreeSelect(start_directory='test', max_height=200)
 
     # 6. to be scrolled to the bottom of the window: no room below
     v3.Space(height=700)

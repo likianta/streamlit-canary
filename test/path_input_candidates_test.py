@@ -10,7 +10,7 @@ it holds alphabetically. A `Property` is still relayed untouched (the caller
 owns the list), and `None` still means no panel.
 
 `TextInput` keeps the plain, order-preserving field, and so does
-`TreeSelectWithInput`'s private box (which passes no candidates at all).
+`SingleTreeSelectWithInput`'s private box (which passes no candidates at all).
 
 Sections 1-6 run in-process; section 7 drives a browser, where resolving a
 path must refresh the open panel through a `candidates` patch.
@@ -161,14 +161,14 @@ ok = (
     and ok
 )
 
-# `TreeSelectWithInput` hands its box an empty seed, so the box remembers the
+# `SingleTreeSelectWithInput` hands its box an empty seed, so the box remembers the
 # paths it lands on (`candidates=[]`, the replacement for its old "Recent"
-# dropdown). `TreeSelectDualPaneWithInput` keeps the dropdown and passes no
+# dropdown). `DualTreeSelectWithInput` keeps the dropdown and passes no
 # candidates, so its box stays a plain one.
-sel = v3.TreeSelectWithInput('Pick', os.getcwd())
+sel = v3.SingleTreeSelectWithInput('Pick', os.getcwd())
 ok = (
     check(
-        'TreeSelectWithInput seeds its box with the start path',
+        'SingleTreeSelectWithInput seeds its box with the start path',
         sel._path_input['candidates'] == [HERE],
     )
     and ok
@@ -178,10 +178,10 @@ ok = (
     and ok
 )
 
-dual = v3.TreeSelectDualPaneWithInput('Pick', os.getcwd())
+dual = v3.DualTreeSelectWithInput('Pick', os.getcwd())
 ok = (
     check(
-        "TreeSelectDualPaneWithInput's box takes no candidates",
+        "DualTreeSelectWithInput's box takes no candidates",
         dual._path_input['candidates'] is None,
     )
     and ok

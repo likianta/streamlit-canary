@@ -118,7 +118,7 @@ class CheckGroup(_RowGestures, _Labeled):
         enabled: whether the widget accepts input (bindable).
         box_disabled: a predicate marking options whose box may never be
             ticked; those are drawn dimmed and their field is inert.
-            `TreeSelect` uses it for the `..` row, which is a navigation
+            `SingleTreeSelect` uses it for the `..` row, which is a navigation
             target rather than a node.
 
     Properties:
@@ -638,7 +638,7 @@ class RadioGroup(_RowGestures, _OptionsWidget):
             long option lists such as a folder listing).
         box_disabled: a predicate marking options whose circle may never be
             selected; those are drawn dimmed and their field is inert.
-            `TreeSelect` uses it for the `..` row, which is a navigation
+            `SingleTreeSelect` uses it for the `..` row, which is a navigation
             target rather than a node.
 
     Properties:

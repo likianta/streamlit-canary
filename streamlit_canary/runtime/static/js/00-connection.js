@@ -133,6 +133,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           boxDisabled: msg.box_disabled,
           navigable: msg.navigable,
           bodyOpens: msg.body_opens,
+          depth: msg.depth,
+          expandable: msg.expandable,
+          expanded: msg.expanded,
+          indeterminate: msg.indeterminate,
           focused: msg.focused,
         });
         scAlignRowArrows(el);
@@ -155,6 +159,10 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           boxDisabled: msg.box_disabled,
           navigable: msg.navigable,
           bodyOpens: msg.body_opens,
+          depth: msg.depth,
+          expandable: msg.expandable,
+          expanded: msg.expanded,
+          indeterminate: msg.indeterminate,
           focused: msg.focused,
         });
         scAlignRowArrows(el);
