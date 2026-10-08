@@ -18,6 +18,7 @@ instead of being read once the way the v1 scene reads its after a rerun.
 """
 
 import streamlit_canary as sc
+from pprint import pformat
 from streamlit_canary import components_v3 as v3
 
 
@@ -49,9 +50,9 @@ def main() -> None:
             )
         )
 
-        @classic.value.on_change
-        def _on_classic_picked() -> None:
-            cascaded.set(list(classic.value.get() or ()))
+        @classic.value.on_change.partial(sc._value)
+        def _on_classic_picked(value) -> None:
+            cascaded.set(pformat(value))
 
 
 if __name__ == '__main__':
