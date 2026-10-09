@@ -112,8 +112,8 @@ if runtime is not None:
 
 def scene() -> None:
     sc.set_page_config('PathInput value')
-    src = v3.PathInput('Source path', candidates=())
-    tgt = v3.PathInput('Target path', candidates=())
+    src = v3.PathInput('Source path', input_history=())
+    tgt = v3.PathInput('Target path', input_history=())
 
     path_i = sc.Property('')
     path_o = sc.Property('')

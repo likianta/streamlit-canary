@@ -194,7 +194,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         menuItems.innerHTML = scMenuItemsHtml(msg.value, msg.formatted);
       }
     }
-    if (msg.prop === 'candidates') {
+    if (msg.prop === 'input_history') {
       if (el.classList.contains('st-text-input-candidates')) {
         // An empty list keeps the caret but greys it out (a `null` sent at
         // runtime reads as empty -- the caret's presence is fixed at build).

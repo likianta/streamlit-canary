@@ -469,7 +469,7 @@ class NumberInput(_Submittable, _HasPlaceholder, _Labeled):
             return self.value.get()
 
 
-def _candidate_capacity(seed_size: int) -> int:
+def _history_capacity(seed_size: int) -> int:
     """How many paths a `PathInput` may end up remembering.
 
     At least 20, so even a tiny seed has room to grow; a bigger seed rounds
@@ -491,12 +491,12 @@ class PathInput(_Submittable, Container):
     Fields:
         value: str -- the resolved path, `""` when the box is blank.
             Bindable.
-        candidates: list[str] | Property | None -- the suggestions behind the
-            box, the same field `TextInput` takes, but with a memory of its
-            own. A plain sequence seeds that memory: every path this box
-            resolves to joins it (newest first, no duplicates), up to a
-            capacity of at least 20 -- a larger seed rounds up to the next
-            ten (23 -> 30) -- and the panel lists whatever it holds in
+        input_history: list[str] | Property | None -- the suggestions behind
+            the box, the same field `TextInput` takes, but with a memory of
+            its own. A plain sequence seeds that memory: every path this box
+            holds joins it (newest first, no duplicates), up to a capacity of
+            at least 20 -- a larger seed rounds up to the next ten
+            (23 -> 30) -- and the panel lists whatever it holds in
             alphabetical order. Hand in a `Property` to own the list
             yourself (nothing is remembered then), or `None` for no panel.
 
@@ -511,7 +511,7 @@ class PathInput(_Submittable, Container):
         value: str = '',
         *,
         width: Width | None = None,
-        candidates: tp.Iterable[str] | Property | None = None,
+        input_history: tp.Iterable[str] | Property | None = None,
         accept_new_option: bool = False,
         **kwargs: tp.Any,
     ) -> None:
@@ -519,25 +519,25 @@ class PathInput(_Submittable, Container):
 
         self._init_submittable()
         self.value = Property('')
-        # The memory behind `candidates`, and only for a literal sequence:
+        # The memory behind `input_history`, and only for a literal sequence:
         # it is `None` when the caller hands in a `Property` (theirs to fill)
         # or nothing at all (no panel to fill).
         self._memory: tp.Optional[tp.Deque[str]] = None
-        if candidates is None or isinstance(candidates, Property):
-            source: tp.Any = candidates
+        if input_history is None or isinstance(input_history, Property):
+            source: tp.Any = input_history
         else:
             # materialize, so a one-shot iterable does not go stale
-            seed = list(candidates)
-            self._memory = deque(seed, maxlen=_candidate_capacity(len(seed)))
-            source = self._show_candidates()
-        self.candidates = Property(tp.cast(tp.Optional[tp.List[str]], None))
-        self.candidates.set_or_bind(source)
+            seed = list(input_history)
+            self._memory = deque(seed, maxlen=_history_capacity(len(seed)))
+            source = self._history_listing()
+        self.input_history = Property(tp.cast(tp.Optional[tp.List[str]], None))
+        self.input_history.set_or_bind(source)
         with self:
             self._input = TextInput(
                 label,
                 value=value,
                 width='stretch',
-                candidates=self.candidates,
+                input_history=self.input_history,
                 accept_new_option=accept_new_option,
                 # a path is read from its tail: the file or folder name at the
                 # end is what tells one path from another
@@ -564,7 +564,7 @@ class PathInput(_Submittable, Container):
 
         @self.value.on_change
         def _remember() -> None:
-            self._add_candidate(self.value.get())
+            self._add_to_history(self.value.get())
 
         @self.value.on_change
         def _follow() -> None:
@@ -591,7 +591,7 @@ class PathInput(_Submittable, Container):
         if path and str(self._input['value']) != path:
             self._input.value.set(path)
 
-    def _add_candidate(self, path: str) -> None:
+    def _add_to_history(self, path: str) -> None:
         """Remember a path the box holds, and refresh the panel.
 
         Whatever the box holds is worth keeping -- a path that is not on disk
@@ -605,9 +605,9 @@ class PathInput(_Submittable, Container):
         if self._memory is None or not path or path in self._memory:
             return
         self._memory.appendleft(path)
-        self.candidates.set(self._show_candidates())
+        self.input_history.set(self._history_listing())
 
-    def _show_candidates(self) -> tp.List[str]:
+    def _history_listing(self) -> tp.List[str]:
         """What the panel lists: the memory, in alphabetical order.
 
         The memory itself is ordered by when each path was met (newest
@@ -1025,14 +1025,15 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
             out and cannot be edited.
         width: `int` px | 'stretch' | 'content' | None (fill parent).
         help: optional tooltip shown next to the label.
-        candidates: optional suggestions (bindable), offered by a caret that
-            opens a Selectbox-styled panel; picking one fills the box in. The
-            text stays freely editable either way, so this is our take on
-            `st.selectbox(..., accept_new_options=True)`. `None` draws a plain
-            box with no caret, an empty sequence keeps the caret but disables
-            it, and a non-empty one opens a working panel. Whether the caret
-            exists is a build-time choice -- a later patch only swaps the
-            contents (any `None` sent afterwards reads as an empty list).
+        input_history: optional suggestions (bindable), offered by a caret
+            that opens a Selectbox-styled panel; picking one fills the box
+            in. The text stays freely editable either way, so this is our
+            take on `st.selectbox(..., accept_new_options=True)`. `None`
+            draws a plain box with no caret, an empty sequence keeps the
+            caret but disables it, and a non-empty one opens a working panel.
+            Whether the caret exists is a build-time choice -- a later patch
+            only swaps the contents (any `None` sent afterwards reads as an
+            empty list).
         accept_new_option: whether the panel also offers the text as it
             stands, in an "Add: ..." row drawn the way `Selectbox` draws its
             own (default `False`). The row shows while the box has text, and
@@ -1075,7 +1076,7 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         width: Width | None = None,
         help: str = '',
         label_visibility: T.LabelVisibility = 'auto',
-        candidates: tp.Iterable[str] | Property | None = None,
+        input_history: tp.Iterable[str] | Property | None = None,
         accept_new_option: bool = False,
         truncate_start: bool = False,
         **kwargs: tp.Any,
@@ -1096,12 +1097,12 @@ class TextInput(_Submittable, _HasPlaceholder, _Labeled):
         # not part of `_Submittable`: this box is the only one whose client
         # reports the text while it is still being typed.
         self.on_editing: Signal = Signal(str)
-        if candidates is None or isinstance(candidates, Property):
-            source = tp.cast(tp.Optional[tp.List[str]], candidates)
+        if input_history is None or isinstance(input_history, Property):
+            source = tp.cast(tp.Optional[tp.List[str]], input_history)
         else:
             # materialize, so a one-shot iterable does not go stale
-            source = list(candidates)
-        self.candidates = _prop(
+            source = list(input_history)
+        self.input_history = _prop(
             tp.cast(tp.Optional[tp.List[str]], None), source
         )
 

@@ -980,7 +980,7 @@ def _render_text_area(comp: TextArea) -> str:
 
 
 def _chevron_svg() -> str:
-    """The 20px caret shared by `Selectbox` and a `TextInput`'s candidates."""
+    """The 20px caret shared by `Selectbox` and a `TextInput`'s history."""
     return (
         '<svg class="st-selectbox-arrow" viewBox="0 0 24 24" '
         'width="20" height="20" fill="currentColor">'
@@ -995,11 +995,11 @@ def _render_text_input(comp: TextInput) -> str:
     placeholder = html.escape(str(comp.placeholder.get()))
     disabled = '' if comp.enabled.get() else ' disabled'
     width_style = _size_style(comp)
-    candidates = comp.candidates.get()
+    history = comp.input_history.get()
     accept_new = bool(getattr(comp, '_accept_new_option', False))
     # `accept_new_option` needs the panel too -- that is where its row lives
     # -- so it brings the caret along even with no list to show.
-    framed = candidates is not None or accept_new
+    framed = history is not None or accept_new
     extra_cls = ' st-text-input-candidates-input' if framed else ''
     # a path-like box shows its tail: the client scrolls it to the end (an
     # `<input>` clips without an ellipsis, so there is no CSS way to elide it
@@ -1027,14 +1027,14 @@ def _render_text_input(comp: TextInput) -> str:
             f'<div class="st-text-input" data-id="{comp.id}"{width_style}>'
             f'{_widget_label_html(comp)}{box}</div>'
         )
-    # `candidates`: frame the box like a `Selectbox` trigger, and let a caret
-    # unfold the very same panel `Selectbox` draws.
-    caret_disabled = '' if (candidates or accept_new) else ' disabled'
+    # `input_history`: frame the box like a `Selectbox` trigger, and let a
+    # caret unfold the very same panel `Selectbox` draws.
+    caret_disabled = '' if (history or accept_new) else ' disabled'
     # the client finds the "Add: ..." row through this: the root that takes
     # new options, and the row inside it (`scNewOptionEcho`)
     accept_attr = ' data-accept-new="1"' if accept_new else ''
     rows = _text_new_option_html(comp) if accept_new else ''
-    rows += _text_candidates_html(comp, candidates or ())
+    rows += _text_history_html(comp, history or ())
     return (
         f'<div class="st-text-input st-text-input-candidates" '
         f'data-id="{comp.id}"{accept_attr}{width_style}>'
@@ -1043,7 +1043,7 @@ def _render_text_input(comp: TextInput) -> str:
         f'<div class="st-selectbox-trigger st-text-input-candidates-box">'
         f'{box}'
         f'<button type="button" class="st-text-input-candidates-toggle" '
-        f'data-comp-id="{comp.id}" aria-label="Show candidates"'
+        f'data-comp-id="{comp.id}" aria-label="Show history"'
         f'{caret_disabled} onclick="scToggleCandidates(this)">'
         f'{_chevron_svg()}</button>'
         f'</div>'
@@ -1073,18 +1073,18 @@ def _text_new_option_html(comp: TextInput) -> str:
     )
 
 
-def _text_candidates_html(comp: TextInput, candidates: tp.Sequence) -> str:
-    """The candidate rows of a `TextInput`, drawn like `Selectbox` options."""
+def _text_history_html(comp: TextInput, history: tp.Sequence) -> str:
+    """The history rows of a `TextInput`, drawn like `Selectbox` options."""
     return ''.join(
         f'<div class="st-selectbox-option" role="option" '
-        f'data-value="{html.escape(str(candidate))}" '
+        f'data-value="{html.escape(str(entry))}" '
         f'data-comp-id="{comp.id}" onclick="scPickCandidate(this)">'
         # `st-truncate-help`: a path too long for the row is clipped, and
         # `90-help.js` then offers the whole of it on hover -- the same
         # affordance a `Selectbox` option row has.
         f'<div class="st-selectbox-option-inner st-truncate-help">'
-        f'{render_markup(str(candidate))}</div></div>'
-        for candidate in candidates
+        f'{render_markup(str(entry))}</div></div>'
+        for entry in history
     )
 
 
@@ -1893,7 +1893,7 @@ _PAGE_JS = _load_static_parts(
     [
         '00-connection.js',  # the socket + the delta dispatcher
         '10-helpers.js',  # copy, send, option keys, choice rows, arrows
-        '20-selectbox.js',  # dropdown, new-option row, candidates
+        '20-selectbox.js',  # dropdown, new-option row, input history
         '30-overlays.js',  # Dialog, Multiselect, Popover, Menu
         '40-inputs.js',  # Checkbox / CheckGroup sends + dismissal
         '50-markdown.js',  # markdown-it + the `:color` / `:material` bits

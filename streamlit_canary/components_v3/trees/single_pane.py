@@ -173,7 +173,7 @@ class SingleTreeSelect(_Labeled, Container):
         on_navigate: emitted with the new folder every time the listing is
             refreshed -- walking into a row (its arrow, or `..`'s own click),
             a `_goto` from a wrapper, or the initial build. Anything derived
-            from the current folder (a path input's candidate list, say)
+            from the current folder (a path input's history list, say)
             should be refreshed from here.
         on_submit: emitted when the Confirm button is clicked, carrying the
             resolved absolute paths (see `resolve`);
@@ -812,10 +812,11 @@ class SingleTreeSelectWithInput(Container):
 
     The box is the panel's other half. A path it resolves to -- typed,
     pasted, or handed in as `start_directory` -- moves the browser (and the
-    panel's own location bar) onto the folder that holds it; the panel's
-    picks come back out through `value`. The box also keeps its own list of
-    the paths it has resolved (`PathInput.candidates`), which is what the
-    "Recent" dropdown used to offer here.
+    panel's own location bar) onto the folder that holds it; a path that is
+    not on disk yet names no folder, so the panel is left where it was. The
+    panel's picks come back out through `value`, and the box also keeps its
+    own list of the paths it has held (`PathInput.input_history`), which is
+    what the "Recent" dropdown used to offer here.
 
     Confirm closes the popover and writes the choice into the box: the
     panel's pick, or -- with nothing ticked -- the folder the panel ended
@@ -831,6 +832,9 @@ class SingleTreeSelectWithInput(Container):
         mode: str — the panel's active mode (mirrors `SingleTreeSelect.mode`).
         directory: str — the folder the panel shows (mirrors
             `SingleTreeSelect.directory`).
+        input_history: list[str] | None — the paths the box has held, as its
+            dropdown lists them (mirrors `PathInput.input_history`). It seeds
+            through the constructor argument; this mirror is read-mostly.
     """
 
     def __init__(
@@ -844,6 +848,7 @@ class SingleTreeSelectWithInput(Container):
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
+        input_history: tp.Iterable[str] | Property | None = (),
         width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
@@ -864,14 +869,16 @@ class SingleTreeSelectWithInput(Container):
 
         with self:
             with Row('bottom'):
-                # `candidates=[]` makes the box its own history: it starts
-                # with `first_path` and keeps every path it resolves to (see
-                # `PathInput.candidates`) -- the "Recent" dropdown's job, done
-                # where the paths are actually entered. No
-                # `accept_new_option`: the box already resolves what is typed
-                # (on blur / Enter), and the "Add: ..." row it would draw only
-                # shows as a stray blank item in the dropdown.
-                self._path_input = PathInput(label, first_path, candidates=[])
+                # the box is its own history: it starts with `first_path`
+                # (plus whatever `input_history` seeds) and keeps every path
+                # it comes to hold (see `PathInput.input_history`) -- the
+                # "Recent" dropdown's job, done where the paths are actually
+                # entered. No `accept_new_option`: the box already resolves
+                # what is typed (on blur / Enter), and the "Add: ..." row it
+                # would draw only shows as a stray blank item in the dropdown.
+                self._path_input = PathInput(
+                    label, first_path, input_history=input_history
+                )
                 self._browse_popover = Popover(
                     'Browse', panel_align='row', panel_max_height=panel_height
                 )
@@ -897,6 +904,10 @@ class SingleTreeSelectWithInput(Container):
                     )
         self.value.bind(self._tree.value)
         self.mode.bind(self._tree.mode)
+        # the box's own history, reachable from the wrapper (a mirror, so the
+        # same `Property` is not listed twice in `_iter_properties`)
+        self.input_history = Property(tp.cast(tp.Optional[tp.List[str]], None))
+        self.input_history.bind(self._path_input.input_history)
 
         if initial_is_file:
             self._tree.select(fs.abspath(first_path))
@@ -915,16 +926,13 @@ class SingleTreeSelectWithInput(Container):
                 return
             # the box is the panel's other half: a path typed / pasted into
             # it moves the browser -- and with it the panel's location bar --
-            # onto the folder that holds it
+            # onto the folder that holds it. A path that is not on disk yet
+            # names no folder, so the panel is simply left where it was (the
+            # last place browsed or confirmed) rather than sent anywhere.
             if fs.isdir(norm_path):
-                norm_dir = norm_path
+                self._tree._jump(norm_path)
             elif fs.exist(norm_path):
-                norm_dir = fs.parent(norm_path)
-            else:
-                # nothing to point at yet, so the browser goes back to where
-                # the panel opened (the way the Home button does)
-                norm_dir = self._tree._nav.start_directory
-            self._tree._jump(norm_dir)
+                self._tree._jump(fs.parent(norm_path))
             # a path from the box also joins the panel's selection (`select`
             # is exactly the door for a path the listing does not hold), so
             # `value` -- and every property bound to it -- sees what was

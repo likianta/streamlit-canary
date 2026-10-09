@@ -276,7 +276,7 @@
     // Send change event to backend.
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
   }
-  // -- TextInput `candidates`: a Selectbox-styled suggestion panel --
+  // -- TextInput `input_history`: a Selectbox-styled suggestion panel --
   function scCandidatesHtml(values, id) {
     const fmt = window.scRenderMarkup;
     return values.map((v) =>

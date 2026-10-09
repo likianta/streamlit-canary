@@ -250,7 +250,7 @@
     height: 40px;
   }
 
-  /* TextInput `candidates`: an editable box framed exactly like a Selectbox
+  /* TextInput `input_history`: an editable box framed exactly like a Selectbox
      trigger, whose caret unfolds the very same panel above. Only the input's
      own frame is neutralised -- the wrapping trigger draws the border,
      background and focus ring -- so the two read as a single control. The
@@ -288,8 +288,8 @@
     color: var(--st-text-color);
     cursor: pointer;
   }
-  /* An empty candidate list keeps the caret, greyed out (see
-     `TextInput(candidates=...)`). */
+  /* An empty history list keeps the caret, greyed out (see
+     `TextInput(input_history=...)`). */
   .st-text-input-candidates .st-text-input-candidates-toggle:disabled {
     color: var(--st-gray-color);
     cursor: not-allowed;
