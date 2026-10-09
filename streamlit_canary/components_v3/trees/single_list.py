@@ -101,8 +101,11 @@ class SingleTreeSelect(_Labeled, Container):
                     hover -- see `_NavigationGroup`).  Only a folder draws
                     one; every arrow sits at the same x, past the longest
                     folder name, so the pointer can aim without re-reading
-                    -- and the icon plus 30px of slack to its right is the
-                    same target, the far right of the row being the row's.
+                    -- and the whole tail of the row, from the glyph out to
+                    the right edge, is that same target, so entering a
+                    folder never asks the pointer to find the icon itself.
+                    While it is armed the row's icon and name turn the
+                    amber `..` wears, so the row reads as one link.
 
     `..` leads the listing as the way back up.  Its box is frozen -- dimmed
     and never tickable -- because it is a target rather than a node

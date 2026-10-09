@@ -141,11 +141,11 @@ class _NavigationGroup:
     right of its text once the pointer is over the row. 32px of clearance, not
     the row's own 8px `gap`: the extra air keeps the tick area (box + name)
     from crowding the arrow. The text underlines while the pointer rests on
-    that arrow, so the pair reads as one link, and clicking it walks into the
-    folder. The arrow answers over a little slack to its right as well: the
-    whole icon plus 30px counts as the arrow for hovering *and* clicking,
-    since the pointer has to be aimed at a 20px glyph otherwise. Past that
-    the far right of the row still belongs to the row itself.
+    that arrow -- and the icon and the name turn the amber `..` wears -- so
+    the pair reads as one link, and clicking walks into the folder. The arrow
+    answers over the whole tail of the row, not just its own 20px glyph: the
+    button stretches from the glyph to the right edge, so the pointer does not
+    have to be aimed at a 20px icon.
 
     A row whose box is frozen (`box_disabled`) has no tick to give, so its own
     click is free to be the gesture: `body_opens` marks those rows, and a

@@ -642,6 +642,68 @@ def walk(page) -> bool:
         and good
     )
 
+    # == 9. the enter arrow owns the row's tail =============================
+    print('== 9. the enter arrow answers over the whole tail ==')
+    item = _item(page, 'components_v3/')
+    item_box = item.bounding_box()
+    arrow_box = item.locator('.st-row-open').bounding_box()
+    good = (
+        check(
+            "the arrow button reaches the row's right edge",
+            item_box['x']
+            + item_box['width']
+            - (arrow_box['x'] + arrow_box['width'])
+            <= 10,
+        )
+        and good
+    )
+    # the `..` row's folder icon is the yardstick for the amber: same colour,
+    # or the pair is off. (`:visible` is a Playwright thing -- in the page,
+    # the rows on show are the ones with an `offsetParent`.)
+    amber = page.evaluate(
+        '() => {'
+        '  const rows = Array.from('
+        "    document.querySelectorAll('.st-check-group .st-radio-item')"
+        '  ).filter((el) => el.offsetParent !== null);'
+        "  return getComputedStyle(rows[0].querySelector('.st-icon')).color;"
+        '}'
+    )
+    # park the pointer near the arrow's own right edge -- the far end of the
+    # row's tail, well away from the 20px glyph -- and the arrow still reveals
+    # itself, with the row's pair marked
+    page.mouse.move(
+        arrow_box['x'] + arrow_box['width'] - 4,
+        item_box['y'] + item_box['height'] / 2,
+    )
+    page.wait_for_timeout(400)
+    tail = item.evaluate(
+        '(el) => ({'
+        '  opacity: getComputedStyle('
+        "    el.querySelector('.st-row-open')"
+        '  ).opacity,'
+        '  underline: getComputedStyle('
+        "    el.querySelector('.st-radio-markdown')"
+        '  ).textDecorationLine,'
+        '  color: getComputedStyle('
+        "    el.querySelector('.st-radio-markdown p')"
+        '  ).color,'
+        '})'
+    )
+    print('  tail:', tail, 'amber:', amber)
+    good = (
+        check('hovering the tail reveals the arrow', tail['opacity'] == '1')
+        and good
+    )
+    good = (
+        check(
+            'and the row is underlined and turned the same amber as `..`',
+            tail['underline'] == 'underline' and tail['color'] == amber,
+        )
+        and good
+    )
+    page.mouse.move(0, 0)
+    page.wait_for_timeout(300)
+
     return good
 
 

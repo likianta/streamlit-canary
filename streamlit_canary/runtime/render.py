@@ -26,7 +26,6 @@ from ..components_v3.inputs import CheckGroup
 from ..components_v3.inputs import Checkbox
 from ..components_v3.inputs import Multiselect
 from ..components_v3.inputs import NumberInput
-from ..components_v3.inputs import PathSelect
 from ..components_v3.inputs import RadioGroup
 from ..components_v3.inputs import ReducibleGroup
 from ..components_v3.inputs import SegmentedControl
@@ -1002,9 +1001,9 @@ def _render_text_input(comp: TextInput) -> str:
     # wrapping the box in a container that carries a `ladder` field: the frame
     # grows a second dropdown, and a click on the box itself unfolds it (see
     # `scOpenCandidates`). The box itself knows nothing about either.
-    select = comp.parent if isinstance(comp.parent, PathSelect) else None
-    click_opens = select is not None
-    ladder = select.ladder.get() if select is not None else None
+    ladder_field = getattr(comp.parent, 'ladder', None)
+    click_opens = ladder_field is not None
+    ladder = ladder_field.get() if ladder_field is not None else None
     # `accept_new_option` needs the panel too -- that is where its row lives
     # -- so it brings the caret along even with no list to show. A `PathSelect`
     # always wants the frame: its ladder is the panel a click opens, and the

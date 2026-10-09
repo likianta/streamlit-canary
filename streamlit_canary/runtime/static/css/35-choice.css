@@ -73,24 +73,28 @@
      x -- 32px past that name, which is the row's own 8px `gap` plus 24px more
      and keeps the tick area (box + name) clear of the arrow instead of
      crowding it. The reveal is a fade plus a 4px slide. Nothing here turns
-     the hit area off while it is hidden: the arrow and its tolerance zone sit
-     *inside* the row, so the pointer can only reach them when the row is
-     hovered -- which is exactly when they are drawn. Toggling `pointer-events`
-     with the hover instead would leave the arrow unarmoured for the event that
-     reveals it, so a pointer arriving in one jump would have to jiggle before
-     the chip and the click landed. */
+     the hit area off while it is hidden: the arrow is *inside* the row, so the
+     pointer can only reach it when the row is hovered -- which is exactly when
+     it is drawn. Toggling `pointer-events` with the hover instead would leave
+     the arrow unarmoured for the event that reveals it, so a pointer arriving
+     in one jump would have to jiggle before the chip and the click landed. */
   .st-row-open {
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
-    /* A square, so the hover chip has room around the glyph. */
-    width: 20px;
+    /* The button *is* the aiming area: it stretches from the glyph to the
+       row's right edge, so the whole tail of a folder row walks into it and
+       the pointer never has to find a 20px glyph. The chip it draws stays a
+       small square (`::before`), so the tint does not grow with the area. */
+    flex: 1;
+    justify-content: flex-start;
+    /* The glyph keeps the x it had when the box was a 20px square:
+       `(20px - 14px) / 2`. */
     height: 20px;
+    padding: 0 0 0 3px;
     /* The wider breathing space: the row's `gap` already contributes 8px, so
        this tops it up to 32px. */
     margin-left: 24px;
-    padding: 0;
     border: 0;
     border-radius: 4px;
     background: transparent;
@@ -102,19 +106,20 @@
     cursor: pointer;
     opacity: 0;
     transform: translateX(0);
-    transition: opacity 120ms ease, transform 120ms ease,
-      background-color 120ms ease;
+    transition: opacity 120ms ease, transform 120ms ease;
   }
-  /* The aiming tolerance right of the arrow: 30px that belong to the button --
-     so the pointer there hovers *and* clicks the arrow -- but paint nothing.
-     The row is wide, so the far right of it is still a plain row click. */
-  .st-row-open::after {
+  /* The hover chip: the square around the glyph, which paints nothing until
+     the pointer is on the button (anywhere in its area -- the pseudo-element
+     is part of it). */
+  .st-row-open::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    right: -30px;
-    bottom: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    transition: background-color 120ms ease;
   }
   .st-radio-item:hover .st-row-open,
   .st-radio-item:has(input:focus-visible) .st-row-open {
@@ -123,12 +128,16 @@
   }
   /* One layer above the row's own hover wash, which is already painted under
      the arrow: the chip is tinted blue so the two stay apart. */
-  .st-row-open:hover {
+  .st-row-open:hover::before {
     background-color: var(--st-blue-background-color);
   }
   .st-row-open:focus-visible {
     opacity: 1;
     transform: translateX(4px);
+  }
+  /* The ring goes on the chip, not on the button: the button is as wide as
+     the row's tail, so an outline there would be a bar rather than a square. */
+  .st-row-open:focus-visible::before {
     outline: 2px solid var(--st-primary-color);
   }
   /* The collapse / expand button a cascading tree puts in front of a folder's
@@ -173,13 +182,21 @@
   .st-row-toggle:focus-visible {
     outline: 2px solid var(--st-primary-color);
   }
-  /* The arrow *is* the row's "enter" action, so the text underlines while the
-     pointer rests on it -- or anywhere in its tolerance zone, since `::after`
-     is part of the button -- and the pair then reads as a single link. The
-     rule is muted (`:gray[..]`) so it stays a hint beside the arrow's blue. */
+  /* The arrow *is* the row's "enter" action, so while the pointer is on it --
+     anywhere in the row's tail, since the whole button is the area -- the
+     row's text underlines and the pair reads as a single link. The rule is
+     muted (`:gray[..]`) so it stays a hint beside the arrow's blue. */
   .st-radio-item-row:has(.st-row-open:hover) .st-radio-markdown {
     text-decoration: underline;
     text-decoration-color: var(--st-gray-text-color);
+  }
+  /* A hairline underline proved too quiet to notice, so the icon and the name
+     also take the amber the `..` row's folder icon wears (`:orange[..]`, i.e.
+     the theme's `-text-color`). Aimed at the `<p>` because that is the element
+     which sets its own colour (`.st-radio-markdown p`); the icon inside it
+     inherits this one. */
+  .st-radio-item-row:has(.st-row-open:hover) .st-radio-markdown p {
+    color: var(--st-orange-text-color);
   }
   .st-radio-item.is-highlighted .st-radio-item-row {
     background-color: var(--st-hover-background-color);

@@ -23,7 +23,7 @@ import time
 import streamlit_canary as sc
 from lk_utils import fs
 from playwright.sync_api import sync_playwright
-from streamlit_canary.components_v3.inputs import PathInput
+from streamlit_canary.components_v3.trees.path_inputs import PathInput
 from streamlit_canary.runtime import Runtime
 
 v3 = sc.v3
