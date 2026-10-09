@@ -123,7 +123,9 @@ python test/event_driven_system/components_v3_demo.py
 2209: Mklink GUI 副本应用 (./test/rewrite_third_party_projects/mklink_gui_copy/app2.py).
 2210: PDF Watermaker 原版应用.
 2211: PDF Watermaker 副本应用.
-2212...2229: 暂未定义, 未来会根据需要添加.
+2212: Depsland AppBuilder 原版应用.
+2213: Depsland AppBuilder 副本应用.
+2214...2229: 暂未定义, 未来会根据需要添加.
 ```
 
 ### Playwright 使用说明

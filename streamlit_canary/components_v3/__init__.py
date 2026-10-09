@@ -37,8 +37,6 @@ from .inputs import CheckGroup
 from .inputs import Checkbox
 from .inputs import Multiselect
 from .inputs import NumberInput
-from .inputs import PathInput
-from .inputs import PathSelect
 from .inputs import Radio
 from .inputs import RadioGroup
 from .inputs import ReducibleGroup
@@ -85,9 +83,10 @@ from .texts import Text
 from .texts import Title
 
 from .trees import DualTreeSelect
+from .trees import PathInput
 from .trees import PathInputExpanded
 from .trees import PathInputExpander
 from .trees import PathInputPopup
+from .trees import PathSelect
 from .trees import SingleTreeSelect
-from .trees import TreeView
-from .trees import TreeView as TreeSelect
+from .trees import TreeSelect
