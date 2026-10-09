@@ -905,22 +905,32 @@ class SingleTreeSelectWithInput(Container):
 
         @self._path_input.value.on_change.partial(_value)
         def _on_path_typed(norm_path: str) -> None:
-            # a path only reaches the box once it resolves, so `norm_path` is
-            # either something real or `''` (the box was emptied, or left
-            # half typed) -- and an empty one has nowhere to send the panel.
-            # `_confirming` marks a write made by Confirm: that is a commit,
-            # not a typed path, so it must not walk the panel off to that
-            # folder either (which would also drop a `multiple` pick).
+            # `norm_path` is `''` only while the box is blank; a path that is
+            # not on disk yet reaches here too (a folder being named), so
+            # nothing below may assume it exists. `_confirming` marks a write
+            # made by Confirm: that is a commit, not a typed path, so it must
+            # not walk the panel off to that folder (which would also drop a
+            # `multiple` pick).
             if not norm_path or self._confirming:
                 return
-            # the box is the panel's other half: a path typed / pasted into it
-            # moves the browser -- and with it the panel's location bar -- onto
-            # the folder that holds it
+            # the box is the panel's other half: a path typed / pasted into
+            # it moves the browser -- and with it the panel's location bar --
+            # onto the folder that holds it
             if fs.isdir(norm_path):
                 norm_dir = norm_path
-            else:
+            elif fs.exist(norm_path):
                 norm_dir = fs.parent(norm_path)
+            else:
+                # nothing to point at yet, so the browser goes back to where
+                # the panel opened (the way the Home button does)
+                norm_dir = self._tree._nav.start_directory
             self._tree._jump(norm_dir)
+            # a path from the box also joins the panel's selection (`select`
+            # is exactly the door for a path the listing does not hold), so
+            # `value` -- and every property bound to it -- sees what was
+            # typed. `_jump` is asked first: in `multiple` it clears the
+            # picks, which would otherwise swallow this one.
+            self._tree.select(norm_path)
 
         @self._tree.on_submit
         def _on_tree_submitted(paths: tp.Iterable[str]) -> None:

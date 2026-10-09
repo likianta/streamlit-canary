@@ -126,7 +126,8 @@ def scene() -> None:
 
 _LOG_JS = """
 (prefix) => {
-  const el = document.querySelector('[data-md^="' + prefix + '"]');
+  const el = Array.from(document.querySelectorAll('.st-plain'))
+    .find(e => e.textContent.startsWith(prefix));
   return el ? el.textContent.trim() : '';
 }
 """
@@ -156,10 +157,9 @@ def phase_browser() -> bool:
             page.wait_for_selector('input.st-text-input-box')
             page.wait_for_timeout(600)
 
-            # A path that exists: `PathInput` resolves to `""` otherwise, and
-            # then there is nothing for the bound property to follow. Both
-            # processes share the working directory, so `want` is the same
-            # string on either side.
+            # A path that exists: `PathInput` resolves it to the absolute,
+            # forward-slash form on both sides. Both processes share the
+            # working directory, so `want` is the same string either way.
             want = fs.abspath('.').replace('\\', '/')
             assert fs.exist(want), want
             box = page.locator('input.st-text-input-box').first

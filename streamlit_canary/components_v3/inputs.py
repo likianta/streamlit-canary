@@ -480,15 +480,17 @@ def _candidate_capacity(seed_size: int) -> int:
 
 
 class PathInput(_Submittable, Container):
-    """A text input whose text is resolved into an existing path.
+    """A text input whose text is resolved into a path.
 
-    The path is always in absolute, forward-slash form, and it stays empty
-    while the text is not a path that exists yet -- which is what lets a
-    wrapper fall back to the enclosing directory while a file name is still
-    being typed.
+    The path is absolute and forward-slash when it names something that is
+    on disk. Text that names nothing yet -- a folder being named, say -- is
+    kept too, with only its separators straightened: a path that does not
+    exist is still a path, and a caller can read it as "where this would
+    go". Only blank text resolves to `""`.
 
     Fields:
-        value: str -- the resolved path, `""` when there is none. Bindable.
+        value: str -- the resolved path, `""` when the box is blank.
+            Bindable.
         candidates: list[str] | Property | None -- the suggestions behind the
             box, the same field `TextInput` takes, but with a memory of its
             own. A plain sequence seeds that memory: every path this box
@@ -590,14 +592,15 @@ class PathInput(_Submittable, Container):
             self._input.value.set(path)
 
     def _add_candidate(self, path: str) -> None:
-        """Remember a path the box just resolved to, and refresh the panel.
+        """Remember a path the box holds, and refresh the panel.
 
-        Only a path that resolved is worth keeping (unresolved text is `""`),
-        and only when the memory exists -- a caller-supplied `Property` is
-        theirs to fill. A path already remembered is left where it is, so the
-        memory never reorders itself; each new one goes in front, and past the
-        capacity the oldest drops off the back, so it stays a window of recent
-        paths.
+        Whatever the box holds is worth keeping -- a path that is not on disk
+        yet included, a folder being named being one the user will come back
+        to; blank text is `""`, which is nothing to keep. The memory must
+        exist, though -- a caller-supplied `Property` is theirs to fill. A
+        path already remembered is left where it is, so the memory never
+        reorders itself; each new one goes in front, and past the capacity
+        the oldest drops off the back, so it stays a window of recent paths.
         """
         if self._memory is None or not path or path in self._memory:
             return
@@ -621,7 +624,13 @@ class PathInput(_Submittable, Container):
         if not text:
             return ''
         path = fs.abspath(text)
-        return path if fs.exist(path) else ''
+        if fs.exist(path):
+            return path
+        # the text names something that is not on disk yet (a folder about to
+        # be made, say). `abspath` cannot say what it will turn into, so only
+        # the separators are straightened and the text is kept -- a caller
+        # decides for itself what a path that does not exist yet means.
+        return text.replace('\\', '/')
 
 
 class RadioGroup(_RowGestures, _OptionsWidget):
