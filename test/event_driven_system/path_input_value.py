@@ -85,7 +85,7 @@ rule('4. the trees keep working')
 
 
 def _app() -> None:
-    v3.SingleTreeSelectWithInput('Tree', 'C:/', filter='.txt')
+    v3.PathInputPopup('Tree', 'C:/', filter='.txt')
 
 
 built, runtime = True, None

@@ -1,22 +1,22 @@
-"""The two-column browser and its "input + dialog" wrapper."""
+"""The two-column browser: subfolders on the left, files on the right.
 
-import os
+The panel itself, with no path input attached -- see `path_inputs.py` for the
+`PathInput` + panel pairings.
+"""
+
 import typing as tp
 
 from lk_utils import fs
 
-from .recent import Recent
-from ._shared import _TreeNav, T, _call, _filter_func
+from ._shared import _TreeNav, T, _filter_func
 from ..base import Width
 from ..buttons import Button
 from ..buttons import IconButton
-from ..inputs import PathInput
 from ..inputs import RadioGroup
 from ..inputs import Selectbox
 from ..inputs import TextInput
 from ..layouts import Column
 from ..layouts import Container
-from ..layouts import Dialog
 from ..layouts import Popover
 from ..layouts import Row
 from ..status import Info
@@ -293,168 +293,14 @@ class DualTreeSelect(Container):
         self._nav.dirnames(path)
         self._after_move()
 
+    # -- public api ---------------------------------------------------------
 
-class DualTreeSelectWithInput(Container):
-    """A path input plus the two-column browser in a modal dialog.
+    @property
+    def directory(self) -> str:
+        """The folder the left column is on."""
+        return self._nav.directory
 
-        sel = v3.DualTreeSelectWithInput('Waveform file', 'a.mat')
-        ...
-        path = sel.value.get()
-
-    Layout::
-
-        [ path input ......... ] [ Recent ] [ Browse ]
-        (Browse opens a modal dialog holding the two-column
-        `DualTreeSelect`)
-
-    Args:
-        label: the path input's label.
-        start_directory: the starting file or folder (default: the cwd).
-        filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
-        show_recent: keep a "Recent" dropdown of the picked paths.
-        node_type: `'file'` (default) or `'folder'`.
-        dialog_title: the dialog's title (default: derived from `node_type`).
-        tree_panel_height: height of the tree's columns inside the dialog.
-        custom: optional builder hooks, mirroring v1's customization points.
-            Recognized keys: `'place0'`..`'place3'` are called (with no
-            arguments) around the path input / recent / browse buttons.
-        width: see `Container`.
-
-    Properties:
-        value: str — the committed path ('' while nothing is committed).
-
-    Signals:
-        on_value (via `sel['on_value']` or `sel.value.on_change`)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        start_directory: str = '',
-        *,
-        filter: T.Filter = None,
-        show_recent: bool = False,
-        node_type: T.NodeType = 'file',
-        dialog_title: str = '',
-        tree_panel_height: int = 500,
-        custom: tp.Optional[dict] = None,
-        width: Width | None = None,
-        **kwargs: tp.Any,
-    ) -> None:
-        super().__init__(width=width, **kwargs)
-
-        custom = custom or {}
-        first_path = start_directory or os.getcwd()
-        if node_type == 'file':
-            result = fs.abspath(first_path) if fs.isfile(first_path) else ''
-        else:
-            result = (
-                fs.abspath(first_path)
-                if fs.isdir(first_path)
-                else fs.parent(fs.abspath(first_path))
-            )
-        nav = _TreeNav(
-            first_path if fs.isdir(first_path) else fs.parent(first_path)
-        )
-
-        self._nav = nav
-        self._node_type = node_type
-        self._show_recent = show_recent
-
-        self.value = Property('')
-        self._browsing = Property(False)
-        self._has_recent = Property(False)
-        # set while `_refresh_recent` adopts the newest path into the dropdown:
-        # that is a display update, not a pick, so `_commit` must not run
-        self._recent_quiet = False
-        if result:
-            self.value.set(result)
-            nav.remember(result)
-
-        with self:
-            with Row('bottom'):
-                _call(custom.get('place0'))
-                self._path_input = PathInput(label, first_path)
-                _call(custom.get('place1'))
-                self._recent = Recent(
-                    'Recent', visible=self._has_recent, max_height=280
-                )
-                _call(custom.get('place2'))
-                self._browse_btn = Button('Browse')
-                _call(custom.get('place3'))
-
-            title = dialog_title or 'Select {}'.format(
-                'file' if node_type == 'file' else 'folder'
-            )
-            self._dialog = Dialog(title, visible=self._browsing, width='large')
-            with self._dialog:
-                self._tree = DualTreeSelect(
-                    nav.directory,
-                    filter=filter,
-                    height=tree_panel_height,
-                    node_type=node_type,
-                )
-
-        # -- handlers -------------------------------------------------------
-
-        @self._browse_btn.on_click
-        def _open_dialog() -> None:
-            self._tree._after_move(keep_selection=True)
-            self._browsing.set(True)
-
-        @self._dialog.on_close
-        def _on_dialog_closed() -> None:
-            self._browsing.set(False)
-
-        @self._tree.on_confirm
-        def _commit_from_tree() -> None:
-            self._commit(self._tree['value'])
-            self._browsing.set(False)
-
-        @self._recent.value.on_change
-        def _on_recent_picked() -> None:
-            if self._recent_quiet:
-                return
-            self._commit(str(self._recent['value']))
-
-        @self._path_input.value.on_change
-        def _on_path_typed() -> None:
-            path = self._path_input.value.get()
-            self._commit(path) if path else self.value.set('')
-
-        self._refresh_recent()
-
-    # -- internals ----------------------------------------------------------
-
-    def _commit(self, path: str) -> None:
-        path = path.strip()
-        if not path:
-            self.value.set('')
-            return
-        path = fs.abspath(path)
-        if not fs.exist(path):
-            # A half-typed path is not an error, just not a value yet.
-            self.value.set('')
-            return
-        if self._node_type == 'file' and fs.isdir(path):
-            self.value.set('')
-            self._nav.directory = path
-        else:
-            self.value.set(path)
-            self._nav.remember(path)
-            self._nav.directory = path if fs.isdir(path) else fs.parent(path)
-        self._path_input.value.set(path)
-        self._refresh_recent()
-
-    def _refresh_recent(self) -> None:
-        recent = list(self._nav.recent)
-        self._has_recent.set(bool(recent) and self._show_recent)
-        self._recent.options.set(recent)
-        if recent and self._recent['value'] not in recent:
-            # show the newest entry without *picking* it -- see the guard's
-            # note in `__init__`
-            self._recent_quiet = True
-            try:
-                self._recent.value.set(recent[0])
-            finally:
-                self._recent_quiet = False
+    def reload(self) -> None:
+        """Re-read the browsed folder from disk (the Refresh button's job)."""
+        self._nav.reload()
+        self._after_move()

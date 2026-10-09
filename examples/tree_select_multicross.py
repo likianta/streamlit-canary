@@ -1,6 +1,6 @@
 """Demo: tree select with single / multiple / multi-cross selection.
 
-`v3.SingleTreeSelectWithInput(selection_mode=...)` carries all three modes now:
+`v3.PathInputPopup(selection_mode=...)` carries all three modes now:
 
     'single'        pick one node (a radio list)
     'multiple'      tick nodes of the folder being browsed
@@ -45,7 +45,7 @@ v3 = sc.v3
 def main() -> None:
     sc.set_page_config('Tree Select - Multi / Cross-folders')
 
-    sel = v3.SingleTreeSelectWithInput(
+    sel = v3.PathInputPopup(
         'Node', '', filter=None, height=420, selection_mode='multicross'
     )
 

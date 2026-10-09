@@ -105,7 +105,7 @@ def entry_label(option: tp.Any) -> str:
 
     A row may also be an absolute path: a cascading panel lists several
     levels at once, so there a row is spelled out in full (see
-    `cascading.py`).  Such a row shows its own name only -- the indent, not
+    `tree_view.py`).  Such a row shows its own name only -- the indent, not
     the path, is what says how deep it sits.
     """
     name = str(option)
@@ -176,7 +176,7 @@ class _NavigationGroup:
         indeterminate: marks the options whose box is drawn half-ticked: a
             folder with only *some* of its descendants picked, in the multi
             modes. (A folder whose every descendant is picked is ticked it
-            itself -- see `cascading.py`.)
+            itself -- see `tree_view.py`.)
 
     Signals:
         on_open (via `group.on_open`) — a row was entered, through its arrow
@@ -320,7 +320,7 @@ def option_path(nav: _TreeNav, option: tp.Any) -> str:
 
     A row is spelled either as a bare name relative to the folder on show (a
     flat listing -- see `listing_options`) or as an absolute path (a
-    cascading one, which lists several levels at once; see `cascading.py`).
+    cascading one, which lists several levels at once; see `tree_view.py`).
     The former is joined onto `nav.directory`; the latter is already the
     answer.
     """

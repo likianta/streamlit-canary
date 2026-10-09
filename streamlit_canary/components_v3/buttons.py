@@ -78,15 +78,21 @@ class IconButton(Button):
 
     Args:
         icon: a material icon name (e.g. "refresh"), or any short label;
-            a bare name is wrapped as `:material/<name>:`.
+            a bare name is wrapped as `:material/<name>:`. Bindable, so a
+            button can swap its glyph with its own state (see the path
+            inputs' fold button).
         help: tooltip text — recommended, since an icon alone is cryptic.
         type / width / enabled / on_click: see `Button`.
     """
 
     def __init__(
-        self, icon: str = '', *, help: str | None = None, **kwargs: tp.Any
+        self,
+        icon: str | Property = '',
+        *,
+        help: str | None = None,
+        **kwargs: tp.Any,
     ) -> None:
-        if icon and not icon.startswith(':'):
+        if isinstance(icon, str) and icon and not icon.startswith(':'):
             icon = ':material/{}:'.format(icon)
         super().__init__(icon, help=help, **kwargs)
         self._icon_only = True

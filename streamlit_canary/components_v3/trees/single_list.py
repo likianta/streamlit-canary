@@ -1,6 +1,9 @@
-"""The single-pane browser and its "input + panel" wrapper."""
+"""The single-pane browser: one folder on show at a time.
 
-import os
+The panel itself, with no path input attached -- see `path_inputs.py` for the
+`PathInput` + panel pairings.
+"""
+
 import typing as tp
 
 from lk_utils import fs
@@ -40,7 +43,6 @@ from ..base import Width
 from ..buttons import Button
 from ..buttons import IconButton
 from ..inputs import CheckGroup
-from ..inputs import PathInput
 from ..inputs import RadioGroup
 from ..inputs import ReducibleGroup
 from ..inputs import Selectbox
@@ -50,7 +52,6 @@ from ..layouts import Popover
 from ..layouts import Row
 from ...kernel import Property
 from ...kernel import Signal
-from ...kernel import _value
 from ...kernel import bind
 
 
@@ -83,7 +84,7 @@ class SingleTreeSelect(_Labeled, Container):
     panel wears.  Left alone (the default) the panel is a standalone widget:
     the button sits under the listing, in the ordinary flow, and the panel
     draws its own `border`.  A wrapper that already lives inside a frame --
-    `SingleTreeSelectWithInput`, inside a popover -- passes `_vendored=True`
+    `PathInputPopup`, inside a popover -- passes `_vendored=True`
     instead: the button rides in a `FloatingContainer` in the panel's
     corner, staying put while the listing scrolls beneath it (and, being
     sticky, keeping its place in the flow, so no row can end up hidden under
@@ -148,7 +149,7 @@ class SingleTreeSelect(_Labeled, Container):
             back (see `mode`).
         _vendored: whether the panel is delivered inside a wrapper's frame,
             which also floats the Confirm button into the corner (see the
-            Layout note above).  Only `SingleTreeSelectWithInput` passes `True`.
+            Layout note above).  The path inputs all pass `True`.
         border: whether the panel draws its own frame.  Left `None` it is
             `not _vendored`, so a standalone panel is framed by default.
         show_confirm_button: whether the Confirm button is shown (default
@@ -179,7 +180,7 @@ class SingleTreeSelect(_Labeled, Container):
             resolved absolute paths (see `resolve`);
             a pick another pick already covers is dropped, so a ticked folder
             stands in for everything under it. A wrapper such as
-            `SingleTreeSelectWithInput` listens for it to dismiss the popover it
+            `PathInputPopup` listens for it to dismiss the popover it
             opened.
 
     Call `reload()` to re-read the folder from disk, `select(path)` to add a
@@ -229,10 +230,14 @@ class SingleTreeSelect(_Labeled, Container):
         home_directory: str = '',
         initial_mode: tp.Optional[str] = None,
         label_visibility: str = 'auto',
+        leading: tp.Optional[tp.Callable[[], None]] = None,
+        rows_visible: tp.Union[bool, Property] = True,
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
         show_confirm_button: bool = True,
+        show_location: tp.Optional[bool] = None,
+        trailing: tp.Optional[tp.Callable[[], None]] = None,
         width: Width | None = None,
         _vendored: bool = False,
         **kwargs: tp.Any,
@@ -241,6 +246,10 @@ class SingleTreeSelect(_Labeled, Container):
             # a standalone panel frames itself; one delivered inside a
             # wrapper's frame (a popover) would only nest a second frame
             border = not _vendored
+        if show_location is None:
+            # a caller leading the row with a widget of its own (a path input)
+            # has no use for the ladder -- that widget *is* the way in
+            show_location = leading is None
         super().__init__(
             label,
             label_visibility=label_visibility,
@@ -250,6 +259,11 @@ class SingleTreeSelect(_Labeled, Container):
             **kwargs,
         )
         self._vendored = _vendored
+        # `leading` / `trailing` fill the head and the tail of the toolbar
+        # row, so a wrapper can lay its own widgets around the actions (the
+        # path inputs put a `PathInput` in front of `home` and a
+        # fold / unfold button after the mode control)
+        self._location: tp.Optional[Selectbox] = None
 
         selection_mode = _check_selection_mode(selection_mode)
         initial_mode = _check_initial_mode(initial_mode, selection_mode)
@@ -281,6 +295,11 @@ class SingleTreeSelect(_Labeled, Container):
             tp.cast(tp.Union[str, tp.List[str]], _empty_value(initial_mode))
         )
         self.mode = Property(initial_mode)
+        # whether the listing shows at all. A wrapper that folds the panel
+        # (an expander-like path input) gates the rows with it while the
+        # toolbar row stays put.
+        self.rows_visible = Property(True)
+        self.rows_visible.set_or_bind(rows_visible)
         self.on_navigate: Signal = Signal(str)
         self.on_submit: Signal = Signal(tp.Iterable[str])
 
@@ -299,20 +318,23 @@ class SingleTreeSelect(_Labeled, Container):
             # place the ladder cannot offer -- a path typed in from outside --
             # and takes the panel *there* rather than growing a rung.
             with Row('center'):
-                self._location = Selectbox(
-                    'Current location',
-                    options=_location_options(nav.directory),
-                    format=_path_label,
-                    value=nav.directory,
-                    accept_new_option=accept_new_option,
-                    take_new_option=(
-                        self._take_typed_path if accept_new_option else None
-                    ),
-                    label_visibility='collapsed',
-                    # the bar reads from its tail: the folder you are in is the
-                    # last rung, and the shared prefix is the noise
-                    truncate_start=True,
-                )
+                if leading is not None:
+                    leading()
+                if show_location:
+                    self._location = Selectbox(
+                        'Current location',
+                        options=_location_options(nav.directory),
+                        format=_path_label,
+                        value=nav.directory,
+                        accept_new_option=accept_new_option,
+                        take_new_option=(
+                            self._take_typed_path if accept_new_option else None
+                        ),
+                        label_visibility='collapsed',
+                        # the bar reads from its tail: the folder you are in is
+                        # the last rung, and the shared prefix is the noise
+                        truncate_start=True,
+                    )
                 self._home_btn = IconButton('home')
                 self._refresh_btn = IconButton('refresh')
                 if crosses:
@@ -345,6 +367,9 @@ class SingleTreeSelect(_Labeled, Container):
                         label_visibility='collapsed',
                         width='content',
                     )
+                if trailing is not None:
+                    trailing()
+
             # The two lists differ only in how many nodes they may pick. Both
             # freeze `..` and route its body click to the walk-up (one test is
             # both predicates), and both float the "enter" arrow on their
@@ -352,9 +377,17 @@ class SingleTreeSelect(_Labeled, Container):
             # row's own click is free to just tick it.
             #
             # Every row-inspection hook goes in through `_row_extras`, which
-            # `ClassicTreeSelect` overrides to teach these same two groups
+            # `TreeView` overrides to teach these same two groups
             # about indentation and collapse / expand buttons.
-            with Container(visible=bind(self.mode, _is_single)):
+            def _rows_for(pred: tp.Callable[[str], bool]) -> tp.Any:
+                # the mode picks which of the two lists shows; `rows_visible`
+                # folds both away, for a wrapper that collapses the panel
+                return bind(
+                    (self.mode, self.rows_visible),
+                    lambda pair: pred(pair[0]) and pair[1],
+                )
+
+            with Container(visible=_rows_for(_is_single)):
                 self._single_list = _NavRadioGroup(
                     'Folder contents',
                     options=(),
@@ -366,7 +399,7 @@ class SingleTreeSelect(_Labeled, Container):
                     body_opens=self._is_nav_up,
                     **self._row_extras(),
                 )
-            with Container(visible=bind(self.mode, _is_multi)):
+            with Container(visible=_rows_for(_is_multi)):
                 self._multi_list = _NavCheckGroup(
                     'Folder contents',
                     options=(),
@@ -436,14 +469,16 @@ class SingleTreeSelect(_Labeled, Container):
         def _on_multi_open(index: int) -> None:
             self._open_row(self._multi_list, index)
 
-        @self._location.value.on_change
-        def _on_location_picked() -> None:
-            # the ladder only ever holds folders, so a pick is a jump
-            if self._syncing:
-                return
-            directory = str(self._location.value.get())
-            if directory and directory != self._nav.directory:
-                self._jump(directory)
+        if self._location is not None:
+
+            @self._location.value.on_change
+            def _on_location_picked() -> None:
+                # the ladder only ever holds folders, so a pick is a jump
+                if self._syncing:
+                    return
+                directory = str(self._location.value.get())
+                if directory and directory != self._nav.directory:
+                    self._jump(directory)
 
         @self._home_btn.on_click
         def _on_home() -> None:
@@ -564,8 +599,8 @@ class SingleTreeSelect(_Labeled, Container):
     # differently: it lists several levels at once, so there a row is spelled
     # out in full, it is indented by its depth, and its box can be drawn
     # half-ticked.  The definitions below describe the flat case -- one
-    # folder on show, rows named relative to it -- and `ClassicTreeSelect`
-    # (see `cascading.py`) overrides the ones it disagrees with.
+    # folder on show, rows named relative to it -- and `TreeView`
+    # (see `tree_view.py`) overrides the ones it disagrees with.
 
     def _apply_ticks(self) -> None:
         """Fold the ticked rows back into the selection.
@@ -573,7 +608,7 @@ class SingleTreeSelect(_Labeled, Container):
         Drop this folder's previous picks, then add the ticked ones, so picks
         made in other folders survive -- that is what makes `multicross` a
         cross-folder gathering.  A cascading panel has more to say here: a
-        ticked folder stands for its whole subtree (see `cascading.py`).
+        ticked folder stands for its whole subtree (see `tree_view.py`).
         """
         listed = self._listed_paths()
         kept = [p for p in _as_picked(self.value.get()) if p not in listed]
@@ -597,7 +632,7 @@ class SingleTreeSelect(_Labeled, Container):
         A flat panel ticks a row exactly when its own path is picked.  A
         cascading one also ticks a row that a picked *ancestor* covers: the
         pick stands for the whole subtree, so every row inside it is ticked
-        too (see `cascading.py`).
+        too (see `tree_view.py`).
         """
         return self._option_path(option) in picked
 
@@ -737,8 +772,9 @@ class SingleTreeSelect(_Labeled, Container):
             # the last rung, so a fresh listing reads as "you are here".
             # `value` goes in before `options` so `_auto_select` finds it
             # already present and does not fall back to the drive root.
-            self._location.value.set(nav.directory)
-            self._location.options.set(_location_options(nav.directory))
+            if self._location is not None:
+                self._location.value.set(nav.directory)
+                self._location.options.set(_location_options(nav.directory))
         finally:
             self._syncing = False
         self.on_navigate.emit(nav.directory)
@@ -795,184 +831,3 @@ class SingleTreeSelect(_Labeled, Container):
         nav = self._nav
         ticked = self._multi_list.value.get() or ()
         return [p for p in (option_path(nav, o) for o in ticked) if p]
-
-
-class SingleTreeSelectWithInput(Container):
-    """
-    A path input plus a single-pane browser in a "Browse" popover.
-
-    Usage:
-        with v3.SingleTreeSelectWithInput(
-            'Select a file',
-            'data/sample',
-            filter='.txt',  # or multi-filter: filter=('.txt', '.csv', '.xlsx')
-        ) as tree:
-            ...
-            path = tree.value.get()
-
-    The box is the panel's other half. A path it resolves to -- typed,
-    pasted, or handed in as `start_directory` -- moves the browser (and the
-    panel's own location bar) onto the folder that holds it; a path that is
-    not on disk yet names no folder, so the panel is left where it was. The
-    panel's picks come back out through `value`, and the box also keeps its
-    own list of the paths it has held (`PathInput.input_history`), which is
-    what the "Recent" dropdown used to offer here.
-
-    Confirm closes the popover and writes the choice into the box: the
-    panel's pick, or -- with nothing ticked -- the folder the panel ended
-    on (v1 spelled that folder out as a "This folder" row, and a folder
-    chooser reads the same way). That choice also joins the selection
-    (`select`), so `value` carries it too; a commit like this is not a
-    typed path, so it leaves the panel where it is.
-
-    Properties:
-        value: str | list[str] — the panel's selection; this mirrors
-            `SingleTreeSelect.value`, so `'single'` holds one path and the multi
-            modes hold a list. Write through the panel (`select` / `clear`).
-        mode: str — the panel's active mode (mirrors `SingleTreeSelect.mode`).
-        directory: str — the folder the panel shows (mirrors
-            `SingleTreeSelect.directory`).
-        input_history: list[str] | None — the paths the box has held, as its
-            dropdown lists them (mirrors `PathInput.input_history`). It seeds
-            through the constructor argument; this mirror is read-mostly.
-    """
-
-    def __init__(
-        self,
-        label: str = '',
-        start_directory: str = '',
-        *,
-        filter: T.Filter = None,
-        initial_mode: tp.Optional[str] = None,
-        panel_height: int = 500,
-        selection_mode: tp.Union[
-            T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
-        ] = _MODE_SINGLE,
-        input_history: tp.Iterable[str] | Property | None = (),
-        width: Width | None = None,
-        **kwargs: tp.Any,
-    ) -> None:
-        super().__init__(width=width, **kwargs)
-
-        first_path = start_directory or os.getcwd()
-        initial_is_file = bool(start_directory) and fs.isfile(first_path)
-        nav = _TreeNav(fs.parent(first_path) if initial_is_file else first_path)
-
-        # `value` / `mode` mirror the panel's, so a caller reads the selection
-        # right here; writes go through the panel (`select` / `clear`).
-        self.value = Property(tp.cast(tp.Union[str, tp.List[str]], ''))
-        self.mode = Property(_MODE_SINGLE)
-        # set while Confirm writes the box: that write is a commit, not the
-        # user typing, so it must not drag the panel to another folder (see
-        # `_on_tree_submitted` / `_on_path_typed`)
-        self._confirming = False
-
-        with self:
-            with Row('bottom'):
-                # the box is its own history: it starts with `first_path`
-                # (plus whatever `input_history` seeds) and keeps every path
-                # it comes to hold (see `PathInput.input_history`) -- the
-                # "Recent" dropdown's job, done where the paths are actually
-                # entered. No `accept_new_option`: the box already resolves
-                # what is typed (on blur / Enter), and the "Add: ..." row it
-                # would draw only shows as a stray blank item in the dropdown.
-                self._path_input = PathInput(
-                    label, first_path, input_history=input_history
-                )
-                self._browse_popover = Popover(
-                    'Browse', panel_align='row', panel_max_height=panel_height
-                )
-                with self._browse_popover:
-                    self._tree = SingleTreeSelect(
-                        # keyword: `SingleTreeSelect`'s first positional parameter is
-                        # its `label`, so passing the folder here would land on
-                        # the wrong field and leave the panel opening on the
-                        # cwd instead of the path box's folder
-                        start_directory=nav.directory,
-                        filter=filter,
-                        height=None,
-                        initial_mode=initial_mode,
-                        selection_mode=selection_mode,
-                        # the path box takes a pasted path as readily as a
-                        # picked one, so the panel's own ladder does too
-                        accept_new_option=True,
-                        # this panel rides inside our `Browse` popover, which
-                        # already draws the frame: float the Confirm button
-                        # into the corner and skip the panel's own border
-                        _vendored=True,
-                        border=False,
-                    )
-        self.value.bind(self._tree.value)
-        self.mode.bind(self._tree.mode)
-        # the box's own history, reachable from the wrapper (a mirror, so the
-        # same `Property` is not listed twice in `_iter_properties`)
-        self.input_history = Property(tp.cast(tp.Optional[tp.List[str]], None))
-        self.input_history.bind(self._path_input.input_history)
-
-        if initial_is_file:
-            self._tree.select(fs.abspath(first_path))
-
-        # -- handlers -------------------------------------------------------
-
-        @self._path_input.value.on_change.partial(_value)
-        def _on_path_typed(norm_path: str) -> None:
-            # `norm_path` is `''` only while the box is blank; a path that is
-            # not on disk yet reaches here too (a folder being named), so
-            # nothing below may assume it exists. `_confirming` marks a write
-            # made by Confirm: that is a commit, not a typed path, so it must
-            # not walk the panel off to that folder (which would also drop a
-            # `multiple` pick).
-            if not norm_path or self._confirming:
-                return
-            # the box is the panel's other half: a path typed / pasted into
-            # it moves the browser -- and with it the panel's location bar --
-            # onto the folder that holds it. A path that is not on disk yet
-            # names no folder, so the panel is simply left where it was (the
-            # last place browsed or confirmed) rather than sent anywhere.
-            if fs.isdir(norm_path):
-                self._tree._jump(norm_path)
-            elif fs.exist(norm_path):
-                self._tree._jump(fs.parent(norm_path))
-            # a path from the box also joins the panel's selection (`select`
-            # is exactly the door for a path the listing does not hold), so
-            # `value` -- and every property bound to it -- sees what was
-            # typed. `_jump` is asked first: in `multiple` it clears the
-            # picks, which would otherwise swallow this one.
-            self._tree.select(norm_path)
-
-        @self._tree.on_submit
-        def _on_tree_submitted(paths: tp.Iterable[str]) -> None:
-            # the panel's Confirm is a "done" action, and it takes the choice:
-            # the pick, or -- with nothing ticked -- the folder the panel
-            # ended on. v1 spelled that folder out as a "This folder" row, and
-            # a folder chooser reads the same way. So the choice lands in the
-            # box (which is the panel's other half), and in the panel's own
-            # selection, which `value` mirrors.
-            self._browse_popover.close()
-            resolved = tuple(paths)
-            choice = resolved[0] if resolved else self._tree.directory
-            if not choice:
-                return
-            self._confirming = True
-            try:
-                self._path_input.show(choice)
-            finally:
-                self._confirming = False
-            # `select` is the "a path from the box joins the selection" door:
-            # in `single` it replaces the pick, in the multi modes it adds one
-            self._tree.select(choice)
-
-    # -- public api ---------------------------------------------------------
-
-    def clear(self) -> None:
-        """Drop the panel's selection (see `SingleTreeSelect.clear`)."""
-        self._tree.clear()
-
-    @property
-    def directory(self) -> str:
-        """The folder the panel shows (see `SingleTreeSelect.directory`)."""
-        return self._tree.directory
-
-    def reload(self) -> None:
-        """Re-read the browsed folder from disk (same as the panel's button)."""
-        self._tree.reload()

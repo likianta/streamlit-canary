@@ -1366,7 +1366,7 @@ def _row_toggle_html(expanded: tp.Optional[bool]) -> str:
     a label ignores clicks aimed at interactive content inside it, so this
     folds the folder without ticking its box on the way.  The click is
     reported as a `toggle` event (see `scToggleRow`), which `_NavigationGroup`
-    in `components_v3/trees/` picks up -- `ClassicTreeSelect` is the one that
+    in `components_v3/trees/` picks up -- `TreeView` is the one that
     uses it.
 
     The chevron points right while the folder is folded and turns a quarter
@@ -1433,7 +1433,7 @@ def _choice_group_items_html(
     `expandable` marks the options that carry a collapse / expand button
     (see `_row_toggle_html`), and `expanded` says whether that folder is
     currently open: its chevron turns a quarter turn.  Both belong to a
-    cascading panel (`ClassicTreeSelect`), the only one that lists a whole
+    cascading panel (`TreeView`), the only one that lists a whole
     hierarchy at once.
 
     `indeterminate` marks the options whose box is drawn half-ticked: a

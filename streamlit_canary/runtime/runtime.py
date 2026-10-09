@@ -275,7 +275,7 @@ class Runtime:
                 ]
             # ... and how a cascading tree's rows are drawn (`_depth_of`,
             # `_expandable` / `_expanded`, `_indeterminate` -- which only
-            # `ClassicTreeSelect` sets): the inset, the collapse / expand
+            # `TreeView` sets): the inset, the collapse / expand
             # button and the half-ticked box all ride along, since rebuilding
             # the rows is exactly what draws them.
             depth_of = getattr(comp, '_depth_of', None)

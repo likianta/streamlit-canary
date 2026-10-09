@@ -284,7 +284,7 @@
     opacity: 1;
   }
   /* The half-ticked box of a folder with only *part* of its subtree picked
-     (`indeterminate` in `ClassicTreeSelect`, sent as `data-indeterminate` on
+     (`indeterminate` in `TreeView`, sent as `data-indeterminate` on
      the field). The box is filled like a ticked one -- it reads as "on" --
      and the checkmark gives way to a dash, which is the shape a native
      tri-state box has. The mark is dropped from the layout rather than

@@ -83,9 +83,10 @@ from .texts import PageTitle
 from .texts import Text
 from .texts import Title
 
-from .trees import ClassicTreeSelect
-from .trees import ClassicTreeSelect as TreeSelect
 from .trees import DualTreeSelect
-from .trees import DualTreeSelectWithInput
+from .trees import PathInputExpanded
+from .trees import PathInputExpander
+from .trees import PathInputPopup
 from .trees import SingleTreeSelect
-from .trees import SingleTreeSelectWithInput
+from .trees import TreeView
+from .trees import TreeView as TreeSelect

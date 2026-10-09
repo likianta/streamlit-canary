@@ -136,7 +136,7 @@
     const frozen = new Set(config.boxDisabled || []);
     const navigable = new Set(config.navigable || []);
     const opensOnBody = new Set(config.bodyOpens || []);
-    // A cascading tree's extras (see `ClassicTreeSelect`): `depth` is the only
+    // A cascading tree's extras (see `TreeView`): `depth` is the only
     // one sent as a plain list, since every row has a depth -- its presence is
     // also what tells this builder the listing is a tree.
     const depth = config.depth;

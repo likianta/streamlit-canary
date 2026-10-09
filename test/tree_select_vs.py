@@ -1,11 +1,14 @@
 """Drive `./tree_select_sc.py` with Playwright.
 
-The cascading tree (`v3.ClassicTreeSelect`) is the subject. The scene puts it
-on port 2201 next to the flat panel and roots it at `streamlit_canary`, so the
-rows under test are its own subpackage: the folder `components_v3/`, the
-nested folder `trees/` inside it, and the files beside them. This walks a
-browser through folding folders open, ticking rows, and watching the boxes
-above them.
+The scene holds the three path inputs, and this walks the *expanded* one --
+the folded-in-place `TreeView` behind `v3.PathInputExpanded`, rooted at
+`streamlit_canary`, so the rows under test are its own subpackage: the folder
+`components_v3/`, the nested folder `trees/` inside it, and the files beside
+them. This folds folders open, ticks rows, and watches the readout under the
+panel.
+
+The last section turns to the other two hosts: the expander's fold button and
+the popup's `Browse` / Confirm pair.
 
 Everything it checks lives in the DOM the server sent -- the inset, the
 chevron, the half-ticked box -- plus the compact pick that comes back out of
@@ -29,13 +32,19 @@ URL = 'http://localhost:2201'
 SCENE = 'test/tree_select_sc.py'
 
 HERE = os.path.abspath('.').replace('\\', '/')
-FOLDER = HERE + '/streamlit_canary/components_v3'
+SUBPKG = HERE + '/streamlit_canary'
+FOLDER = SUBPKG + '/components_v3'
 TREES = FOLDER + '/trees'
 
-# Both panels build a hidden option list for the mode they are not in, so
-# every query here has to side-step the invisible ones: the cascading tree is
-# the only *visible* check group on the page (`:visible` for the locators, a
-# filter on `offsetParent` for the `evaluate` calls).
+# the expander's own rows: a `single`-mode panel, so its radio list is the
+# visible one (the expanded panel below it is in `multiple`, whose radio list
+# is hidden, and the popup's panel is inside a closed popover)
+EXPANDER_ROWS = '.st-radio .st-radio-item:visible'
+
+# Every panel builds a hidden option list for the mode it is not in, so each
+# query here side-steps the invisible ones: among the three, the expanded
+# panel is the only one whose check group is on show (`:visible` for the
+# locators, a filter on `offsetParent` for the `evaluate` calls).
 STATE_JS = """
 (label) => {
   const item = Array.from(
@@ -73,7 +82,7 @@ ROWS_JS = """
 READOUT_JS = """
 () => {
   const els = Array.from(document.querySelectorAll('.st-plain'));
-  const hit = els.find((el) => el.textContent.startsWith('Classic:'));
+  const hit = els.find((el) => el.textContent.startsWith('Expanded:'));
   return hit ? hit.textContent.trim() : null;
 }
 """
@@ -308,7 +317,7 @@ def walk(page) -> bool:
     good = (
         check(
             'the pick that comes out is the folder itself',
-            page.evaluate(READOUT_JS) == "Classic: ['{}']".format(FOLDER),
+            page.evaluate(READOUT_JS) == "Expanded: ['{}']".format(FOLDER),
         )
         and good
     )
@@ -370,7 +379,7 @@ def walk(page) -> bool:
     # == 5. deeper: a covered subfolder opens up when one of its rows leaves ==
     print('== 5. two levels deep ==')
     click_toggle(page, 'trees/')
-    print('  deep:', state(page, 'cascading.py'))
+    print('  deep:', state(page, 'tree_view.py'))
     good = (
         check('the nested folder is ticked', field(page, 'trees/', 'checked'))
         and good
@@ -378,14 +387,14 @@ def walk(page) -> bool:
     good = (
         check(
             'its boxes sit one level deeper again',
-            field(page, 'cascading.py', 'depth') == '2',
+            field(page, 'tree_view.py', 'depth') == '2',
         )
         and good
     )
     good = (
         check(
             'so they step further right',
-            field(page, 'cascading.py', 'box_x')
+            field(page, 'tree_view.py', 'box_x')
             > field(page, 'trees/', 'box_x'),
         )
         and good
@@ -393,11 +402,11 @@ def walk(page) -> bool:
     good = (
         check(
             'a file inside it reads as ticked',
-            field(page, 'cascading.py', 'checked'),
+            field(page, 'tree_view.py', 'checked'),
         )
         and good
     )
-    click_box(page, 'cascading.py')
+    click_box(page, 'tree_view.py')
     print('  nested:', state(page, 'trees/'))
     print('  readout:', page.evaluate(READOUT_JS))
     good = (
@@ -417,14 +426,14 @@ def walk(page) -> bool:
     good = (
         check(
             'the file that left is out',
-            not field(page, 'cascading.py', 'checked'),
+            not field(page, 'tree_view.py', 'checked'),
         )
         and good
     )
     good = (
         check(
             'and it left the pick (the folder opened into its rows)',
-            "'{}/cascading.py'".format(TREES)
+            "'{}/tree_view.py'".format(TREES)
             not in (page.evaluate(READOUT_JS) or ''),
         )
         and good
@@ -454,6 +463,61 @@ def walk(page) -> bool:
         check(
             'the child rows are not in the listing any more',
             state(page, 'trees/') is None,
+        )
+        and good
+    )
+
+    # == 7. the expander and the popup ======================================
+    print('== 7. the expander and the popup ==')
+    good = (
+        check(
+            'the expander starts folded',
+            page.locator(EXPANDER_ROWS).count() == 0,
+        )
+        and good
+    )
+    # `.st-btn-icon` tells the fold button from the popup's trigger, whose
+    # own chevron carries the same ligature name
+    fold = page.locator('.st-btn-icon', has_text='expand_more')
+    good = check('its fold button points down', fold.count() == 1) and good
+    fold.click()
+    page.wait_for_timeout(600)
+    good = (
+        check(
+            'pressing it unfolds the rows',
+            page.locator(EXPANDER_ROWS).count() > 0,
+        )
+        and good
+    )
+    good = (
+        check(
+            'and turns the glyph up',
+            page.locator('.st-btn-icon', has_text='expand_less').count() == 1,
+        )
+        and good
+    )
+
+    browse = page.locator('.st-popover-trigger', has_text='Browse')
+    good = check('the popup offers a Browse', browse.count() == 1) and good
+    browse.click()
+    page.wait_for_timeout(700)
+    panel = page.locator('.st-popover-panel:visible')
+    good = check('it opened a panel', panel.count() == 1) and good
+    panel.locator('.st-radio .st-radio-item:visible').filter(
+        has_text='streamlit_canary/'
+    ).first.click()
+    page.wait_for_timeout(400)
+    panel.locator('.st-btn', has_text='Confirm').click()
+    page.wait_for_timeout(700)
+    box = page.evaluate(
+        "() => document.querySelector('.st-text-input-box').value"
+    )
+    print('  popup box:', box)
+    good = check('Confirm wrote the pick into the box', box == SUBPKG) and good
+    good = (
+        check(
+            'and folded the popover away',
+            page.locator('.st-popover-panel:visible').count() == 0,
         )
         and good
     )

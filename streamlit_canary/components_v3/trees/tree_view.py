@@ -1,6 +1,6 @@
 """The cascading tree: the single-pane browser with every level on show.
 
-`ClassicTreeSelect` is `SingleTreeSelect` plus one axis -- a folder row can be
+`TreeView` is `SingleTreeSelect` plus one axis -- a folder row can be
 folded open *in place*, so a whole hierarchy is walkable without re-rooting
 the panel.  That is the shape a file dialog has been wearing since Windows
 95, hence "classic", as opposed to the flat one-folder-at-a-time listing the
@@ -10,7 +10,7 @@ Everything else is inherited, and deliberately so: the toolbar (the location
 ladder, `home`, `refresh`, the bucket, the mode control), the row gestures (a
 click ticks, `->` walks in, `..` walks up), the `single` / `multiple` /
 `multicross` modes and the Confirm bar all behave exactly as they do in the
-flat panel.  What changes is only what `single_pane.py`'s row model leaves
+flat panel.  What changes is only what `single_list.py`'s row model leaves
 open:
 
     rows     a row is an absolute path rather than a name relative to the
@@ -61,10 +61,10 @@ from ._shared import NAV_UP
 from ._shared import _as_picked
 from ._shared import _is_multi
 from ._shared import _is_under
-from .single_pane import SingleTreeSelect
+from .single_list import SingleTreeSelect
 
 
-class ClassicTreeSelect(SingleTreeSelect):
+class TreeView(SingleTreeSelect):
     def __init__(self, *args: tp.Any, **kwargs: tp.Any) -> None:
         # The folders that are showing their children, by absolute path.
         # Built before `super().__init__`, which draws the listing out of it.
