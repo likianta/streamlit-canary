@@ -57,7 +57,7 @@ def run(
         (streamlit_process, window_process)
     """
     if host is None:
-        # A str target is served by a *child* process, which calls `run()`
+        # a str target is served by a *child* process, which calls `run()`
         # again on its own, so `host` has to cross a process boundary; it
         # rides in the environment, filed under the port. A callable target
         # has no such hop, and the lookup simply misses.

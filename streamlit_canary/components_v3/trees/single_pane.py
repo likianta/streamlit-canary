@@ -817,6 +817,13 @@ class SingleTreeSelectWithInput(Container):
     the paths it has resolved (`PathInput.candidates`), which is what the
     "Recent" dropdown used to offer here.
 
+    Confirm closes the popover and writes the choice into the box: the
+    panel's pick, or -- with nothing ticked -- the folder the panel ended
+    on (v1 spelled that folder out as a "This folder" row, and a folder
+    chooser reads the same way). That choice also joins the selection
+    (`select`), so `value` carries it too; a commit like this is not a
+    typed path, so it leaves the panel where it is.
+
     Properties:
         value: str | list[str] — the panel's selection; this mirrors
             `SingleTreeSelect.value`, so `'single'` holds one path and the multi
@@ -850,6 +857,10 @@ class SingleTreeSelectWithInput(Container):
         # right here; writes go through the panel (`select` / `clear`).
         self.value = Property(tp.cast(tp.Union[str, tp.List[str]], ''))
         self.mode = Property(_MODE_SINGLE)
+        # set while Confirm writes the box: that write is a commit, not the
+        # user typing, so it must not drag the panel to another folder (see
+        # `_on_tree_submitted` / `_on_path_typed`)
+        self._confirming = False
 
         with self:
             with Row('bottom'):
@@ -896,8 +907,11 @@ class SingleTreeSelectWithInput(Container):
         def _on_path_typed(norm_path: str) -> None:
             # a path only reaches the box once it resolves, so `norm_path` is
             # either something real or `''` (the box was emptied, or left
-            # half typed) -- and an empty one has nowhere to send the panel
-            if not norm_path:
+            # half typed) -- and an empty one has nowhere to send the panel.
+            # `_confirming` marks a write made by Confirm: that is a commit,
+            # not a typed path, so it must not walk the panel off to that
+            # folder either (which would also drop a `multiple` pick).
+            if not norm_path or self._confirming:
                 return
             # the box is the panel's other half: a path typed / pasted into it
             # moves the browser -- and with it the panel's location bar -- onto
@@ -909,14 +923,26 @@ class SingleTreeSelectWithInput(Container):
             self._tree._jump(norm_dir)
 
         @self._tree.on_submit
-        def _on_tree_submitted(_paths: tp.Iterable[str]) -> None:
-            # the panel's Confirm is a "done" action: fold the popover away
-            # (the panel has no idea it lives in one; we own it, so we close
-            # it). The pick itself already sits in `_tree.value`, which
-            # `value` mirrors. The resolved paths stay on the panel
-            # (`_tree.resolve()`), so a caller that needs them reads them
-            # there rather than through this wrapper.
+        def _on_tree_submitted(paths: tp.Iterable[str]) -> None:
+            # the panel's Confirm is a "done" action, and it takes the choice:
+            # the pick, or -- with nothing ticked -- the folder the panel
+            # ended on. v1 spelled that folder out as a "This folder" row, and
+            # a folder chooser reads the same way. So the choice lands in the
+            # box (which is the panel's other half), and in the panel's own
+            # selection, which `value` mirrors.
             self._browse_popover.close()
+            resolved = tuple(paths)
+            choice = resolved[0] if resolved else self._tree.directory
+            if not choice:
+                return
+            self._confirming = True
+            try:
+                self._path_input.show(choice)
+            finally:
+                self._confirming = False
+            # `select` is the "a path from the box joins the selection" door:
+            # in `single` it replaces the pick, in the multi modes it adds one
+            self._tree.select(choice)
 
     # -- public api ---------------------------------------------------------
 

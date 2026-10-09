@@ -111,16 +111,16 @@ python test/event_driven_system/components_v3_demo.py
 我们在本地 (localhost) 提供了 :2200 到 :2229 共 30 个端口专为本项目使用. 目前定义如下:
 
 ```yaml
-2200: 默认的 streamlit 应用端口, 常见于基于 streamlit 的应用的临时测试.
-2201: 默认的 streamlit canary (v3) 应用端口.
+2200: 默认的 Streamlit 应用端口, 常见于基于 Streamlit 的应用的临时测试.
+2201: 默认的 Streamlit Canary (v3) 应用端口.
 2202: 高保真对比测试端口 (streamlit), 见 ./test/pixel_fidelity/ui_scene_st.py
 2203: 高保真对比测试端口 (streamlit-canary), 见 ./test/pixel_fidelity/ui_scene_sc.py
 2204: ASA GUI 原版应用.
 2205: ASA GUI 副本应用. 也就是我们正在用 v3 组件重写并测试的应用.
 2206: PyProject Manager 原版应用.
 2207: PyProject Manager 副本应用.
-2208: 未使用, 待定义.
-2209: 未使用, 待定义.
+2208: Mklink GUI 原版应用 (./references/mklink_gui/app.py).
+2209: Mklink GUI 副本应用 (./test/rewrite_third_party_projects/mklink_gui_copy/app2.py).
 2210: PDF Watermaker 原版应用.
 2211: PDF Watermaker 副本应用.
 2212...2229: 暂未定义, 未来会根据需要添加.
