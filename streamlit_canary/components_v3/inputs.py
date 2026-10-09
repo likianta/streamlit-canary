@@ -516,7 +516,6 @@ class PathInput(_Submittable, Container):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
-
         self._init_submittable()
         self.value = Property('')
         # The memory behind `input_history`, and only for a literal sequence:
@@ -631,6 +630,61 @@ class PathInput(_Submittable, Container):
         # the separators are straightened and the text is kept -- a caller
         # decides for itself what a path that does not exist yet means.
         return text.replace('\\', '/')
+
+
+class PathSelect(PathInput):
+    """A `PathInput` that also carries a navigation ladder.
+
+        with v3.PathSelect(
+            'Go to', '.', ladder=['C:/', 'C:/work', 'C:/work/app']
+        ) as box:
+            ...
+            path = box.value.get()
+
+    The look is `PathInput`'s -- the same editable box in a `Selectbox`-style
+    frame, with the same `input_history` panel and caret -- plus:
+
+    - a click anywhere in the box unfolds the *ladder*: the rungs above the
+      folder on show (the drives, then every ancestor), each a pick that
+      fills the box in exactly as a history pick does. That is the
+      `Current location` bar of `PathInputPopup`, folded into the box, and
+      the **last** rung -- the folder on show -- is drawn as the selected
+      one.
+    - the caret unfolds `input_history`, and stays greyed out while that
+      history is empty (there is nothing to remember yet).
+
+    Both close on a click outside the frame or on Escape, the way a
+    `Selectbox` does, and neither draws an "Add: ..." row: `PathSelect` takes
+    no `accept_new_option`, since a click on the box already opens the panel
+    and typing into it plus Enter already resolves the path.
+
+    Args:
+        ladder: the rungs, the folder on show **last** (that is the one drawn
+            as selected). A plain sequence or a `Property`; the host keeps it
+            in step with its own panel, since the box has no folder to build
+            a ladder from by itself.
+
+    Fields: as `PathInput`, plus:
+        ladder: list[str] | None -- the rungs as they now stand. Bindable.
+    """
+
+    def __init__(
+        self,
+        label: str = '',
+        value: str = '',
+        *,
+        ladder: tp.Iterable[str] | Property | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, value, accept_new_option=False, **kwargs)
+        # A plain sequence is materialized -- a `Property` is the host's to
+        # keep up to date as its panel moves.
+        self.ladder = Property(tp.cast(tp.Optional[tp.List[str]], None))
+        if ladder is None or isinstance(ladder, Property):
+            rungs = tp.cast(tp.Optional[tp.List[str]], ladder)
+        else:
+            rungs = list(ladder)
+        self.ladder.set_or_bind(rungs)
 
 
 class RadioGroup(_RowGestures, _OptionsWidget):

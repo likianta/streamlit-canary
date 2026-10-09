@@ -26,6 +26,7 @@ from ..components_v3.inputs import CheckGroup
 from ..components_v3.inputs import Checkbox
 from ..components_v3.inputs import Multiselect
 from ..components_v3.inputs import NumberInput
+from ..components_v3.inputs import PathSelect
 from ..components_v3.inputs import RadioGroup
 from ..components_v3.inputs import ReducibleGroup
 from ..components_v3.inputs import SegmentedControl
@@ -997,10 +998,23 @@ def _render_text_input(comp: TextInput) -> str:
     width_style = _size_style(comp)
     history = comp.input_history.get()
     accept_new = bool(getattr(comp, '_accept_new_option', False))
+    # `PathSelect` is the box *plus* a navigation ladder, and it says so by
+    # wrapping the box in a container that carries a `ladder` field: the frame
+    # grows a second dropdown, and a click on the box itself unfolds it (see
+    # `scOpenCandidates`). The box itself knows nothing about either.
+    select = comp.parent if isinstance(comp.parent, PathSelect) else None
+    click_opens = select is not None
+    ladder = select.ladder.get() if select is not None else None
     # `accept_new_option` needs the panel too -- that is where its row lives
-    # -- so it brings the caret along even with no list to show.
-    framed = history is not None or accept_new
+    # -- so it brings the caret along even with no list to show. A `PathSelect`
+    # always wants the frame: its ladder is the panel a click opens, and the
+    # caret sits beside it (greyed while the history is empty).
+    framed = history is not None or accept_new or click_opens
     extra_cls = ' st-text-input-candidates-input' if framed else ''
+    open_cls = ' st-text-select' if click_opens else ''
+    open_attr = (
+        ' onclick="scOpenCandidates(this)"' if click_opens and framed else ''
+    )
     # a path-like box shows its tail: the client scrolls it to the end (an
     # `<input>` clips without an ellipsis, so there is no CSS way to elide it
     # on the left -- see `scTruncateStart`)
@@ -1013,7 +1027,7 @@ def _render_text_input(comp: TextInput) -> str:
     echo = '; scNewOptionEcho(this)' if accept_new else ''
     box = (
         f'<input class="st-text-input-box{extra_cls}{truncate_cls}" '
-        f'type="text" '
+        f'type="text"{open_attr} '
         f'data-comp-id="{comp.id}" '
         f'value="{html.escape(str(comp.value.get()))}" '
         f'placeholder="{placeholder}"{disabled} '
@@ -1028,15 +1042,25 @@ def _render_text_input(comp: TextInput) -> str:
             f'{_widget_label_html(comp)}{box}</div>'
         )
     # `input_history`: frame the box like a `Selectbox` trigger, and let a
-    # caret unfold the very same panel `Selectbox` draws.
+    # caret unfold the very same panel `Selectbox` draws. A `PathSelect`
+    # (`st-text-select`) also unfolds a *ladder* from a click on the box:
+    # that is a second dropdown beside this one, tagged so the client can
+    # tell the two apart (see `scOpenCandidates` / `scToggleCandidates`).
     caret_disabled = '' if (history or accept_new) else ' disabled'
     # the client finds the "Add: ..." row through this: the root that takes
     # new options, and the row inside it (`scNewOptionEcho`)
     accept_attr = ' data-accept-new="1"' if accept_new else ''
     rows = _text_new_option_html(comp) if accept_new else ''
     rows += _text_history_html(comp, history or ())
+    ladder_html = (
+        f'<div class="st-selectbox-dropdown st-text-input-ladder" '
+        f'data-comp-id="{comp.id}" hidden>'
+        f'{_text_ladder_html(comp, ladder)}</div>'
+        if ladder
+        else ''
+    )
     return (
-        f'<div class="st-text-input st-text-input-candidates" '
+        f'<div class="st-text-input st-text-input-candidates{open_cls}" '
         f'data-id="{comp.id}"{accept_attr}{width_style}>'
         f'{_widget_label_html(comp)}'
         f'<div class="st-selectbox-control">'
@@ -1047,9 +1071,31 @@ def _render_text_input(comp: TextInput) -> str:
         f'{caret_disabled} onclick="scToggleCandidates(this)">'
         f'{_chevron_svg()}</button>'
         f'</div>'
-        f'<div class="st-selectbox-dropdown" data-comp-id="{comp.id}" '
-        f'hidden>{rows}</div>'
+        f'<div class="st-selectbox-dropdown st-text-input-history" '
+        f'data-comp-id="{comp.id}" hidden>{rows}</div>'
+        f'{ladder_html}'
         f'</div></div>'
+    )
+
+
+def _text_ladder_html(comp: TextInput, ladder: tp.Sequence) -> str:
+    """The navigation rungs a `PathSelect` offers.
+
+    Each is a pick -- the same gesture as picking a history row -- so the box
+    takes the rung as its value and the host's own wiring walks the panel
+    there (`_send_to_panel`). The last rung is the folder on show (the host
+    keeps it there); it is drawn the way a `Selectbox` draws its current
+    value, with `data-selected` (`34-selectbox.css`).
+    """
+    last = len(ladder) - 1
+    return ''.join(
+        f'<div class="st-selectbox-option" role="option" '
+        f'{"data-selected " if i == last else ""}'
+        f'data-value="{html.escape(str(rung))}" '
+        f'data-comp-id="{comp.id}" onclick="scPickCandidate(this)">'
+        f'<div class="st-selectbox-option-inner st-truncate-help">'
+        f'{render_markup(str(rung))}</div></div>'
+        for i, rung in enumerate(ladder)
     )
 
 

@@ -38,6 +38,7 @@ from .inputs import Checkbox
 from .inputs import Multiselect
 from .inputs import NumberInput
 from .inputs import PathInput
+from .inputs import PathSelect
 from .inputs import Radio
 from .inputs import RadioGroup
 from .inputs import ReducibleGroup

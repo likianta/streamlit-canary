@@ -227,28 +227,36 @@
       .forEach(scPositionSelectboxDropdown);
   }
   // -- Custom selectbox dropdown interaction --
+  // Close every open dropdown: all the ways one goes up (a selectbox trigger,
+  // a history caret, a `PathSelect` box) and both ways down (the outside
+  // click, Escape) come through here. `except` leaves one of them standing.
+  function scCloseSelectboxDropdowns(except) {
+    document.querySelectorAll('.st-selectbox-dropdown:not([hidden])')
+      .forEach(d => {
+        if (d === except) return;
+        d.hidden = true;
+        // a trigger and a history box each keep the `aria-expanded` mark,
+        // under their own class
+        const frame = d.closest('.st-selectbox-control');
+        const trigger = frame.querySelector('.st-selectbox-trigger');
+        if (trigger) trigger.removeAttribute('aria-expanded');
+        const box = frame.querySelector('.st-text-input-candidates-box');
+        if (box) box.removeAttribute('aria-expanded');
+      });
+  }
   function scToggleSelectbox(trigger) {
     const control = trigger.closest('.st-selectbox-control');
     const dropdown = control.querySelector('.st-selectbox-dropdown');
     const isOpen = !dropdown.hidden;
     // Close any other open dropdown first.
-    document.querySelectorAll('.st-selectbox-dropdown:not([hidden])').forEach(d => {
-      if (d !== dropdown) {
-        d.hidden = true;
-        const t = d.closest('.st-selectbox-control').querySelector('.st-selectbox-trigger');
-        t.removeAttribute('aria-expanded');
-      }
-    });
+    scCloseSelectboxDropdowns(dropdown);
     if (isOpen) {
       dropdown.hidden = true;
       trigger.removeAttribute('aria-expanded');
     } else {
-      dropdown.hidden = false;
       // The chevron turn (80ms) is quicker than the panel growth (120ms), so
       // the rotation is over before the panel is fully open.
-      scPositionSelectboxDropdown(dropdown);
-      scMeasureOpenHeight(dropdown, '--st-selectbox-open-height');
-      trigger.setAttribute('aria-expanded', 'true');
+      scShowDropdown(dropdown);
     }
   }
   function scSelectOption(opt) {
@@ -277,10 +285,13 @@
     ws.send(JSON.stringify({type: 'event', id: id, event: 'change', value: value}));
   }
   // -- TextInput `input_history`: a Selectbox-styled suggestion panel --
-  function scCandidatesHtml(values, id) {
+  // `selected` marks "you are here": a `PathSelect`'s ladder passes its last
+  // rung (the folder on show), the history panel passes none.
+  function scCandidatesHtml(values, id, selected) {
     const fmt = window.scRenderMarkup;
     return values.map((v) =>
       `<div class="st-selectbox-option" role="option" ` +
+      `${v === selected ? 'data-selected ' : ''}` +
       `data-value="${v}" data-comp-id="${id}" ` +
       `onclick="scPickCandidate(this)">` +
       // `st-truncate-help`: a clipped path gets the row's own content as a
@@ -289,32 +300,50 @@
       `${fmt(v)}</div></div>`
     ).join('');
   }
+  // The history panel and a `PathSelect` share one frame, so one pair of
+  // helpers serves both. `el` can be the caret, the box or the input -- each
+  // finds the frame above it on its own.
+  function scShowDropdown(dropdown) {
+    // Close any other open dropdown first (mirrors `scToggleSelectbox`).
+    scCloseSelectboxDropdowns(dropdown);
+    dropdown.hidden = false;
+    // Same growth animation as the selectbox panel.
+    scPositionSelectboxDropdown(dropdown);
+    scMeasureOpenHeight(dropdown, '--st-selectbox-open-height');
+    const mark = dropdown.closest('.st-selectbox-control')
+      .querySelector('.st-selectbox-trigger');
+    if (mark) mark.setAttribute('aria-expanded', 'true');
+  }
+  // A click on a `PathSelect` box unfolds the *ladder* (the rungs above the
+  // folder on show); the caret unfolds the history instead.
+  function scOpenCandidates(el) {
+    const control = el.closest('.st-selectbox-control');
+    if (!control) return;
+    const dropdown = control.querySelector(
+      '.st-selectbox-dropdown.st-text-input-ladder',
+    );
+    // nothing to show, or already up
+    if (!dropdown || !dropdown.hidden) return;
+    if (!dropdown.querySelector('.st-selectbox-option')) return;
+    scShowDropdown(dropdown);
+  }
   function scToggleCandidates(toggle) {
     const control = toggle.closest('.st-selectbox-control');
     if (!control) return;
-    const dropdown = control.querySelector('.st-selectbox-dropdown');
-    const box = control.querySelector('.st-text-input-candidates-box');
-    const isOpen = !dropdown.hidden;
-    // Close any other open dropdown first (mirrors `scToggleSelectbox`).
-    document.querySelectorAll('.st-selectbox-dropdown:not([hidden])')
-      .forEach(d => {
-        if (d !== dropdown) {
-          d.hidden = true;
-          const t = d.closest('.st-selectbox-control')
-            .querySelector('.st-selectbox-trigger');
-          if (t) t.removeAttribute('aria-expanded');
-        }
-      });
-    if (isOpen) {
-      dropdown.hidden = true;
-      box.removeAttribute('aria-expanded');
-    } else {
-      dropdown.hidden = false;
-      // Same growth animation as the selectbox panel.
-      scPositionSelectboxDropdown(dropdown);
-      scMeasureOpenHeight(dropdown, '--st-selectbox-open-height');
-      box.setAttribute('aria-expanded', 'true');
+    const dropdown = control.querySelector(
+      '.st-selectbox-dropdown.st-text-input-history',
+    );
+    if (!dropdown) return;
+    if (!dropdown.hidden) {
+      // only one dropdown is ever up, so closing "this" one is closing them
+      // all
+      scCloseSelectboxDropdowns();
+      return;
     }
+    // an empty history leaves the caret greyed out, but a patch can arrive
+    // between a click and its handling
+    if (!dropdown.querySelector('.st-selectbox-option')) return;
+    scShowDropdown(dropdown);
   }
   function scPickCandidate(opt) {
     const root = opt.closest('.st-text-input');
@@ -325,9 +354,11 @@
       scSendChange(input);
     }
     const dropdown = root.querySelector('.st-selectbox-dropdown');
-    const box = root.querySelector('.st-text-input-candidates-box');
-    if (dropdown) dropdown.hidden = true;
-    if (box) box.removeAttribute('aria-expanded');
+    if (dropdown) {
+      // a `PathSelect` frame holds two (the history and the ladder); only one
+      // is ever up, so closing them all is the same thing
+      scCloseSelectboxDropdowns();
+    }
   }
   // Enter submits a TextInput / NumberInput right away; `change` alone would
   // wait for the box to lose focus (`st.text_input` commits on Enter too).

@@ -3,7 +3,7 @@ from .dual_pane import DualTreeSelect
 from .path_inputs import PathInputExpanded
 from .path_inputs import PathInputExpander
 from .path_inputs import PathInputPopup
-from .recent import Recent
 from .single_list import SingleTreeSelect
 from .tree_view import TreeView
 from ..inputs import PathInput
+from ..inputs import PathSelect

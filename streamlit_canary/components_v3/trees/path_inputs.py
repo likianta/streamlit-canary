@@ -28,10 +28,11 @@ They differ in where the panel lives:
     'dual_pane'    two columns, subfolders left and files right
 
 The expander and the expanded one host a single-column panel and take over
-its toolbar row: the box leads that row and the fold button closes it, so
-`home`, `refresh`, the bucket and the mode control sit between the two. The
-dual-pane panel has a toolbar of its own (back / forward / refresh / new
-folder), so only `PathInputPopup` takes that style.
+its toolbar row: a `PathSelect` leads that row -- a click on the box unfolds
+the navigation ladder, a click on its caret the box's own history -- and the
+fold button closes it, so `home`, `refresh`, the bucket and the mode control
+sit between the two. The dual-pane panel has a toolbar of its own (back /
+forward / refresh / new folder), so only `PathInputPopup` takes that style.
 """
 
 import os
@@ -43,12 +44,14 @@ from ._shared import _MODE_SINGLE
 from ._shared import _TreeNav
 from ._shared import T
 from ._shared import _check_selection_mode
+from ._shared import _location_options
 from .dual_pane import DualTreeSelect
 from .single_list import SingleTreeSelect
 from .tree_view import TreeView
 from ..base import Width
 from ..buttons import IconButton
 from ..inputs import PathInput
+from ..inputs import PathSelect
 from ..layouts import Container
 from ..layouts import Popover
 from ..layouts import Row
@@ -71,6 +74,21 @@ def _check_tree_style(tree_style: str, allowed: tp.Tuple[str, ...]) -> None:
                 ', '.join(repr(s) for s in allowed), tree_style
             )
         )
+
+
+def _ladder_for(directory: str) -> tp.List[str]:
+    """The rungs a `PathSelect` offers, the folder on show **last**.
+
+    `_location_options` puts the drives in front of the chain, so a folder
+    that *is* a drive root sits in that front block rather than at the tail.
+    The dropdown marks its last row as "you are here", so that one rung is
+    moved to the tail -- the panel's own location bar keeps the original
+    order, since it marks its value instead of its tail.
+    """
+    rungs = _location_options(directory)
+    if rungs and rungs[-1] != directory:
+        rungs = [rung for rung in rungs if rung != directory] + [directory]
+    return rungs
 
 
 class _PathInputTree(Container):
@@ -180,6 +198,14 @@ class _PathInputTree(Container):
                 finally:
                     self._quiet = False
 
+            # a `PathSelect`'s ladder belongs to the panel, so every move
+            # re-seeds it (`on_navigate` also speaks on the first listing, but
+            # this subscription is wired after that, hence the seed in
+            # `_mount_box`)
+            @self._tree.on_navigate
+            def _on_navigated(directory: str) -> None:
+                self._path_input.ladder.set(_ladder_for(directory))
+
         self._wire_host()
 
     # -- layout -------------------------------------------------------------
@@ -230,12 +256,25 @@ class _PathInputTree(Container):
         )
 
     def _mount_box(self) -> None:
-        """Build the path box -- the head of the toolbar, or of the row."""
-        self._path_input = PathInput(
+        """Build the path box -- the head of the toolbar, or of the row.
+
+        The inline ones lead the panel's toolbar, which keeps no location bar
+        of its own, so their box is a `PathSelect`: a click on it unfolds the
+        navigation ladder, a click on its caret the box's own history.
+        """
+        cls = PathInput if self._popup else PathSelect
+        extra: tp.Dict[str, tp.Any] = {}
+        if not self._popup:
+            # the ladder is the panel's, and the panel does not exist yet --
+            # this seeds the folder it opens on (`_nav`), and `_on_navigated`
+            # keeps it in step from there
+            extra['ladder'] = _ladder_for(self._nav.directory)
+        self._path_input = cls(
             self._label,
             self._first_path,
             input_history=self._input_history,
             width='stretch',
+            **extra,
         )
 
     def _mount_fold(self) -> None:

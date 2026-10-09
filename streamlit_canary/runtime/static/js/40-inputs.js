@@ -19,11 +19,7 @@
   // Close dropdown when clicking outside.
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.st-selectbox-control')) {
-      document.querySelectorAll('.st-selectbox-dropdown:not([hidden])').forEach(d => {
-        d.hidden = true;
-        const t = d.closest('.st-selectbox-control').querySelector('.st-selectbox-trigger');
-        if (t) t.removeAttribute('aria-expanded');
-      });
+      scCloseSelectboxDropdowns();
     }
     if (!e.target.closest('.st-popover')) {
       scClosePopovers(null);
@@ -32,9 +28,12 @@
       scCloseMultiselects(null);
     }
   });
-  // Close popovers on Escape.
+  // Close popovers and dropdowns on Escape.
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') scClosePopovers(null);
+    if (e.key === 'Escape') {
+      scClosePopovers(null);
+      scCloseSelectboxDropdowns();
+    }
   });
   // Every panel and every escaped selectbox dropdown is `position: fixed`, so
   // it has to follow its trigger -- on resize, and whenever anything scrolls

@@ -41,6 +41,13 @@ TREES = FOLDER + '/trees'
 # is hidden, and the popup's panel is inside a closed popover)
 EXPANDER_ROWS = '.st-radio .st-radio-item:visible'
 
+# any dropdown on show (they all carry the `hidden` attribute when folded)
+OPEN_DROPDOWNS = '.st-selectbox-dropdown:not([hidden])'
+# a `PathSelect` frame holds two: the ladder (opened by the box) and the
+# history (opened by the caret)
+LADDER_OPEN = '.st-text-input-ladder:not([hidden])'
+HISTORY_OPEN = '.st-text-input-history:not([hidden])'
+
 # Every panel builds a hidden option list for the mode it is not in, so each
 # query here side-steps the invisible ones: among the three, the expanded
 # panel is the only one whose check group is on show (`:visible` for the
@@ -419,7 +426,7 @@ def walk(page) -> bool:
     good = (
         check(
             'but its other files are still ticked',
-            field(page, 'recent.py', 'checked'),
+            field(page, 'single_list.py', 'checked'),
         )
         and good
     )
@@ -519,6 +526,119 @@ def walk(page) -> bool:
             'and folded the popover away',
             page.locator('.st-popover-panel:visible').count() == 0,
         )
+        and good
+    )
+
+    # == 8. PathSelect: one dropdown per gesture ============================
+    print('== 8. the inline boxes are PathSelects ==')
+    boxes = page.locator('.st-text-input-box')
+    good = check('three path boxes on the page', boxes.count() == 3) and good
+    good = (
+        check(
+            'the two inline ones are PathSelects, the popup one is not',
+            page.locator('.st-text-select').count() == 2,
+        )
+        and good
+    )
+    boxes.first.click()  # the popup's box: a `PathInput`, nothing to unfold
+    page.wait_for_timeout(400)
+    good = (
+        check(
+            'clicking the popup box opens nothing',
+            page.locator(OPEN_DROPDOWNS).count() == 0,
+        )
+        and good
+    )
+    boxes.nth(1).click()  # the expander's box
+    page.wait_for_timeout(400)
+    good = (
+        check(
+            'clicking an inline box opens one dropdown',
+            page.locator(OPEN_DROPDOWNS).count() == 1,
+        )
+        and good
+    )
+    good = (
+        check(
+            'and the box one is the ladder, not the history',
+            page.locator(LADDER_OPEN).count() == 1
+            and page.locator(HISTORY_OPEN).count() == 0,
+        )
+        and good
+    )
+    rungs = page.evaluate(
+        # the first ladder is the expander's; both inline boxes carry one
+        '() => Array.from('
+        "  document.querySelectorAll('.st-text-input-ladder')[0]"
+        "    .querySelectorAll('.st-selectbox-option')"
+        ').map(o => o.dataset.value)'
+    )
+    print('  rungs:', rungs[:3], '...', rungs[-1:])
+    good = (
+        check(
+            'it runs from a drive down to the folder on show',
+            bool(rungs) and rungs[0].endswith(':/') and rungs[-1] == HERE,
+        )
+        and good
+    )
+    # and that last rung is drawn as the current one, the way a `Selectbox`
+    # draws its value (the accent colour, `34-selectbox.css`)
+    marked = page.evaluate(
+        '() => {'
+        "  const ladder = document.querySelectorAll('.st-text-input-ladder')[0];"
+        '  const rows = Array.from('
+        "    ladder.querySelectorAll('.st-selectbox-option')"
+        '  );'
+        '  const color = (o) => getComputedStyle('
+        "    o.querySelector('.st-selectbox-option-inner')"
+        '  ).color;'
+        '  return {'
+        "    marked: rows.filter(o => o.hasAttribute('data-selected'))"
+        '      .map(o => o.dataset.value),'
+        '    first: color(rows[0]),'
+        '    last: color(rows[rows.length - 1]),'
+        '  };'
+        '}'
+    )
+    good = (
+        check(
+            'the folder on show is the one marked as current',
+            marked['marked'] == [HERE],
+        )
+        and good
+    )
+    good = (
+        check(
+            'and it is drawn in the accent colour',
+            marked['last'] != marked['first']
+            and marked['last'] == 'rgb(255, 75, 75)',
+        )
+        and good
+    )
+    page.locator('.st-plain').first.click()  # anywhere outside the frame
+    page.wait_for_timeout(400)
+    good = (
+        check(
+            'a click outside closes it again',
+            page.locator(OPEN_DROPDOWNS).count() == 0,
+        )
+        and good
+    )
+    # the caret speaks for the box's own history instead
+    page.locator('.st-text-input-candidates-toggle').nth(1).click()
+    page.wait_for_timeout(400)
+    good = (
+        check(
+            'the caret opens the history instead',
+            page.locator(HISTORY_OPEN).count() == 1
+            and page.locator(LADDER_OPEN).count() == 0,
+        )
+        and good
+    )
+    page.keyboard.press('Escape')
+    page.wait_for_timeout(300)
+    good = (
+        check('Escape closes it too', page.locator(OPEN_DROPDOWNS).count() == 0)
         and good
     )
 

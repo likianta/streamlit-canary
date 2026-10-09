@@ -194,15 +194,28 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         menuItems.innerHTML = scMenuItemsHtml(msg.value, msg.formatted);
       }
     }
-    if (msg.prop === 'input_history') {
-      if (el.classList.contains('st-text-input-candidates')) {
+    if (msg.prop === 'input_history' || msg.prop === 'ladder') {
+      // Both panels of a box are built the same way, so one builder fills
+      // whichever this patch speaks for. A `PathSelect`'s `ladder` sits on
+      // the container that wraps the box, so its dropdown is found *inside*
+      // that element rather than on the frame itself.
+      const values = msg.value || [];
+      const ladder = msg.prop === 'ladder';
+      const dropdown = el.querySelector(
+        ladder
+          ? '.st-selectbox-dropdown.st-text-input-ladder'
+          : '.st-selectbox-dropdown.st-text-input-history',
+      );
+      if (dropdown) {
+        // the ladder's last rung is the folder on show (see the renderer)
+        const here = ladder ? values[values.length - 1] : undefined;
+        dropdown.innerHTML = scCandidatesHtml(values, msg.id, here);
+      }
+      if (!ladder) {
         // An empty list keeps the caret but greys it out (a `null` sent at
         // runtime reads as empty -- the caret's presence is fixed at build).
-        const list = msg.value || [];
-        const dropdown = el.querySelector('.st-selectbox-dropdown');
         const toggle = el.querySelector('.st-text-input-candidates-toggle');
-        if (dropdown) dropdown.innerHTML = scCandidatesHtml(list, msg.id);
-        if (toggle) toggle.disabled = list.length === 0;
+        if (toggle) toggle.disabled = values.length === 0;
       }
     }
     if (msg.prop === 'placeholder') {
