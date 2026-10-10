@@ -265,7 +265,10 @@ class Property(tp.Generic[T.Q]):
 
 
 def bind(
-    source: T.SourceOrMany, transform: tp.Optional[T.Transform] = None
+    source: T.SourceOrMany,
+    transform: tp.Optional[T.Transform] = None,
+    *,
+    default: T.Q | _Undefined = _undefined,
 ) -> Property[T.Q]:
     """
     Create an anonymous `Property` bound to `source`.
@@ -284,8 +287,21 @@ def bind(
                 lambda x: list(x[0]),
             )
         )
+
+    `default` is the value the derived property holds until the source first
+    has one. A source declared without a default starts out `_undefined`, and
+    `bind` deliberately does not run `transform` on `_undefined` (it would
+    crash a transform like `lambda x: x['name']`), so a downstream target would
+    otherwise keep *its own* default -- which is not always what you want:
+
+        # without `default` this stays `visible=True` and shows anyway, since
+        # `app_name` is `_undefined` at first and `bool` is never called.
+        v3.Expander(..., visible=sc.bind(state.app_name, bool, default=False))
+
+    Pass `default` to pin that "no value yet" state. Once the source holds a
+    value the transform takes over and `default` is forgotten.
     """
-    prop = Property[T.Q]()
+    prop = Property[T.Q](default)
     prop.bind(source, transform)
     return prop
 
