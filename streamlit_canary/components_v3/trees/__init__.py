@@ -1,4 +1,5 @@
 from ._shared import T
+from .column_view import ColumnView
 from .dual_pane import DualTreeSelect
 from .path_inputs import PathInput
 from .path_inputs import PathSelect

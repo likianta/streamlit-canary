@@ -190,8 +190,13 @@ def _render_element(comp: Component) -> str:
         align = align_map.get(valign, 'flex-start')
         rules = [f'align-items:{align}']
         rules.extend(_bounds_style(comp, scroll=True))
+        # A row may carry a marker class of its own (`_css_class`), which is
+        # how `ColumnView`'s strip becomes a horizontally-scrolling band of
+        # fixed-width columns without drawing a second layout component (see
+        # `components_v3/trees/column_view.py`).
+        extra_cls = getattr(comp, '_css_class', '')
         return (
-            f'<div class="st-row" data-id="{comp.id}"'
+            f'<div class="st-row{extra_cls}" data-id="{comp.id}"'
             f'{_style_attr(rules)}>{children}</div>'
         )
     if isinstance(comp, Space):

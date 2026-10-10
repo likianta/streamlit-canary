@@ -26,6 +26,7 @@ They differ in where the panel lives:
     'single_list'  one folder on show at a time, `..` to walk up
     'tree_view'    every level in one listing, folders fold in place
     'dual_pane'    two columns, subfolders left and files right
+    'column_view'  a Finder-style stack of columns, one level per column
 
 The expander and the expanded one host a single-column panel and take over
 its toolbar row: a `PathSelect` leads that row -- a click on the box unfolds
@@ -33,6 +34,8 @@ the navigation ladder, a click on its caret the box's own history -- and the
 fold button closes it, so `home`, `refresh`, the bucket and the mode control
 sit between the two. The dual-pane panel has a toolbar of its own (back /
 forward / refresh / new folder), so only `PathInputPopup` takes that style.
+The column view has a toolbar too, but takes the same `leading` / `trailing`
+a single-column panel does, so all three wrappers accept it.
 """
 
 import os
@@ -45,6 +48,7 @@ from ._shared import _TreeNav
 from ._shared import T
 from ._shared import _check_selection_mode
 from ._shared import _location_options
+from .column_view import ColumnView
 from .dual_pane import DualTreeSelect
 from .path_inputs import PathInput
 from .path_inputs import PathSelect
@@ -63,8 +67,8 @@ from ...kernel import bind
 # they are on show
 _FOLD_ARROWS = {False: ':material/expand_more:', True: ':material/expand_less:'}
 
-_STYLES_INLINE = ('single_list', 'tree_view')
-_STYLES_POPUP = ('single_list', 'tree_view', 'dual_pane')
+_STYLES_INLINE = ('single_list', 'tree_view', 'column_view')
+_STYLES_POPUP = ('single_list', 'tree_view', 'dual_pane', 'column_view')
 
 
 def _check_tree_style(tree_style: str, allowed: tp.Tuple[str, ...]) -> None:
@@ -141,6 +145,9 @@ class _PathInputTree(Container):
         # `'dual_pane'` is the odd one out: its panel owns a toolbar, has no
         # modes, and `value` is the row under the cursor rather than a pick
         self._dual = tree_style == 'dual_pane'
+        # the column view has modes of its own (one) and a toolbar it shares
+        # with the single-column panels, so it needs only a small branch
+        self._column = tree_style == 'column_view'
         # set while this wrapper writes the box itself: that write is not the
         # user typing, so it must not echo back into the panel (see
         # `_on_path_typed`)
@@ -230,6 +237,25 @@ class _PathInputTree(Container):
                 height=self._panel_height,
                 node_type=self._node_type,
                 show_confirm_button=confirm,
+            )
+        if self._column:
+            # the column view takes the same `leading` / `trailing` /
+            # `rows_visible` a single-column panel does, so it drops into all
+            # three wrappers; only its `start_directory` and column height are
+            # its own (`SingleTreeSelect`'s first positional is a label, hence
+            # the keyword).
+            return ColumnView(
+                start_directory=self._nav.directory,
+                filter=self._filter,
+                height=self._panel_height,
+                leading=leading,
+                trailing=trailing,
+                rows_visible=rows_visible,
+                show_confirm_button=confirm,
+                show_location=leading is None,
+                accept_new_option=self._popup,
+                _vendored=True,
+                border=False,
             )
         cls = TreeView if self._tree_style == 'tree_view' else SingleTreeSelect
         return cls(

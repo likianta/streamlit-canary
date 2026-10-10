@@ -82,6 +82,7 @@ from .texts import PageTitle
 from .texts import Text
 from .texts import Title
 
+from .trees import ColumnView
 from .trees import DualTreeSelect
 from .trees import PathInput
 from .trees import PathInputExpanded

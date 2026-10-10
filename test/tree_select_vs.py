@@ -7,8 +7,11 @@ the folded-in-place `TreeView` behind `v3.PathInputExpanded`, rooted at
 them. This folds folders open, ticks rows, and watches the readout under the
 panel.
 
-The last section turns to the other two hosts: the expander's fold button and
-the popup's `Browse` / Confirm pair.
+The last sections turn to the other hosts -- the expander's fold button and
+the popup's `Browse` / Confirm pair -- and then to the column view: the bare
+`ColumnView` is drilled through column by column, and the wrapped one (a
+`PathInputExpanded` with `tree_style='column_view'`) is checked to feed its
+box a pick as it happens.
 
 Everything it checks lives in the DOM the server sent -- the inset, the
 chevron, the half-ticked box -- plus the compact pick that comes back out of
@@ -36,10 +39,17 @@ SUBPKG = HERE + '/streamlit_canary'
 FOLDER = SUBPKG + '/components_v3'
 TREES = FOLDER + '/trees'
 
-# the expander's own rows: a `single`-mode panel, so its radio list is the
-# visible one (the expanded panel below it is in `multiple`, whose radio list
-# is hidden, and the popup's panel is inside a closed popover)
-EXPANDER_ROWS = '.st-radio .st-radio-item:visible'
+# The expander's own rows are the `single`-mode `TreeView` rows that are *not*
+# the column view's (both are `.st-radio` lists). The columns carry
+# `.st-columnview`, so a visible-row count that skips the ones inside it is
+# the expander's alone -- the popup's panel is behind a closed popover, and
+# the expanded panel below is a `.st-check-group`.
+EXPANDER_ROWS_JS = """
+() => Array.from(
+  document.querySelectorAll('.st-radio .st-radio-item')
+).filter((el) => el.offsetParent !== null
+  && !el.closest('.st-columnview')).length
+"""
 
 # any dropdown on show (they all carry the `hidden` attribute when folded)
 OPEN_DROPDOWNS = '.st-selectbox-dropdown:not([hidden])'
@@ -90,6 +100,33 @@ READOUT_JS = """
 () => {
   const els = Array.from(document.querySelectorAll('.st-plain'));
   const hit = els.find((el) => el.textContent.startsWith('Expanded:'));
+  return hit ? hit.textContent.trim() : null;
+}
+"""
+
+# Every column view's boxes, in DOM order: their on-show flag, geometry, the
+# rows each holds, and the row carrying the trail's mark (`input.checked`).
+COLUMNVIEWS_JS = """
+() => Array.from(
+  document.querySelectorAll('.st-columnview')
+).map((cv) => Array.from(cv.children).map((box) => ({
+  visible: box.offsetParent !== null,
+  x: Math.round(box.getBoundingClientRect().left),
+  width: Math.round(box.getBoundingClientRect().width),
+  items: Array.from(
+    box.querySelectorAll('.st-radio-item')
+  ).map((it) => (it.textContent || '').trim()),
+  checked: Array.from(
+    box.querySelectorAll('.st-radio-item')
+  ).filter((it) => it.querySelector('input').checked)
+   .map((it) => (it.textContent || '').trim()),
+})))
+"""
+
+READOUT_NAME_JS = """
+(name) => {
+  const hit = Array.from(document.querySelectorAll('.st-plain'))
+    .find((el) => el.textContent.startsWith(name + ':'));
   return hit ? hit.textContent.trim() : null;
 }
 """
@@ -159,6 +196,46 @@ def _item(page, label):
         .filter(has_text=label)
         .first
     )
+
+
+def columns(page, index):
+    """The boxes of the column view at `index`, in DOM order."""
+    return page.evaluate(COLUMNVIEWS_JS)[index]
+
+
+def visible_columns(page, index):
+    return [col for col in columns(page, index) if col['visible']]
+
+
+def readout(page, name):
+    """The `'<name>: ...'` plain-text readout under a path input."""
+    return page.evaluate(READOUT_NAME_JS, name)
+
+
+def click_in_column(page, view, col, label):
+    """Pick the row `label` in column `col` of the column view at `view`."""
+    (
+        page.locator('.st-columnview')
+        .nth(view)
+        .locator('.st-radio')
+        .nth(col)
+        .locator('.st-radio-item')
+        .filter(has_text=label)
+        .first.click()
+    )
+    page.wait_for_timeout(600)
+
+
+def folders_before_files(items):
+    """True while no folder row follows a file row."""
+    seen_file = False
+    for item in items:
+        if item.endswith('/'):
+            if seen_file:
+                return False
+        else:
+            seen_file = True
+    return True
 
 
 def walk(page) -> bool:
@@ -478,8 +555,7 @@ def walk(page) -> bool:
     print('== 7. the expander and the popup ==')
     good = (
         check(
-            'the expander starts folded',
-            page.locator(EXPANDER_ROWS).count() == 0,
+            'the expander starts folded', page.evaluate(EXPANDER_ROWS_JS) == 0
         )
         and good
     )
@@ -491,8 +567,7 @@ def walk(page) -> bool:
     page.wait_for_timeout(600)
     good = (
         check(
-            'pressing it unfolds the rows',
-            page.locator(EXPANDER_ROWS).count() > 0,
+            'pressing it unfolds the rows', page.evaluate(EXPANDER_ROWS_JS) > 0
         )
         and good
     )
@@ -532,11 +607,11 @@ def walk(page) -> bool:
     # == 8. PathSelect: one dropdown per gesture ============================
     print('== 8. the inline boxes are PathSelects ==')
     boxes = page.locator('.st-text-input-box')
-    good = check('three path boxes on the page', boxes.count() == 3) and good
+    good = check('four path boxes on the page', boxes.count() == 4) and good
     good = (
         check(
-            'the two inline ones are PathSelects, the popup one is not',
-            page.locator('.st-text-select').count() == 2,
+            'the three inline ones are PathSelects, the popup one is not',
+            page.locator('.st-text-select').count() == 3,
         )
         and good
     )
@@ -703,6 +778,207 @@ def walk(page) -> bool:
     )
     page.mouse.move(0, 0)
     page.wait_for_timeout(300)
+
+    # == 10. the column view ================================================
+    print('== 10. the column view ==')
+    good = (
+        check(
+            'two column views on the page',
+            page.locator('.st-columnview').count() == 2,
+        )
+        and good
+    )
+    cols = visible_columns(page, 0)
+    print(
+        '  columns:', [len(col['items']) for col in cols], cols[0]['items'][:3]
+    )
+    good = check('it opens with one column', len(cols) == 1) and good
+    items = cols[0]['items']
+    good = (
+        check(
+            'no `..` row: walking back is a click to the left',
+            not any('(goto parent)' in item for item in items),
+        )
+        and good
+    )
+    good = (
+        check(
+            'the listing leads with the folders',
+            bool(items) and items[0].endswith('/'),
+        )
+        and good
+    )
+    good = (
+        check(
+            'a folder of the root is on show',
+            any('components_v3/' in item for item in items),
+        )
+        and good
+    )
+    good = (
+        check(
+            'a script beside it too',
+            any(item.endswith('.py') for item in items),
+        )
+        and good
+    )
+    good = (
+        check(
+            'and the files come after every folder', folders_before_files(items)
+        )
+        and good
+    )
+
+    click_in_column(page, 0, 0, 'components_v3/')
+    print('  readout:', readout(page, 'Column'))
+    cols = visible_columns(page, 0)
+    good = (
+        check('clicking a folder opens a column to its right', len(cols) == 2)
+        and good
+    )
+    good = (
+        check('and it steps further right', cols[1]['x'] > cols[0]['x'])
+        and good
+    )
+    good = (
+        check(
+            'the folder is marked as the trail',
+            cols[0]['checked'] == ['folder components_v3/'],
+        )
+        and good
+    )
+    good = (
+        check(
+            'the new column lists that folder',
+            any('trees/' in item for item in cols[1]['items'])
+            and any('base.py' in item for item in cols[1]['items']),
+        )
+        and good
+    )
+    good = (
+        check(
+            'so the readout names the folder now',
+            readout(page, 'Column') == 'Column: {}'.format(FOLDER),
+        )
+        and good
+    )
+
+    click_in_column(page, 0, 1, 'base.py')
+    print('  readout:', readout(page, 'Column'))
+    cols = visible_columns(page, 0)
+    good = check('clicking a file opens no column', len(cols) == 2) and good
+    good = (
+        check(
+            'it marks the file row instead',
+            cols[1]['checked'] == ['description base.py'],
+        )
+        and good
+    )
+    good = (
+        check(
+            'the trail above stays marked',
+            cols[0]['checked'] == ['folder components_v3/'],
+        )
+        and good
+    )
+    good = (
+        check(
+            'and the readout names the file',
+            readout(page, 'Column') == 'Column: {}/base.py'.format(FOLDER),
+        )
+        and good
+    )
+
+    click_in_column(page, 0, 1, 'trees/')
+    print('  readout:', readout(page, 'Column'))
+    cols = visible_columns(page, 0)
+    good = (
+        check('a folder under the file opens a third column', len(cols) == 3)
+        and good
+    )
+    good = (
+        check(
+            'the middle column now marks that folder',
+            cols[1]['checked'] == ['folder trees/'],
+        )
+        and good
+    )
+    good = (
+        check(
+            'and the readout is the folder again',
+            readout(page, 'Column') == 'Column: {}'.format(TREES),
+        )
+        and good
+    )
+
+    click_in_column(page, 0, 0, 'kernel/')
+    print('  readout:', readout(page, 'Column'))
+    cols = visible_columns(page, 0)
+    good = (
+        check(
+            'walking back in a left column drops the ones to its right',
+            len(cols) == 2,
+        )
+        and good
+    )
+    good = (
+        check(
+            'and shows that folder instead',
+            any('property.py' in item for item in cols[1]['items']),
+        )
+        and good
+    )
+    good = (
+        check(
+            'the readout follows',
+            readout(page, 'Column') == 'Column: {}/kernel'.format(SUBPKG),
+        )
+        and good
+    )
+    good = (
+        check(
+            'the columns share one width',
+            len({col['width'] for col in cols}) == 1,
+        )
+        and good
+    )
+
+    # == 11. the wrapped column view ========================================
+    print('== 11. the wrapped column view ==')
+    good = (
+        check(
+            'it reads its folder out of the box at rest',
+            readout(page, 'Wrapped') == 'Wrapped: {}'.format(SUBPKG),
+        )
+        and good
+    )
+    click_in_column(page, 1, 0, 'components_v3/')
+    click_in_column(page, 1, 1, 'base.py')
+    page.wait_for_timeout(300)
+    print('  readout:', readout(page, 'Wrapped'))
+    cols = visible_columns(page, 1)
+    good = (
+        check('it opens a column the way the bare one does', len(cols) == 2)
+        and good
+    )
+    box_value = page.evaluate(
+        "() => document.querySelectorAll('.st-text-input-box')[3].value"
+    )
+    print('  box:', box_value)
+    good = (
+        check(
+            'a pick comes straight back into the box',
+            box_value == '{}/base.py'.format(FOLDER),
+        )
+        and good
+    )
+    good = (
+        check(
+            'and the readout follows',
+            readout(page, 'Wrapped') == 'Wrapped: {}/base.py'.format(FOLDER),
+        )
+        and good
+    )
 
     return good
 
