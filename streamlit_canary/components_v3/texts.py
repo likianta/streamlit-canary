@@ -228,7 +228,7 @@ class PageTitle(Title):
     once, up front, through `set_page_config(page_title=...)`. This element
     does both, so an app can write
 
-        v3.PageTitle('mklink GUI')
+        v3.PageTitle('mklink GUI', default_theme='light')
 
     and have the heading and the tab agree. The heading parses the text as
     markdown like any other `Title`, while the tab keeps it as written --
@@ -237,11 +237,55 @@ class PageTitle(Title):
     the tab in step; an app that draws more than one leaves the last one
     naming the page.
 
+    On top of `Title`'s own fields it also takes the page-config knobs that
+    `set_page_config` offers -- `layout` / `default_theme` / `dunder_literal`
+    -- so the page can be configured right where its title is declared. Each
+    defaults to `None`, meaning "leave it to `set_page_config`"; supplying it
+    overrides the page config for this page.
+
     Args:
         text: the title content (bindable).
         help: optional markdown tooltip shown next to the text.
         horizontal_alignment: "left" (default) | "center" | "right" -- where
             the heading sits in its box.
+        layout: "centered" | "wide" -- the page's layout, or `None` (default)
+            to keep the page config's.
+        default_theme: "light" | "dark" -- the page's initial theme, or `None`
+            (default) to keep the page config's.
+        dunder_literal: whether `__x__` stays literal, or `None` (default) to
+            keep the page config's -- see `set_page_config`.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
+        font_family: the CSS `font-family` to draw the heading in -- see
+            `_HelpText`.
+        font_size: a CSS length to draw it at -- see `_HelpText`.
     """
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        horizontal_alignment: tp.Literal['left', 'center', 'right'] = 'left',
+        *,
+        help: str | Property = '',
+        visible: bool | Property = True,
+        font_family: str = '',
+        font_size: str = '',
+        layout: tp.Optional[str] = None,
+        default_theme: tp.Optional[str] = None,
+        dunder_literal: tp.Optional[bool] = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(
+            text,
+            horizontal_alignment,
+            help=help,
+            visible=visible,
+            font_family=font_family,
+            font_size=font_size,
+            **kwargs,
+        )
+        # page-config knobs: `None` means "leave it to `set_page_config`".
+        # `render_page` reads these off the last `PageTitle` (see there).
+        self._layout = layout
+        self._default_theme = default_theme
+        self._dunder_literal = dunder_literal

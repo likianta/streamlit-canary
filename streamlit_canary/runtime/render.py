@@ -2070,17 +2070,19 @@ def _walk_tree(roots: tp.Iterable[Component]) -> tp.Iterator[Component]:
         yield from _walk_tree(comp.children)
 
 
-def _find_page_title(roots: tp.Iterable[Component]) -> str:
-    """The text of the last `PageTitle` in the tree, `''` if there is none.
+def _find_page_title(roots: tp.Iterable[Component]) -> tp.Optional[PageTitle]:
+    """The last `PageTitle` in the tree, `None` if there is none.
 
-    It names the document's own `<title>`, so the first paint already carries
-    the name the app asked for; a later change rides the ordinary `text` patch
-    from there (page.js keeps `document.title` in step).
+    It names the document's own `<title>` and may also carry page-config
+    overrides (`layout` / `default_theme` / `dunder_literal`), so the first
+    paint already carries what the app asked for; a later change to its text
+    rides the ordinary `text` patch from there (page.js keeps
+    `document.title` in step).
     """
-    found = ''
+    found: tp.Optional[PageTitle] = None
     for comp in _walk_tree(roots):
         if isinstance(comp, PageTitle):
-            found = str(comp.text.get())
+            found = comp
     return found
 
 
@@ -2094,12 +2096,22 @@ def render_page(
     # the body and the page title below both walk the roots, so materialize
     # them once -- the caller may well hand us a generator
     roots = list(roots)
+    # A `PageTitle` has the last word on the tab's name: it is the app saying
+    # so on the page, where `set_page_config` only sets a default. It may also
+    # carry the page-config knobs, each overriding the config only when set
+    # (the `None` default means "leave it to `set_page_config`").
+    page_title = _find_page_title(roots)
+    if page_title is not None:
+        title = str(page_title.text.get()) or title
+        if page_title._layout is not None:
+            layout = page_title._layout
+        if page_title._default_theme is not None:
+            default_theme = page_title._default_theme
+        if page_title._dunder_literal is not None:
+            dunder_literal = page_title._dunder_literal
     # The OS preference behind `system` lives in the browser, so the attribute
     # starts on dark and the boot script corrects it before the first paint.
     theme = default_theme if default_theme in ('light', 'dark') else 'dark'
-    # A `PageTitle` has the last word on the tab's name: it is the app saying
-    # so on the page, where `set_page_config` only sets a default.
-    title = _find_page_title(roots) or title
     # Page config rides on the app shell: `layout` is a class and the markdown
     # flag is a data attribute, both read by page.js (see `set_page_config`).
     app_attr = ' class="st-wide"' if layout == 'wide' else ''
