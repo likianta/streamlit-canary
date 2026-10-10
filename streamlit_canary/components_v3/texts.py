@@ -11,6 +11,7 @@ from ._shared import _HelpText
 from ._shared import _visible_when_filled
 from ..kernel import Property
 from ..kernel import bind
+from ..page import update_page_config
 
 # Where a heading can sit in its box. Only `Title` offers a choice: Streamlit
 # hangs `text_alignment` on the markdown elements (and also allows `justify`),
@@ -237,28 +238,32 @@ class PageTitle(Title):
     the tab in step; an app that draws more than one leaves the last one
     naming the page.
 
-    On top of `Title`'s own fields it also takes the page-config knobs that
-    `set_page_config` offers -- `layout` / `default_theme` / `dunder_literal`
-    -- so the page can be configured right where its title is declared. Each
-    defaults to `None`, meaning "leave it to `set_page_config`"; supplying it
-    overrides the page config for this page.
+    On top of `Title`'s own fields it also carries the page-config knobs that
+    `v3.PageConfig` takes -- `layout` / `default_theme` / `font_family` /
+    `dunder_literal` -- and, deliberately, gives them the page-wide meaning
+    they have on `PageConfig`, never a local one. So `font_family` here is the
+    *page's* font, not just this heading's; a heading with a font of its own
+    wants a plain `Title(..., font_family=...)` instead. Each knob defaults to
+    `None`, meaning "leave that setting alone".
 
     Args:
-        text: the title content (bindable).
+        text: the title content (bindable); it also becomes the tab's name.
         help: optional markdown tooltip shown next to the text.
         horizontal_alignment: "left" (default) | "center" | "right" -- where
             the heading sits in its box.
         layout: "centered" | "wide" -- the page's layout, or `None` (default)
-            to keep the page config's.
+            to leave it.
         default_theme: "light" | "dark" -- the page's initial theme, or `None`
-            (default) to keep the page config's.
+            (default) to leave it.
+        font_family: a CSS `font-family` applied to the whole page (body text
+            and headings alike), or `None` (default) to leave the page's font.
+            This is the *page's* font, not a heading-only one -- for that, use
+            `Title(..., font_family=...)`.
         dunder_literal: whether `__x__` stays literal, or `None` (default) to
-            keep the page config's -- see `set_page_config`.
+            leave it -- see `v3.PageConfig`.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
-        font_family: the CSS `font-family` to draw the heading in -- see
-            `_HelpText`.
-        font_size: a CSS length to draw it at -- see `_HelpText`.
+        font_size: a CSS length to draw the heading at -- see `_HelpText`.
     """
 
     def __init__(
@@ -268,24 +273,33 @@ class PageTitle(Title):
         *,
         help: str | Property = '',
         visible: bool | Property = True,
-        font_family: str = '',
         font_size: str = '',
         layout: tp.Optional[str] = None,
         default_theme: tp.Optional[str] = None,
+        font_family: tp.Optional[str] = None,
         dunder_literal: tp.Optional[bool] = None,
         **kwargs: tp.Any,
     ) -> None:
+        # note `font_family` is swallowed here rather than forwarded to
+        # `Title`: on a `PageTitle` it configures the page (see below), it does
+        # not restyle this heading.
         super().__init__(
             text,
             horizontal_alignment,
             help=help,
             visible=visible,
-            font_family=font_family,
             font_size=font_size,
             **kwargs,
         )
-        # page-config knobs: `None` means "leave it to `set_page_config`".
-        # `render_page` reads these off the last `PageTitle` (see there).
-        self._layout = layout
-        self._default_theme = default_theme
-        self._dunder_literal = dunder_literal
+        # A `PageTitle` configures the page, not just itself: it writes the
+        # page-wide settings straight into the shared `global_page_config`
+        # (the same object `v3.PageConfig` feeds), so `render_page` reads them
+        # back without hunting for this element in the tree. `None` leaves a
+        # knob alone; an empty title leaves the page's name alone too.
+        update_page_config(
+            title=str(self.text.get()) or None,
+            layout=layout,
+            default_theme=default_theme,
+            font_family=font_family,
+            dunder_literal=dunder_literal,
+        )

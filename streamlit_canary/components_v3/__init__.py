@@ -18,8 +18,9 @@ reference (the category list is taken from
     media    Streamlit's "Media elements" (`api-reference/media`)
 
 Its "Input widgets" page is broad, so we split it into `buttons` and
-`inputs`. `trees` is ours (a folder browser) and keeps its own module;
-the private bases the modules share live in `_shared`.
+`inputs`. `trees` and `page` are ours (a folder browser; page-level
+configuration) and keep their own modules; the private bases the modules
+share live in `_shared`.
 """
 
 from .base import Component
@@ -64,6 +65,8 @@ from .layouts import Space
 from .layouts import Tabs
 
 from .media import PdfViewer
+
+from .page import PageConfig
 
 from .status import Callout
 from .status import Error

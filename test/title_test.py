@@ -2,9 +2,9 @@
 
 Run:  python test/title_test.py
 
-`Title` gained the alignment; `PageTitle` is a `Title` that also names the
-browser tab (`sc.set_page_config(title)` only reaches the first paint, since
-it runs before the page is served).
+`Title` gained the alignment; `PageTitle` is a `Title` that also names and
+configures the page (it writes the shared page config as it is built, the
+same as `v3.PageConfig`).
 
 Sections 1-2 are in-process (the rendered HTML and the page's `<title>`);
 section 3 drives a real browser, where the alignment is a computed style and
@@ -65,14 +65,17 @@ except ValueError as exc:
 
 rule('2. the page title')
 ok = check('PageTitle is a Title', issubclass(PageTitle, Title))
-html = render_page([PageTitle('Tab name')], title='from the config')
+# `render_page` reads `global_page_config`, which `PageConfig` / `PageTitle`
+# write as they are constructed -- so the last one declared wins.
+v3.PageConfig('from the config')
+html = render_page([PageTitle('Tab name')])
 ok = check('it marks the element', 'st-page-title' in html) and ok
 ok = check('and names the document', '<title>Tab name</title>' in html) and ok
+v3.PageConfig('from the config')
 ok = (
     check(
         'without one, the config still names it',
-        '<title>from the config</title>'
-        in render_page([Title('T')], title='from the config'),
+        '<title>from the config</title>' in render_page([Title('T')]),
     )
     and ok
 )
@@ -91,7 +94,7 @@ ok = (
 
 
 def scene() -> None:
-    sc.set_page_config('config name')
+    v3.PageConfig('config name')
     name = sc.Property('First name')
     v3.PageTitle(name, horizontal_alignment='center')
     v3.Title('Left by default')

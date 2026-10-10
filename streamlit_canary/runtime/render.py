@@ -63,6 +63,7 @@ from ..components_v3.texts import PageTitle
 from ..components_v3.texts import Text
 from ..components_v3.texts import Title
 from ..kernel.property import Property
+from ..page import global_page_config
 from ..text import MONOSPACE
 from ..text import MONOSPACED_SIZE
 
@@ -1900,6 +1901,24 @@ _THEMES_CSS = '\n'.join(
     ]
 )
 
+
+def _page_font_css(font_family: str) -> str:
+    """A `:root` override that swaps the page's font family ('' if unset).
+
+    The theme files set `--st-font` / `--st-heading-font` on
+    `:root[data-theme="..."]`; this rule carries the same specificity and
+    comes later in the sheet, so it wins. Only the body and heading tokens
+    move -- code keeps its own monospace face (`--st-code-font`).
+    """
+    if not font_family:
+        return ''
+    return (
+        f':root[data-theme] {{'
+        f'--st-font:{font_family};--st-heading-font:{font_family};'
+        f'}}'
+    )
+
+
 # Inlined in <head>, ahead of the stylesheet, so a page whose remembered theme
 # differs from the app's default never paints in the wrong one. It has to stay
 # brace-free: the page template goes through `str.format`.
@@ -1970,6 +1989,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 <style>
 {themes}
 {page_css}
+{font_css}
 </style>
 </head>
 <body>
@@ -2063,57 +2083,27 @@ def _render_log_panel(comp: LogPanel) -> str:
     )
 
 
-def _walk_tree(roots: tp.Iterable[Component]) -> tp.Iterator[Component]:
-    """Every component in the tree, each parent before its children."""
-    for comp in roots:
-        yield comp
-        yield from _walk_tree(comp.children)
+def render_page(roots: tp.Iterable[Component]) -> str:
+    """Render the whole document: `<head>` plus the tree's body.
 
-
-def _find_page_title(roots: tp.Iterable[Component]) -> tp.Optional[PageTitle]:
-    """The last `PageTitle` in the tree, `None` if there is none.
-
-    It names the document's own `<title>` and may also carry page-config
-    overrides (`layout` / `default_theme` / `dunder_literal`), so the first
-    paint already carries what the app asked for; a later change to its text
-    rides the ordinary `text` patch from there (page.js keeps
-    `document.title` in step).
+    The page's own settings (`title` / `layout` / `default_theme` /
+    `font_family` / `dunder_literal`) come from the shared
+    `global_page_config`, which `v3.PageTitle` and `v3.PageConfig` fill in as
+    they are constructed (see `streamlit_canary/page.py`). By the time the
+    first request is served the app has already run, so those settings are
+    final here -- there is no need to walk the tree looking for a `PageTitle`.
     """
-    found: tp.Optional[PageTitle] = None
-    for comp in _walk_tree(roots):
-        if isinstance(comp, PageTitle):
-            found = comp
-    return found
-
-
-def render_page(
-    roots: tp.Iterable[Component],
-    title: str = 'Streamlit Canary',
-    default_theme: str = 'dark',
-    layout: str = 'centered',
-    dunder_literal: bool = False,
-) -> str:
-    # the body and the page title below both walk the roots, so materialize
-    # them once -- the caller may well hand us a generator
     roots = list(roots)
-    # A `PageTitle` has the last word on the tab's name: it is the app saying
-    # so on the page, where `set_page_config` only sets a default. It may also
-    # carry the page-config knobs, each overriding the config only when set
-    # (the `None` default means "leave it to `set_page_config`").
-    page_title = _find_page_title(roots)
-    if page_title is not None:
-        title = str(page_title.text.get()) or title
-        if page_title._layout is not None:
-            layout = page_title._layout
-        if page_title._default_theme is not None:
-            default_theme = page_title._default_theme
-        if page_title._dunder_literal is not None:
-            dunder_literal = page_title._dunder_literal
+    title = global_page_config['title']
+    layout = global_page_config['layout']
+    default_theme = global_page_config['default_theme']
+    font_family = global_page_config['font_family']
+    dunder_literal = global_page_config['dunder_literal']
     # The OS preference behind `system` lives in the browser, so the attribute
     # starts on dark and the boot script corrects it before the first paint.
     theme = default_theme if default_theme in ('light', 'dark') else 'dark'
     # Page config rides on the app shell: `layout` is a class and the markdown
-    # flag is a data attribute, both read by page.js (see `set_page_config`).
+    # flag is a data attribute, both read by page.js (see `PageConfig`).
     app_attr = ' class="st-wide"' if layout == 'wide' else ''
     if dunder_literal:
         app_attr += ' data-dunder-literal="1"'
@@ -2123,6 +2113,7 @@ def render_page(
         theme_boot=_THEME_BOOT.format(default_theme=default_theme).strip(),
         themes=_THEMES_CSS.strip(),
         page_css=_PAGE_CSS.strip(),
+        font_css=_page_font_css(font_family),
         page_js=_PAGE_JS.strip(),
         body=render_tree(roots),
         app_attr=app_attr,

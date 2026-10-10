@@ -85,20 +85,10 @@ class WebSocketClient:
 
 
 def create_app(runtime: Runtime) -> Starlette:
-    # Import here to avoid circular import.
-    from . import get_page_config
-
     async def homepage(request: Request) -> HTMLResponse:
-        cfg = get_page_config()
-        return HTMLResponse(
-            render_page(
-                runtime.roots,
-                title=cfg['title'],
-                default_theme=cfg.get('default_theme', 'dark'),
-                layout=cfg.get('layout', 'centered'),
-                dunder_literal=cfg.get('dunder_literal', False),
-            )
-        )
+        # the page's own settings ride `global_page_config`, which the app
+        # filled in as it built its tree (see `render_page`)
+        return HTMLResponse(render_page(runtime.roots))
 
     async def font_endpoint(request: Request) -> Response:
         if not _FONT_PATH.is_file():
