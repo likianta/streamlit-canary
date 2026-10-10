@@ -613,12 +613,33 @@ class SegmentedControl(_OptionsWidget):
     Properties:
         label, options, value — see `_OptionsWidget`.
 
+    Signals:
+        on_switch: `Signal` (the new value) — the user moved the selection to
+            another option. A programmatic `value.set` / `index.set` stays
+            silent, so a listener can tell a click apart from a refresh (see
+            `_on_change`).
+
     The track hugs its options by default (the `content` sizing keyword emits
     `flex: 0 1 auto`, so a `Row[Space(width='stretch'), SegmentedControl]`
     parks it against the right edge). Pass `width='stretch'` to fill instead.
     """
 
     _default_width = 'content'
+
+    def __init__(self, *args: tp.Any, **kwargs: tp.Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.on_switch: Signal = Signal(tp.Any, _owner_factory=lambda: self)
+
+    def _on_change(self, raw: tp.Any) -> None:
+        """A pill was clicked: commit the value, then report the switch.
+
+        The runtime hands a client `change` to this hook instead of writing
+        `value` itself -- which is what keeps `on_switch` user-only, since a
+        programmatic `value.set` / `index.set` never comes through here.
+        """
+        value = self._coerce_value(raw)
+        self.value.set(value)
+        self.on_switch.emit(value)
 
 
 class SelectSlider(_OptionsWidget):

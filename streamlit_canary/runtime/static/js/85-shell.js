@@ -113,7 +113,7 @@
   scAlignRowArrows(document);
   scInitAltairCharts();
   scBootPdfViews();
-  scSyncSegmented(document);
+  document.querySelectorAll('.st-segmented').forEach(scObserveSegmented);
   // path-like boxes show their tails (see `scTruncateStart`)
   scTruncateStart(document);
   document.fonts.ready.then(() => {

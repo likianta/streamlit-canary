@@ -286,6 +286,18 @@
     }
     highlight.style.opacity = '1';
   }
+  // Give a segmented control a standing measurement. The pills size
+  // themselves from their text, and a control inside anything hidden -- an
+  // expander body, a tab panel, a popover -- measures 0 until it is revealed,
+  // so observing the track's box re-places the highlight whenever that box
+  // changes. That covers the reveal as well as a webfont landing, the same
+  // trick `scObserveTabs` uses for the tab underline.
+  function scObserveSegmented(seg) {
+    const group = seg.querySelector('.st-segmented-group');
+    if (!group) return;
+    new ResizeObserver(() => scPlaceSegmentedHighlight(seg)).observe(group);
+    scPlaceSegmentedHighlight(seg);
+  }
   // -- MenuButton / ReducibleGroup rows ---------------------------------
   // The rows are plain HTML (the server writes them, an `options` patch
   // rebuilds them), so they hook up through these globals rather than through
