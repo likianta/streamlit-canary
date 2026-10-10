@@ -36,11 +36,16 @@
     --st-font: "Source Sans", sans-serif;
     --st-heading-font: "Source Sans", sans-serif;
     --st-code-font: "Source Code Pro", "SF Mono", monospace;
-    --st-base-font-size: 16px;
+    /* The unified text size: body prose, the text components and the controls
+       all draw at 14px. Streamlit draws its body at 16px and only its button
+       label / tab labels at 14px; we deliberately run everything a notch
+       tighter so one size holds across the page. Code remains the exception
+       (the monospaced face keeps its own size). */
+    --st-base-font-size: 14px;
     --st-base-font-weight: 400;
-    /* Tab labels. Streamlit renders them a notch smaller than the body text
-       (measured: 14px against its 16px `baseFontSize`). */
-    --st-small-font-size: 14px;
+    /* Small text -- captions (`Caption` / `.st-caption`, and the `Progress`
+       label, which is styled as a caption). A notch below the 14px body. */
+    --st-small-font-size: 12px;
     /* Muted text. This is Streamlit's `fadedText60` = rgba(bodyText, 0.6),
        which is what its captions / secondary labels render as -- *not* the
        `grayColor` palette entry (#555867), which nothing consumes. */

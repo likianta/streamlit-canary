@@ -397,7 +397,7 @@
     padding: 0 12px;
     border-radius: 6px;
     color: var(--st-text-color);
-    font-size: var(--st-small-font-size);
+    font-size: var(--st-base-font-size);
     line-height: 1.6;
     white-space: nowrap;
     cursor: pointer;
@@ -490,7 +490,7 @@
     opacity: 1;
   }
   .st-checkbox-text {
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.6;
     color: var(--st-text-color);
   }

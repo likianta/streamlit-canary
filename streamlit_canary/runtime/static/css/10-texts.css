@@ -13,7 +13,7 @@
   .st-title--right { text-align: right; }
 
   /* Text / Markdown / TextArea all draw at the Callout's size, which is the
-     body size -- and that is what Streamlit draws all of them at. */
+     unified body size (14px -- see `theme-*.css`). */
   .st-text {
     font-size: var(--st-base-font-size);
     color: var(--st-text-color);
@@ -124,7 +124,7 @@
   }
 
   .st-caption {
-    font-size: 14px;
+    font-size: var(--st-small-font-size);
     color: var(--st-gray-color);
     margin-bottom: 8px;
   }

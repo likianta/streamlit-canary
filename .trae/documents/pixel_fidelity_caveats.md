@@ -7,7 +7,7 @@
 ## UI 差异一览
 
 - Control height (全局控件高度)
-  - 按钮 (`v3.Button` / `v3.IconButton` / `v3.Popover` 与 `v3.MenuButton` 的触发器)、单行输入框 (`v3.TextInput` 的输入部分)、`v3.NumberInput` 的盒子、`v3.Selectbox` 的触发器、`v3.Multiselect` 的触发器、`v3.SegmentedControl` 的轨道, 以及共用一块状态区的 `v3.Callout` / `v3.Spinner`, 高度统一由 `runtime/static/css/01-base.css` 里的 `--st-control-height` (32px) 决定. 它在每一处都当作 `min-height` 用, 所以会增高的控件 (多行按钮文案, 换行的 alert) 仍然可以撑高 -- 例如两行文案的按钮实测 46.78px, 两行 alert 实测 51.19px.
+  - 按钮 (`v3.Button` / `v3.IconButton` / `v3.Popover` 与 `v3.MenuButton` 的触发器)、单行输入框 (`v3.TextInput` 的输入部分)、`v3.NumberInput` 的盒子、`v3.Selectbox` 的触发器、`v3.Multiselect` 的触发器、`v3.SegmentedControl` 的轨道, `v3.Expander` 的头栏, 以及共用一块状态区的 `v3.Callout` / `v3.Spinner`, 高度统一由 `runtime/static/css/01-base.css` 里的 `--st-control-height` (32px) 决定. 它在每一处都当作 `min-height` 用, 所以会增高的控件 (多行按钮文案, 换行的 alert) 仍然可以撑高 -- 例如两行文案的按钮实测 46.78px, 两行 alert 实测 44.78px.
 
     原版行为: st 的按钮与输入框是 40px (segmented 轨道则随自己的内边距落在 36.4px 之类的位置). 我们刻意矮 8px, 为的是让一行 / 一条工具栏里的框成为 "一条腰带", 而不是高低参差. 这是**既定选择**, 不要把它当成 bug 去 "修复" 回 40px: 像素对比里凡是上述控件的框高都应预期 32px. 由此产生的 8px 差值会连带影响依赖它们高度的一切纵向位置, 但那些位置都是前端按触发器的真实 rect 现算的 (面板 / 浮层的锚点, dropdown 的落点), 所以会自动跟随.
 

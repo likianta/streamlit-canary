@@ -12,10 +12,10 @@
     border: 1px solid var(--st-widget-border-color);
     border-radius: var(--st-button-radius);
     font-family: var(--st-font);
-    /* Streamlit's button carries no font size of its own, so the
-       `<button>` inherits its 16px base size -- but the label `<p>` it
-       renders sets 14px, which is what the user actually sees. Match the
-       visible size, not the inherited one. */
+    /* The label rides at the unified 14px text size (`theme-*.css`).
+       Streamlit reaches 14px only on the button label -- its `<button>`
+       inherits 16px and the `<p>` it renders sets 14px -- while our whole
+       page is already 14px. */
     font-size: 14px;
     font-weight: 400;
     line-height: 1.6;

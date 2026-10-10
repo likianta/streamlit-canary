@@ -12,7 +12,7 @@
     padding: 8px 12px;
     overflow: auto;
     font-family: var(--st-code-font);
-    font-size: var(--st-small-font-size);
+    font-size: var(--st-base-font-size);
     line-height: 1.6;
     color: var(--st-text-color);
     white-space: pre-wrap;

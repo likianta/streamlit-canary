@@ -76,8 +76,8 @@
      customisable table. */
   .st-table-title {
     margin-bottom: 4px;
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 700;
     line-height: 1.6;
     color: var(--st-heading-color);
   }

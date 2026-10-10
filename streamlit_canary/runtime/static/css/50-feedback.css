@@ -179,7 +179,7 @@
     background: transparent;
     color: var(--st-gray-color);
     font-family: var(--st-font);
-    font-size: var(--st-small-font-size);
+    font-size: var(--st-base-font-size);
     line-height: 1.6;
     cursor: pointer;
   }
@@ -214,11 +214,19 @@
     border-radius: var(--st-base-radius);
     overflow: hidden;
   }
+  /* The header is a control-height bar, like a button (see 33-buttons.css):
+     the shared token is a `min-height` and the padding is horizontal-only, so
+     the flex centring puts the chevron and the label in the middle of that
+     frame; a label that wraps still grows the bar. The label rides at the
+     button's own 14px rather than the 16px body size. */
   .st-expander-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 0 12px;
+    min-height: var(--st-control-height);
+    font-size: 14px;
+    line-height: 1.6;
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
     cursor: pointer;
@@ -364,7 +372,7 @@
     border-radius: var(--st-base-radius);
     background-color: var(--st-secondary-background-color);
     color: var(--st-text-color);
-    font-size: var(--st-small-font-size);
+    font-size: var(--st-base-font-size);
     line-height: 1.6;
     box-shadow: 0 4px 16px rgba(var(--st-shadow-rgb), 0.3);
     animation: st-toast-in 0.25s ease;
