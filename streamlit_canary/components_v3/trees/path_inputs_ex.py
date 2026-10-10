@@ -109,7 +109,7 @@ class _PathInputTree(Container):
     def __init__(
         self,
         label: str = '',
-        start_directory: str = '',
+        start_directory: str = '.',
         *,
         _expanded: bool = True,
         filter: T.Filter = None,
@@ -127,12 +127,21 @@ class _PathInputTree(Container):
         super().__init__(width=width, **kwargs)
         _check_tree_style(tree_style, self._styles)
 
-        first_path = start_directory or os.getcwd()
-        initial_is_file = bool(start_directory) and fs.isfile(first_path)
-        self._nav = _TreeNav(
-            fs.parent(first_path) if initial_is_file else first_path
-        )
-        self._first_path = first_path
+        # `start_directory` carries two sentinels: `''` leaves the box blank
+        # ("nothing picked yet") while still opening the panel on the cwd, and
+        # `'.'` (the default) means the cwd for both the box and the panel. Any
+        # other value is a path the box shows, the panel opening on its folder
+        # when it names a file, else on the path itself.
+        if start_directory == '':
+            open_at = os.getcwd()
+            self._first_path = ''
+            initial_is_file = False
+        else:
+            shown = os.getcwd() if start_directory == '.' else start_directory
+            initial_is_file = fs.isfile(shown)
+            open_at = fs.parent(shown) if initial_is_file else shown
+            self._first_path = shown
+        self._nav = _TreeNav(open_at)
         self._initial_is_file = initial_is_file
         self._label = label
         self._filter = filter
@@ -380,8 +389,11 @@ class PathInputExpanded(_PathInputTree):
 
     Args:
         label: the path box's label.
-        start_directory: the folder (or file) the panel opens on; the cwd by
-            default.
+        start_directory: the path the box shows and the panel opens on. `'.'`
+            (the default) means the cwd for both; `''` opens the panel on the
+            cwd too, but leaves the box blank ("nothing picked yet"); any other
+            value is shown in the box, the panel opening on its folder when it
+            names a file, else on the value itself.
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
         initial_mode / selection_mode: the modes to offer and to open in.
         input_history: seeds the box's own history (see `PathInput`).
