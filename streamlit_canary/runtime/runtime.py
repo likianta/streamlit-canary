@@ -257,6 +257,12 @@ class Runtime:
                 message['box_disabled'] = [
                     i for i, o in enumerate(value or []) if box_disabled(o)
                 ]
+            # ... and whether the listing drops its boxes altogether
+            # (`_boxless`: the `'none'` mode) -- a plain flag rather than an
+            # index list, since it is about the listing, not about a row.
+            boxless = getattr(comp, '_boxless', None)
+            if callable(boxless) and boxless():
+                message['boxless'] = True
             # ... and which rows carry the "enter" button (`_navigable`, which
             # only `SingleTreeSelect`'s private navigation groups set) -- same
             # reason.

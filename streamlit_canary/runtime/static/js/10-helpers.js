@@ -147,11 +147,13 @@
     const name = inputType === 'radio' ? ` name="radio_${id}"` : '';
     const fmt = window.scRenderMarkup;
     const box =
-      inputType === 'checkbox'
-        ? `<div class="st-checkbox-box">` +
-          `<svg viewBox="0 0 10 8" aria-hidden="true">` +
-          `<polyline points="1 4 4 7 9 1"></polyline></svg></div>`
-        : `<div class="st-radio-circle"><div class="st-radio-dot"></div></div>`;
+      config.boxless
+        ? ''
+        : inputType === 'checkbox'
+          ? `<div class="st-checkbox-box">` +
+            `<svg viewBox="0 0 10 8" aria-hidden="true">` +
+            `<polyline points="1 4 4 7 9 1"></polyline></svg></div>`
+          : `<div class="st-radio-circle"><div class="st-radio-dot"></div></div>`;
     // An empty list shows upstream's disabled placeholder row (`st.radio`
     // does the same); mirrors the server's `_choice_group_empty_html`.
     if (!values.length) {

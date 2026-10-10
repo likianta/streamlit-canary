@@ -87,10 +87,10 @@ from .texts import Title
 
 from .trees import ColumnView
 from .trees import DualTreeSelect
+from .trees import FileTreeView
 from .trees import PathInput
-from .trees import PathInputExpanded
-from .trees import PathInputExpander
-from .trees import PathInputPopup
+from .trees import PathInputBrowse
 from .trees import PathSelect
 from .trees import SingleTreeSelect
 from .trees import TreeSelect
+from .trees import TreeView

@@ -1,7 +1,7 @@
-"""Path inputs backed by a tree: a popup, an expander, an expanded one.
+"""A path input backed by a tree panel.
 
-All three pair a `PathInput` with one of the tree panels and wire the two the
-same way:
+`PathInputBrowse` pairs a `PathInput` with one of the tree panels and wires
+the two the same way, whichever panel style it is wearing:
 
 - a path typed into the box (Enter / blur) moves the panel onto the folder
   that holds it, and joins the panel's selection, so `value` -- and everything
@@ -10,16 +10,15 @@ same way:
 - the box also keeps the paths it has held (`PathInput.input_history`), which
   is what v1's "Recent" dropdown used to offer here.
 
-They differ in where the panel lives:
+`panel_style` says where the panel lives:
 
-- `PathInputPopup` --  the panel rides in a `Browse` popover, with its own
-  toolbar (the location ladder, `home`, `refresh`) and a Confirm button. That
-  button folds the popover away and writes the choice into the box.
-- `PathInputExpander` -- the panel unfolds under the box when the fold button
-  is pressed: no popover and no Confirm, just a show / hide of the rows. The
-  box follows the panel's pick live.
-- `PathInputExpanded` -- the expander without the fold button: the rows are
-  always there.
+    'popup'   in a `Browse` popover, with its own toolbar and a Confirm
+              button -- Confirm folds the popover away and writes the choice
+              into the box
+    'fold'    under the box, unfolded by a fold button: no popover and no
+              Confirm, just a show / hide of the rows, and the box follows
+              the panel's pick live
+    'inline'  under the box, always on show (the default)
 
 `tree_style` picks the panel:
 
@@ -28,14 +27,14 @@ They differ in where the panel lives:
     'dual_pane'    two columns, subfolders left and files right
     'column_view'  a Finder-style stack of columns, one level per column
 
-The expander and the expanded one host a single-column panel and take over
-its toolbar row: a `PathSelect` leads that row -- a click on the box unfolds
-the navigation ladder, a click on its caret the box's own history -- and the
-fold button closes it, so `home`, `refresh`, the bucket and the mode control
-sit between the two. The dual-pane panel has a toolbar of its own (back /
-forward / refresh / new folder), so only `PathInputPopup` takes that style.
-The column view has a toolbar too, but takes the same `leading` / `trailing`
-a single-column panel does, so all three wrappers accept it.
+The fold and inline styles host a single-column panel and take over its
+toolbar row: a `PathSelect` leads that row -- a click on the box unfolds the
+navigation ladder, a click on its caret the box's own history -- and the fold
+button closes it, so `home`, `refresh`, the bucket and the mode control sit
+between the two. The dual-pane panel has a toolbar of its own (back / forward
+/ refresh / new folder), so only the popup style takes it. The column view has
+a toolbar too, but takes the same `leading` / `trailing` a single-column panel
+does, so every style accepts it.
 """
 
 import os
@@ -51,10 +50,10 @@ from ._shared import _is_under
 from ._shared import _location_options
 from .column_view import ColumnView
 from .dual_pane import DualTreeSelect
+from .file_tree_view import FileTreeView
 from .path_inputs import PathInput
 from .path_inputs import PathSelect
 from .single_list import SingleTreeSelect
-from .tree_view import TreeView
 from ..base import Width
 from ..buttons import IconButton
 from ..layouts import Container
@@ -70,6 +69,7 @@ _FOLD_ARROWS = {False: ':material/expand_more:', True: ':material/expand_less:'}
 
 _STYLES_INLINE = ('single_list', 'tree_view', 'column_view')
 _STYLES_POPUP = ('single_list', 'tree_view', 'dual_pane', 'column_view')
+_PANEL_STYLES = ('popup', 'fold', 'inline')
 
 
 def _check_tree_style(tree_style: str, allowed: tp.Tuple[str, ...]) -> None:
@@ -77,6 +77,15 @@ def _check_tree_style(tree_style: str, allowed: tp.Tuple[str, ...]) -> None:
         raise ValueError(
             'tree_style must be one of {}, got {!r}'.format(
                 ', '.join(repr(s) for s in allowed), tree_style
+            )
+        )
+
+
+def _check_panel_style(panel_style: str) -> None:
+    if panel_style not in _PANEL_STYLES:
+        raise ValueError(
+            'panel_style must be one of {}, got {!r}'.format(
+                ', '.join(repr(s) for s in _PANEL_STYLES), panel_style
             )
         )
 
@@ -96,28 +105,66 @@ def _ladder_for(directory: str) -> tp.List[str]:
     return rungs
 
 
-class _PathInputTree(Container):
-    """What the three path inputs share: the wiring, the mirrors, the api.
+class PathInputBrowse(Container):
+    """A path input plus a tree panel, in one of three panel styles.
 
-    A subclass only says where the panel goes (see `_build`) and whether the
-    rows fold (`_foldable`) or ride in a popover (`_popup`).
+        with v3.PathInputBrowse(
+            'Select a file',
+            'data/sample',
+            filter='.txt',  # or multi-filter: filter=('.txt', '.csv')
+        ) as tree:
+            ...
+            path = tree.value.get()
+
+    The box is the panel's other half. A path it resolves to -- typed, pasted,
+    or handed in as `start_directory` -- moves the panel (and the panel's own
+    location ladder) onto the folder that holds it; a path that is not on disk
+    yet names no folder, so the panel is left where it was.
+
+    Where the panel lives is `panel_style` (see the module docstring). In the
+    popup style, Confirm closes the popover and writes the choice into the
+    box: the panel's pick, or -- with nothing ticked -- the folder it ended on
+    (v1 spelled that folder out as a "This folder" row, and a folder chooser
+    reads the same way). That choice also joins the selection (`select`), so
+    `value` carries it too.
+
+    Args:
+        label: the path box's label.
+        start_directory: the path the box shows and the panel opens on. `'.'`
+            (the default) means the cwd for both; `''` opens the panel on the
+            cwd too, but leaves the box blank ("nothing picked yet"); any other
+            value is shown in the box, the panel opening on its folder when it
+            names a file, else on the value itself.
+        panel_style: `'popup'` / `'fold'` / `'inline'` (default).
+        expanded: whether a foldable panel starts on show (the `'fold'`
+            style's starting state; ignored by the others).
+        tree_style: which panel to hold -- `'single_list'` (default),
+            `'tree_view'`, `'column_view'`, or (`'popup'` only) `'dual_pane'`.
+        filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
+        initial_mode / selection_mode: the modes to offer and to open in.
+        input_history: seeds the box's own history (see `PathInput`).
+        node_type: `'file'` (default) or `'folder'`; the dual-pane panel only.
+        panel_height: cap on the panel's height in px.
+
+    Properties:
+        value: str | list[str] -- the panel's selection. Bindable.
+        mode: str -- the panel's active mode.
+        directory: str -- the folder the panel shows.
+        input_history: list[str] | None -- the paths the box has held.
     """
-
-    _foldable = False
-    _popup = False
-    _styles: tp.Tuple[str, ...] = _STYLES_INLINE
 
     def __init__(
         self,
         label: str = '',
         start_directory: str = '.',
         *,
-        _expanded: bool = True,
+        expanded: bool = False,
         filter: T.Filter = None,
         initial_mode: tp.Optional[str] = None,
         input_history: tp.Iterable[str] | Property | None = (),
         node_type: T.NodeType = 'file',
         panel_height: int = 500,
+        panel_style: str = 'inline',
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
@@ -126,7 +173,12 @@ class _PathInputTree(Container):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
-        _check_tree_style(tree_style, self._styles)
+        _check_panel_style(panel_style)
+        self._popup = panel_style == 'popup'
+        self._foldable = panel_style == 'fold'
+        _check_tree_style(
+            tree_style, _STYLES_POPUP if self._popup else _STYLES_INLINE
+        )
 
         # `start_directory` carries two sentinels: `''` leaves the box blank
         # ("nothing picked yet") while still opening the panel on the cwd, and
@@ -162,9 +214,9 @@ class _PathInputTree(Container):
         # user typing, so it must not echo back into the panel (see
         # `_on_path_typed`)
         self._quiet = False
-        # `_expanded` only means something to the foldable one; a `Property`
-        # either way, so `rows_visible` has something to bind to
-        self._expanded = Property(bool(_expanded) if self._foldable else True)
+        # the fold state only means something to the foldable style; a
+        # `Property` either way, so `rows_visible` has something to bind to
+        self._expanded = Property(bool(expanded) if self._foldable else True)
 
         # `value` / `mode` mirror the panel's, so a caller reads the selection
         # right here; writes go through the panel (`select` / `clear`).
@@ -228,8 +280,27 @@ class _PathInputTree(Container):
     # -- layout -------------------------------------------------------------
 
     def _build(self) -> None:
-        """Put the box and the panel where this variant wants them."""
-        raise NotImplementedError
+        """Put the box and the panel where `panel_style` wants them."""
+        if self._popup:
+            with Row('bottom'):
+                self._mount_box()
+                self._browse_popover = Popover(
+                    'Browse',
+                    panel_align='row',
+                    panel_max_height=self._panel_height,
+                )
+                with self._browse_popover:
+                    self._tree = self._make_panel(confirm=True)
+            return
+        if self._foldable:
+            self._tree = self._make_panel(
+                confirm=False,
+                leading=self._mount_box,
+                trailing=self._mount_fold,
+                rows_visible=self._expanded,
+            )
+            return
+        self._tree = self._make_panel(confirm=False, leading=self._mount_box)
 
     def _make_panel(
         self,
@@ -267,7 +338,10 @@ class _PathInputTree(Container):
                 _vendored=True,
                 border=False,
             )
-        cls = TreeView if self._tree_style == 'tree_view' else SingleTreeSelect
+        if self._tree_style == 'tree_view':
+            cls = FileTreeView
+        else:
+            cls = SingleTreeSelect
         return cls(
             # keyword: `SingleTreeSelect`'s first positional is its `label`, so
             # the folder would land on the wrong field there
@@ -325,7 +399,54 @@ class _PathInputTree(Container):
             self._expanded.set(not self._expanded.get())
 
     def _wire_host(self) -> None:
-        """Register whatever the host adds (the popup's Confirm)."""
+        """Hook up what the popup style adds: its Confirm button."""
+        if not self._popup:
+            return
+        if self._dual:
+
+            @self._tree.on_confirm
+            def _on_panel_confirmed() -> None:
+                self._commit(self._picked_path())
+
+        else:
+
+            @self._tree.on_submit
+            def _on_panel_submitted(paths: tp.Iterable[str]) -> None:
+                self._commit(self._confirmed_pick(tuple(paths)))
+
+    def _confirmed_pick(self, resolved: tp.Tuple[str, ...]) -> str:
+        """The pick Confirm commits, out of the panel's resolved paths.
+
+        Only a pick that sits inside the folder on show is the user's answer.
+        A pick left over from an earlier confirm, in a folder they have since
+        walked away from, is not: `Confirm` then means the folder itself,
+        which is where the panel is pointed (and returning to that earlier
+        folder restores its pick). The first pick inside the folder wins, so
+        the order the user picked in is kept.
+        """
+        directory = self._tree.directory
+        for path in resolved:
+            if _is_under(path, directory):
+                return path
+        return directory
+
+    def _commit(self, choice: str) -> None:
+        """Take the choice: fold the popover away and write the box.
+
+        Writing the box is a commit, not a typed path, so it must leave the
+        panel where it is; the choice also joins the panel's selection, which
+        `value` mirrors.
+        """
+        self._browse_popover.close()
+        if not choice:
+            return
+        self._quiet = True
+        try:
+            self._path_input.show(choice)
+        finally:
+            self._quiet = False
+        if not self._dual:
+            self._tree.select(choice)
 
     # -- panel plumbing -----------------------------------------------------
 
@@ -374,168 +495,3 @@ class _PathInputTree(Container):
     def reload(self) -> None:
         """Re-read the browsed folder from disk (the panel's own button)."""
         self._tree.reload()
-
-
-class PathInputExpanded(_PathInputTree):
-    """A path input with its tree always below it.
-
-        with v3.PathInputExpanded('Select a file', 'data/sample') as tree:
-            ...
-            path = tree.value.get()
-
-    The layout is a `Column[Row[PathInput, home, refresh, ...], rows]`: the
-    box leads the panel's toolbar row and the rows sit under it, always on
-    show. No `Browse` button, no Confirm -- the box is whatever the panel
-    picks, and typing into it drives the panel (see the module docstring).
-
-    Args:
-        label: the path box's label.
-        start_directory: the path the box shows and the panel opens on. `'.'`
-            (the default) means the cwd for both; `''` opens the panel on the
-            cwd too, but leaves the box blank ("nothing picked yet"); any other
-            value is shown in the box, the panel opening on its folder when it
-            names a file, else on the value itself.
-        filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
-        initial_mode / selection_mode: the modes to offer and to open in.
-        input_history: seeds the box's own history (see `PathInput`).
-        panel_height: cap on the panel's height in px.
-        tree_style: `'single_list'` (default) or `'tree_view'`.
-
-    Properties:
-        value: str | list[str] -- the panel's selection. Bindable.
-        mode: str -- the panel's active mode.
-        directory: str -- the folder the panel shows.
-        input_history: list[str] | None -- the paths the box has held.
-    """
-
-    def _build(self) -> None:
-        self._tree = self._make_panel(confirm=False, leading=self._mount_box)
-
-
-class PathInputExpander(_PathInputTree):
-    """A path input whose tree unfolds under it on demand.
-
-        with v3.PathInputExpander('Select a file', 'data/sample') as tree:
-            ...
-            path = tree.value.get()
-
-    Same row and rows as `PathInputExpanded`, plus a fold button at its tail:
-    pressed, the rows under the row show or hide. That is a plain
-    visibility toggle (`rows_visible`), not a popover -- the panel stays in
-    the page, and nothing floats over what is below it.
-
-    Args:
-        expanded: whether the rows start on show (default False).
-        (the rest as `PathInputExpanded`)
-
-    Properties: as `PathInputExpanded`.
-    """
-
-    _foldable = True
-
-    def __init__(
-        self, *args: tp.Any, expanded: bool = False, **kwargs: tp.Any
-    ) -> None:
-        super().__init__(*args, _expanded=expanded, **kwargs)
-
-    def _build(self) -> None:
-        self._tree = self._make_panel(
-            confirm=False,
-            leading=self._mount_box,
-            trailing=self._mount_fold,
-            rows_visible=self._expanded,
-        )
-
-
-class PathInputPopup(_PathInputTree):
-    """A path input plus a browser in a `Browse` popover.
-
-        with v3.PathInputPopup(
-            'Select a file',
-            'data/sample',
-            filter='.txt',  # or multi-filter: filter=('.txt', '.csv')
-        ) as tree:
-            ...
-            path = tree.value.get()
-
-    The box is the popover's other half. A path it resolves to -- typed,
-    pasted, or handed in as `start_directory` -- moves the browser (and the
-    browser's own location ladder) onto the folder that holds it; a path that
-    is not on disk yet names no folder, so the browser is left where it was.
-
-    Confirm closes the popover and writes the choice into the box: the
-    browser's pick, or -- with nothing ticked -- the folder the browser ended
-    on (v1 spelled that folder out as a "This folder" row, and a folder
-    chooser reads the same way). That choice also joins the selection
-    (`select`), so `value` carries it too.
-
-    Args:
-        tree_style: which browser the popover holds -- `'single_list'`
-            (default), `'tree_view'`, or `'dual_pane'`. The dual-pane one is
-            single-select: `selection_mode` / `initial_mode` do not reach it.
-        node_type: `'file'` (default) or `'folder'`; the dual-pane browser
-            only.
-        panel_height: cap on the popover panel's height in px.
-        (the rest as `PathInputExpanded`)
-
-    Properties: as `PathInputExpanded`.
-    """
-
-    _popup = True
-    _styles = _STYLES_POPUP
-
-    def _build(self) -> None:
-        with Row('bottom'):
-            self._mount_box()
-            self._browse_popover = Popover(
-                'Browse', panel_align='row', panel_max_height=self._panel_height
-            )
-            with self._browse_popover:
-                self._tree = self._make_panel(confirm=True)
-
-    def _wire_host(self) -> None:
-        if self._dual:
-
-            @self._tree.on_confirm
-            def _on_panel_confirmed() -> None:
-                self._commit(self._picked_path())
-
-        else:
-
-            @self._tree.on_submit
-            def _on_panel_submitted(paths: tp.Iterable[str]) -> None:
-                self._commit(self._confirmed_pick(tuple(paths)))
-
-    def _confirmed_pick(self, resolved: tp.Tuple[str, ...]) -> str:
-        """The pick Confirm commits, out of the panel's resolved paths.
-
-        Only a pick that sits inside the folder on show is the user's answer.
-        A pick left over from an earlier confirm, in a folder they have since
-        walked away from, is not: `Confirm` then means the folder itself,
-        which is where the panel is pointed (and returning to that earlier
-        folder restores its pick). The first pick inside the folder wins, so
-        the order the user picked in is kept.
-        """
-        directory = self._tree.directory
-        for path in resolved:
-            if _is_under(path, directory):
-                return path
-        return directory
-
-    def _commit(self, choice: str) -> None:
-        """Take the choice: fold the popover away and write the box.
-
-        Writing the box is a commit, not a typed path, so it must leave the
-        browser where it is; the choice also joins the browser's selection,
-        which `value` mirrors.
-        """
-        self._browse_popover.close()
-        if not choice:
-            return
-        self._quiet = True
-        try:
-            self._path_input.show(choice)
-        finally:
-            self._quiet = False
-        if not self._dual:
-            self._tree.select(choice)

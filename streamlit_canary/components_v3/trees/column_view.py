@@ -208,7 +208,7 @@ class ColumnView(_Labeled, Container):
         self._location: tp.Optional[Selectbox] = None
 
         self.value = Property('')
-        # a constant, so a wrapper that mirrors `mode` (see `_PathInputTree`)
+        # a constant, so a wrapper that mirrors `mode` (see `PathInputBrowse`)
         # has something to bind to; the column view is single-select only
         self.mode = Property(_MODE_SINGLE)
         # whether the strip shows at all; a wrapper that folds the panel

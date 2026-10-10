@@ -55,16 +55,31 @@ this subclasses -- the difference is entirely in what the listing shows.
 
 import typing as tp
 
-from lk_utils import fs
-
 from ._shared import NAV_UP
+from ._shared import T
 from ._shared import _as_picked
 from ._shared import _is_multi
 from ._shared import _is_under
 from .single_list import SingleTreeSelect
+from ...kernel import Property
 
 
-class TreeView(SingleTreeSelect):
+class _CascadingTree(SingleTreeSelect):
+    """The listing engine of a cascading tree ("classic": every level in one
+    listing, folders folding open in place).
+
+    Everything here is inherited behavior plus an overridable data source: the
+    engine reads its rows through `_dirnames` / `_filenames` / `_parent_of`
+    (see `SingleTreeSelect`), which default to the filesystem. A panel that
+    lists something else overrides them -- `TreeView` drives them from a
+    static model, `FileTreeView` leaves them on the filesystem.
+
+    Subclasses only have to hand this a root folder to open on, as
+    `start_directory` (`_nav.directory`), and they get the whole classic tree:
+    the toolbar, the row gestures, the fold / unfold buttons, the tick model
+    (`'single'` / `'multiple'` / `'multicross'`) and the Confirm bar.
+    """
+
     def __init__(self, *args: tp.Any, **kwargs: tp.Any) -> None:
         # The folders that are showing their children, by absolute path.
         # Built before `super().__init__`, which draws the listing out of it.
@@ -92,10 +107,10 @@ class TreeView(SingleTreeSelect):
         nodes this panel deals in, so a tick covering a folder means the same
         set of paths here as it does in the listing.
         """
-        out = [self._join(directory, n) for n in self._nav.dirnames(directory)]
+        out = [self._join(directory, n) for n in self._dirnames(directory)]
         out += [
             self._join(directory, n)
-            for n in self._nav.filenames(directory)
+            for n in self._filenames(directory)
             if self._keeps(n)
         ]
         return out
@@ -131,12 +146,12 @@ class TreeView(SingleTreeSelect):
     def _walk(self, directory: str) -> list:
         """`directory`'s rows, each open folder expanded under its own row."""
         out: list = []
-        for name in self._nav.dirnames(directory):
+        for name in self._dirnames(directory):
             path = self._join(directory, name)
             out.append(path + '/')
             if path in self._open:
                 out += self._walk(path)
-        for name in self._nav.filenames(directory):
+        for name in self._filenames(directory):
             if self._keeps(name):
                 out.append(self._join(directory, name))
         return out
@@ -183,7 +198,7 @@ class TreeView(SingleTreeSelect):
         the path, not a walk of the subtree.
         """
         children = self._child_paths(cover)
-        if fs.parent(target) == cover:
+        if self._parent_of(target) == cover:
             return [c for c in children if c != target]
         out: tp.List[str] = []
         for child in children:
@@ -207,14 +222,14 @@ class TreeView(SingleTreeSelect):
         the panel's own folder -- that one is never a row, so folding into it
         would produce a pick nothing on screen could un-tick.
         """
-        node = fs.parent(path)
+        node = self._parent_of(path)
         while node and node != self._nav.directory:
             children = self._child_paths(node)
             if children and all(
                 self._covered(c, set(picked)) for c in children
             ):
                 picked = self._tick(picked, node)
-            node = fs.parent(node)
+            node = self._parent_of(node)
         return picked
 
     def _is_expanded(self, option: tp.Any) -> bool:
@@ -291,3 +306,139 @@ class TreeView(SingleTreeSelect):
             else:
                 out.append(p)
         return out
+
+
+class _Model:
+    """A static tree: `{name: subdict | None}`, folders and leaves.
+
+    A `dict` value is a folder (`{}` an empty one), `None` a leaf. Node paths
+    are the names joined with `/` -- the separator the filesystem also uses,
+    which is what lets the engine spell a cascading row as a plain path
+    (`A/D/G`) and read it back with nothing but string work.
+    """
+
+    def __init__(self, data: tp.Optional[dict]) -> None:
+        self._data = data if isinstance(data, dict) else {}
+        if not self._data:
+            # nothing to show yet: a panel can be built around an empty model
+            # (and fed one later), it just lists no rows
+            self.root = ''
+            return
+        roots = list(self._data)
+        if len(roots) != 1:
+            raise ValueError(
+                'data needs exactly one root node, got {!r}'.format(roots)
+            )
+        self.root: str = roots[0]
+
+    def chain(self, path: str) -> tp.List[str]:
+        """The rungs from the root down to `path`, itself last."""
+        text = str(path).strip('/')
+        if not text:
+            return []
+        parts = text.split('/')
+        return ['/'.join(parts[: i + 1]) for i in range(len(parts))]
+
+    def dirnames(self, path: str) -> tp.List[str]:
+        node = self.node(path) or {}
+        return sorted(n for n, v in node.items() if isinstance(v, dict))
+
+    def filenames(self, path: str) -> tp.List[str]:
+        node = self.node(path) or {}
+        return sorted(n for n, v in node.items() if v is None)
+
+    def node(self, path: str) -> tp.Optional[dict]:
+        """The folder `path` names, `None` when it is a leaf or unknown."""
+        data: tp.Any = self._data
+        for name in str(path).rstrip('/').split('/'):
+            if not name or not isinstance(data, dict):
+                return None
+            data = data.get(name)
+        return data if isinstance(data, dict) else None
+
+    def parent(self, path: str) -> str:
+        path = str(path).rstrip('/')
+        return path.rsplit('/', 1)[0] if '/' in path else path
+
+
+class TreeView(_CascadingTree):
+    """A classic tree over a static model, with no filesystem behind it.
+
+        with v3.TreeView('Distribution', {
+            'A': {
+                'B': None,   # a leaf -- no "enter" arrow
+                'C': {},     # an empty folder
+                'D': {'E': None, 'G': {}},
+            }
+        }) as tree:
+            ...
+            node = tree.value.get()
+
+    `data` is one `{name: subdict | None}` map: a `dict` value is a folder,
+    `None` a leaf; the map's single key is the root. Node paths are the names
+    joined with `/` (`A/D/G`), which is what the toolbar's location bar reads
+    off: it opens at `['A']` and, once you walk into `G`, shows
+    `['A', 'A/D', 'A/D/G']`. `..` walks back up; a folder's chevron folds it
+    open in place.
+
+    Everything else is `FileTreeView`'s -- the row gestures, the modes, the
+    Confirm bar, the bucket -- and deliberately so: this is the same engine,
+    fed by a model instead of by `lk_utils.fs`.
+
+    Args:
+        data: the model (bindable).
+        (the rest as `FileTreeView`)
+
+    Properties / Signals: as `FileTreeView`.
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        data: tp.Optional[dict] = None,
+        *,
+        filter: T.Filter = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        self._model = _Model(data)
+        super().__init__(label, self._model.root, filter=filter, **kwargs)
+        # `_TreeNav` reads its starting folder as a filesystem path; a model
+        # root is not one, so it is settled here and the listing redrawn
+        # against it. The first drawing (inside `super`) is the throwaway.
+        self._nav.directory = self._model.root
+        self._nav.start_directory = self._model.root
+        self._home_dir = self._model.root
+        self._refresh_listing()
+
+    # -- data source --------------------------------------------------------
+
+    @staticmethod
+    def _basename(path: str) -> str:
+        path = str(path).rstrip('/')
+        return path.rsplit('/', 1)[1] if '/' in path else path
+
+    def _dirnames(self, directory: str) -> tp.List[str]:
+        return self._model.dirnames(directory)
+
+    def _exists(self, path: str) -> bool:
+        path = str(path).rstrip('/')
+        return path == self._model.root or self._is_dir(path)
+
+    def _filenames(self, directory: str) -> tp.List[str]:
+        return self._model.filenames(directory)
+
+    def _is_dir(self, path: str) -> bool:
+        return self._model.node(path) is not None
+
+    def _ladder(self, directory: str) -> tp.List[str]:
+        return self._model.chain(directory)
+
+    def _normalize(self, path: str) -> str:
+        return str(path).strip().replace('\\', '/').strip('/')
+
+    def _option_path(self, option: tp.Any) -> str:
+        name = str(option)
+        return '' if name == NAV_UP else name.rstrip('/')
+
+    def _parent_of(self, path: str) -> str:
+        return self._model.parent(path)

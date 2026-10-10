@@ -188,7 +188,7 @@ class PathSelect(PathInput):
     - a click anywhere in the box unfolds the *ladder*: the rungs above the
       folder on show (the drives, then every ancestor), each a pick that
       fills the box in exactly as a history pick does. That is the
-      `Current location` bar of `PathInputPopup`, folded into the box, and
+      `Current location` bar of `PathInputBrowse`, folded into the box, and
       the **last** rung -- the folder on show -- is drawn as the selected
       one.
     - the caret unfolds `input_history`, and stays greyed out while that

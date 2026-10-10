@@ -31,7 +31,8 @@ from ._shared import (
     _empty_value,
     _is_multi,
     _is_multicross,
-    _is_single,
+    _is_none,
+    _is_radio,
     bucket_label,
     entry_label,
     listing_options,
@@ -84,7 +85,7 @@ class SingleTreeSelect(_Labeled, Container):
     panel wears.  Left alone (the default) the panel is a standalone widget:
     the button sits under the listing, in the ordinary flow, and the panel
     draws its own `border`.  A wrapper that already lives inside a frame --
-    `PathInputPopup`, inside a popover -- passes `_vendored=True`
+    `PathInputBrowse`, inside a popover -- passes `_vendored=True`
     instead: the button rides in a `FloatingContainer` in the panel's
     corner, staying put while the listing scrolls beneath it (and, being
     sticky, keeping its place in the flow, so no row can end up hidden under
@@ -183,7 +184,7 @@ class SingleTreeSelect(_Labeled, Container):
             resolved absolute paths (see `resolve`);
             a pick another pick already covers is dropped, so a ticked folder
             stands in for everything under it. A wrapper such as
-            `PathInputPopup` listens for it to dismiss the popover it
+            `PathInputBrowse` listens for it to dismiss the popover it
             opened.
 
     Call `reload()` to re-read the folder from disk, `select(path)` to add a
@@ -271,13 +272,13 @@ class SingleTreeSelect(_Labeled, Container):
         selection_mode = _check_selection_mode(selection_mode)
         initial_mode = _check_initial_mode(initial_mode, selection_mode)
         keeps = _filter_func(filter)
-        nav = _TreeNav(start_directory)
+        nav = _TreeNav(self._normalize(start_directory))
         self._nav = nav
         # where the Home button leads. Kept apart from `start_directory`,
         # which is what the listing opens on (and what the bucket labels
         # itself against); left out, the two are the same place.
         self._home_dir = (
-            fs.abspath(home_directory)
+            self._normalize(home_directory)
             if home_directory
             else nav.start_directory
         )
@@ -326,7 +327,7 @@ class SingleTreeSelect(_Labeled, Container):
                 if show_location:
                     self._location = Selectbox(
                         'Current location',
-                        options=_location_options(nav.directory),
+                        options=self._ladder(nav.directory),
                         format=_path_label,
                         value=nav.directory,
                         accept_new_option=accept_new_option,
@@ -390,14 +391,15 @@ class SingleTreeSelect(_Labeled, Container):
                     lambda pair: pred(pair[0]) and pair[1],
                 )
 
-            with Container(visible=_rows_for(_is_single)):
+            with Container(visible=_rows_for(_is_radio)):
                 self._single_list = _NavRadioGroup(
                     'Folder contents',
                     options=(),
                     format=self._entry_label,
                     label_visibility='collapsed',
                     max_height=height,
-                    box_disabled=self._is_nav_up,
+                    box_disabled=self._is_frozen,
+                    boxless=self._is_boxless,
                     navigable=self._is_enterable,
                     body_opens=self._is_nav_up,
                     **self._row_extras(),
@@ -438,7 +440,11 @@ class SingleTreeSelect(_Labeled, Container):
                     # 'content' in a floating cluster (which hugs it), full
                     # width under the listing, as before
                     width=None if _vendored else 'stretch',
-                    visible=show_confirm_button,
+                    # `'none'` picks nothing, so there is nothing to confirm
+                    visible=bind(
+                        self.mode,
+                        lambda mode: show_confirm_button and not _is_none(mode),
+                    ),
                 )
             self.widgets: tp.Dict[str, Component] = {
                 'bottom_bar': bottom_bar,
@@ -544,15 +550,15 @@ class SingleTreeSelect(_Labeled, Container):
         Text that resolves to nothing -- half-typed, or simply not there --
         clears the pick rather than raising.
         """
-        text = fs.abspath(path.strip())
-        if not text or not fs.exist(text):
+        text = self._normalize(path.strip())
+        if not text or not self._exists(text):
             self.clear()
             return
-        if fs.isdir(text):
+        if self._is_dir(text):
             self._goto(text)
             return
-        directory = fs.parent(text)
-        keeps = bool(self._keeps(fs.basename(text)))
+        directory = self._parent_of(text)
+        keeps = bool(self._keeps(self._basename(text)))
         if keeps:
             self.select(text)
         # the pick re-lists on its own, so it goes first and this jump has
@@ -629,6 +635,23 @@ class SingleTreeSelect(_Labeled, Container):
         """Whether a row is `..` (`box_disabled` and `body_opens`)."""
         return _is_nav_up(option)
 
+    def _is_frozen(self, option: tp.Any) -> bool:
+        """Whether a row's box is inert.
+
+        `..` always is -- it is a place, not a node. And every row is, in
+        `'none'`: a display-only listing has nothing to tick, and a frozen
+        box is what says so (it also stops the row's own click from ticking).
+        """
+        return self._is_nav_up(option) or _is_none(self.mode.get())
+
+    def _is_boxless(self) -> bool:
+        """Whether the rows draw no box at all (`'none'` mode).
+
+        The box is dropped rather than hidden, so the label keeps its place
+        and every other row style is reused untouched.
+        """
+        return _is_none(self.mode.get())
+
     def _is_ticked(self, option: tp.Any, picked: tp.Set[str]) -> bool:
         """Whether a row's box is ticked, given the paths `value` holds.
 
@@ -642,6 +665,44 @@ class SingleTreeSelect(_Labeled, Container):
     def _listing_options(self) -> list:
         """The rows of the panel, top to bottom."""
         return listing_options(self._nav, self._keeps)
+
+    # -- data source --------------------------------------------------------
+    #
+    # Where a panel reads its rows from. The filesystem is the default; a
+    # panel that lists a static model instead overrides these (see
+    # `tree_view.py`), so the listing engine itself never touches `fs`.
+
+    def _dirnames(self, directory: str) -> tp.List[str]:
+        """The folder names `directory` holds."""
+        return self._nav.dirnames(directory)
+
+    def _filenames(self, directory: str) -> tp.List[str]:
+        """The file names `directory` holds."""
+        return self._nav.filenames(directory)
+
+    def _ladder(self, directory: str) -> tp.List[str]:
+        """The rungs the location bar offers for `directory`."""
+        return _location_options(directory)
+
+    def _normalize(self, path: str) -> str:
+        """Settle a path's spelling (absolute, forward slashes, no `..`)."""
+        return fs.abspath(path)
+
+    def _parent_of(self, path: str) -> str:
+        """The folder holding `path` (itself when it is a root)."""
+        return self._nav.parent_of(path)
+
+    @staticmethod
+    def _basename(path: str) -> str:
+        return fs.basename(path)
+
+    @staticmethod
+    def _exists(path: str) -> bool:
+        return fs.exist(path)
+
+    @staticmethod
+    def _is_dir(path: str) -> bool:
+        return fs.isdir(path)
 
     def _option_path(self, option: tp.Any) -> str:
         """The absolute path a row stands for (`''` for `..`)."""
@@ -684,8 +745,8 @@ class SingleTreeSelect(_Labeled, Container):
         wrapper's jump is not a walk of the panel's own, so it has nothing to
         point back at.
         """
-        directory = fs.abspath(directory) if directory else ''
-        if directory and fs.isdir(directory):
+        directory = self._normalize(directory) if directory else ''
+        if directory and self._is_dir(directory):
             self._nav.directory = directory
         self._came_from = ''
         self._point_at = point_at
@@ -777,7 +838,7 @@ class SingleTreeSelect(_Labeled, Container):
             # already present and does not fall back to the drive root.
             if self._location is not None:
                 self._location.value.set(nav.directory)
-                self._location.options.set(_location_options(nav.directory))
+                self._location.options.set(self._ladder(nav.directory))
         finally:
             self._syncing = False
         self.on_navigate.emit(nav.directory)

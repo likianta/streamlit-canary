@@ -7,14 +7,14 @@ You can solely test this script.
 It is the v3 spelling of that scene, and then some: the four path inputs sit
 one under the other, each with a readout under it bound to its `value`.
 
-    PathInputPopup      the browser rides in a `Browse` popover; Confirm
-                        writes the choice into the box.
-    PathInputExpander   the browser unfolds under the box on demand.
-    PathInputExpanded   the browser is always under the box; its rows are
-                        what `./tree_select_vs.py` walks (the only visible
-                        check group on the page).
+    PathInputBrowse     the one wrapper, in each of its panel styles:
+      panel_style='popup'   the browser rides in a `Browse` popover; Confirm
+                            writes the choice into the box.
+      panel_style='fold'    the browser unfolds under the box on demand.
+      panel_style='inline'  the browser is always under the box (the bare
+                            `ColumnView` below is that panel with no box).
     ColumnView          the macOS Finder-style stack of columns, tested both
-                        bare and wrapped by `PathInputExpanded`.
+                        bare and wrapped by `PathInputBrowse`.
 
 There is no rerun here, so the readouts follow the picks as they happen,
 instead of being read once the way the v1 scene reads its after a rerun.
@@ -35,24 +35,30 @@ def _readout(name: str) -> tp.Callable[[tp.Any], str]:
 
 
 def main() -> None:
-    with v3.PathInputPopup(
-        'Select a script', '.', filter='.py', selection_mode='single'
+    with v3.PathInputBrowse(
+        'Select a script',
+        '.',
+        filter='.py',
+        panel_style='popup',
+        selection_mode='single',
     ) as popup:
         pass
     v3.Text(sc.bind(popup.value, _readout('Popup')))
 
     # `tree_style='tree_view'`: both of these hold the folded-in-place tree,
     # so the expander's rows and the expanded one's are the same kind of row
-    with v3.PathInputExpander(
-        'Expander', '.', filter='.py', tree_style='tree_view'
+    with v3.PathInputBrowse(
+        'Expander', '.', filter='.py', panel_style='fold',
+        tree_style='tree_view',
     ) as expander:
         pass
     v3.Text(sc.bind(expander.value, _readout('Expander')))
 
-    with v3.PathInputExpanded(
+    with v3.PathInputBrowse(
         'Expanded',
         'streamlit_canary',
         filter='.py',
+        panel_style='inline',
         selection_mode='multiple',
         tree_style='tree_view',
     ) as expanded:
@@ -71,10 +77,11 @@ def main() -> None:
     # ... and the same panel wrapped, so the `tree_style='column_view'` wiring
     # (a `PathSelect` leading the toolbar, the box following the pick live) is
     # exercised too.
-    with v3.PathInputExpanded(
+    with v3.PathInputBrowse(
         'Column view (wrapped)',
         'streamlit_canary',
         filter='.py',
+        panel_style='inline',
         tree_style='column_view',
     ) as wrapped:
         pass

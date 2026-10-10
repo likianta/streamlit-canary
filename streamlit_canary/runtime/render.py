@@ -1443,6 +1443,7 @@ def _choice_group_items_html(
     input_type: str,
     on_change: str,
     box_disabled: tp.Callable[[tp.Any], bool] | None = None,
+    boxless: tp.Callable[[], bool] | None = None,
     navigable: tp.Callable[[tp.Any], bool] | None = None,
     body_opens: tp.Callable[[tp.Any], bool] | None = None,
     depth_of: tp.Callable[[tp.Any], int] | None = None,
@@ -1474,7 +1475,8 @@ def _choice_group_items_html(
 
     `body_opens` marks the options whose *own* click walks in, with no button
     at all: a row with a frozen box has no tick to spend, so the click is
-    free.  `SingleTreeSelect` uses it for `..`; the handler is `scOpenRow`, the same
+    free.  `SingleTreeSelect` uses it for `..`; the handler is `scOpenRow`, the
+    same
     one the arrow uses, so both gestures arrive as one `open` event.
 
     `depth_of` marks the options that sit below the panel's own folder, and
@@ -1502,7 +1504,9 @@ def _choice_group_items_html(
     fmt = comp.format_func
     name = f' name="{input_type}_{comp.id}"' if input_type == 'radio' else ''
     widget_off = not comp.enabled.get()
-    box = _choice_box_html(input_type)
+    # A display-only listing (`'none'`) drops the box outright, so the label
+    # reuses every other row style untouched (see `SingleTreeSelect`).
+    box = '' if (boxless and boxless()) else _choice_box_html(input_type)
     focused = getattr(comp, '_focus_index', -1)
     item_html = []
     for index, option in enumerate(values):
@@ -1570,6 +1574,7 @@ def _render_choice_group(
         input_type=input_type,
         on_change=on_change,
         box_disabled=getattr(comp, '_box_disabled', None),
+        boxless=getattr(comp, '_boxless', None),
         navigable=getattr(comp, '_navigable', None),
         body_opens=getattr(comp, '_body_opens', None),
         depth_of=getattr(comp, '_depth_of', None),

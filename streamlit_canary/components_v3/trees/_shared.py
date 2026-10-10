@@ -16,7 +16,7 @@ from ...kernel import Signal
 class T:
     Filter = tp.Optional[tp.Union[str, tp.Tuple[str, ...]]]
     NodeType = tp.Literal['file', 'folder']
-    SelectionMode = tp.Literal['single', 'multiple', 'multicross']
+    SelectionMode = tp.Literal['single', 'multiple', 'multicross', 'none']
 
 
 _DRIVES: tp.Optional[tp.Tuple[str, ...]] = None
@@ -135,7 +135,8 @@ def _call(hook: tp.Optional[tp.Callable]) -> None:
 class _NavigationGroup:
     """Mixin: a listing whose folder rows carry an "enter" arrow.
 
-    `SingleTreeSelect` needs two gestures on one row: a single click on the row body
+    `SingleTreeSelect` needs two gestures on one row: a single click on the
+    row body
     ticks / picks it -- the box's own label wraps the whole row, so the
     browser does that by itself -- while a folder floats a small `->` just
     right of its text once the pointer is over the row. 32px of clearance, not
@@ -191,6 +192,7 @@ class _NavigationGroup:
     def __init__(
         self,
         *args: tp.Any,
+        boxless: tp.Callable[[], bool] | None = None,
         navigable: tp.Callable[[tp.Any], bool] | None = None,
         body_opens: tp.Callable[[tp.Any], bool] | None = None,
         depth_of: tp.Callable[[tp.Any], int] | None = None,
@@ -202,6 +204,7 @@ class _NavigationGroup:
         super().__init__(*args, **kwargs)
         self.on_open: Signal = Signal(int)
         self.on_toggle: Signal = Signal(int)
+        self._boxless = boxless
         self._navigable = navigable
         self._body_opens = body_opens
         self._depth_of = depth_of
@@ -337,13 +340,15 @@ def option_path(nav: _TreeNav, option: tp.Any) -> str:
 _MODE_SINGLE = 'single'
 _MODE_MULTIPLE = 'multiple'
 _MODE_MULTICROSS = 'multicross'
+_MODE_NONE = 'none'
 
-_MODES = (_MODE_SINGLE, _MODE_MULTIPLE, _MODE_MULTICROSS)
+_MODES = (_MODE_SINGLE, _MODE_MULTIPLE, _MODE_MULTICROSS, _MODE_NONE)
 
 _MODE_LABELS = {
     _MODE_SINGLE: 'Single select',
     _MODE_MULTIPLE: 'Multi select',
     _MODE_MULTICROSS: 'Multi-cross select',
+    _MODE_NONE: 'No selection',
 }
 
 
@@ -420,12 +425,23 @@ def _check_selection_mode(mode: tp.Union[str, tp.Iterable[str]]) -> tuple:
 
 
 def _empty_value(mode: str) -> tp.Any:
-    """`''` when a mode picks one node, `[]` when it picks several."""
-    return '' if mode == _MODE_SINGLE else []
+    """`''` when a mode picks one node (or none), `[]` when several."""
+    return '' if mode in (_MODE_SINGLE, _MODE_NONE) else []
 
 
 def _is_multi(mode: str) -> bool:
-    return mode != _MODE_SINGLE
+    return mode in (_MODE_MULTIPLE, _MODE_MULTICROSS)
+
+
+def _is_none(mode: str) -> bool:
+    """`'none'` -- a display-only listing: no boxes, nothing to pick."""
+    return mode == _MODE_NONE
+
+
+def _is_radio(mode: str) -> bool:
+    """Whether a mode draws its rows as a `RadioGroup` (with a box, or the
+    box hidden for `'none'`), rather than as a `CheckGroup`."""
+    return not _is_multi(mode)
 
 
 def _is_multicross(mode: str) -> bool:
