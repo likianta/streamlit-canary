@@ -47,6 +47,7 @@ from ._shared import _MODE_SINGLE
 from ._shared import _TreeNav
 from ._shared import T
 from ._shared import _check_selection_mode
+from ._shared import _is_under
 from ._shared import _location_options
 from .column_view import ColumnView
 from .dual_pane import DualTreeSelect
@@ -503,8 +504,23 @@ class PathInputPopup(_PathInputTree):
 
             @self._tree.on_submit
             def _on_panel_submitted(paths: tp.Iterable[str]) -> None:
-                resolved = tuple(paths)
-                self._commit(resolved[0] if resolved else self._tree.directory)
+                self._commit(self._confirmed_pick(tuple(paths)))
+
+    def _confirmed_pick(self, resolved: tp.Tuple[str, ...]) -> str:
+        """The pick Confirm commits, out of the panel's resolved paths.
+
+        Only a pick that sits inside the folder on show is the user's answer.
+        A pick left over from an earlier confirm, in a folder they have since
+        walked away from, is not: `Confirm` then means the folder itself,
+        which is where the panel is pointed (and returning to that earlier
+        folder restores its pick). The first pick inside the folder wins, so
+        the order the user picked in is kept.
+        """
+        directory = self._tree.directory
+        for path in resolved:
+            if _is_under(path, directory):
+                return path
+        return directory
 
     def _commit(self, choice: str) -> None:
         """Take the choice: fold the popover away and write the box.
