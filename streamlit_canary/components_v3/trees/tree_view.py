@@ -400,14 +400,34 @@ class TreeView(_CascadingTree):
         filter: T.Filter = None,
         **kwargs: tp.Any,
     ) -> None:
+        # `data` is bindable: setting a new model re-roots the tree (see
+        # `_resettle_model`). That is what lets a tree mirror something that
+        # changes -- a selection elsewhere, say -- without a rebuild.
+        self.data = Property(data)
         self._model = _Model(data)
         super().__init__(label, self._model.root, filter=filter, **kwargs)
         # `_TreeNav` reads its starting folder as a filesystem path; a model
         # root is not one, so it is settled here and the listing redrawn
         # against it. The first drawing (inside `super`) is the throwaway.
+        self._settle_model()
+        self.data.on_change.connect(self._resettle_model)
+
+    def _resettle_model(self) -> None:
+        """Re-root the tree on a fresh `data` and redraw.
+
+        The pick set is dropped along the way: those node paths belonged to
+        the old model. `_Model` checks the new model's shape, so a bad one
+        raises here instead of quietly drawing nothing.
+        """
+        self._model = _Model(self.data.get())
+        self._settle_model()
+
+    def _settle_model(self) -> None:
         self._nav.directory = self._model.root
         self._nav.start_directory = self._model.root
         self._home_dir = self._model.root
+        self.value.set([] if _is_multi(self.mode.get()) else '')
+        self._open.clear()
         self._refresh_listing()
 
     # -- data source --------------------------------------------------------

@@ -14,11 +14,11 @@ the two the same way, whichever panel style it is wearing:
 
     'popup'   in a `Browse` popover, with its own toolbar and a Confirm
               button -- Confirm folds the popover away and writes the choice
-              into the box
+              into the box (the default)
     'fold'    under the box, unfolded by a fold button: no popover and no
               Confirm, just a show / hide of the rows, and the box follows
               the panel's pick live
-    'inline'  under the box, always on show (the default)
+    'inline'  under the box, always on show
 
 `tree_style` picks the panel:
 
@@ -135,7 +135,7 @@ class PathInputBrowse(Container):
             cwd too, but leaves the box blank ("nothing picked yet"); any other
             value is shown in the box, the panel opening on its folder when it
             names a file, else on the value itself.
-        panel_style: `'popup'` / `'fold'` / `'inline'` (default).
+        panel_style: `'popup'` (default) / `'fold'` / `'inline'`.
         expanded: whether a foldable panel starts on show (the `'fold'`
             style's starting state; ignored by the others).
         tree_style: which panel to hold -- `'single_list'` (default),
@@ -164,7 +164,7 @@ class PathInputBrowse(Container):
         input_history: tp.Iterable[str] | Property | None = (),
         node_type: T.NodeType = 'file',
         panel_height: int = 500,
-        panel_style: str = 'inline',
+        panel_style: str = 'popup',
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
