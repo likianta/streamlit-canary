@@ -7,26 +7,31 @@
 ## UI 差异一览
 
 - Control height (全局控件高度)
-  - 按钮 (`v3.Button` / `v3.IconButton` / `v3.Popover` 与 `v3.MenuButton` 的触发器)、单行输入框 (`v3.TextInput` 的输入部分)、`v3.NumberInput` 的盒子、`v3.Selectbox` 的触发器、`v3.Multiselect` 的触发器、`v3.SegmentedControl` 的轨道, `v3.Expander` 的头栏, 以及共用一块状态区的 `v3.Callout` / `v3.Spinner`, 高度统一由 `runtime/static/css/01-base.css` 里的 `--st-control-height` (32px) 决定. 它在每一处都当作 `min-height` 用, 所以会增高的控件 (多行按钮文案, 换行的 alert) 仍然可以撑高 -- 例如两行文案的按钮实测 46.78px, 两行 alert 实测 44.78px.
+  - 大多数扁长控件的高度统一由 `runtime/static/css/01-base.css` 里的 `--st-control-height` (32px) 决定. 它在每一处都当作 `min-height` 用.
 
-    原版行为: st 的按钮与输入框是 40px (segmented 轨道则随自己的内边距落在 36.4px 之类的位置). 我们刻意矮 8px, 为的是让一行 / 一条工具栏里的框成为 "一条腰带", 而不是高低参差. 这是**既定选择**, 不要把它当成 bug 去 "修复" 回 40px: 像素对比里凡是上述控件的框高都应预期 32px. 由此产生的 8px 差值会连带影响依赖它们高度的一切纵向位置, 但那些位置都是前端按触发器的真实 rect 现算的 (面板 / 浮层的锚点, dropdown 的落点), 所以会自动跟随.
+    原版行为: st 的按钮与输入框是 40px (segmented 轨道则随自己的内边距落在 36.4px 之类的位置). 我们刻意矮 8px, 为的是让一行 / 一条工具栏里的框成为 "一条腰带", 而不是高低参差.
 
   - 一处实现上的耦合: `.st-text-input-box` 被三种语境复用 (TextInput 的输入框, NumberInput 的内层输入框, `TextInput(input_history=...)` 里被 Selectbox 触发器框住的那个). 后两者各有一条 override 把 `min-height` 归零, 让外框拥有高度 -- 新加类似复用时要照做, 否则内层会自己撑到 32px 并溢出外框.
 
 - Height bounds (组件高度上下限)
-  - 所有组件 (含布局容器) 都接受 `max_height` / `min_height` 两个像素上下限, 这是 canary 独有的能力. 上限会一并带上 `overflow: auto` -- 也就是说封顶的容器 / 面板会滚动, 而不是让内容溢出到盒子外面; 下限 (`min_height`) 没有这个副作用. `height='stretch'` 胜过上下限: 两者同时给时, 上下限被丢弃 (显式的"填满父级"优先). 细节与落地位置见 `AGENTS.md` §7.
+  - 所有组件 (含布局容器) 都接受 `max_height` / `min_height`, 这是 canary 独有的能力. 上限会一并带上 `overflow: auto` -- 也就是说封顶的容器 / 面板会滚动, 而不是让内容溢出到盒子外面; 下限 (`min_height`) 没有这个副作用. `height='stretch'` 胜过上下限: 两者同时给时, 上下限被丢弃 (显式的"填满父级"优先). 细节与落地位置见 `AGENTS.md` §7.
 
     原版行为: st 没有"按元素设上下限"的入口 (只有 `st.container(height=...)` 这类固定高度), 所以这不是与 st 不一致, 而是我们多出来的能力. 像素对比时若看到某块区域被压住并出现滚动条, 先确认应用是否显式传了 `max_height`.
 
-- Label visibility (label_visibility)
+- Sizing scheme (`width` / `height` 的 `None` 哨兵)
+  - 我们的 `width` / `height` 都接受 `None`, 语义是"这块尺寸没给, 用组件自己的默认值"(`Component._default_width` / `_default_height`); 当那个默认值也是 `None` 时 (如 `v3.Container` 与几棵树/路径框), 结果是不输出任何 inline 尺寸规则, 交给 `page.css`. 定义与判定见 `components_v3/base.py` 的 "Size scheme" (那里也写了为什么它"刻意不在 aliases 里").
+
+    原版行为: st 的 `Width` / `Height` 同样不含 `None`, 而且 `validate_width` / `validate_height` 会**拒绝** `None` (抛 `StreamlitInvalidWidthError` / `StreamlitInvalidHeightError`); st 是靠一个私有哨兵 `_UNSET` 区分"没传"与"显式传了 `None`", 并在每个公开 API 上重复写具体默认值. 我们把默认值集中在 `_default_width` / `_default_height` 这一处, `None` 就是那个"未指定"标记 -- 所以差异只在**宽容度**: `v3.Button(width=None)` 在我们这里等于用默认值 `'content'`, 原版会直接报错. 渲染结果本身两边是对齐的 (两边默认值本就相同), 像素对比不受影响.
+
+- Label visibility
   - 我们给 `label_visibility` 多添了一个取值并把它作为默认: `'auto'` -- label 为空 (或只有空白) 时, 整个标签行连同它的高度一起收起来; label 有内容时等同 `'visible'`. 因为 `'auto'` 只看 label 文本, 空 label 即使带了 `help` 也会连同那个问号图标一起收起来 (要保住它就显式传 `'visible'`).
 
-    原版行为 (在 :2200 上实测的 st): 默认的 `'visible'` 即使 label 是空字符串也会保留标签行 -- `st.text_input('')` 的控件高 68px (标签行 24px + 间隙 4px + 输入框 40px), 同一个控件改成 `label_visibility='collapsed'` 则是 40px. 所以**空 label 的控件**在我们这里会比 st 矮 28px. 现有场景里没有空 label 的控件, 以后新增场景时留意 (想要那 28px 就显式传 `'visible'`).
+    原版行为: 默认的 `'visible'` 即使 label 是空字符串也会保留标签行 -- `st.text_input('')` 的控件高 68px (标签行 24px + 间隙 4px + 输入框 40px), 同一个控件改成 `label_visibility='collapsed'` 则是 40px. 所以**空 label 的控件**在我们这里会比 st 矮 28px. 现有场景里没有空 label 的控件, 以后新增场景时留意 (想要那 28px 就显式传 `'visible'`).
 
 - Multiselect trigger (`height='fixed'`)
   - `v3.Multiselect` 的触发器**始终保持一行** (高度就是那个 32px 的控件高度): 选中的值排成一行, 放不下时横向滚动 (滚动条隐藏), 每勾选一次把值区滚到末尾. 这就是它的默认行为 (`height='fixed'`).
 
-    原版行为: st 的 `st.multiselect` 用 `wrap: bool | None` 控制这件事 (它没有 `height` 参数): `None` (默认) 按布局决定 (在横向容器里或直接放在列里时, 标签单行 + 横向滚动; 其它情况换行), `True` 换行并且控件变高, `False` 单行固定高度 + 横向滚动. 我们是永远单行, 也就是 `wrap=False` 那一档. 所以像素对比时, 多选场景下的高度可能不同: 我们恒为 32px, st 在 `wrap=True` 或布局触发换行时会随标签增长. 这是有意为之, 不要按 st 去"修".
+    原版行为: st 的 `st.multiselect` 用 `wrap: bool | None` 控制这件事 (它没有 `height` 参数): `None` (默认) 按布局决定 (在横向容器里或直接放在列里时, 标签单行 + 横向滚动; 其它情况换行), `True` 换行并且控件变高, `False` 单行固定高度 + 横向滚动. 我们是永远单行, 也就是 `wrap=False` 那一档. 所以像素对比时, 多选场景下的高度可能不同: 我们恒为 32px, st 在 `wrap=True` 或布局触发换行时会随标签增长.
 
 - Selectbox `width='content'` (按最宽的选项取宽)
   - `v3.Selectbox(width='content')` 的宽度按**最宽的选项**算, 不按当前显示的那个值: 否则选项长短不一时, 每切换一次触发器宽度就跳一次 (回归测试见 `test/selectbox_on_width_wrap.py`, 它断言每个选项下宽度一致, 且等于"最宽选项 + 框的内边距/边框/间隙/箭头"). 实现上有一处不可见的 sizer 与触发器共用 grid 单元格, 细节与两个坑 (`visibility: hidden` 而非 `display: none`; sizer 自己的 `width` 必须是 `auto`) 见 `AGENTS.md` §7.
@@ -34,14 +39,14 @@
     原版行为: st 的 `st.selectbox` 只接受 `"stretch"` 或 int (它的签名用的是 `WidthWithoutContent`), 根本没有 `'content'` 这个取值, 所以此处没有"与 st 对齐"可言 -- 这是我们多出来的能力. 像素对比时若发现宽度不一致, 先确认场景是否显式传了 `width='content'`.
 
 - Layout gaps (全局横向 / 纵向间距)
-  - 同目录 `01-base.css` 里还有两个间距 token: `--st-hgap` (8px) 与 `--st-vgap` (16px). 用横向的那个 (`--st-hgap`): `v3.Row` 子元素并排时的间距, `v3.Grid` 的列轨道之间, 横向 (`horizontal=True`) 的 `v3.Radio` / `v3.CheckGroup` 的选项之间, tab 条上的各个 tab, `v3.FloatingContainer` 聚簇内的子元素. 用纵向的那个 (`--st-vgap`): 应用根 (`#app`), `v3.Container`, `v3.Grid` 的行距及其 `GridCell`, popover 面板, expander 的正文, tab 面板. `v3.Row` 换行后那两行之间属于纵向节奏, 所以也走 `--st-vgap`. 注意: 属于控件自身尺度的间距 (按钮的文案到图标, checkbox 的框到文字) 不在此列, 它们保持各自原来的字面值.
+  - `01-base.css` 里有两个间距 token: `--st-hgap` (8px) 与 `--st-vgap` (16px). 注意: 1. `v3.Row` 换行后那两行之间属于纵向节奏, 所以走 `--st-vgap`; 2. 属于控件自身尺度的间距 (按钮的文案到图标, checkbox 的框到文字) 不在此列, 它们保持各自原来的字面值.
 
     原版行为: 这些位置 st 用的都是 16px (主块容器 / `st.columns` / expander / 面板都是 1rem 的节奏). 我们把**横向**间距刻意收到 8px, 让并排的箱子读作一个聚簇而不是彼此散开; **纵向**间距保持 16px 与 st 一致. 所以像素对比里横向间距按 8px 预期, 纵向仍按 16px.
 
   - 一处跨端耦合: `Grid` 的列轨道宽度是服务端算出来的 (`runtime/render.py` 的 `_render_element`: `weight% - gap * (n - 1) / n`), 那个 `gap_px` 必须与 `--st-hgap` 同步, 否则 "轨道之和 + 间距之和" 不再等于容器内宽 (会差 `(16 - 8) * (n - 1) / n`; 3 列时约 5.3px/列). 实测 3 列 Grid 的轨道加间距为 703.98px, 容器内宽 704px.
 
 - Window scrollbar gutter (窗口滚动条槽位预留)
-  - `01-base.css` 给根元素加了 `html { scrollbar-gutter: stable }`: 窗口滚动条的槽位始终预留. 经典 (占位式) 滚动条会把视口 `clientWidth` 压掉自己的宽度, 而 `#app` 是按 `clientWidth` 居中的 -- 页面在 "放得下" 与 "溢出" 之间来回切换时 (展开一个很高的 `v3.Expander` 就是这种情形), 居中的内容列会每次被顶偏半个滚动条宽, 也就是横向 "抖动". `stable` 让槽位不论滚动条在不在都留着, 于是宽度 -- 以及居中位置 -- 不再变化. 回归测试见 `test/window_scrollbar_quiver.py` (它同时断言滚动条显隐时 `#app` 不动, 且根元素确实预留了槽位).
+  - `01-base.css` 给根元素加了 `html { scrollbar-gutter: stable }`: 窗口滚动条的槽位始终预留. 经典 (占位式) 滚动条会把视口 `clientWidth` 压掉自己的宽度, 而 `#app` 是按 `clientWidth` 居中的 -- 页面在 "放得下" 与 "溢出" 之间来回切换时 (展开一个很高的 `v3.Expander` 就是这种情形), 居中的内容列会每次被顶偏半个滚动条宽, 也就是横向 "抖动". `stable` 让槽位不论滚动条在不在都留着, 于是宽度 -- 以及居中位置 -- 不再变化. 回归测试见 `test/layout_shifts_by_window_scrollbar.py` (它同时断言滚动条显隐时 `#app` 不动, 且根元素确实预留了槽位).
 
     原版行为: st 把滚动放在内部容器里 (主区块自己滚), 窗口滚动条通常不参与布局, 也就没有这条预留. 由此我们的内容列在无滚动条时会比原版略靠左约半个滚动条宽 (~7.5px). 这是**有意为之**, 像素对比时按此预期; 对比脚本都是按元素自身的 bounding box 取几何 (hover / 截图都相对元素本身), 不比较页面绝对位移, 所以不受影响.
 
@@ -177,10 +182,8 @@
 
     原版行为: st.table 在数据为空时仍然绘制出一个空表格 (占据一块高度).
 
-  - [不是差异, 记在这里以免被 "修" 回去] 表格外框是圆角, 且与原版取值相同. 我们的 `.st-table-scroll` 取 `border-radius: var(--st-base-radius)` (8px, 与带边框的 `Container` 同值); 原版包住 `<table>` 的那个滚动盒子实测也是 `border-radius: 8px` (`overflow: auto`, `border-top-width: 1px`). 因为该盒子本就 `overflow: auto`, 浏览器会把表格自身的方角裁到弧内 -- 带底色的表头行 (`header_background=True`) 也跟着圆弧, 不会从角上探出去.
-
 - Theme
-  - 两套主题 (浅色 / 深色) 各自声明 `color-scheme` (`light` / `dark`), 让浏览器把我们没有自己绘制的界面 -- 滚动条, 文本光标, 以及应用之外的画布 -- 也按当前主题上色. 否则暗色模式下 `Popover` 面板 (行对齐面板的常驻滚动条槽位) 与 `Code` 代码块的滚动条仍是亮色, 跟四周的深色格不入.
+  - 两套主题 (浅色 / 深色) 各自声明 `color-scheme` (`light` / `dark`), 让浏览器把我们没有自己绘制的界面 -- 滚动条, 文本光标, 以及应用之外的画布 -- 也按当前主题上色. 否则暗色模式下 `Popover` 面板 (行对齐面板的常驻滚动条槽位) 与 `Code` 代码块的滚动条仍是亮色, 跟四周的深色格格不入.
 
     例外: Selectbox 展开面板自己画了一道 6px 的细滚动条 (`::-webkit-scrollbar*`), 不走系统绘制, 所以不受 `color-scheme` 影响.
 

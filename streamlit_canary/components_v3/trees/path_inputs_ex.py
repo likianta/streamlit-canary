@@ -138,8 +138,7 @@ class PathInputBrowse(Container):
         panel_style: `'popup'` (default) / `'fold'` / `'inline'`.
         expanded: whether a foldable panel starts on show (the `'fold'`
             style's starting state; ignored by the others).
-        tree_style: which panel to hold -- `'single_list'` (default),
-            `'tree_view'`, `'column_view'`, or (`'popup'` only) `'dual_pane'`.
+        tree_style: which panel to hold.
         filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
         initial_mode / selection_mode: the modes to offer and to open in.
         input_history: seeds the box's own history (see `PathInput`).
@@ -168,7 +167,9 @@ class PathInputBrowse(Container):
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
-        tree_style: str = 'single_list',
+        tree_style: tp.Literal[
+            'column_view', 'dual_pane', 'single_list', 'tree_view'
+        ] = 'single_list',
         width: Width | None = None,
         **kwargs: tp.Any,
     ) -> None:
@@ -495,3 +496,28 @@ class PathInputBrowse(Container):
     def reload(self) -> None:
         """Re-read the browsed folder from disk (the panel's own button)."""
         self._tree.reload()
+
+    def resolve(self) -> tp.Tuple[str, ...]:
+        """The panel's selection as absolute paths (see `SingleTreeSelect`).
+
+        A ticked folder stands for everything under it, so a pick another
+        pick already covers is dropped. Not defined for the dual-pane panel,
+        whose `value` is the row under the cursor rather than a pick.
+        """
+        return tuple(self._tree.resolve())
+
+    @property
+    def widgets(self) -> tp.Dict[str, tp.Any]:
+        """The panel's own sub-components, reached through the wrapper.
+
+        This is the panel's `widgets` dict (see `SingleTreeSelect`), so a
+        caller can extend the panel -- `bottom_bar` being the usual door --
+        without having to know which panel `tree_style` built::
+
+            with v3.PathInputBrowse(...) as tree:
+                with tree.widgets['bottom_bar']:
+                    v3.Button('Open input folder')
+
+        The dual-pane panel keeps no such dict of its own.
+        """
+        return self._tree.widgets
