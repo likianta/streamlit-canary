@@ -223,8 +223,10 @@ class ColumnView(_Labeled, Container):
             # The toolbar is a row across the panel's top: the location
             # selectbox leads -- listing every ancestor of the folder on show,
             # so the ladder doubles as "you are here" and any parent (or drive)
-            # is one pick away -- and then the actions.
-            with Row('center'):
+            # is one pick away -- and then the actions. Aligned on the bottom
+            # so a leading widget's own label does not lift the actions off
+            # its input line (see `SingleTreeSelect`).
+            with Row('bottom'):
                 if leading is not None:
                     leading()
                 if show_location:
@@ -272,10 +274,12 @@ class ColumnView(_Labeled, Container):
                     self._col_groups.append(group)
 
             # The bottom bar, exactly as the other panels build it: a vendored
-            # panel floats it into the corner, a standalone one keeps it under
-            # the columns (and, being built around a `Row`, is somewhere a
-            # caller can add its own actions).
-            if _vendored:
+            # panel floats it into the corner (but only when it has a Confirm
+            # button to float there -- see `SingleTreeSelect`), a standalone
+            # one keeps it under the columns (and, being built around a `Row`,
+            # is somewhere a caller can add its own actions).
+            floats = _vendored and show_confirm_button
+            if floats:
                 with FloatingContainer('bottom-right'):
                     bottom_bar = Row('center', hide_when_empty=True)
             else:
@@ -283,7 +287,7 @@ class ColumnView(_Labeled, Container):
             with bottom_bar:
                 self._confirm_btn = Button(
                     'Confirm',
-                    width=None if _vendored else 'stretch',
+                    width=None if floats else 'stretch',
                     visible=show_confirm_button,
                 )
             self.widgets: tp.Dict[str, tp.Any] = {

@@ -321,7 +321,12 @@ class SingleTreeSelect(_Labeled, Container):
             # the row needs no `Space`. Its `accept_new_option` row is for the
             # place the ladder cannot offer -- a path typed in from outside --
             # and takes the panel *there* rather than growing a rung.
-            with Row('center'):
+            #
+            # `bottom`: a leading widget carries a label of its own, so the
+            # row is taller than the 32px actions. Aligning on the bottom
+            # keeps the box's input and the icon buttons on one line instead
+            # of centering the shorter actions against the whole box.
+            with Row('bottom'):
                 if leading is not None:
                     leading()
                 if show_location:
@@ -427,7 +432,14 @@ class SingleTreeSelect(_Labeled, Container):
             # -- including when the Confirm button is hidden. That row bows
             # out while it has nothing to show, so a panel nobody extends
             # does not pay for it with a gap it cannot use.
-            if _vendored:
+            #
+            # The corner is the *Confirm button's* place, so a panel built
+            # without one does not float: the bar is left in the flow, where
+            # a caller's own actions line up under the listing instead of
+            # hugging the panel's right edge. The styles that skip the Confirm
+            # (inline / fold) are exactly the ones whose caller fills the bar.
+            floats = _vendored and show_confirm_button
+            if floats:
                 # a floating cluster is a `Container` (it may not sit inside a
                 # `Row`) and lays its children out in a row of its own, so the
                 # bar rides inside it rather than being it.
@@ -440,7 +452,7 @@ class SingleTreeSelect(_Labeled, Container):
                     'Confirm',
                     # 'content' in a floating cluster (which hugs it), full
                     # width under the listing, as before
-                    width=None if _vendored else 'stretch',
+                    width=None if floats else 'stretch',
                     # `'none'` picks nothing, so there is nothing to confirm
                     visible=bind(
                         self.mode,

@@ -69,7 +69,6 @@ _FOLD_ARROWS = {False: ':material/expand_more:', True: ':material/expand_less:'}
 
 _STYLES_INLINE = ('single_list', 'tree_view', 'column_view')
 _STYLES_POPUP = ('single_list', 'tree_view', 'dual_pane', 'column_view')
-_PANEL_STYLES = ('popup', 'fold', 'inline')
 
 
 def _check_tree_style(tree_style: str, allowed: tp.Tuple[str, ...]) -> None:
@@ -77,15 +76,6 @@ def _check_tree_style(tree_style: str, allowed: tp.Tuple[str, ...]) -> None:
         raise ValueError(
             'tree_style must be one of {}, got {!r}'.format(
                 ', '.join(repr(s) for s in allowed), tree_style
-            )
-        )
-
-
-def _check_panel_style(panel_style: str) -> None:
-    if panel_style not in _PANEL_STYLES:
-        raise ValueError(
-            'panel_style must be one of {}, got {!r}'.format(
-                ', '.join(repr(s) for s in _PANEL_STYLES), panel_style
             )
         )
 
@@ -135,7 +125,7 @@ class PathInputBrowse(Container):
             cwd too, but leaves the box blank ("nothing picked yet"); any other
             value is shown in the box, the panel opening on its folder when it
             names a file, else on the value itself.
-        panel_style: `'popup'` (default) / `'fold'` / `'inline'`.
+        panel_style:
         expanded: whether a foldable panel starts on show (the `'fold'`
             style's starting state; ignored by the others).
         tree_style: which panel to hold.
@@ -163,7 +153,7 @@ class PathInputBrowse(Container):
         input_history: tp.Iterable[str] | Property | None = (),
         node_type: T.NodeType = 'file',
         panel_height: int = 500,
-        panel_style: str = 'popup',
+        panel_style: tp.Literal['fold', 'inline', 'popup'] = 'popup',
         selection_mode: tp.Union[
             T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
         ] = _MODE_SINGLE,
@@ -174,7 +164,6 @@ class PathInputBrowse(Container):
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, **kwargs)
-        _check_panel_style(panel_style)
         self._popup = panel_style == 'popup'
         self._foldable = panel_style == 'fold'
         _check_tree_style(
@@ -292,16 +281,17 @@ class PathInputBrowse(Container):
                 )
                 with self._browse_popover:
                     self._tree = self._make_panel(confirm=True)
-            return
-        if self._foldable:
+        elif self._foldable:
             self._tree = self._make_panel(
                 confirm=False,
                 leading=self._mount_box,
                 trailing=self._mount_fold,
                 rows_visible=self._expanded,
             )
-            return
-        self._tree = self._make_panel(confirm=False, leading=self._mount_box)
+        else:
+            self._tree = self._make_panel(
+                confirm=False, leading=self._mount_box
+            )
 
     def _make_panel(
         self,
