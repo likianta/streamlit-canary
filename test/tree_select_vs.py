@@ -321,6 +321,78 @@ shutil.rmtree(project)
 
 
 # ---------------------------------------------------------------------------
+# FileTreeView: confined by `root_directory`
+# ---------------------------------------------------------------------------
+
+section('FileTreeView (root_directory)')
+
+from lk_utils import fs  # noqa: E402
+
+HERE = fs.abspath(os.getcwd())
+INNER = '{}/streamlit_canary'.format(HERE)  # a real folder under HERE
+ABOVE = fs.parent(HERE)
+
+check('a root clamps the ladder to the root and below', (
+    _shared._location_options(INNER, HERE) == [HERE, INNER]
+))
+check('no root leaves the whole chain on the ladder', (
+    _shared._location_options(INNER)[-1] == INNER
+    and HERE in _shared._location_options(INNER)
+))
+check('a root is spelled the way the chain spells it', (
+    _shared._root_path(HERE + '/') == HERE
+    and _shared._root_path('/') == '/'
+    and _shared._root_path('') == ''
+))
+
+# a confined panel opens below its root, so `..` still leads the listing
+rooted = v3.FileTreeView('Rooted', INNER, root_directory=HERE)
+check('a confined panel homes on its root', rooted._home_dir == HERE)
+check('the ladder stops at the root', (
+    rooted._location.options.get() == [HERE, INNER]
+))
+check('standing below the root keeps `..`', rows_of(rooted)[0] == '..')
+
+# standing on the root: no `..`, and nowhere above it to go
+rooted._jump(HERE)
+check('on the root there is no `..`', '..' not in rows_of(rooted))
+check('the root is the only rung left', (
+    rooted._location.options.get() == [HERE]
+))
+rooted._jump(ABOVE)
+check('a jump above the root is refused', rooted.directory == HERE)
+rooted._jump('D:/')
+check('a jump to another drive is refused', rooted.directory == HERE)
+
+# the default root is the whole machine
+loose = v3.FileTreeView('Loose', INNER)
+check('the default root confines nothing', (
+    loose._root_dir() == '' and not loose._is_at_root()
+))
+
+# a root that does not hold the start is rejected
+try:
+    v3.FileTreeView('Bad', INNER, root_directory=ABOVE + '/elsewhere')
+    check('a root outside the start is rejected', False)
+except ValueError:
+    check('a root outside the start is rejected', True)
+
+# a bound root confines just the same, and follows its source
+from streamlit_canary.kernel import Property  # noqa: E402
+
+root_src = Property(HERE)
+follows = v3.FileTreeView('Follows', INNER, root_directory=root_src)
+check('a bound root confines from the start', (
+    follows._location.options.get() == [HERE, INNER]
+))
+check('a bound root allows a jump within it', (
+    follows._within_root(INNER) and not follows._within_root(ABOVE)
+))
+root_src.set('')
+check('an unbound root frees the panel again', not follows._is_at_root())
+
+
+# ---------------------------------------------------------------------------
 
 print()
 print('RESULT:', 'ok' if good else 'FAILED')

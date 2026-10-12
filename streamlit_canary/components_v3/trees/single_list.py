@@ -680,9 +680,17 @@ class SingleTreeSelect(_Labeled, Container):
         """The file names `directory` holds."""
         return self._nav.filenames(directory)
 
+    def _root_dir(self) -> str:
+        """The topmost folder navigation may reach (`''` = the whole machine).
+
+        The flat panel offers the whole machine, so it has none; a panel that
+        confines itself overrides this (see `FileTreeView.root_directory`).
+        """
+        return ''
+
     def _ladder(self, directory: str) -> tp.List[str]:
         """The rungs the location bar offers for `directory`."""
-        return _location_options(directory)
+        return _location_options(directory, self._root_dir())
 
     def _normalize(self, path: str) -> str:
         """Settle a path's spelling (absolute, forward slashes, no `..`)."""

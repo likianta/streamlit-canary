@@ -139,9 +139,26 @@ class _CascadingTree(SingleTreeSelect):
     def _join(directory: str, name: str) -> str:
         return '{}/{}'.format(directory.rstrip('/'), name)
 
+    def _is_at_root(self) -> bool:
+        """Whether the panel sits on the topmost folder it may show.
+
+        There `..` would lead out of the panel's world -- a model root has no
+        outside, and a confined filesystem tree stops at its
+        `root_directory` -- so it is not drawn.  False here: the base engine
+        has no top of its own; a subclass that does overrides this.
+        """
+        return False
+
     def _listing_options(self) -> list:
-        """The rows of the panel: `..`, then the tree from the top."""
-        return [NAV_UP] + self._walk(self._nav.directory)
+        """The rows of the panel: the tree, led by `..` unless at the top.
+
+        Sitting on the top folder draws no `..` (see `_is_at_root`); a level
+        down it comes back, to climb back within the tree.
+        """
+        options = self._walk(self._nav.directory)
+        if not self._is_at_root():
+            options = [NAV_UP] + options
+        return options
 
     def _walk(self, directory: str) -> list:
         """`directory`'s rows, each open folder expanded under its own row."""
@@ -454,18 +471,14 @@ class TreeView(_CascadingTree):
     def _ladder(self, directory: str) -> tp.List[str]:
         return self._model.chain(directory)
 
-    def _listing_options(self) -> list:
-        """The rows of the panel: the tree from the top, `..` only below it.
+    def _is_at_root(self) -> bool:
+        """Whether the panel sits on the model's root (so draws no `..`).
 
-        The model's root has no outside, so sitting on it draws no `..` --
-        whether the model is empty (nothing to walk, and nothing to walk up
-        to) or just resting on its one top node. Descend a level and `..`
-        comes back, to climb back within the model.
+        True on the root itself -- whether the model is empty (nothing to
+        walk, and nothing to walk up to) or just resting on its one top node.
+        Descend a level and `..` comes back, to climb back within the model.
         """
-        options = self._walk(self._nav.directory)
-        if self._model.root and self._nav.directory != self._model.root:
-            options = [NAV_UP] + options
-        return options
+        return not self._model.root or self._nav.directory == self._model.root
 
     def _normalize(self, path: str) -> str:
         return str(path).strip().replace('\\', '/').strip('/')

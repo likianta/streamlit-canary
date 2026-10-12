@@ -68,16 +68,36 @@ def _list_drives() -> tp.Tuple[str, ...]:
     return _DRIVES
 
 
-def _location_options(directory: str) -> tp.List[str]:
-    """The ladder the location bar offers: the other drives, then the chain.
+def _root_path(root: str) -> str:
+    """A root folder spelled the way `_path_chain` spells its rungs.
+
+    `'C:/Likianta/x/'` -> `'C:/Likianta/x'`, `'C:/'` -> `'C:/'`, `'/'` ->
+    `'/'`, and `''` -> `''` (nothing to confine to). Matching the chain's own
+    spelling is what lets a root be compared against -- and clamped into --
+    the rungs `_location_options` builds.
+    """
+    chain = _path_chain(root)
+    return chain[-1] if chain else ''
+
+
+def _location_options(directory: str, root: str = '') -> tp.List[str]:
+    """The ladder the location bar offers: the drives, then the chain.
 
     `['C:/', 'D:/', 'E:/', 'C:/A', 'C:/A/B', 'C:/A/B/C']` for `C:/A/B/C`:
     every ancestor (`_path_chain`), so any parent stays one pick away, with
     the rest of the machine's drives in front of them, so another drive is
     reachable without typing it out.  The chain's own root is already in the
     drive list, so it is not repeated.
+
+    `root` confines the ladder to a folder (see `FileTreeView.root_directory`):
+    left blank -- or `/`, which is the whole machine -- the drives lead it, so
+    every drive stays one pick away; given a real root the ladder starts
+    *there* instead, with no drives and no ancestor above it, so no rung
+    leaves the folder.
     """
     chain = _path_chain(directory)
+    if root and root != '/':
+        return [rung for rung in chain if rung == root or _is_under(rung, root)]
     drives = list(_list_drives())
     return drives + [rung for rung in chain if rung not in drives]
 
