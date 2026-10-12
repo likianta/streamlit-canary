@@ -60,8 +60,24 @@
     // pointer events (it can carry links).
     tip.classList.toggle('st-help-tooltip--plain', content.html);
     tip.hidden = false;
+    // Measure before placing. A `position: fixed` box has no width of its
+    // own: it shrink-to-fits the room left between its `left` and the edge of
+    // its containing block. Left where it last was, it would report that
+    // place's width, and the `left` derived from it leaves the very same
+    // shortfall again -- so wiggle the pointer inside one glyph (crossing the
+    // svg child inside it fires another `mouseover`) and a long, soft-wrapped
+    // tip walks itself narrower and narrower until the clamp lets go. Pinning
+    // it to the corner first reports the width the content actually wants.
+    tip.style.left = '0px';
+    tip.style.top = '0px';
     const rect = target.getBoundingClientRect();
     const box = tip.getBoundingClientRect();
+    // Bounds are the viewport box the floating panes measure against (as
+    // `30-overlays.js` does), not `innerWidth` / `innerHeight`: those count a
+    // space-taking scrollbar in, and aiming past the visible edge is how the
+    // shortfall above got started in the first place.
+    const viewW = document.documentElement.clientWidth;
+    const viewH = document.documentElement.clientHeight;
     let left = rect.left;
     let top = rect.bottom + 8;
     if (content.html) {
@@ -70,14 +86,14 @@
       // rows tall).
       const list = target.closest('.st-selectbox-dropdown') || target;
       const beside = list.getBoundingClientRect().right + 8;
-      if (beside + box.width <= window.innerWidth - 4) left = beside;
+      if (beside + box.width <= viewW - 4) left = beside;
     }
     // Prefer below the trigger; flip above when it would overflow.
-    if (top + box.height > window.innerHeight - 4) {
+    if (top + box.height > viewH - 4) {
       top = rect.top - box.height - 8;
     }
-    if (left + box.width > window.innerWidth - 4) {
-      left = window.innerWidth - box.width - 4;
+    if (left + box.width > viewW - 4) {
+      left = viewW - box.width - 4;
     }
     tip.style.top = Math.max(4, top) + 'px';
     tip.style.left = Math.max(4, left) + 'px';
