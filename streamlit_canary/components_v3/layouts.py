@@ -3,6 +3,7 @@ import typing as tp
 from ._shared import _HasText
 from ._shared import _help_prop
 from ._shared import _prop
+from .base import AutoWidth
 from .base import Component
 from .base import Height
 from .base import Width
@@ -485,14 +486,30 @@ class Space(Component):
 
         with v3.Row():
             v3.IconButton('home')
-            v3.Space(width='stretch')
+            v3.Space(size='stretch')
             v3.Popover(':material/bucket_check: 0')
 
     A vertical container has no leftover width to absorb, so there it simply
     renders nothing.
+
+    `size` is the spacer's own name for that width -- the spelling
+    `st.space` uses -- and is taken here as an alias of `width`, so
+    `Space(size='stretch')` and `Space(width='stretch')` are the same spacer.
+    Passing both is an error.
     """
 
     _default_width = 'stretch'
+
+    def __init__(
+        self,
+        size: AutoWidth | None = None,
+        *,
+        width: AutoWidth | None = None,
+        **kwargs: tp.Any,
+    ) -> None:
+        if size is not None and width is not None:
+            raise ValueError('Space takes either `size` or `width`, not both')
+        super().__init__(width=size if size is not None else width, **kwargs)
 
 
 class _TabPanel(Component):

@@ -200,13 +200,13 @@ model = v3.TreeView('Distribution', {
 
 check('opens on the model root', model.directory == 'A')
 check('the ladder starts at the root', model._location.options.get() == ['A'])
-check('rows are model paths', rows_of(model) == ['..', 'A/C/', 'A/D/', 'A/B'])
+check('the root draws no `..`', rows_of(model) == ['A/C/', 'A/D/', 'A/B'])
 
 model._jump('A/D/G')
 check('walking into G grows the ladder', (
     model._location.options.get() == ['A', 'A/D', 'A/D/G']
 ))
-check('an empty folder lists only `..`', rows_of(model) == ['..'])
+check('away from the root `..` comes back', rows_of(model) == ['..'])
 
 model._jump('A/D')
 check('walking back up shortens it', (
@@ -216,8 +216,8 @@ check('a leaf has no "enter" arrow', not model._is_enterable('A/B'))
 check('a folder does', model._is_enterable('A/D/'))
 
 empty = v3.TreeView('Empty', None)
-check('an empty model is allowed, and lists nothing but `..`',
-      rows_of(empty) == ['..'])
+check('an empty model lists nothing at all -- not even `..`',
+      rows_of(empty) == [])
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +246,78 @@ check('a normal listing still draws its box', 'st-radio-circle' in plain_html)
 check('...and still confirms', single_tree.widgets[
     'confirm_button'
 ].visible.get())
+
+
+# ---------------------------------------------------------------------------
+# the distribution tree (the app's assets picker)
+# ---------------------------------------------------------------------------
+
+section('the distribution tree (assets picker)')
+
+import importlib  # noqa: E402
+import os  # noqa: E402
+import shutil  # noqa: E402
+import tempfile  # noqa: E402
+
+app = importlib.import_module(
+    'test.rewrite_third_party_projects.depsland_app_builder_copy.app_sc'
+)
+
+# A throwaway project: `pkg/` holds a file and an empty folder, plus a
+# top-level file and a path that is not on disk at all.
+project = tempfile.mkdtemp()
+root = os.path.basename(project)
+os.makedirs(os.path.join(project, 'pkg', 'empty'))
+for rel in ('pkg/a.py', 'readme.md'):
+    with open(os.path.join(project, *rel.split('/')), 'w') as f:
+        f.write('')
+
+# an empty model draws no row at all -- not even the walk-up
+dst = v3.TreeView('Distribution', {}, selection_mode='none')
+check('a fresh distribution tree draws nothing (no `..`)',
+      rows_of(dst) == [])
+
+model, assets = app._build_assets([], project)
+check('no picks -> an empty model', model == {} and assets == [])
+
+# a picked folder stands for its whole subtree
+model, assets = app._build_assets([os.path.join(project, 'pkg')], project)
+check('a picked folder keeps its whole subtree', model == {
+    root: {'pkg': {'empty': {}, 'a.py': None}}
+})
+check('...while the manifest keeps the folder itself', assets == ['pkg'])
+
+model, assets = app._build_assets(
+    [os.path.join(project, 'pkg', 'empty')], project
+)
+check('an empty folder is marked `:0`', assets == ['pkg/empty:0'])
+check('...and shows as a bare folder node', model == {
+    root: {'pkg': {'empty': {}}}
+})
+
+model, assets = app._build_assets(
+    [os.path.join(project, 'readme.md')], project
+)
+check('a picked file is a leaf', model == {root: {'readme.md': None}})
+
+model, assets = app._build_assets(['pkg'], project)
+check('a relative path resolves against the project', model == {
+    root: {'pkg': {'empty': {}, 'a.py': None}}
+})
+
+model, assets = app._build_assets(['dist', 'dist/charts'], project)
+check('a path not on disk becomes a folder to be made', model == {
+    root: {'dist': {'charts': {}}}
+})
+
+dst.data.set(app._build_assets([os.path.join(project, 'pkg')], project)[0])
+rows = rows_of(dst)
+check('feeding picks draws the tree (no `..` at the root)',
+      rows == ['{}/pkg/'.format(root)])
+dst.data.set({})
+check('clearing the model empties the tree again', rows_of(dst) == [])
+
+shutil.rmtree(project)
 
 
 # ---------------------------------------------------------------------------

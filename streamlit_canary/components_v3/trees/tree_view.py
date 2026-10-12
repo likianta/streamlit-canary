@@ -378,8 +378,9 @@ class TreeView(_CascadingTree):
     `None` a leaf; the map's single key is the root. Node paths are the names
     joined with `/` (`A/D/G`), which is what the toolbar's location bar reads
     off: it opens at `['A']` and, once you walk into `G`, shows
-    `['A', 'A/D', 'A/D/G']`. `..` walks back up; a folder's chevron folds it
-    open in place.
+    `['A', 'A/D', 'A/D/G']`. `..` walks back up (it is absent while you sit
+    on the root, which has no outside); a folder's chevron folds it open in
+    place.
 
     Everything else is `FileTreeView`'s -- the row gestures, the modes, the
     Confirm bar, the bucket -- and deliberately so: this is the same engine,
@@ -452,6 +453,19 @@ class TreeView(_CascadingTree):
 
     def _ladder(self, directory: str) -> tp.List[str]:
         return self._model.chain(directory)
+
+    def _listing_options(self) -> list:
+        """The rows of the panel: the tree from the top, `..` only below it.
+
+        The model's root has no outside, so sitting on it draws no `..` --
+        whether the model is empty (nothing to walk, and nothing to walk up
+        to) or just resting on its one top node. Descend a level and `..`
+        comes back, to climb back within the model.
+        """
+        options = self._walk(self._nav.directory)
+        if self._model.root and self._nav.directory != self._model.root:
+            options = [NAV_UP] + options
+        return options
 
     def _normalize(self, path: str) -> str:
         return str(path).strip().replace('\\', '/').strip('/')

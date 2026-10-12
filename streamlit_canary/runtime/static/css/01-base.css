@@ -23,6 +23,17 @@
     --st-hgap: 8px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Reserve the window scrollbar's gutter once and for all. A classic
+     (space-taking) scrollbar shrinks `clientWidth` by its own width, and
+     `#app` centres on that -- so when a tall element (an expanded
+     `Expander`, say) toggles the page between fitting and overflowing, the
+     centred column would jump sideways by half a scrollbar each time (the
+     "quiver"). `stable` keeps the gutter reserved whether or not the bar is
+     there, so the width -- and the centring -- never move. Overlay
+     scrollbars take no space and are simply unaffected. */
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     font-family: var(--st-font);
     font-size: var(--st-base-font-size);
