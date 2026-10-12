@@ -412,6 +412,7 @@ class SingleTreeSelect(_Labeled, Container):
                     label_visibility='collapsed',
                     max_height=height,
                     box_disabled=self._is_nav_up,
+                    boxless=self._is_boxless,
                     navigable=self._is_enterable,
                     body_opens=self._is_nav_up,
                     **self._row_extras(),

@@ -15,10 +15,21 @@
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    let shown = null;
     root.querySelectorAll('.st-tabs-panels > .st-tab-panel').forEach(p => {
       if (p.closest('.st-tabs') !== root) return;
-      p.hidden = p.dataset.tab !== label;
+      const on = p.dataset.tab === label;
+      p.hidden = !on;
+      if (on) shown = p;
     });
+    // A panel reads 0 while it is hidden, so the things inside it that are
+    // measured off their boxes wait for the reveal: the tree rows' texts
+    // (their widths are what pins the `->` arrows to one x) and a segmented
+    // control's thumbs. Same two as the popover reveal (see `scTogglePopover`).
+    if (shown) {
+      scAlignRowArrows(shown);
+      scSyncSegmented(shown);
+    }
     if (previous && previous !== btn) {
       scSlideTabIndicator(root, previous, btn);
     } else {

@@ -131,6 +131,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
           onchange: 'scSendChange',
           isChecked: (o) => scOptionKey(o) === scOptionKey(currentVal),
           boxDisabled: msg.box_disabled,
+          boxless: msg.boxless,
           navigable: msg.navigable,
           bodyOpens: msg.body_opens,
           depth: msg.depth,
@@ -157,6 +158,7 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
             ? (o, i) => !!flagValues[i]
             : (o) => wanted.has(scOptionKey(o)),
           boxDisabled: msg.box_disabled,
+          boxless: msg.boxless,
           navigable: msg.navigable,
           bodyOpens: msg.body_opens,
           depth: msg.depth,

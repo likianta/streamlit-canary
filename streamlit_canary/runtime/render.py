@@ -1372,17 +1372,22 @@ def _choice_box_html(input_type: str) -> str:
     return '<div class="st-radio-circle"><div class="st-radio-dot"></div></div>'
 
 
-def _choice_group_empty_html(input_type: str) -> str:
+def _choice_group_empty_html(input_type: str, boxless: bool = False) -> str:
     """The single placeholder row an empty option list draws.
 
     Mirrors `st.radio`, which swaps its options for one disabled row -- an
     (unchecked) indicator plus a faded "No options to select." line -- rather
     than leaving the widget blank.
+
+    A display-only listing draws no indicator either (see
+    `_choice_group_items_html`), so the placeholder follows suit: `boxless`
+    drops the box there too.
     """
+    box = '' if boxless else _choice_box_html(input_type)
     return (
         '<div class="st-radio-empty">'
         '<div class="st-radio-item-row">'
-        f'{_choice_box_html(input_type)}'
+        f'{box}'
         '<div class="st-radio-empty-label">No options to select.</div>'
         '</div></div>'
     )
@@ -1500,7 +1505,7 @@ def _choice_group_items_html(
     well (see `runtime.py`), and the patch rebuilds every row.
     """
     if not values:
-        return _choice_group_empty_html(input_type)
+        return _choice_group_empty_html(input_type, bool(boxless and boxless()))
     fmt = comp.format_func
     name = f' name="{input_type}_{comp.id}"' if input_type == 'radio' else ''
     widget_off = not comp.enabled.get()
