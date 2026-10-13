@@ -8,9 +8,10 @@ import re
 import typing as tp
 from time import sleep
 
+from ._shared import Visible
 from ._shared import _HasText
 from ._shared import _TextVisible
-from ._shared import _visible_when_filled
+from ._shared import _resolve_visible
 from .base import Component
 from ..kernel import Property
 from ..kernel import pending_updates
@@ -31,11 +32,9 @@ class Callout(_TextVisible):
 
     Args:
         text: the message (bindable; `:color[..]` markup allowed).
-        visible: whether the alert is shown (default True, bindable). A blank
-            `text` has nothing to draw, so this is the caller's flag ANDed
-            with the content test (see `_visible_when_filled`): the box hides
-            either because there is nothing to show or because the caller
-            switched it off.
+        visible: `'auto'` (default; tied to the message -- a blank one draws
+            nothing), or a bool / bound flag to drive it yourself (see
+            `_resolve_visible`).
 
     Properties:
         text:    str  — the message (bindable; `:color[..]` markup allowed)
@@ -48,11 +47,11 @@ class Callout(_TextVisible):
         self,
         text: str | Property = '',
         *,
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, visible=visible, **kwargs)
-        self.visible = _visible_when_filled(self.text, visible)
+        super().__init__(text, **kwargs)
+        self.visible = _resolve_visible(self.text, visible)
 
 
 class Error(Callout):
@@ -105,6 +104,9 @@ class LogPanel(Component):
         height: see the size scheme; 200px by default, past which the log
             scrolls.
         width: see the size scheme; stretches by default.
+        visible: `'auto'` (default; tied to the lines -- an empty panel draws
+            nothing), or a bool / bound flag to drive it yourself (see
+            `_resolve_visible`).
 
     Properties:
         lines: list[str] -- the buffered lines, oldest first, capped at
@@ -119,17 +121,17 @@ class LogPanel(Component):
         self,
         source: str = 'stdout',
         *,
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(visible=visible, **kwargs)
+        super().__init__(**kwargs)
         if source not in ('stdout', 'stderr'):
             raise ValueError(
                 "source must be 'stdout' or 'stderr', got {!r}".format(source)
             )
         self._source = source
         self.lines = Property([])
-        self.visible = _visible_when_filled(self.lines, visible)
+        self.visible = _resolve_visible(self.lines, visible)
         # Ask the runtime to tee the stream into us. The active runtime is
         # the one building this tree, and the capture has to outlive the
         # build: the app prints from its own event handlers, long after

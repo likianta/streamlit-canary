@@ -300,6 +300,14 @@ def bind(
 
     Pass `default` to pin that "no value yet" state. Once the source holds a
     value the transform takes over and `default` is forgotten.
+
+    Needing `default=` at all is a stopgap, and the intent is to retire it:
+    a caller binding a source that may start `_undefined` should not have to
+    think about it. The plan is a "lean transformer" -- a transform `bind`
+    can run on `_undefined` too, so the derived value is defined from the
+    start. Until then, reach for `default=` whenever a source can be unset
+    (see `components_v3/_shared._resolve_visible`, where a `visible` flag
+    derived from a text hits this same edge).
     """
     prop = Property[T.Q](default)
     prop.bind(source, transform)

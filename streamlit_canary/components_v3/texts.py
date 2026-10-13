@@ -6,9 +6,10 @@
 import typing as tp
 from textwrap import dedent
 
+from ._shared import Visible
 from ._shared import _HasText
 from ._shared import _HelpText
-from ._shared import _visible_when_filled
+from ._shared import _resolve_visible
 from ..kernel import Property
 from ..kernel import bind
 from ..page import update_page_config
@@ -52,8 +53,9 @@ class Caption(_HelpText):
         help: optional markdown tooltip shown next to the text.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
-        visible: the base-class flag, ANDed with the content test above --
-            see `_visible_when_filled`.
+        visible: `'auto'` (default; tied to the text -- a blank caption
+            draws nothing), or a bool / bound flag to drive it yourself
+            (see `_resolve_visible`).
     """
 
 
@@ -67,8 +69,9 @@ class Code(_HasText):
         text: the code content (bindable).
         language: kept for parity with Streamlit's `st.code`; this
             implementation does not syntax-highlight.
-        visible: the base-class flag, ANDed with the content test above --
-            see `_visible_when_filled`.
+        visible: `'auto'` (default; tied to the code -- a blank block draws
+            nothing), or a bool / bound flag to drive it yourself (see
+            `_resolve_visible`).
 
     Properties:
         text: str — the code content.
@@ -83,12 +86,12 @@ class Code(_HasText):
         text: str | Property = '',
         *,
         language: str = 'python',
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, visible=visible, **kwargs)
+        super().__init__(text, **kwargs)
         self._language = language
-        self.visible = _visible_when_filled(self.text, visible)
+        self.visible = _resolve_visible(self.text, visible)
 
 
 class Markdown(_HelpText):
@@ -111,8 +114,9 @@ class Markdown(_HelpText):
         help: optional markdown tooltip shown next to the text.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
-        visible: the base-class flag, ANDed with the content test above --
-            see `_visible_when_filled`.
+        visible: `'auto'` (default; tied to the source -- a blank block
+            draws nothing), or a bool / bound flag to drive it yourself
+            (see `_resolve_visible`).
         font_family: the CSS `font-family` to draw the source in -- see
             `_HelpText`. `sc.MONOSPACED` suits a block that has to line up in
             columns (a log, an ASCII table).
@@ -130,7 +134,7 @@ class Markdown(_HelpText):
         text: str | Property = '',
         *,
         help: str | Property = '',
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         font_family: str = '',
         font_size: str = '',
         **kwargs: tp.Any,
@@ -170,8 +174,9 @@ class Text(_HelpText):
         help: optional markdown tooltip shown next to the text.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
-        visible: the base-class flag, ANDed with the content test above --
-            see `_visible_when_filled`.
+        visible: `'auto'` (default; tied to the text -- a blank text draws
+            nothing), or a bool / bound flag to drive it yourself (see
+            `_resolve_visible`).
     """
 
 
@@ -188,8 +193,9 @@ class Title(_HelpText):
             the heading sits in its box.
         width: `int` px | 'stretch' | 'content' | 'auto' (default; see
             `_HelpText`).
-        visible: the base-class flag, ANDed with the content test above --
-            see `_visible_when_filled`.
+        visible: `'auto'` (default; tied to the text -- a blank heading
+            draws nothing), or a bool / bound flag to drive it yourself
+            (see `_resolve_visible`).
         font_family: the CSS `font-family` to draw the heading in -- see
             `_HelpText` (`sc.MONOSPACED` when the heading has to line up with
             the text under it).
@@ -202,7 +208,7 @@ class Title(_HelpText):
         horizontal_alignment: tp.Literal['left', 'center', 'right'] = 'left',
         *,
         help: str | Property = '',
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         font_family: str = '',
         font_size: str = '',
         **kwargs: tp.Any,
@@ -272,7 +278,7 @@ class PageTitle(Title):
         horizontal_alignment: tp.Literal['left', 'center', 'right'] = 'left',
         *,
         help: str | Property = '',
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         font_size: str = '',
         layout: tp.Optional[str] = None,
         default_theme: tp.Optional[str] = None,

@@ -10,6 +10,7 @@ import typing as tp
 from .base import Component
 from ..kernel import Property
 from ..kernel import Signal
+from ..kernel import bind
 
 _T = tp.TypeVar('_T')
 
@@ -44,7 +45,7 @@ def _is_blank(value: tp.Any) -> bool:
     other whitespace-only string (`'\\t'`, `'\\n'`, `'  '`) is blank, so a
     component that tidies its input first (`Markdown` dedents and trims)
     leaves nothing behind instead of an invisible row -- see
-    `_visible_when_filled`.
+    `_resolve_visible`.
     """
     if value is None:
         return True
@@ -53,43 +54,55 @@ def _is_blank(value: tp.Any) -> bool:
     return not value
 
 
-def _visible_when_filled(
-    data: Property, explicit: bool | Property = True
-) -> Property[bool]:
-    """A `visible` flag that follows whether `data` holds anything.
+def _not_blank(value: tp.Any) -> bool:
+    """`_is_blank` negated -- the transform an `'auto'` `visible` binds."""
+    return not _is_blank(value)
 
-    `Table` / `Code` / `Markdown` have nothing to draw while their data is
-    blank, so rather than leaving an empty frame behind they hide -- and come
-    back as soon as the (possibly bound) value fills in.
 
-    "Blank" means `None` or empty (`_is_blank`); the lone space is content,
-    so `Title(' ')` keeps its line while showing nothing -- the way to ask
-    for `st.title('')`'s empty row. Any other whitespace-only string counts
-    as blank, and a component that tidies its input runs that tidying before
-    this test (so `Markdown('\\n')` is blank too).
+# The `visible` a content-driven element takes: a plain flag, the caller's
+# own bound flag, or `'auto'` (follow the content).
+Visible: tp.TypeAlias = bool | Property | tp.Literal['auto']
 
-    `explicit` is the caller's own `visible` (the base-class argument) ANDed
-    in, so the widget hides either because there is nothing to draw or because
-    the caller switched it off, and a bound flag keeps working: both sources
-    are watched.
+
+def _resolve_visible(data: Property, visible: Visible) -> Property[bool]:
+    """The `visible` of an element whose content decides whether it draws.
+
+    `'auto'` -- the default -- ties the flag to `data`: the element shows
+    while the content holds something and hides while it does not. "Blank"
+    is `_is_blank`'s call, so the lone space is content and keeps its line
+    while `''` / `'  '` / `None` / `[]` do not. A `Property` is the
+    caller's own flag, mirrored as given; a plain `bool` is a fixed one.
+    Either way the caller's flag *wins* over the content -- `visible=True`
+    on a blank element shows it, `visible=False` on a filled one hides it.
+    (It used to be ANDed with the content test, which left no way to show a
+    blank element on purpose and made the flag hard to reason about while
+    debugging; it is a plain override now.)
 
     `data` must already hold its value when this is called.
+
+    One rough edge, for a caller-driven flag: a source that still holds
+    `sc._undefined` skips `sc.bind`'s transform, so the derived flag keeps
+    its own default instead of one computed from the source -- hidden while
+    the content is unset (nothing to draw yet), but shown while a mirrored
+    flag is unset (mirroring a flag starts from `True`, the base class' own
+    default). Pass `sc.bind(..., default=...)` to pin what "not yet" means.
+    That a caller has to is a stopgap -- see `kernel.property.bind`: the plan
+    is to give `sc.bind` a transform it can run safely on `_undefined` too
+    (a "lean transformer"), after which `default=` should rarely be needed.
     """
-    visible = Property(True)
-
-    def sync() -> None:
-        on = (
-            bool(explicit.get())
-            if isinstance(explicit, Property)
-            else bool(explicit)
-        )
-        visible.set(not _is_blank(data.get()) and on)
-
-    data.on_change.connect(sync)
-    if isinstance(explicit, Property):
-        explicit.on_change.connect(sync)
-    sync()
-    return visible
+    if isinstance(visible, str):
+        if visible != 'auto':
+            raise ValueError(
+                "visible must be a bool, a Property or 'auto', got {!r}".format(
+                    visible
+                )
+            )
+        return bind(data, _not_blank)
+    if isinstance(visible, Property):
+        out: Property[bool] = Property(True)
+        out.bind(visible)
+        return out
+    return Property(bool(visible))
 
 
 class _ReadOnlyProperty(Property):
@@ -195,21 +208,22 @@ class _HelpText(_HasText):
     """
     Shared base for text elements that also carry a `help` tooltip.
 
-    Mirrors Streamlit, whose text and heading elements (`st.text`, `st.caption`, 
+    Mirrors Streamlit, whose text and heading elements (`st.text`, `st.caption`,
     `st.title`) all accept `help`. Used by Caption, Markdown, Text and Title.
 
     Fields:
         text: Property[str] — the displayed text (bindable).
         help: Property[str] — markdown tooltip shown next to the text
             (bindable; bind it when the text depends on state).
-        visible: Property[bool] — whether the text is drawn (bindable). A
-            blank `text` has nothing to draw, so this is the caller's flag
-            ANDed with the content test (see `_visible_when_filled`): the
-            element hides either because there is nothing to show or because
-            the caller switched it off.
+        visible: Property[bool] — whether the text is drawn (bindable).
+            Defaults to `'auto'`, i.e. tied to the text: a blank one draws
+            nothing and comes back as it fills in. Pass a bool or a bound
+            flag to drive it yourself -- an explicit flag wins over the
+            content, so a blank element can still be shown on purpose (see
+            `_resolve_visible`).
         font_family: str — the CSS `font-family` to draw the text in (static,
             not bindable). Empty means inherit, i.e. the page's own font;
-            `sc.MONOSPACE` is the stack to reach for when the text has to line 
+            `sc.MONOSPACE` is the stack to reach for when the text has to line
             up in columns (a log, an ASCII table).
         font_size: str — a CSS length to draw the text at (static). Empty
             leaves it to the stylesheet, i.e. the shared body size -- with one
@@ -229,16 +243,16 @@ class _HelpText(_HasText):
         text: str | Property = '',
         *,
         help: str | Property = '',
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         font_family: str = '',
         font_size: str = '',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(text, visible=visible, **kwargs)
+        super().__init__(text, **kwargs)
         self.help = _help_prop(help)
         self._font_family = font_family
         self._font_size = font_size
-        self.visible = _visible_when_filled(self.text, visible)
+        self.visible = _resolve_visible(self.text, visible)
 
 
 class _Labeled(Component):
@@ -452,11 +466,11 @@ class _Submittable:
 class _TextVisible(_HasText):
     """Shared base for status boxes: a `text` plus a bindable `visible`.
 
-    The flag itself lives on `Component` (default `True`); this base leaves
-    the default to its users, because the two families want opposite things.
-    `Spinner` starts it *off*, so it stays out of the way until it is
-    entered. The `Callout` family starts it *on*, and hides only while its
-    message is blank (see `_visible_when_filled`).
+    The flag itself lives on `Component`; this base leaves the default to
+    its users, because the two families want opposite things. `Spinner`
+    starts it *off* (an explicit `False`), so it stays out of the way until
+    it is entered. The `Callout` family starts it at `'auto'`, so it hides
+    only while its message is blank (see `_resolve_visible`).
     """
 
     def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:

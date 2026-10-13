@@ -16,7 +16,8 @@ there -- see `_to_url` for why this engine, and what it replaced.
 import base64
 import typing as tp
 
-from ._shared import _visible_when_filled
+from ._shared import Visible
+from ._shared import _resolve_visible
 from .base import Component
 from .base import Height
 from ..kernel import Property
@@ -155,8 +156,9 @@ class PdfViewer(Component):
             to this".
         max_height: `int` px -- an upper bound on the height; whatever does
             not fit scrolls.
-        visible: bool (default True, bindable) -- the base-class flag, ANDed
-            with the content test below (see `_visible_when_filled`).
+        visible: `'auto'` (default; tied to the document -- no document
+            draws nothing), or a bool / bound flag to drive it yourself
+            (see `_resolve_visible`).
 
     Properties:
         src: str -- the current document, always as a URL the browser can
@@ -176,14 +178,12 @@ class PdfViewer(Component):
         pages_to_render: tp.Iterable[int] = (),
         height: Height | None = None,
         max_height: int | None = None,
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         **kwargs: tp.Any,
     ) -> None:
         if height is None and max_height is not None:
             height = 'content'
-        super().__init__(
-            height=height, max_height=max_height, visible=visible, **kwargs
-        )
+        super().__init__(height=height, max_height=max_height, **kwargs)
         self._pages = _normalize_pages(pages_to_render)
         # the runtime building this tree is the one to publish the document
         # with, and it has to be kept: `src` is usually set long after the
@@ -194,4 +194,4 @@ class PdfViewer(Component):
             self.src.bind(src)
         else:
             self.src.set(src)
-        self.visible = _visible_when_filled(self.src, visible)
+        self.visible = _resolve_visible(self.src, visible)

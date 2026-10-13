@@ -125,9 +125,10 @@ class Component(PropertyHost):
     so *every* component can be hidden, and no widget has to repeat it. Being
     a `Property`, it can be bound to state and flipped at runtime, and the
     renderer applies it to the root element it produced -- see `is_hidden`.
-    A few widgets also derive it from their own data: a blank `Code` / `Table`
-    / `Markdown` has nothing to draw, so theirs is this flag ANDed with that
-    content test.
+    A few widgets also derive it from their own data: `Code` / `Table` /
+    `Markdown` and the rest of the text family default it to `'auto'`, so a
+    blank one draws nothing -- pass a bool or a bound flag to override that
+    (see `components_v3/_shared._resolve_visible`).
 
     `max_height` / `min_height` (canary-only) bound the box's own height, in
     pixels; `None` (the default) means no bound. A layout box with a

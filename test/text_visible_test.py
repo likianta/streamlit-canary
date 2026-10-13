@@ -6,8 +6,11 @@ The three invariants this guards:
 
 1. every text element takes `text` and `visible` on its own;
 2. both are `Property` (so `.get` / `.set` / `.on_change` work);
-3. the element is drawn only when the text is non-blank *and* `visible` is
-   true -- otherwise it is hidden, taking no space.
+3. the element is drawn only when `visible` says so. `visible` defaults to
+   `'auto'`, i.e. tied to the text: a blank one hides the element (so it
+   takes no space) and it comes back as the text fills in. An explicit flag
+   -- a bool or a bound `Property` -- *wins* over the content, so a blank
+   element can still be shown on purpose.
 
 Sections 1-3 run in-process (the defaults, the fields, the rendered HTML);
 section 4 drives a real browser, where "hidden" means the element measures
@@ -28,10 +31,10 @@ v3 = sc.v3
 PORT = 2214
 URL = 'http://localhost:{}'.format(PORT)
 
-# the elements whose default is "shown"; Spinner / Progress are visibility
-# toggles (they start hidden, and their text does not drive it), so they are
-# checked separately below.
-SHOWN_BY_DEFAULT = (
+# the elements whose `visible` defaults to `'auto'`, i.e. tied to the text;
+# Spinner / Progress are visibility toggles (they start hidden, and their
+# text does not drive it), so they are checked separately below.
+AUTO_BY_DEFAULT = (
     'Text',
     'Title',
     'Caption',
@@ -67,10 +70,10 @@ def has_hidden_attr(html: str) -> bool:
 # == 1. the default the user flagged ========================================
 
 rule('1. defaults')
-for name in SHOWN_BY_DEFAULT:
+for name in AUTO_BY_DEFAULT:
     ok = check(
-        '{}: visible defaults to True'.format(name),
-        visible_default(name) is True,
+        "{}: visible defaults to 'auto'".format(name),
+        visible_default(name) == 'auto',
     )
     if not ok:
         break
@@ -138,6 +141,42 @@ ok = (
     and ok
 )
 
+# an explicit flag wins over the content: a blank element can be shown on
+# purpose (the old design ANDed the two, so this was impossible)
+forced = v3.Info('', visible=True)
+ok = check('a blank box forced on is drawn', not forced.is_hidden()) and ok
+ok = (
+    check(
+        'and keeps its place in the page',
+        not has_hidden_attr(render_tree([forced])),
+    )
+    and ok
+)
+
+flag = sc.Property(True)
+forced_bound = v3.Text('', visible=flag)
+ok = (
+    check('a bound flag shows a blank text', not forced_bound.is_hidden())
+    and ok
+)
+flag.set(False)
+ok = (
+    check('and hides it when the flag goes off', forced_bound.is_hidden())
+    and ok
+)
+
+# only a bool / Property / 'auto' is meaningful; a stray string is a bug
+try:
+    v3.Text('x', visible='visible')
+except ValueError:
+    ok = check('a stray string is rejected', True) and ok
+else:
+    ok = check('a stray string is rejected', False) and ok
+
+# the same rule drives the non-text sources too (`Table.rows` here)
+ok = check('Table: empty rows hide it', v3.Table([]).is_hidden()) and ok
+ok = check('Table: rows show it', not v3.Table([('a', 'b')]).is_hidden()) and ok
+
 # a space is content on purpose: the placeholder that keeps the line
 ws = v3.Text(' ')
 ok = check('a space placeholder still shows', not ws.is_hidden()) and ok
@@ -156,7 +195,9 @@ ok = check('and hides again when it empties', bound.is_hidden()) and ok
 _SCENE_JS = """
 () => {
   const out = {};
-  for (const id of ['t-empty','t-filled','i-empty','i-filled','bound','toggle']) {
+  const ids = ['t-empty','t-filled','i-empty','i-filled',
+               'forced','bound','toggle'];
+  for (const id of ids) {
     const el = document.querySelector('[data-id="' + id + '"]');
     out[id] = el ? el.getBoundingClientRect().height : -1;
   }
@@ -171,6 +212,7 @@ def scene() -> None:
     v3.Title('A title', key='t-filled')
     v3.Info('', key='i-empty')
     v3.Info('Some info', key='i-filled')
+    v3.Info('', key='forced', visible=True)
 
     source = sc.Property('')
     v3.Text(source, key='bound')
@@ -236,6 +278,13 @@ def phase_browser() -> bool:
                 check(
                     'a filled alert takes space',
                     (sizes.get('i-filled') or 0) > 0,
+                )
+                and good
+            )
+            good = (
+                check(
+                    'a blank alert forced on keeps its space',
+                    (sizes.get('forced') or 0) > 0,
                 )
                 and good
             )

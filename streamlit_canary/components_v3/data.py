@@ -5,8 +5,9 @@
 
 import typing as tp
 
+from ._shared import Visible
 from ._shared import _prop
-from ._shared import _visible_when_filled
+from ._shared import _resolve_visible
 from .base import Component
 from .base import Width
 from ..kernel import Property
@@ -34,9 +35,10 @@ class Table(Component):
 
     Properties:
         rows, title, caption, footer, header — see above.
-        visible: bool — false while `rows` is empty (so a table with nothing
-            to show takes no space, and comes back as soon as the bound rows
-            arrive), or whenever the flag is switched off explicitly.
+        visible: bool — `'auto'` by default, i.e. tied to `rows`: false
+            while they are empty (so a table with nothing to show takes no
+            space, and comes back as soon as the bound rows arrive). Pass a
+            bool / bound flag to drive it yourself (see `_resolve_visible`).
     """
 
     _default_width = 'stretch'
@@ -51,10 +53,10 @@ class Table(Component):
         header: tp.Sequence[str] | Property | None = None,
         header_background: bool = False,
         width: Width | None = None,
-        visible: bool | Property = True,
+        visible: Visible = 'auto',
         **kwargs: tp.Any,
     ) -> None:
-        super().__init__(width=width, visible=visible, **kwargs)
+        super().__init__(width=width, **kwargs)
         self.rows = Property([])
         if isinstance(rows, Property):
             self.rows.bind(rows)
@@ -69,4 +71,4 @@ class Table(Component):
         elif header is not None:
             self.header.set(list(header))
         self._header_background = header_background
-        self.visible = _visible_when_filled(self.rows, visible)
+        self.visible = _resolve_visible(self.rows, visible)
