@@ -2,6 +2,7 @@
 
 Routes:
     GET  /                        → render the component tree as HTML
+    POST /shutdown                → ask a (loopback) caller's session to stop
     GET  /fonts/source-sans.woff2 → the bundled "Source Sans" UI font
     GET  /fonts/source-code.woff2 → the bundled "Source Code Pro" code font
     GET  /fonts/material-symbols.woff2 → the bundled Material Symbols font
@@ -143,6 +144,23 @@ def create_app(runtime: Runtime) -> Starlette:
         # lets the page know the process is back and it can reload.
         return Response('ok')
 
+    async def shutdown(request: Request) -> Response:
+        # Someone local asking us to stop: the native window this was opened
+        # for is gone, so there is no session left to serve (`runner.run`
+        # sends this when a `show_window` session ends). Stopping the server
+        # is what lets the app module return and the interpreter run its
+        # `atexit` hooks -- being killed from outside skips them.
+        #
+        # Loopback only: the window is our own process talking to itself, and
+        # a server bound to the LAN must not be stoppable from the LAN.
+        client = request.client.host if request.client else ''
+        if client not in ('127.0.0.1', '::1'):
+            return Response(status_code=403)
+        server = getattr(request.app.state, 'server', None)
+        if server is not None:
+            server.should_exit = True
+        return Response('bye')
+
     async def ws_endpoint(ws: WebSocket) -> None:
         await ws.accept()
         client = WebSocketClient(ws)
@@ -179,6 +197,7 @@ def create_app(runtime: Runtime) -> Starlette:
         routes=[
             Route('/', homepage),
             Route('/healthz', healthz),
+            Route('/shutdown', shutdown, methods=['POST']),
             Route('/fonts/source-sans.woff2', font_endpoint),
             Route('/fonts/source-code.woff2', code_font_endpoint),
             Route('/fonts/material-symbols.woff2', icon_font_endpoint),
@@ -201,11 +220,17 @@ def serve(runtime: Runtime, port: int = 3001, host: str = '0.0.0.0') -> None:
     """
     runtime.build()
     app = create_app(runtime)
+    # `uvicorn.run(app, ...)` is this same two-step, spelled out, so that the
+    # server object survives to be reached from the routes -- `/shutdown` gets
+    # at it through `request.app.state.server`.
     # TODO or DELETE: file watcher & reload banner needs to be refactored or
     # be deleted. The watcher is no longer started, so `mark_source_changed`
     # and the "Source file changed" notice idle; a rerun is a manual action
     # from the toolbar instead (see page.js).
-    uvicorn.run(app, host=host, port=port, log_level='warning')
+    cfg = uvicorn.Config(app, host=host, port=port, log_level='warning')
+    server = uvicorn.Server(cfg)
+    app.state.server = server
+    server.run()
 
 
 def serve_async(
@@ -229,6 +254,8 @@ def serve_async(
     app = create_app(runtime)
     cfg = uvicorn.Config(app, host=host, port=port, log_level='warning')
     svr = uvicorn.Server(cfg)
+    # so `/shutdown` can stop us too, from the same handle the caller holds
+    app.state.server = svr
     run_new_thread(svr.run)
     return svr
 

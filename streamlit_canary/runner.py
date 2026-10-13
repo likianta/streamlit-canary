@@ -3,6 +3,8 @@ import socket
 import sys
 import time
 import typing as tp
+from urllib.request import Request
+from urllib.request import urlopen
 
 import pyapp_window
 import uvicorn
@@ -95,7 +97,7 @@ def run(
                 if blocking and proc_v3 is not None:
                     # the session is over; the server has no reason to outlive
                     # it.
-                    proc_v3.terminate()
+                    _stop_server(proc_v3, port, host)
                 return proc_v3, proc_win
             else:
                 return proc_v3, None
@@ -216,6 +218,44 @@ def _print_urls(port: int, host: str) -> None:
         ),
         ':v4p2',  # green color, grand parent source location.
     )
+
+
+def _request_shutdown(port: int, host: str) -> bool:
+    """Ask the server behind `port` to stop; say whether it took the request.
+
+    `/shutdown` is the clean way out (see `server.create_app`): uvicorn stops,
+    the app module returns, and the interpreter runs its `atexit` hooks on the
+    way down. A server that is not there -- or is one from before the route
+    existed -- answers with nothing, and the caller settles for the hard way.
+    """
+    address = '127.0.0.1' if host in ('0.0.0.0', '::', 'localhost') else host
+    url = 'http://{}:{}/shutdown'.format(address, port)
+    try:
+        with urlopen(Request(url, method='POST'), timeout=2) as response:
+            response.read()
+    except OSError:
+        # no server, a refused connection, a 4xx from a route we do not have:
+        # all the same to us, and none of it worth a traceback.
+        return False
+    return True
+
+
+def _stop_server(proc: Popen, port: int, host: str, timeout: float = 5) -> None:
+    """Stop the serving child, gently when it takes the hint.
+
+    Killing it is the last resort, not the first move: `Popen.terminate` is
+    `TerminateProcess` on Windows, which skips the child's `atexit` hooks --
+    so whatever a session saved on its way out (a memory file, say) would be
+    lost. Ask first, and only take the process down by force if it will not go
+    within `timeout`.
+    """
+    if not _request_shutdown(port, host):
+        proc.terminate()
+        return
+    for _ in wait(timeout, 0.05):
+        if proc.poll() is not None:
+            return
+    proc.terminate()
 
 
 def _v3_argv(target: str, extra_args: tp.Sequence[str]) -> tp.Tuple[str, ...]:
