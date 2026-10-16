@@ -27,6 +27,14 @@
        because both occurrences of it resolve against the same box. */
     --st-app-max-width: 736px;
     --st-app-pad-x: 16px;
+    /* `#app`'s top padding. Streamlit leaves 96px up there (its main block
+       container carries 6rem of top gap); we run it a third of that. A
+       `show_window` app ends in a bottom dock, and that much blank above the
+       title -- with the form pressed down against the dock -- reads
+       lopsided. 32px is one `--st-control-height`, so the page opens one
+       control's worth below the top edge, and the window a form asks for
+       (see the argsense demo's `estimate_window_size`) is 64px shorter. */
+    --st-app-pad-top: 32px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   /* Reserve the window scrollbar's gutter once and for all. A classic
@@ -56,8 +64,9 @@
        1rem horizontal padding, so its content column is 704px wide. */
     max-width: var(--st-app-max-width);
     margin: 0 auto;
-    /* Vertical rhythm of Streamlit's main block container. */
-    padding: 96px var(--st-app-pad-x) 160px;
+    /* Vertical rhythm: the top gap is ours (see `--st-app-pad-top`), the
+       trailing 160px is Streamlit's main block container. */
+    padding: var(--st-app-pad-top) var(--st-app-pad-x) 160px;
   }
   /* The `gap` above owns the vertical rhythm, so the widgets' own bottom
      margins are dropped (otherwise each gap would be vgap + 8px = 24px). */
@@ -69,7 +78,7 @@
      `--st-app-max-width`). */
   #app.st-wide {
     max-width: none;
-    padding: 96px 80px 160px;
+    padding: var(--st-app-pad-top) 80px 160px;
     --st-app-max-width: 100%;
     --st-app-pad-x: 80px;
   }

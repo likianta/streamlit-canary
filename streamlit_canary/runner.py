@@ -17,135 +17,6 @@ from .runtime import Runtime
 from .runtime import serve
 from .runtime import serve_async
 
-# == window sizing =========================================================
-# A `show_window` app is laid out for the window it opens in, so the shape of
-# the form decides the window (see `estimate_window_size`). These are the
-# numbers that estimate works from, all in css px: the page lays out in css
-# px, and `window_size` takes them too (see `_pyapp_size`).
-
-NARROW_WINDOW_WIDTH = 700
-WIDE_WINDOW_WIDTH = 980
-#   A form that is all there is to show (no command-group sidebar) gets the
-#   narrow window; one with the sidebar gets the wide one -- and the width
-#   also decides how many small widgets share a row (see
-#   `window_row_capacity`).
-
-MIN_WINDOW_HEIGHT = 600
-MAX_WINDOW_HEIGHT_RATIO = 0.9
-#   Never shorter than the first, never taller than that much of the screen:
-#   a two-row form still gets a usable window, a long one still fits.
-
-PARAM_ROW_HEIGHT = 60
-PARAM_ROW_GAP = 16
-#   One parameter row is its label line over its control -- 28 + 32, the
-#   latter being `--st-control-height` (`runtime/static/css`) -- and rows sit
-#   one `--st-vgap` apart.
-
-
-def window_row_capacity(wide: bool) -> int:
-    """How many small widgets share a row: 2 when narrow, 4 when wide.
-
-    An app that packs its own small widgets into rows (the argsense demo's
-    `_plan_rows`) takes its capacity from here, so the form and the window
-    the estimator sizes agree on the shape.
-    """
-    return 4 if wide else 2
-
-
-def estimate_window_size(
-    rows: int, *, wide: bool = False, extra_height: int = 0
-) -> tp.Tuple[int, int]:
-    """The window size a form of `rows` parameter rows wants, in css px.
-
-        sc.run(app, show_window=True, window_size=sc.estimate_window_size(
-            4, wide=True, extra_height=684,
-        ))
-
-    Args:
-        rows: the most rows any one command needs -- the widest command is
-            the one that decides, since the app shows one at a time. Count
-            them with `window_row_capacity(wide)`, so the form and the window
-            agree.
-        wide: whether the app has a command-group sidebar (see
-            `WIDE_WINDOW_WIDTH`).
-        extra_height: everything stacked around those rows -- what sits above
-            them (page title, group row, the command's caption), the Run row,
-            the log panel. The app knows these; the estimator cannot see the
-            tree.
-
-    Returns:
-        `(width, height)`: `NARROW_WINDOW_WIDTH` or `WIDE_WINDOW_WIDTH`, and
-        the estimated height kept within `MIN_WINDOW_HEIGHT` and
-        `MAX_WINDOW_HEIGHT_RATIO` of the screen.
-    """
-    height = (
-        rows * PARAM_ROW_HEIGHT
-        + max(rows - 1, 0) * PARAM_ROW_GAP
-        + extra_height
-    )
-    _, screen_height = _screen_size_in_css_px()
-    # `pyapp_window` crops a window that is taller than the screen *it* reads,
-    # and that screen is the virtualized one (`_screen_size_in_css_px`) while
-    # the box we hand it is scaled up (`_pyapp_size`) -- so its crop bites at
-    # `screen / scale` css px, below the 90% would-be cap on a scaled display.
-    # Cap at that, rather than promise a height the window cannot take:
-    # measured on a 125% display, a 972 estimate opened 952 tall.
-    max_height = min(
-        (screen_height - 10) / _display_scale(),
-        round(screen_height * MAX_WINDOW_HEIGHT_RATIO),
-    )
-    height = round(max(MIN_WINDOW_HEIGHT, min(height, max_height)))
-    return (WIDE_WINDOW_WIDTH if wide else NARROW_WINDOW_WIDTH), height
-
-
-def _display_scale() -> float:
-    """The display's scale factor: 1.0 at 100%, 1.25 at 125%."""
-    if sys.platform != 'win32':
-        return 1.0
-    import ctypes
-
-    try:
-        return ctypes.windll.shcore.GetScaleFactorForDevice(0) / 100
-    except OSError:
-        return 1.0
-
-
-def _screen_size_in_css_px() -> tp.Tuple[int, int]:
-    """The usable screen in css px (pyapp-window leaves the taskbar out).
-
-    `pyapp_window.util.get_screen_size` reads the primary display, and what
-    it reads depends on whether this process told Windows it is DPI aware: a
-    plain process -- which an app is -- gets the virtualized numbers, i.e.
-    css px, while a DPI-aware one gets physical pixels. Everything here is
-    css px, so the plain reading is taken as it is; the aware case would have
-    to be divided by `_display_scale`, which is the very trap
-    `pyapp_window.util.normalize_size` falls into (see `_pyapp_size`).
-    """
-    from pyapp_window.util import get_screen_size
-
-    return get_screen_size()
-
-
-def _pyapp_size(
-    size: pyapp_window.opener.T.AnySize,
-) -> pyapp_window.opener.T.AnySize:
-    """A css-px size -> the numbers `pyapp_window` wants for the same thing.
-
-    `pyapp_window.util.normalize_size` divides what it is handed by the
-    display's scale factor, and the window that comes out ends up that many
-    *physical* pixels wide -- so the page served into it lays out in
-    `size / scale / scale` css px, and undoing both steps is what makes
-    `window_size` mean css px. Measured on a 125% display: asking for
-    (875, 900) produced a 700x720 client area, i.e. 560x576 css px.
-
-    A keyword size (`'fullscreen'`, `'maximized'`) is not a box in any unit,
-    so it goes through untouched.
-    """
-    if isinstance(size, str):
-        return size
-    scale = _display_scale()
-    return round(size[0] * scale * scale), round(size[1] * scale * scale)
-
 
 def run(
     target: tp.Union[str, tp.Callable[[], None]],
@@ -185,7 +56,12 @@ def run(
             the process alive; a str target's child process carries on.
         show_window: If true, will open a native window.
         window_size: The window's box, in css px -- the unit the page lays
-            out in. `estimate_window_size` works it out from a form's shape;
+            out in, and the size the page is then given to lay out in (a
+            700x600 window shows 700x600 css px of the page, no matter the
+            display's scale factor; `pyapp_window` asks its backend for a
+            window in that unit and hands it to the page as-is). An app with
+            a form to fill in works this out from the form's shape -- the
+            argsense demo's `estimate_window_size` is the worked example.
             `'fullscreen'` / `'maximized'` are taken as `pyapp_window` means
             them.
     Returns:
@@ -337,7 +213,7 @@ def _open_window(
         icon=icon or '',
         oversize_scheme='crop',
         pos=pos,
-        size=_pyapp_size(size),
+        size=size,
         blocking=False,
         # `run()` cleans up around the window itself (there is a server behind
         # it to shut down), so the window must hand control back on close rather

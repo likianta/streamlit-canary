@@ -50,6 +50,11 @@
 
     原版行为: st 把滚动放在内部容器里 (主区块自己滚), 窗口滚动条通常不参与布局, 也就没有这条预留. 由此我们的内容列在无滚动条时会比原版略靠左约半个滚动条宽 (~7.5px). 这是**有意为之**, 像素对比时按此预期; 对比脚本都是按元素自身的 bounding box 取几何 (hover / 截图都相对元素本身), 不比较页面绝对位移, 所以不受影响.
 
+- App top padding (页面顶部内边距)
+  - `01-base.css` 的 `--st-app-pad-top` 是 32px (原先是照搬 st 的 96px). 顶部那片空白在窗口场景里读起来 "头轻脚重": 标题上面一大片空, 而表单却被底部的 dock 压着. 收到 32px (正好一个 `--st-control-height`) 之后, 标题距窗口上沿一个控件高, 视觉重心上移.
+
+    原版行为: st 的主块容器带 6rem (96px) 顶部内边距, 我们刻意只留三分之一. 像素对比时 `#app` 的顶部内边距按 32px 预期 (整页元素比原版高 64px). 连带影响: 用 `estimate_window_size` 估算窗口的 app, 其 `extra_height` 里 "首行上方" 那一段要按 200px 计 (实测 :2201 上), 见 argsense demo 的 `_CHROME_HEIGHT`.
+
 - BottomContainer
   - 我们的底部布局容器有两种落法, 取决于它放在哪里.
   - 放在**根布局** (即 `#app` 的直接子元素) 时, 它是页面的 **dock**: 用 `position: fixed` 钉在窗口底边之上 16px, 不参与正文的滚动流, 所以 app 的操作区 / 日志永远够得着, 不会随内容滚走. 因为脱离了文档流, 页尾要留出它占的高度: `85-shell.js` 的 `scDockBottom` 量它的高度并写进 `document.body` 的 `padding-bottom` (dock 高度 + 16px), dock 随日志长高时由 `ResizeObserver` 跟着更新; 同时 `#app` 自己那条 `160px` 下内边距被去掉 (`01-base.css` 的 `#app:has(> .st-container--dock)`), 否则它只会变成正文与 dock 之间的一段空白 -- 于是滚到最底部时正文末尾距 dock 顶边恒为 `16px`, 既不被遮住也不留废空间. dock 自己的左右内边距镜像 `#app` 的内容列 (变量 `--st-app-max-width` / `--st-app-pad-x`, 见 `01-base.css`), 所以居中布局里 dock 的内容与正文左右对齐; 渲染分支见 `runtime/render.py` 的 `st-container--dock` (判据是 `comp._parent is None`), 样式在 `20-layouts.css`.

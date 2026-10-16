@@ -2545,7 +2545,7 @@ wheels = [
 
 [[package]]
 name = "pyapp-window"
-version = "2.2.4"
+version = "2.3.0b0"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
@@ -2555,7 +2555,7 @@ dependencies = [
     { name = "toga", marker = "sys_platform != 'linux'" },
 ]
 wheels = [
-    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.2.4-py3-none-any.whl" },
+    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.3.0b0-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -3227,7 +3227,7 @@ requires-dist = [
     { name = "argsense", specifier = ">=2.1.0", index = "http://localhost:2131/" },
     { name = "lk-utils", specifier = ">=3.8.1" },
     { name = "neoprint", specifier = ">=0.1.13" },
-    { name = "pyapp-window", specifier = ">=2.2.4", index = "http://localhost:2131/" },
+    { name = "pyapp-window", specifier = ">=2.3.0b0", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
     { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.61.0,!=1.62.*" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },

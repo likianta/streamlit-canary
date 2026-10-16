@@ -280,7 +280,7 @@ class PageTitle(Title):
         help: str | Property = '',
         visible: Visible = 'auto',
         font_size: str = '',
-        layout: tp.Optional[str] = None,
+        layout: tp.Optional[tp.Literal['centered', 'wide']] = None,
         default_theme: tp.Optional[str] = None,
         font_family: tp.Optional[str] = None,
         dunder_literal: tp.Optional[bool] = None,
