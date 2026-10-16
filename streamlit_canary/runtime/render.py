@@ -51,6 +51,7 @@ from ..components_v3.layouts import _TabPanel
 
 from ..components_v3.media import PdfViewer
 
+from ..components_v3.status import DIVIDER_MARK
 from ..components_v3.status import Callout
 from ..components_v3.status import LogPanel
 from ..components_v3.status import Progress
@@ -2153,6 +2154,10 @@ def _render_log_panel(comp: LogPanel) -> str:
     stays small. Escaping is enough to make a log line inert -- the markup
     around it is fixed.
 
+    A line may also be a divider (`LogPanel.push_divider`), which is drawn as
+    a rule instead of text: see `_log_body_html`, whose shape `65-log.js`
+    rebuilds on every patch.
+
     The title, the empty-state hint and the clear button all ship from the
     first paint too -- `65-log.js` only flips their `hidden` as lines come and
     go, because a patch cannot add or remove an element. The button carries
@@ -2160,7 +2165,6 @@ def _render_log_panel(comp: LogPanel) -> str:
     panel and its `_on_click` empties `lines`.
     """
     lines = comp.lines.get() or ()
-    text = html.escape('\n'.join(lines), quote=False)
     title = _border_title_html(comp, 'st-log-title')
     empty = not lines
     hint_hidden = '' if empty else ' hidden'
@@ -2174,9 +2178,36 @@ def _render_log_panel(comp: LogPanel) -> str:
         f'<button class="st-log-clear" type="button" data-id="{comp.id}"'
         f' aria-label="Clear log" onclick="scSendClick(this)"{clear_hidden}>'
         f'{render_markup(":material/delete:")}</button>'
-        f'<pre class="st-log-panel-body">{text}</pre>'
+        f'<pre class="st-log-panel-body">{_log_body_html(lines)}</pre>'
         f'</div>'
     )
+
+
+def _log_body_html(lines: tp.Sequence[str]) -> str:
+    """The panel's body: its lines as text, its dividers as rules.
+
+    A divider's neighbours are joined into one text node, exactly as a
+    divider-less buffer would be -- so a panel that never calls
+    `push_divider` renders the same markup it always did. The rule is a block
+    box, which is what ends the line it sits on.
+    """
+    out: tp.List[str] = []
+    run: tp.List[str] = []
+
+    def flush() -> None:
+        if run:
+            out.append(html.escape('\n'.join(run), quote=False))
+            run.clear()
+
+    for line in lines:
+        if line.startswith(DIVIDER_MARK):
+            flush()
+            title = html.escape(line[len(DIVIDER_MARK) :], quote=False)
+            out.append(f'<div class="st-log-divider">{title}</div>')
+        else:
+            run.append(line)
+    flush()
+    return ''.join(out)
 
 
 def render_page(roots: tp.Iterable[Component]) -> str:

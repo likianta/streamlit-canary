@@ -22,11 +22,31 @@
     white-space: pre-wrap;
     word-break: break-all;
   }
-  /* `.st-border-title` positions it; this only picks the surface to paint
-     with -- the panel's own, so the border line looks interrupted. */
+  /* `.st-border-title` positions it and paints it in the border's ink; this
+     only picks the surface -- the panel's own, so the border line looks
+     interrupted. */
   .st-log-title {
     background-color: var(--st-code-background-color);
-    color: var(--st-text-color);
+  }
+  /* A divider (`LogPanel.push_divider`): a grey rule across the body, with
+     its title in the middle. The rules are the element's own `::before` /
+     `::after`, each taking half of the leftover width -- so the line is
+     exactly as wide as the panel, and follows it when it resizes. Without a
+     title the two meet in the middle, so they close the gap up. */
+  .st-log-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--st-gray-color);
+  }
+  .st-log-divider:empty {
+    gap: 0;
+  }
+  .st-log-divider::before,
+  .st-log-divider::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid var(--st-gray-color);
   }
   /* The hint sits in the middle of an empty panel, in the grey a text box
      paints its own `::placeholder` with. `pointer-events: none` keeps it out
@@ -42,11 +62,13 @@
     pointer-events: none;
   }
   /* The clear button floats in the panel's top-right corner; it is only
-     unhidden while there is something to clear (`65-log.js`). */
+     unhidden while there is something to clear (`65-log.js`). `right` clears
+     the body's scrollbar (15px on a classic one) as well as a gap, so the
+     button never sits on top of it once the log grows past the panel. */
   .st-log-clear {
     position: absolute;
     top: 4px;
-    right: 6px;
+    right: 21px;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -109,12 +109,17 @@
     transform: translateY(-50%);
     padding: 0 6px;
     border-radius: var(--st-base-radius);
+    /* the muted ink a hint is drawn in -- the same grey as `:gray[..]` and the
+       various placeholders. The border's own ink (`--st-border-color`, 20%)
+       was tried first and is too faint to read as a title. */
+    color: var(--st-gray-text-color);
     font-size: var(--st-base-font-size);
     line-height: 1.4;
   }
+  /* The per-component classes only pick the surface to paint with (the box's
+     own, so the border line looks interrupted). */
   .st-container-title {
     background-color: var(--st-background-color);
-    color: var(--st-text-color);
   }
   /* The positioning context the title is drawn against. */
   .st-container--titled { position: relative; }

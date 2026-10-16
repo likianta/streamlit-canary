@@ -83,6 +83,13 @@ def _strip_ansi(text: str) -> str:
     return _ANSI_RE.sub('', text) if '\x1b' in text else text
 
 
+# A `LogPanel` line that is a divider rather than text. The mark is a
+# zero-width space: invisible everywhere the line is read (the panel's own
+# `lines`, the rendered HTML, the JSON patch) and not something real output
+# turns up with by accident. `render.py` and `65-log.js` both key off it.
+DIVIDER_MARK = '\u200b'
+
+
 class LogPanel(_HasBorderTitle, Component):
     """A live view of what the app prints to the terminal.
 
@@ -104,6 +111,9 @@ class LogPanel(_HasBorderTitle, Component):
     A clear button floats in the panel's top-right corner while there is
     something to clear; it empties `lines`, so an app does not have to wire a
     button of its own.
+
+    `push_divider` drops a rule into the buffer, to mark where one run of
+    output ended and the next begins.
 
     Args:
         source: the stream to follow -- `'stdout'` (the default, where
@@ -160,10 +170,25 @@ class LogPanel(_HasBorderTitle, Component):
 
     def _append(self, line: str) -> None:
         """Take one line from the stream tee (the runtime's log sink)."""
+        self._push(line)
+
+    def _push(self, line: str) -> None:
         lines = list(self.lines.get() or [])
         lines.append(_strip_ansi(line))
         del lines[: -self._max_lines]
         self.lines.set(lines)
+
+    def push_divider(self, title: str = '') -> None:
+        """Append a rule across the panel, with `title` in its middle.
+
+        The line reads `──── 12:00:00 ────`, or a plain `────────────` when
+        `title` is blank. The app calls this between runs, to mark where the
+        last one ended (see `_run` in the argsense demo); the title is
+        usually a timestamp. The rule is drawn by the browser rather than
+        spelled out in `─`s, so it is exactly as wide as the panel -- and
+        stays that wide when the panel resizes.
+        """
+        self._push(DIVIDER_MARK + title)
 
     def _on_click(self, value: tp.Any = None) -> None:
         """Handle the panel's clear button: drop every line.
