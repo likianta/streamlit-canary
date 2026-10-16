@@ -369,9 +369,10 @@
   /* The raised pill. It is a single element that *slides* between the options
      instead of a per-pill background, so switching animates (its width and
      offset are measured by `scSyncSegmented`). It sits under the pills, which
-     paint after it in the DOM. Its colour is a theme token of its own: in the
-     dark theme the page background would sit *below* the rail and clash with
-     the hover tint, so that theme lifts the token (see `theme-dark.css`). */
+     paint after it in the DOM. Its colour, and the hover wash below, are a
+     theme's to decide (`theme-*.css`): the dark theme trades the two, since a
+     page-background pill reads as a recess on its rail and lands too close to
+     the wash to tell apart. */
   .st-segmented-highlight {
     position: absolute;
     top: 2px;
@@ -409,7 +410,7 @@
      `.st-segmented-highlight`, and its hover background would paint right
      over that highlight (the pills sit above it in the DOM). */
   .st-segmented-item:hover:not(:has(input:checked)) {
-    background-color: var(--st-hover-background-color);
+    background-color: var(--st-segmented-hover-background-color);
   }
   /* The real <input> carries the value and the change event but is visually
      hidden, exactly like the radio's. */

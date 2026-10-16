@@ -87,10 +87,13 @@
     --st-active-background-color: rgba(151, 166, 195, 0.25);
     --st-overlay-color: rgba(0, 0, 0, 0.4);
     --st-shadow-rgb: 0, 0, 0;
-    /* The pill a `SegmentedControl` raises for the selected option: the page
-       background, which reads as the lit spot on this theme's tinted rail.
-       The dark theme has to lift it -- see there. */
+    /* `SegmentedControl`: the pill raised for the selected option, and the
+       tint an unselected one takes under the pointer. This theme keeps the
+       pair as it always was -- a lit page-background pill on a tinted rail,
+       and a `hoverBackgroundColor` wash while the pointer sits elsewhere.
+       (The dark theme trades them, see there.) */
     --st-segmented-selected-background-color: var(--st-background-color);
+    --st-segmented-hover-background-color: var(--st-hover-background-color);
     /* The copy chip sitting on top of a code block. */
     --st-code-toolbar-background-color: #eef1f5;
     /* Alert backgrounds: the light accent at 90% transparency. */

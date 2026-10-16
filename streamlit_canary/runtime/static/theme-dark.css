@@ -78,17 +78,20 @@
     --st-active-background-color: rgba(172, 177, 195, 0.25);
     --st-overlay-color: rgba(0, 0, 0, 0.6);
     --st-shadow-rgb: 0, 0, 0;
-    /* The pill a `SegmentedControl` raises for the selected option. Here the
-       page background (#0e1117) sits *below* the rail's own `secondaryBg`
-       (#262730), so the selection read as a recess rather than a lift, and it
-       was close enough to the hover tint (#3a3c46, i.e.
-       `hoverBackgroundColor` over the rail) that the two were hard to tell
-       apart -- the pill's black drop shadow is invisible on a dark page too.
-       Canary-only: lift it one step above that hover, to the palette's own
-       grayColor. (Streamlit's own `st.segmented_control` marks the selection
-       with the primary colour instead, so the two were already different --
-       see `pixel_fidelity_caveats.md`.) */
-    --st-segmented-selected-background-color: #555867;
+    /* `SegmentedControl`: the two states trade colours on this theme. The
+       rail is `secondaryBg` (#262730), and the page background that normally
+       fills the selected pill (#0e1117) sits *below* it -- the selection read
+       as a recess rather than a lift, and (over the rail) it landed close
+       enough to the usual hover wash (#3a3c46) that the two were hard to tell
+       apart, the pill's black drop shadow being invisible on a dark page. So
+       the *selected* option takes the wash -- a clearly lighter pill (#3a3c46
+       over the rail) -- and the *hovered* one a dip instead. Only a step of a
+       dip, though: bgMix, i.e. halfway between the page background and the
+       rail, which is still darker than the rail (the pill's default) without
+       being as heavy as the page background itself. Canary-only -- see
+       `pixel_fidelity_caveats.md`. */
+    --st-segmented-selected-background-color: var(--st-hover-background-color);
+    --st-segmented-hover-background-color: #1a1c24;
     /* `lightenedBg05 = lighten(bgColor, 2.5%)` -- see the light theme for why
        a button rests on this instead of `secondaryBg`. */
     --st-lightened-bg-05: #131720;
