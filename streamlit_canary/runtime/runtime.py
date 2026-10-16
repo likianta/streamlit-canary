@@ -353,20 +353,6 @@ class Runtime:
         setattr(sys, source, tee)
         if source != 'stdout':
             return
-        # neoprint wrote its own handle on the stream down at import time
-        # (`neoprint.console._stdout`, read by `Console.print`), so anything
-        # printed from inside this package -- which neoprint decorates
-        # instead of handing to `builtins.print` -- would keep writing to the
-        # original object and slip past the tee. Point that handle at the tee
-        # too. Nothing is double-counted: the tee forwards to the stream it
-        # wrapped, which is that same original object. (Note that the
-        # `neoprint.console` *attribute* is the `Console` instance the package
-        # re-exports -- `_stdout` lives on the module, hence `sys.modules`.)
-        neoprint_console = sys.modules.get('neoprint.console')
-        if neoprint_console is not None and not isinstance(
-            neoprint_console._stdout, _LogTee
-        ):
-            neoprint_console._stdout = tee
 
     def _emit_log(self, source: str, line: str) -> None:
         for sink in tuple(self._log_sinks.get(source, ())):
