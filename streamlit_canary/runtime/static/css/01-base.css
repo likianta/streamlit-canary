@@ -73,4 +73,15 @@
     --st-app-max-width: 100%;
     --st-app-pad-x: 80px;
   }
+  /* A page whose root holds a `BottomContainer` has a *dock* sitting on the
+     window's bottom edge (see `20-layouts.css`), and `85-shell.js` reserves
+     exactly that dock's own room at the page's end. Streamlit's 160px
+     trailing rhythm would then only be blank space between the content and
+     the dock, so it goes -- the page ends where the dock's room begins.
+     Declared after `.st-wide` so both layouts drop it (same specificity, so
+     the later rule wins); `padding-bottom` alone, since the horizontal
+     padding still mirrors the app column. */
+  #app:has(> .st-container--dock) {
+    padding-bottom: 0;
+  }
 

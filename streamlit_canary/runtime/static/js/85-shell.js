@@ -107,10 +107,13 @@
   // -- The bottom dock -----------------------------------------------------
   // A root-level `BottomContainer` is pinned to the window's bottom edge
   // (`20-layouts.css`), so it holds no place in the page's flow any more --
-  // and the page would end under it. Reserve its own height at the end
-  // instead, so the last of the content still scrolls clear of the dock. The
-  // observer follows the dock as it grows (a LogPanel filling with lines) or
-  // goes away (`visible=False`, which reports a zero size).
+  // and the page would end under it. Reserve its own height (plus one gap)
+  // at the end instead, and the page's last inches stay scrollable clear of
+  // the dock. The main block drops its own trailing padding for the same
+  // reason (`#app:has(> .st-container--dock)` in `01-base.css`), so this is
+  // the whole of the room the dock gets. The observer follows the dock as it
+  // grows (a LogPanel filling with lines) or goes away (`visible=False`,
+  // which reports a zero size).
   function scDockBottom() {
     const dock = document.querySelector('.st-container--dock');
     const shown = dock && !dock.hidden;
