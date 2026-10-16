@@ -347,7 +347,11 @@
   .st-segmented {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    /* No `gap` here: the 4px between the label line and the rail is the
+       label's own `margin-bottom` (`.st-widget-label`), the same one every
+       other widget has. A `gap` would add a second 4px, and this widget's
+       row would come out 64px where the rest are 60 -- a difference the
+       form's row plans and the window built from them do not expect. */
     margin-bottom: 8px;
   }
   /* The track: a rounded, slightly recessed rail the pills sit in. It hugs

@@ -156,6 +156,8 @@
 
     原版行为: 原版 1.63 的 `st.segmented_control` 是另一套画法 (实测两个主题, DOM 为 `stButtonGroup`): 轨道透明, 每个选项是页面底色 + `fadedText10` 描边的方框, **选中项走 primary** -- 底色 `rgba(primary, 0.2)`、边框与文字都是 primary (暗色：`rgba(255, 75, 75, 0.2)` / #ff4b4b; 亮色同值). 也就是说选中态本来就不是同一个颜色, 目前 `test/pixel_fidelity/` 下也没有针对它的对比脚本; 将来若要对比, 选中态按上面这条预期.
 
+  - 整个控件的**行高与其他控件一致 (60px = 标签行 28 + 轨道 32)**: 早先 `.st-segmented` 自己带 `gap: 4px`, 与标签的 `margin-bottom: 4px` 撞成了 8px, 于是它的行是 64px (表单里比别的行高 4px). 现已去掉那个 `gap`. 对比脚本里这个控件的**下沿**比改动前低/高 4px 属预期.
+
 - Selectbox
   - Selectbox 在展开后, 会对当前已选择的选项的文字以主题色高亮显示.
 
