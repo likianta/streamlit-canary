@@ -255,7 +255,17 @@ def _render_element(comp: Component) -> str:
             rules.append('min-width:0')
         height = getattr(comp, '_height', None)
         rules.extend(_bounds_style(comp, scroll=True))
-        if isinstance(height, int):
+        if height == 'stretch':
+            # `height='stretch'` = fill the parent. Inside a `Row` the parent's
+            # own `align-items: flex-start` would keep the column at its
+            # content height, so the cross axis has to be overridden on the
+            # item itself; `align-self` is the only thing that can, and it
+            # also honours the row's `vertical_alignment`. Elsewhere a
+            # percentage height hands the job to the parent, and resolves
+            # against a definite parent height only -- an auto-height one has
+            # nothing to fill, which is the same "no-op" the caller sees.
+            rules.append('align-self:stretch' if in_row else 'height:100%')
+        elif isinstance(height, int):
             # Fixed-height container: the content scrolls once it overflows.
             # `_bounds_style` may have added the same `overflow` already, for a
             # `max_height` (the two are not mutually exclusive).
@@ -798,8 +808,8 @@ def _size_rules(comp: Component) -> list[str]:
 
 
 def _size_style(comp: Component) -> str:
-    """Inline `style` attribute for a component's `width` / `height`, plus the
-    `max_height` / `min_height` bounds on the height axis.
+    """Inline `style` attribute for a component's `width` / `height`, plus its
+    `max_width` / `min_width` / `max_height` / `min_height` bounds.
 
     Mirrors Streamlit's sizing keywords:
         'stretch'  fill the parent (`width: 100%`).
@@ -807,9 +817,9 @@ def _size_style(comp: Component) -> str:
         int        a fixed pixel size.
         'auto' / None  no inline rule -- CSS decides (see `page.css`).
 
-    The width axis passes no bounds: `max_width` / `min_width` are not part of
-    the API yet. A layout that builds its own `style` (a flex weight, grid
-    tracks) takes the same bounds from `_bounds_style` instead.
+    Each axis carries its own bounds. A layout that builds its own `style`
+    (a flex weight, grid tracks) takes the same bounds from `_bounds_style`
+    instead.
     """
     return _style_attr(_size_rules(comp))
 
@@ -844,29 +854,33 @@ def _text_style(comp: Component) -> str:
 
 
 def _bounds_style(comp: Component, *, scroll: bool = False) -> list[str]:
-    """The `max-height` / `min-height` rules for a layout box, as a list.
+    """The `max-width` / `min-width` / `max-height` / `min-height` rules for a
+    layout box, as a list.
 
     A layout emits a `style` of its own (flex weights, grid tracks), so it
     extends its rule list with these; the uniform `_size_style` path passes the
-    very same bounds through `_size_rule` instead. `height='stretch'` drops
-    them for the reason `_size_rule` gives.
+    very same bounds through `_size_rule` instead. A bound is dropped when its
+    own axis is `'stretch'`, for the reason `_size_rule` gives.
 
     `scroll` adds `overflow: auto` under an upper bound: a cap on its own would
     let the content spill over the box instead of scrolling past it, which is
     the pairing a fixed `height` already has. A floor (`min_height`) never
-    needs it -- it only guarantees a size.
+    needs it -- it only guarantees a size. Only the height axis asks for it:
+    a capped width is usually paired with wrapping content rather than a
+    horizontal scrollbar.
     """
-    if getattr(comp, '_height', None) == 'stretch':
-        return []
     rules: list[str] = []
-    max_height = getattr(comp, '_max_height', None)
-    min_height = getattr(comp, '_min_height', None)
-    if isinstance(max_height, int):
-        rules.append(f'max-height:{max_height}px')
-        if scroll:
-            rules.append('overflow:auto')
-    if isinstance(min_height, int):
-        rules.append(f'min-height:{min_height}px')
+    for name in ('width', 'height'):
+        if getattr(comp, f'_{name}', None) == 'stretch':
+            continue
+        max_value = getattr(comp, f'_max_{name}', None)
+        min_value = getattr(comp, f'_min_{name}', None)
+        if isinstance(max_value, int):
+            rules.append(f'max-{name}:{max_value}px')
+            if scroll and name == 'height':
+                rules.append('overflow:auto')
+        if isinstance(min_value, int):
+            rules.append(f'min-{name}:{min_value}px')
     return rules
 
 

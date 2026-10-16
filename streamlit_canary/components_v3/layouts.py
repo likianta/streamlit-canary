@@ -36,10 +36,13 @@ class Container(Component):
             None keeps the default equal share.
         border: whether to draw a bordered container around the children.
         height: fixed height in px; the content scrolls when it overflows
-            (mirrors `st.container(height=...)`).
-        max_height, min_height: optional pixel cap / floor on the container's
-            height; a cap makes the container scroll rather than letting its
-            content spill past it. Canary-only -- see `Component`.
+            (mirrors `st.container(height=...)`). `'stretch'` fills the
+            parent's height instead -- inside a `Row` the column then spans
+            the row's tallest sibling.
+        max_width, min_width, max_height, min_height: optional pixel cap /
+            floor on the container's own size; a capped height makes the
+            container scroll rather than letting its content spill past it.
+            Canary-only -- see `Component`.
         visible: bool (default True, bindable) — hidden containers keep their
             place in the tree but are not rendered.
         animated: transition the height when `visible` flips, instead of

@@ -43,12 +43,15 @@ AutoWidth: tp.TypeAlias = Width | tp.Literal['auto']
 Height: tp.TypeAlias = int | tp.Literal['stretch', 'content']
 HeightWithoutContent: tp.TypeAlias = int | tp.Literal['stretch']
 
-# Every component also accepts `max_height` / `min_height`: a pixel cap and
-# floor on the box's own height (`None` = no bound). They are canary-only --
-# Streamlit has no per-element bounds -- and, unlike `width` / `height`, they
-# take no keyword, because a limit is a number rather than a size. A bound is
-# dropped when `height` is `'stretch'`: "fill the parent" is explicit, so it
-# wins over a cap that would contradict it (see `Component`'s docstring).
+# Every component also accepts `max_width` / `min_width` and `max_height` /
+# `min_height`: a pixel cap and floor on each of the box's own axes (`None` =
+# no bound). They are canary-only -- Streamlit has no per-element bounds --
+# and, unlike `width` / `height`, they take no keyword, because a limit is a
+# number rather than a size. A bound is dropped when its own axis is
+# `'stretch'`: "fill the parent" is explicit, so it wins over a cap that
+# would contradict it (see `Component`'s docstring). A `'content'` size
+# keeps its bound -- "hug the content, up to N px" is exactly what the two
+# say together.
 
 _SIZE_KEYWORDS: tp.Final[tuple[str, ...]] = ('stretch', 'content', 'auto')
 
@@ -72,7 +75,8 @@ def _validate_size(value: tp.Any, name: str) -> None:
 
 
 def _validate_bound(value: tp.Any, name: str) -> None:
-    """Reject a `max_height` / `min_height` that is not a positive int.
+    """Reject a `max_width` / `min_width` / `max_height` / `min_height` that
+    is not a positive int.
 
     A bound is a pixel limit, not a size, so the sizing keywords do not apply
     to it (`None` means "no bound", which is the default).
@@ -130,15 +134,16 @@ class Component(PropertyHost):
     blank one draws nothing -- pass a bool or a bound flag to override that
     (see `components_v3/_shared._resolve_visible`).
 
-    `max_height` / `min_height` (canary-only) bound the box's own height, in
-    pixels; `None` (the default) means no bound. A layout box with a
-    `max_height` also scrolls, so the content moves past the cap instead of
-    spilling over it -- the same pairing a fixed `height` gets (see
-    `_bounds_style` in `runtime/render.py`). `width` / `height` are static
-    values rather than `Property`s, and so are these: the frontend has no
-    patch for them, so they are fixed at construction like the rest of the
-    size scheme. A bound loses to `height='stretch'` (the explicit "fill the
-    parent"), see the size scheme above.
+    `max_width` / `min_width` and `max_height` / `min_height` (canary-only)
+    bound the box's own width / height, in pixels; `None` (the default) means
+    no bound. A layout box with a `max_height` also scrolls, so the content
+    moves past the cap instead of spilling over it -- the same pairing a fixed
+    `height` gets (see `_bounds_style` in `runtime/render.py`). `width` /
+    `height` are static values rather than `Property`s, and so are these: the
+    frontend has no patch for them, so they are fixed at construction like
+    the rest of the size scheme. A bound loses to `'stretch'` on its own axis
+    (the explicit "fill the parent"), but stands under `'content'` -- see the
+    size scheme above.
     """
 
     # stack of components currently inside their `with` block; used to wire up
@@ -159,6 +164,8 @@ class Component(PropertyHost):
         key: str | None = None,
         width: AutoWidth | None = None,
         height: Height | None = None,
+        max_width: int | None = None,
+        min_width: int | None = None,
         max_height: int | None = None,
         min_height: int | None = None,
         visible: bool | Property = True,
@@ -183,8 +190,12 @@ class Component(PropertyHost):
         else:
             _validate_size(height, 'height')
             self._height = height
+        _validate_bound(max_width, 'max_width')
+        _validate_bound(min_width, 'min_width')
         _validate_bound(max_height, 'max_height')
         _validate_bound(min_height, 'min_height')
+        self._max_width: int | None = max_width
+        self._min_width: int | None = min_width
         self._max_height: int | None = max_height
         self._min_height: int | None = min_height
         # Whether the component is drawn at all. A widget whose content
