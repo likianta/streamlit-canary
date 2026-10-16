@@ -31,8 +31,10 @@ from .kernel import pending_updates
 from .opener import open_file
 from .opener import open_folder
 from .page import pages
+from .runner import estimate_window_size
 from .runner import legacy_run
 from .runner import run
+from .runner import window_row_capacity
 from .runtime import add_watch_file
 from .runtime import add_watch_folder
 from .runtime import set_page_config
