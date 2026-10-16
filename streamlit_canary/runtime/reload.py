@@ -15,6 +15,7 @@ FastAPI's ``--reload`` (``StateV2`` does not survive a rerun).
 """
 
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -35,6 +36,23 @@ def original_argv() -> list[str]:
     return [sys.executable, *sys.argv]
 
 
+def quote_argv(argv: list[str]) -> list[str]:
+    """Quote every element for the Windows command line (no-op elsewhere).
+
+    ``os.execv`` on Windows hands its list to the C runtime, which joins the
+    items with spaces and does *not* quote them. An argument holding a space
+    therefore arrives as several arguments -- a launch like
+    ``python -m my.app 'My Title' 8080`` comes back as ``My``, ``Title``,
+    ``8080``, and the app parses a command line nobody typed (its ``8080``
+    slot finds ``Title``, say). Quoting each element the way a Windows
+    command line wants, and letting the runtime join the quoted pieces,
+    rebuilds the line this process was started with.
+    """
+    if os.name != 'nt':
+        return argv
+    return [subprocess.list2cmdline([arg]) for arg in argv]
+
+
 def restart_process(delay: float = _DELAY) -> None:
     """Re-execute this process after `delay` seconds (non-blocking).
 
@@ -45,8 +63,11 @@ def restart_process(delay: float = _DELAY) -> None:
     def _run() -> None:
         time.sleep(delay)
         argv = original_argv()
+        # the image path is handed over as-is -- the runtime resolves it
+        # itself -- while the elements go through the shell-quoting above.
+        program, argv = argv[0], quote_argv(argv)
         try:
-            os.execv(argv[0], argv)
+            os.execv(program, argv)
         except OSError as exc:  # pragma: no cover - best effort
             # `print` is monkey-patched by neoprint in this package (it
             # rejects `flush=...`), so write straight to stderr.
