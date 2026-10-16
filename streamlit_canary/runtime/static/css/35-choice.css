@@ -369,7 +369,9 @@
   /* The raised pill. It is a single element that *slides* between the options
      instead of a per-pill background, so switching animates (its width and
      offset are measured by `scSyncSegmented`). It sits under the pills, which
-     paint after it in the DOM. */
+     paint after it in the DOM. Its colour is a theme token of its own: in the
+     dark theme the page background would sit *below* the rail and clash with
+     the hover tint, so that theme lifts the token (see `theme-dark.css`). */
   .st-segmented-highlight {
     position: absolute;
     top: 2px;
@@ -377,7 +379,7 @@
     left: 0;
     width: 0;
     border-radius: 6px;
-    background-color: var(--st-background-color);
+    background-color: var(--st-segmented-selected-background-color);
     box-shadow: 0 1px 2px rgba(var(--st-shadow-rgb), 0.1);
     pointer-events: none;
     opacity: 0;

@@ -145,6 +145,12 @@
 
     原版行为: 原版同样没有行手势, 但它的 checkbox / radio 也是 `<label>` 包裹, 双击照样切换两次, 视觉上闪两下.
 
+- SegmentedControl
+  - 选中态由一个会滑动的"药丸"承担: 轨道 (`.st-segmented-group`) 铺 `secondaryBg`, 药丸是单独的 `.st-segmented-highlight` (切换时滑动, 不是每个选项各画一个背景), 选项自己只保留 500 的字重; 未选中的选项悬浮时才染 `hoverBackgroundColor`.
+  - **暗色主题下药丸的底色另取一个 token** (`--st-segmented-selected-background-color`, 见 `theme-dark.css`): 页面底色在这里 (#0e1117) 比轨道 (#262730) 更暗, 选中项看起来是"凹下去"的, 而且和我们的 hover (#3a3c46 = `hoverBackgroundColor` 叠在轨道上) 太接近, 药丸的黑色投影在暗色页面上也看不见, 于是很难一眼分辨选中态. 所以暗色主题取比 hover 更亮一档的 `#555867` (调色板里的 grayColor); 亮色主题保持页面底色 (#ffffff) 不变.
+
+    原版行为: 原版 1.63 的 `st.segmented_control` 是另一套画法 (实测两个主题, DOM 为 `stButtonGroup`): 轨道透明, 每个选项是页面底色 + `fadedText10` 描边的方框, **选中项走 primary** -- 底色 `rgba(primary, 0.2)`、边框与文字都是 primary (暗色：`rgba(255, 75, 75, 0.2)` / #ff4b4b; 亮色同值). 也就是说选中态本来就不是同一个颜色, 目前 `test/pixel_fidelity/` 下也没有针对它的对比脚本; 将来若要对比, 选中态按上面这条预期.
+
 - Selectbox
   - Selectbox 在展开后, 会对当前已选择的选项的文字以主题色高亮显示.
 
