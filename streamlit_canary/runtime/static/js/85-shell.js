@@ -104,11 +104,33 @@
     if (ev.key === 'Escape') scCloseMenu();
   });
 
+  // -- The bottom dock -----------------------------------------------------
+  // A root-level `BottomContainer` is pinned to the window's bottom edge
+  // (`20-layouts.css`), so it holds no place in the page's flow any more --
+  // and the page would end under it. Reserve its own height at the end
+  // instead, so the last of the content still scrolls clear of the dock. The
+  // observer follows the dock as it grows (a LogPanel filling with lines) or
+  // goes away (`visible=False`, which reports a zero size).
+  function scDockBottom() {
+    const dock = document.querySelector('.st-container--dock');
+    const shown = dock && !dock.hidden;
+    document.body.style.paddingBottom = shown
+      ? (dock.offsetHeight + 16) + 'px'
+      : '';
+  }
+  function scObserveDockBottom() {
+    const dock = document.querySelector('.st-container--dock');
+    if (!dock) return;
+    new ResizeObserver(() => scDockBottom()).observe(dock);
+  }
+
   // Fill the markdown placeholders that the server rendered, then draw any
   // charts that were part of the initial page. The script tag sits at the
   // end of <body>, so the DOM is already parsed.
   scToolbar();
   scSyncThemeRadios();
+  scDockBottom();
+  scObserveDockBottom();
   scRenderMarkdown(document);
   scAlignRowArrows(document);
   scInitAltairCharts();

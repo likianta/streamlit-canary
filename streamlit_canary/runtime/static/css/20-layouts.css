@@ -101,6 +101,37 @@
   .st-container--bottom {
     margin-top: auto;
   }
+  /* The same component at the app root is the page's *dock*: it hangs off the
+     window's bottom edge and stays there while the page scrolls, so the app's
+     actions and its log never scroll away (Streamlit's `st.bottom` is the
+     same idea). `position: fixed` is what takes it out of the content's flow;
+     `85-shell.js` then measures it and reserves that much room at the end of
+     the page, so the page's last inches can still be scrolled clear of it.
+     The surface colour is the page's own, since content scrolls underneath.
+     The horizontal padding mirrors `#app`'s column -- the same `max()` that
+     centres it -- so the dock's content lines up with the page's; in the wide
+     layout `--st-app-max-width` is `100%`, which collapses it to the plain
+     padding (see `01-base.css`). */
+  .st-container--dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    margin-top: 0;
+    padding-left: max(
+      var(--st-app-pad-x),
+      calc((100% - var(--st-app-max-width)) / 2 + var(--st-app-pad-x))
+    );
+    padding-right: max(
+      var(--st-app-pad-x),
+      calc((100% - var(--st-app-max-width)) / 2 + var(--st-app-pad-x))
+    );
+    padding-top: 12px;
+    padding-bottom: 16px;
+    border-top: 1px solid var(--st-border-color);
+    background-color: var(--st-background-color);
+  }
   /* A `FloatingContainer`: a cluster pinned to a corner of the layout it sits
      in. It is `position: sticky`, so the parent's content scrolls underneath
      while the cluster stays put -- and because sticky also keeps the element's

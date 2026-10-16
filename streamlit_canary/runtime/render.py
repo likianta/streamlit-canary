@@ -274,9 +274,18 @@ def _render_element(comp: Component) -> str:
                 rules.append('overflow:auto')
         style = _style_attr(rules)
         reveal_cls = ' st-reveal' if getattr(comp, '_animated', False) else ''
-        bottom_cls = (
-            ' st-container--bottom' if isinstance(comp, BottomContainer) else ''
-        )
+        bottom_cls = ''
+        if isinstance(comp, BottomContainer):
+            # At the app root it is the page's *dock*: pinned to the window's
+            # bottom edge, clear of the content's scroll flow (`page.js`
+            # measures it and reserves the room at the page's end). Anywhere
+            # else it only drops to the end of its parent, as `st.bottom`'s
+            # in-layout twin.
+            bottom_cls = (
+                ' st-container--dock'
+                if comp._parent is None
+                else ' st-container--bottom'
+            )
         return (
             f'<div class="st-container{border_cls}{reveal_cls}{bottom_cls}"'
             f' data-id="{comp.id}"'

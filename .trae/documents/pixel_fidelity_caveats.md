@@ -51,9 +51,11 @@
     原版行为: st 把滚动放在内部容器里 (主区块自己滚), 窗口滚动条通常不参与布局, 也就没有这条预留. 由此我们的内容列在无滚动条时会比原版略靠左约半个滚动条宽 (~7.5px). 这是**有意为之**, 像素对比时按此预期; 对比脚本都是按元素自身的 bounding box 取几何 (hover / 截图都相对元素本身), 不比较页面绝对位移, 所以不受影响.
 
 - BottomContainer
-  - 我们的底部布局容器是贴着当前的父布局的底部的: 实现是给容器加 `margin-top: auto`, 所以只要父级 (垂直容器) 还有剩余空间, 它就会被压到底部, 不限定于根布局. 我们同时给了 `v3.Bottom` 这个别名 (对齐原版的 `st.bottom`), `v3.BottomContainer` 仍然可用.
+  - 我们的底部布局容器有两种落法, 取决于它放在哪里.
+  - 放在**根布局** (即 `#app` 的直接子元素) 时, 它是页面的 **dock**: 用 `position: fixed` 钉在窗口底边之上 16px, 不参与正文的滚动流, 所以 app 的操作区 / 日志永远够得着, 不会随内容滚走. 因为脱离了文档流, 页尾要留出它占的高度: `85-shell.js` 的 `scDockBottom` 量它的高度并写进 `document.body` 的 `padding-bottom` (dock 高度 + 16px), dock 随日志长高时由 `ResizeObserver` 跟着更新 -- 于是滚到最底部时正文也不会被它盖住 (实测: 正文末尾距 dock 顶边恒为 `160px` (即 `#app` 的下内边距) `+ 16px`). dock 自己的左右内边距镜像 `#app` 的内容列 (变量 `--st-app-max-width` / `--st-app-pad-x`, 见 `01-base.css`), 所以居中布局里 dock 的内容与正文左右对齐; 渲染分支见 `runtime/render.py` 的 `st-container--dock` (判据是 `comp._parent is None`), 样式在 `20-layouts.css`.
+  - 放在**任意子容器** (垂直容器 / `Popover` / `Dialog`) 时仍是老做法: 给容器加 `margin-top: auto`, 所以只要父级 (垂直容器) 还有剩余空间, 它就会被压到底部, 不限定于根布局. 两种情形都给了 `v3.Bottom` 这个别名 (对齐原版的 `st.bottom`), `v3.BottomContainer` 仍然可用.
 
-    原版行为: st.bottom 只允许在根布局中使用.
+    原版行为: st.bottom 只允许在根布局中使用, 且是真正钉在窗口底部的 (不随内容滚动). 我们两种位置都能用: 根布局对齐原版, 子容器则是我们的扩展.
 
 - Callout
   - `v3.Error` / `v3.Info` / `v3.Success` / `v3.Warning` 是同一个 `v3.Callout` 基类的四个子类, 四者只差配色 (子类只写 `_kind`, 渲染成 `.st-alert-<kind>`, 样式在 `runtime/static/css/11-status.css`). 四套配色逐一对照过真实的 Streamlit 应用 (`st.error` / `st.info` / `st.success` / `st.warning` 各渲染一条, 读计算样式): 背景是各自的 `--st-<name>-background-color`, 文字是各自的 `--st-<name>-text-color`; 浅色主题下实测背景为 blue `rgba(28,131,255,.1)` / green `rgba(33,195,84,.1)` / yellow `rgba(255,255,18,.1)` / red `rgba(255,43,43,.1)`, 文字为 `#0054a3` / `#158237` / `#926c05` / `#bd4043`. 注意 warning 是**黄色** (`--st-yellow-*`), 不是橙色.

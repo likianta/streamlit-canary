@@ -21,6 +21,12 @@
     --st-control-height: 32px;
     --st-vgap: 16px;
     --st-hgap: 8px;
+    /* `#app`'s own column metrics, shared with anything that has to line up
+       with it -- the bottom dock (`20-layouts.css`) mirrors this column. The
+       `100%` of the wide layout collapses that mirror to the plain padding,
+       because both occurrences of it resolve against the same box. */
+    --st-app-max-width: 736px;
+    --st-app-pad-x: 16px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   /* Reserve the window scrollbar's gutter once and for all. A classic
@@ -48,19 +54,23 @@
     gap: var(--st-vgap);
     /* Streamlit's main block container is 46rem (736px) *including* its
        1rem horizontal padding, so its content column is 704px wide. */
-    max-width: 736px;
+    max-width: var(--st-app-max-width);
     margin: 0 auto;
     /* Vertical rhythm of Streamlit's main block container. */
-    padding: 96px 16px 160px;
+    padding: 96px var(--st-app-pad-x) 160px;
   }
   /* The `gap` above owns the vertical rhythm, so the widgets' own bottom
      margins are dropped (otherwise each gap would be vgap + 8px = 24px). */
   #app > * { margin-bottom: 0; }
   /* `layout='wide'`: fill the viewport (like Streamlit's wide layout)
      instead of centering a fixed-width column. The horizontal padding
-     matches Streamlit's main block container. */
+     matches Streamlit's main block container. The `100%` above is what makes
+     the bottom dock's mirror of this column collapse to that padding (see
+     `--st-app-max-width`). */
   #app.st-wide {
     max-width: none;
     padding: 96px 80px 160px;
+    --st-app-max-width: 100%;
+    --st-app-pad-x: 80px;
   }
 

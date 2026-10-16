@@ -82,6 +82,12 @@ class BottomContainer(Container):
             with v3.BottomContainer():
                 v3.Button('Close')
 
+    At the app root it is a *dock* instead: it hangs off the window's bottom
+    edge (16px above it) and stays there while the page scrolls, so an app's
+    actions and its log are always in reach and never scroll away -- the same
+    idea as Streamlit's `st.bottom`. The page reserves the dock's own height
+    at its end, so the last of the content can still be scrolled clear of it.
+
     Streamlit's `st.bottom` is only allowed at the root; this one works in
     any layout (a canary-only difference, see
     `.trae/documents/pixel_fidelity_caveats.md`).
