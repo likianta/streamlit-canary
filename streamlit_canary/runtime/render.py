@@ -15,6 +15,7 @@ import typing as tp
 from lk_utils import fs
 
 from ..components_v3._shared import _Labeled
+from ..components_v3._shared import _is_blank
 from ..components_v3.base import Component
 from ..components_v3.buttons import Button
 
@@ -105,6 +106,28 @@ def _render_plain(text: str) -> str:
     markdown placeholders exist).
     """
     return f'<span class="st-plain">{html.escape(str(text))}</span>'
+
+
+def _border_title_html(comp: Component, cls: str) -> str:
+    """Emit the span that draws a box's `border_title` on its top border.
+
+    Markdown, not plain text (see `render_markup`) -- a title is a label, and
+    every other label in the library takes markdown. The span itself is what
+    `.st-border-title` positions half outside the box and paints the box's own
+    surface colour behind, which is how the border line ends up looking
+    interrupted rather than crossed.
+
+    The span is emitted even for a blank title, with `hidden` on it: a
+    `border_title` patch can fill it in later, and a patch cannot create the
+    element it needs. `cls` picks the surface colour (`st-container-title` /
+    `st-log-title`).
+    """
+    value = str(comp.border_title.get() or '')
+    hidden = ' hidden' if _is_blank(value) else ''
+    return (
+        f'<span class="st-border-title {cls}"{hidden}>'
+        f'{render_markup(value)}</span>'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +295,28 @@ def _render_element(comp: Component) -> str:
             rules.append(f'height:{height}px')
             if 'overflow:auto' not in rules:
                 rules.append('overflow:auto')
+        # A `border_title` rides on the top border, and only an *unclipped*
+        # box can paint over its own border line -- a clipping one would cut
+        # the half of the title that sits outside the box (see
+        # `.st-border-title`). A bordered box therefore hands its scrolling to
+        # an inner body, which is also why the title span is emitted whether
+        # or not it draws anything: a `border_title` patch can fill it in.
+        titled_cls = ''
+        title = ''
+        if getattr(comp, '_border', False):
+            titled_cls = ' st-container--titled'
+            title = _border_title_html(comp, 'st-container-title')
+            if 'overflow:auto' in rules:
+                rules.remove('overflow:auto')
+                # The body repeats `st-container` on purpose: a whole shelf of
+                # rules reads `.st-container > <child>` (`margin-bottom: 0`, a
+                # radio's `align-self`, a widget label's pull-back), and the
+                # children have just moved one level down.
+                children = (
+                    '<div class="st-container st-container-body"'
+                    ' style="overflow:auto">'
+                    f'{children}</div>'
+                )
         style = _style_attr(rules)
         reveal_cls = ' st-reveal' if getattr(comp, '_animated', False) else ''
         bottom_cls = ''
@@ -287,9 +332,9 @@ def _render_element(comp: Component) -> str:
                 else ' st-container--bottom'
             )
         return (
-            f'<div class="st-container{border_cls}{reveal_cls}{bottom_cls}"'
-            f' data-id="{comp.id}"'
-            f'{style}>{children}</div>'
+            f'<div class="st-container{border_cls}{reveal_cls}{bottom_cls}'
+            f'{titled_cls}" data-id="{comp.id}"'
+            f'{style}>{title}{children}</div>'
         )
     if isinstance(comp, Tabs):
         return _render_tabs(comp)
@@ -2107,12 +2152,30 @@ def _render_log_panel(comp: LogPanel) -> str:
     (see `65-log.js`); it is capped at `LogPanel._max_lines`, so the payload
     stays small. Escaping is enough to make a log line inert -- the markup
     around it is fixed.
+
+    The title, the empty-state hint and the clear button all ship from the
+    first paint too -- `65-log.js` only flips their `hidden` as lines come and
+    go, because a patch cannot add or remove an element. The button carries
+    the panel's own id, so the client's `click` (`scSendClick`) routes to the
+    panel and its `_on_click` empties `lines`.
     """
-    text = html.escape('\n'.join(comp.lines.get() or ()), quote=False)
+    lines = comp.lines.get() or ()
+    text = html.escape('\n'.join(lines), quote=False)
+    title = _border_title_html(comp, 'st-log-title')
+    empty = not lines
+    hint_hidden = '' if empty else ' hidden'
+    clear_hidden = ' hidden' if empty else ''
+    placeholder = html.escape(str(comp.placeholder.get() or ''))
     return (
         f'<div class="st-log-panel" data-id="{comp.id}"'
         f'{_size_style(comp)}>'
-        f'<pre class="st-log-panel-body">{text}</pre></div>'
+        f'{title}'
+        f'<div class="st-log-placeholder"{hint_hidden}>{placeholder}</div>'
+        f'<button class="st-log-clear" type="button" data-id="{comp.id}"'
+        f' aria-label="Clear log" onclick="scSendClick(this)"{clear_hidden}>'
+        f'{render_markup(":material/delete:")}</button>'
+        f'<pre class="st-log-panel-body">{text}</pre>'
+        f'</div>'
     )
 
 

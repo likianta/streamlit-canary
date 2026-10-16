@@ -1,5 +1,6 @@
 import typing as tp
 
+from ._shared import _HasBorderTitle
 from ._shared import _HasText
 from ._shared import _help_prop
 from ._shared import _prop
@@ -26,7 +27,7 @@ class Cell(Component):
         self._col = col
 
 
-class Container(Component):
+class Container(_HasBorderTitle, Component):
     """Vertical layout container.
 
     Args:
@@ -35,6 +36,9 @@ class Container(Component):
             `(5, 2)` split is `Container(weight=5)` + `Container(weight=2)`;
             None keeps the default equal share.
         border: whether to draw a bordered container around the children.
+        border_title: a title drawn inline in the top border, the way a
+            `<legend>` sits in a fieldset's frame; only honoured together with
+            `border=True`, and blank (the default) draws none. Bindable.
         height: fixed height in px; the content scrolls when it overflows
             (mirrors `st.container(height=...)`). `'stretch'` fills the
             parent's height instead -- inside a `Row` the column then spans
@@ -49,6 +53,9 @@ class Container(Component):
             appearing/disappearing instantly (mirrors an expander body). Use
             it for blocks that a button reveals, e.g.
             `Container(visible=state.show, animated=True)`.
+
+    Properties:
+        border_title: str — the title on the border (bindable; see above).
     """
 
     def __init__(
@@ -57,11 +64,13 @@ class Container(Component):
         width: Width | None = None,
         weight: float | None = None,
         border: bool = False,
+        border_title: str | Property = '',
         height: Height | None = None,
         animated: bool = False,
         **kwargs: tp.Any,
     ) -> None:
         super().__init__(width=width, height=height, **kwargs)
+        self._init_border_title(border_title)
         self._weight = weight
         self._border = border
         self._animated = animated

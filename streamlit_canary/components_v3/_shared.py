@@ -64,14 +64,19 @@ def _not_blank(value: tp.Any) -> bool:
 Visible: tp.TypeAlias = bool | Property | tp.Literal['auto']
 
 
-def _resolve_visible(data: Property, visible: Visible) -> Property[bool]:
+def _resolve_visible(
+    data: Property, visible: Visible, *extra: Property
+) -> Property[bool]:
     """The `visible` of an element whose content decides whether it draws.
 
     `'auto'` -- the default -- ties the flag to `data`: the element shows
     while the content holds something and hides while it does not. "Blank"
     is `_is_blank`'s call, so the lone space is content and keeps its line
-    while `''` / `'  '` / `None` / `[]` do not. A `Property` is the
-    caller's own flag, mirrored as given; a plain `bool` is a fixed one.
+    while `''` / `'  '` / `None` / `[]` do not. Any further `extra` fields
+    count as content too, and any one of them is enough on its own -- that is
+    how a `LogPanel` stays on screen for the hint it draws in place of its
+    lines. A `Property` is the caller's own flag, mirrored as given; a plain
+    `bool` is a fixed one.
     Either way the caller's flag *wins* over the content -- `visible=True`
     on a blank element shows it, `visible=False` on a filled one hides it.
     (It used to be ANDed with the content test, which left no way to show a
@@ -97,7 +102,21 @@ def _resolve_visible(data: Property, visible: Visible) -> Property[bool]:
                     visible
                 )
             )
-        return bind(data, _not_blank)
+        if not extra:
+            return bind(data, _not_blank)
+        # Several fields make up the content, so the flag has to watch them
+        # all: `bind` mirrors a single source, and there is no expression
+        # node behind this one.
+        sources = (data, *extra)
+        flag: Property[bool] = Property(False)
+
+        def _sync() -> None:
+            flag.set(any(not _is_blank(p.get()) for p in sources))
+
+        for prop in sources:
+            prop.on_change.connect(_sync)
+        _sync()
+        return flag
     if isinstance(visible, Property):
         out: Property[bool] = Property(True)
         out.bind(visible)
@@ -168,6 +187,28 @@ def _help_prop(help: str | Property) -> Property[str]:
 
 
 # -- shared bases ----------------------------------------------------------
+
+
+class _HasBorderTitle:
+    """Mixin for a bordered box whose title rides on its top border.
+
+    Fields:
+        border_title: Property[str] — the title, drawn inline in the box's top
+            border the way a `<legend>` sits in a fieldset's frame (bindable;
+            blank draws no title). `render.py` puts it in an `st-border-title`
+            span, and the stylesheet paints the box's own surface colour
+            behind that span -- which is what makes the border line read as
+            interrupted rather than crossed (see `20-layouts.css`).
+
+    A mixin rather than a base: the boxes that carry one (`Container`,
+    `LogPanel`) otherwise share nothing, and `Container`'s own subclasses
+    would inherit the field through `**kwargs` anyway. Each `__init__` calls
+    `_init_border_title` directly -- the same arrangement as
+    `_HasPlaceholder`.
+    """
+
+    def _init_border_title(self, border_title: str | Property = '') -> None:
+        self.border_title = _prop('', border_title)
 
 
 class _HasPlaceholder:

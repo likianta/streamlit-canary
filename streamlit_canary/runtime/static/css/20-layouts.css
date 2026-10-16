@@ -95,6 +95,39 @@
     padding: 16px;
   }
   .st-container[hidden] { display: none; }
+  /* A title drawn inline in a box's top border, the way a `<legend>` sits in
+     a fieldset's frame. It is positioned half *outside* the box on purpose:
+     painting the box's own surface colour behind the text is what makes the
+     border line read as interrupted rather than crossed -- which means the box
+     itself must not clip, so a box that has to scroll hands the scrolling to
+     `.st-container-body` instead (see `runtime/render.py`). The
+     per-component classes only pick the surface colour to paint with. */
+  .st-border-title {
+    position: absolute;
+    top: 0;
+    left: 12px;
+    transform: translateY(-50%);
+    padding: 0 6px;
+    border-radius: var(--st-base-radius);
+    font-size: var(--st-base-font-size);
+    line-height: 1.4;
+  }
+  .st-container-title {
+    background-color: var(--st-background-color);
+    color: var(--st-text-color);
+  }
+  /* The positioning context the title is drawn against. */
+  .st-container--titled { position: relative; }
+  /* A capped (scrolling) bordered box scrolls through this body, so that the
+     box around it stays unclipped for the title. It carries `st-container`
+     too (`runtime/render.py`), so the children keep every `.st-container > ..`
+     rule they had; all this adds is the fill-the-box height and the margin
+     the outer box already owns. */
+  .st-container-body {
+    height: 100%;
+    min-height: 0;
+    margin-bottom: 0;
+  }
   /* Canary-only: a container pinned to the bottom of its parent (Streamlit's
      `st.bottom` only works at the root). `margin-top: auto` absorbs whatever
      free space the parent flex layout has, pushing the block down. */

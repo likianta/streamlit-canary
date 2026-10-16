@@ -9,8 +9,10 @@ import typing as tp
 from time import sleep
 
 from ._shared import Visible
+from ._shared import _HasBorderTitle
 from ._shared import _HasText
 from ._shared import _TextVisible
+from ._shared import _prop
 from ._shared import _resolve_visible
 from .base import Component
 from ..kernel import Property
@@ -81,7 +83,7 @@ def _strip_ansi(text: str) -> str:
     return _ANSI_RE.sub('', text) if '\x1b' in text else text
 
 
-class LogPanel(Component):
+class LogPanel(_HasBorderTitle, Component):
     """A live view of what the app prints to the terminal.
 
         with v3.BottomContainer():
@@ -90,7 +92,8 @@ class LogPanel(Component):
     Everything the app writes to `source` lands here, one row per line, the
     newest at the bottom -- which stays in view as lines arrive. The panel
     hides itself while nothing has been written, so an app that never prints
-    does not pay for an empty frame.
+    does not pay for an empty frame -- unless it has a `placeholder`, which is
+    content of its own (a panel with only a hint to draw keeps its frame).
 
     `print` is monkey-patched by neoprint in this package, and neoprint keeps
     its own handle on the stream it writes to, so the capture has to wrap
@@ -98,19 +101,30 @@ class LogPanel(Component):
     `Runtime.add_log_sink`. ANSI colour codes (neoprint decorates its output)
     are dropped.
 
+    A clear button floats in the panel's top-right corner while there is
+    something to clear; it empties `lines`, so an app does not have to wire a
+    button of its own.
+
     Args:
         source: the stream to follow -- `'stdout'` (the default, where
             `print` goes) or `'stderr'`.
+        border_title: the title drawn on the panel's top border, `'LOG'` by
+            default; blank drops it. Bindable.
+        placeholder: the hint drawn in the middle of the panel while it has
+            no lines (grey, like a text box's own placeholder). Bindable.
         height: see the size scheme; 200px by default, past which the log
             scrolls.
         width: see the size scheme; stretches by default.
-        visible: `'auto'` (default; tied to the lines -- an empty panel draws
-            nothing), or a bool / bound flag to drive it yourself (see
-            `_resolve_visible`).
+        visible: `'auto'` (default; tied to the panel's content -- its lines,
+            or the placeholder while there are none), or a bool / bound flag
+            to drive it yourself (see `_resolve_visible`).
 
     Properties:
         lines: list[str] -- the buffered lines, oldest first, capped at
             `_max_lines` (the oldest are dropped).
+        border_title: str -- the title on the panel's border (bindable).
+        placeholder: str -- the hint shown while there are no lines
+            (bindable).
     """
 
     _default_width = 'stretch'
@@ -121,6 +135,8 @@ class LogPanel(Component):
         self,
         source: str = 'stdout',
         *,
+        border_title: str | Property = 'LOG',
+        placeholder: str | Property = '',
         visible: Visible = 'auto',
         **kwargs: tp.Any,
     ) -> None:
@@ -130,8 +146,10 @@ class LogPanel(Component):
                 "source must be 'stdout' or 'stderr', got {!r}".format(source)
             )
         self._source = source
+        self._init_border_title(border_title)
         self.lines = Property([])
-        self.visible = _resolve_visible(self.lines, visible)
+        self.placeholder = _prop('', placeholder)
+        self.visible = _resolve_visible(self.lines, visible, self.placeholder)
         # Ask the runtime to tee the stream into us. The active runtime is
         # the one building this tree, and the capture has to outlive the
         # build: the app prints from its own event handlers, long after
@@ -146,6 +164,15 @@ class LogPanel(Component):
         lines.append(_strip_ansi(line))
         del lines[: -self._max_lines]
         self.lines.set(lines)
+
+    def _on_click(self, value: tp.Any = None) -> None:
+        """Handle the panel's clear button: drop every line.
+
+        Reached through the event router's `_on_<event>` hook (see
+        `Runtime._dispatch_event`); the button carries the panel's own id, so
+        the client's `click` lands here.
+        """
+        self.lines.set([])
 
 
 class Progress(_HasText):

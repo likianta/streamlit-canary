@@ -1,16 +1,20 @@
   /* LogPanel (canary-only): a live view of what the app prints */
   .st-log-panel {
+    position: relative;  /* the title, the hint and the clear button */
     margin-bottom: 8px;
     border: 1px solid var(--st-border-color);
     border-radius: var(--st-base-radius);
     background-color: var(--st-code-background-color);
-    overflow: hidden;
   }
+  /* The body clips its own rounded corners instead of the panel clipping --
+     `overflow: hidden` here would cut the border title in half (it hangs over
+     the top border on purpose, see `20-layouts.css`). */
   .st-log-panel-body {
     height: 100%;
     margin: 0;
     padding: 8px 12px;
     overflow: auto;
+    border-radius: calc(var(--st-base-radius) - 1px);
     font-family: var(--st-code-font);
     font-size: var(--st-base-font-size);
     line-height: 1.6;
@@ -18,3 +22,48 @@
     white-space: pre-wrap;
     word-break: break-all;
   }
+  /* `.st-border-title` positions it; this only picks the surface to paint
+     with -- the panel's own, so the border line looks interrupted. */
+  .st-log-title {
+    background-color: var(--st-code-background-color);
+    color: var(--st-text-color);
+  }
+  /* The hint sits in the middle of an empty panel, in the grey a text box
+     paints its own `::placeholder` with. `pointer-events: none` keeps it out
+     of the way of the body's scrollbar. */
+  .st-log-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--st-gray-color);
+    font-size: var(--st-base-font-size);
+    pointer-events: none;
+  }
+  /* The clear button floats in the panel's top-right corner; it is only
+     unhidden while there is something to clear (`65-log.js`). */
+  .st-log-clear {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--st-gray-color);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .st-log-clear:hover {
+    background-color: var(--st-hover-background-color);
+    color: var(--st-text-color);
+  }
+  /* `display: flex` above would otherwise beat the global `[hidden]` rule. */
+  .st-log-clear[hidden],
+  .st-log-placeholder[hidden] { display: none; }

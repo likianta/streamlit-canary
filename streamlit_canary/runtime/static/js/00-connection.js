@@ -405,4 +405,17 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
         scPatchLog(el, msg.value);
       }
     }
+    if (msg.prop === 'border_title') {
+      // The title is drawn on the box's top border; an empty one is hidden
+      // rather than removed, so the next value has somewhere to land.
+      const title = el.querySelector('.st-border-title');
+      if (title) {
+        scSetMarkdown(title, msg.value);
+        title.hidden = !msg.value;
+      }
+    }
+    if (msg.prop === 'placeholder') {
+      const hint = el.querySelector('.st-log-placeholder');
+      if (hint) hint.textContent = msg.value == null ? '' : msg.value;
+    }
   };
