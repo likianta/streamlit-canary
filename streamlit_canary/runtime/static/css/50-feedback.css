@@ -146,31 +146,40 @@
      rule -- `Tabs(visible=False)` would stay on screen without this. */
   .st-tabs[hidden] { display: none; }
   .st-tabs-bar {
-    /* Both the full-width line and the moving underline are positioned
+    /* Both the line under the tabs and the moving underline are positioned
        against the bar. */
     position: relative;
     display: flex;
+    /* One strip, never a second line: a group with more tabs than fit
+       scrolls sideways instead of wrapping. */
+    flex-wrap: nowrap;
     /* The tabs are siblings in a horizontal strip, so they take the shared
        horizontal gap (see `01-base.css`). */
     gap: var(--st-hgap);
+    /* A group with more tabs than fit used to spill out of the card: with
+       `overflow` at its initial `visible` the tabs painted past the bar's
+       right edge and out of the window. They now scroll inside the bar
+       instead, which leaves the layout alone. The bar is only 40px tall, so
+       the scrollbar is hidden rather than shown under the tabs (the same
+       pair of rules the multi-select wears, see `60-misc.css`). */
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Streamlit draws the line under the tabs 2px tall (`fadeText05`), and
+       its underline paints on top of it. It is an inset shadow rather than a
+       pseudo-element because the bar scrolls: an absolutely positioned
+       `::before` would be as wide as the *visible* part and would slide away
+       with the tabs, leaving the right end of the bar without a line. A
+       shadow is painted against the border box, so it stays put. */
+    box-shadow: inset 0 -2px 0 var(--st-border-color-light);
   }
-  /* Streamlit draws the line under the tabs with a pseudo-element (2px tall,
-     `fadeText05`) instead of a border, and its underline paints on top of it.
-     `::before` rather than `::after` keeps that order: generated content comes
-     before the tabs and the indicator, both of which are painted later. */
-  .st-tabs-bar::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 2px;
-    background-color: var(--st-border-color-light);
-  }
+  .st-tabs-bar::-webkit-scrollbar { display: none; }
   /* A tab is exactly as wide as its label (no horizontal padding) and 40px
      tall with the label centred, like Streamlit's. The 1.6 line box is
-     Streamlit's too (`22.4px` at 14px), so the baseline lands where its does. */
+     Streamlit's too (`22.4px` at 14px), so the baseline lands where its does.
+     It never shrinks: the label is the whole point of the tab, and the bar
+     scrolls instead. */
   .st-tab {
+    flex: none;
     display: flex;
     align-items: center;
     height: 40px;

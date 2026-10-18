@@ -35,6 +35,7 @@
     } else {
       scSyncTabIndicator(root);
     }
+    scRevealTab(root, btn);
     // Keep the server-side `active` property in sync.
     const id = root.dataset.id;
     if (id) {
@@ -95,6 +96,21 @@
     indicator.style.width = active.offsetWidth + 'px';
     indicator.style.transform = 'translateX(' + active.offsetLeft + 'px)';
   }
+  // Bring a tab fully into view inside the bar. A strip with more tabs than
+  // fit clips its ends, so a tab clicked while half cut off should not stay
+  // half cut off. `scrollLeft` rather than `scrollIntoView`, which would also
+  // scroll the page to bring the whole bar into view.
+  function scRevealTab(root, tab) {
+    const bar = root.querySelector('.st-tabs-bar');
+    if (!bar || !tab) return;
+    const left = tab.offsetLeft;
+    const right = left + tab.offsetWidth;
+    if (left < bar.scrollLeft) {
+      bar.scrollLeft = left;
+    } else if (right > bar.scrollLeft + bar.clientWidth) {
+      bar.scrollLeft = right - bar.clientWidth;
+    }
+  }
   function scObserveTabs(root) {
     const bar = root.querySelector('.st-tabs-bar');
     if (!bar) return;
@@ -104,6 +120,9 @@
     // as well as a window resize and the webfont landing.
     new ResizeObserver(() => scSyncTabIndicator(root)).observe(bar);
     scSyncTabIndicator(root);
+    // A strip that opens scrolled to its start would hide the active tab if
+    // the server picked one from the far end.
+    scRevealTab(root, bar.querySelector('.st-tab.is-active'));
   }
   function scToggleExpander(header) {
     const root = header.closest('.st-expander');
