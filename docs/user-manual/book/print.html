@@ -1,0 +1,3221 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Streamlit Canary User Manual</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Event-driven WebUI framework with Streamlit styled components, no re-runs.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="theme-dc0b2364.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-db9c1852.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-d47d577b.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Streamlit Canary User Manual</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="streamlit-canary-user-manual"><a class="header" href="#streamlit-canary-user-manual">Streamlit Canary User Manual</a></h1>
+<p>Streamlit Canary is a fork of Streamlit with an <strong>event-driven runtime</strong> and
+a new component library called <strong>Components V3</strong>. It keeps Streamlit’s
+familiar look and feel, but removes the rerun cycle that makes large apps
+slow.</p>
+<p>The application function runs <strong>once</strong>. It builds a persistent component
+tree, and every later interaction is routed to a signal handler on the
+server. Only the values that actually changed are sent back to the browser
+as small patches, and the page updates in place.</p>
+<h2 id="what-makes-it-different"><a class="header" href="#what-makes-it-different">What makes it different</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Streamlit</th><th>Streamlit Canary (V3)</th></tr>
+</thead>
+<tbody>
+<tr><td>Execution model</td><td>The script reruns on every interaction</td><td>The app function runs once</td></tr>
+<tr><td>UI updates</td><td>A new render tree is diffed on every rerun</td><td>A delta patch updates the affected DOM nodes</td></tr>
+<tr><td>State</td><td><code>st.session_state</code> is rebuilt on each rerun</td><td><code>StateV2</code> holds <code>Property</code> objects for the session</td></tr>
+<tr><td>Widgets</td><td>Return values from the last run</td><td>Expose reactive <code>Property</code> fields and <code>Signal</code>s</td></tr>
+<tr><td>Cost of one click</td><td>Proportional to the whole script</td><td>Proportional to the handlers that listen to it</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="highlights"><a class="header" href="#highlights">Highlights</a></h2>
+<ul>
+<li><strong>Performant by design.</strong> The app function runs once. An interaction
+executes only the handlers attached to it, then patches the DOM. The
+script never re-runs.</li>
+<li><strong>Reactive, polished event-driven syntax.</strong> <code>sc.bind</code> and <code>sc.bbind</code>
+build derived and two-way values, <code>on_change</code> and component signals
+attach handlers, and a forced notification (<code>set(value, notify=True)</code>)
+refreshes output when the value itself did not change.</li>
+<li><strong>Desktop windows.</strong> <code>sc.run(..., show_window=True)</code> serves the app and
+opens it in a native <code>pyapp-window</code> window, sized in CSS pixels.</li>
+<li><strong>Custom components included.</strong> Folder trees, <code>PathInputBrowse</code>, a PDF
+viewer, a live log panel, animated toasts, and the rest of the V3
+library ship with the package.</li>
+<li><strong><code>dunder_literal</code>.</strong> <code>PageConfig(dunder_literal=True)</code> keeps names such
+as <code>__init__</code> and <code>__name__</code> from turning into bold text.</li>
+<li><strong>Fewer dependencies.</strong> The core does not require pandas, NumPy, SciPy,
+pyarrow, or Altair. Altair is needed only if you use <code>AltairChart</code>.</li>
+</ul>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<pre><code class="language-bash">pip install streamlit-canary
+</code></pre>
+<p>Python 3.11 or newer is required.</p>
+<blockquote class="blockquote-tag blockquote-tag-warning">
+<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg>Warning</p>
+<p>Streamlit Canary evolves from 0.1.0 to 0.4.0 (the latest version), it contains three generation of implementations in one code base:</p>
+<ul>
+<li>The components V1, which are wrappers of Streamlit components, not event-driven.</li>
+<li>Components V2, broken, unable to use.</li>
+<li>Components V3, the event-driven structure.</li>
+</ul>
+<p>We will remove V1 and V2, then strip V3 prefix and make it default in the future. Currently be noted they are all importable, by exclusive statements (e.g. <code>from streamlit_canary import components_v3 as v3</code>). Current codebase and examples follow the way, they will be updated once refactoring is done.</p>
+</blockquote>
+<h2 id="hello-world"><a class="header" href="#hello-world">Hello world</a></h2>
+<pre><code class="language-python">import streamlit_canary as sc
+from streamlit_canary import components_v3 as v3
+
+
+class State(sc.StateV2):
+    count = sc.Property(0)
+
+
+state = State()
+
+
+def app():
+    v3.PageTitle('Click Counter')
+
+    with v3.Row('center'):
+        with v3.Text('Click count: 0') as txt:
+            @state.count.on_change
+            def _():
+                txt.text.set('Click count: {}'.format(state.count.get()))
+
+        with v3.Button('Increase counter', type='primary') as btn:
+            @btn.on_click
+            def _():
+                state.count.set(state.count.get() + 1)
+                # or a shorthand form: state['count'] += 1
+
+
+if __name__ == '__main__':
+    sc.run(app, port=2201)
+</code></pre>
+<p>Save the file and run it with <code>python app.py</code>. Open
+<code>http://localhost:2201</code>, then click the button. The text changes without a
+page reload, and <code>app()</code> is not called again.</p>
+<h2 id="how-this-manual-is-organized"><a class="header" href="#how-this-manual-is-organized">How this manual is organized</a></h2>
+<ul>
+<li><strong>Components V1 (Legacy)</strong> documents the original Streamlit-based API
+that still ships with the package.</li>
+<li><strong>Components V2 (Broken)</strong> describes an abandoned transitional
+implementation. It is kept only for historical reference.</li>
+<li><strong>Components V3</strong> explains the runtime model, session state, and every
+component in the V3 library.</li>
+<li><strong>Roadmap</strong> lists the work that is planned next.</li>
+</ul>
+<p>If you are starting a new app, read
+<a href="#running-apps">Running Apps</a>,
+<a href="#the-event-driven-system">The Event Driven System</a>, and
+<a href="#session-state">Session State</a> first, then use the
+<a href="#api-reference">API Reference</a> as a lookup.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="running-apps"><a class="header" href="#running-apps">Running Apps</a></h1>
+<p><code>sc.run</code> starts a Streamlit Canary app. It accepts either the app function
+itself or a path to a script or module.</p>
+<pre><code class="language-python">import streamlit_canary as sc
+
+
+def app():
+    sc.v3.PageTitle('Hello')
+    sc.v3.Text('This page has no rerun loop.')
+
+
+if __name__ == '__main__':
+    sc.run(app, port=2201)
+</code></pre>
+<h2 id="scrun"><a class="header" href="#scrun"><code>sc.run</code></a></h2>
+<pre><code class="language-python">sc.run(
+    target,
+    port=3001,
+    *,
+    blocking=True,
+    host=None,
+    show_window=False,
+    window_size=(1200, 900),
+    window_pos='center',
+    window_title=None,
+    window_icon=None,
+    icon=None,
+    title=None,
+    extra_args=(),
+)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>target</code></td><td>callable or <code>str</code></td><td>The app function, a <code>.py</code> path, or a module path</td></tr>
+<tr><td><code>port</code></td><td><code>int</code></td><td>Port to listen on, default <code>3001</code></td></tr>
+<tr><td><code>blocking</code></td><td><code>bool</code></td><td>Whether <code>run()</code> waits for the app to end</td></tr>
+<tr><td><code>host</code></td><td><code>str</code> or <code>None</code></td><td>Interface to bind</td></tr>
+<tr><td><code>show_window</code></td><td><code>bool</code></td><td>Open the app in a native window</td></tr>
+<tr><td><code>window_size</code></td><td>tuple or keyword</td><td>Window size in CSS pixels</td></tr>
+<tr><td><code>window_pos</code></td><td>position</td><td>Window position, default <code>'center'</code></td></tr>
+<tr><td><code>window_title</code></td><td><code>str</code></td><td>Window title</td></tr>
+<tr><td><code>window_icon</code></td><td><code>str</code></td><td>Window icon path</td></tr>
+<tr><td><code>icon</code> / <code>title</code></td><td><code>str</code></td><td>Aliases of <code>window_icon</code> / <code>window_title</code></td></tr>
+<tr><td><code>extra_args</code></td><td>sequence of <code>str</code></td><td>Extra arguments for a path target</td></tr>
+</tbody>
+</table>
+</div>
+<p>It returns a pair:</p>
+<pre><code class="language-python">server_process, window_process = sc.run(app)
+</code></pre>
+<p>Either element may be <code>None</code> when that process does not exist.</p>
+<h3 id="callable-targets"><a class="header" href="#callable-targets">Callable targets</a></h3>
+<p>A callable is served in the current process:</p>
+<pre><code class="language-python">sc.run(app, port=2201)
+</code></pre>
+<p>With <code>blocking=True</code> (the default), <code>run()</code> does not return until the
+server stops. With <code>blocking=False</code>, the server is started on a daemon
+thread and <code>run()</code> returns at once; the caller must keep the process
+alive.</p>
+<h3 id="path-targets"><a class="header" href="#path-targets">Path targets</a></h3>
+<p>A <code>.py</code> path is launched in a child process:</p>
+<pre><code class="language-python">sc.run('app.py', port=2201)
+</code></pre>
+<p>A module path is launched with <code>python -m</code>:</p>
+<pre><code class="language-python">sc.run('my_project.app', port=2201)
+</code></pre>
+<p>Arguments left over from the command line can be forwarded:</p>
+<pre><code class="language-python">sc.run('app.py', extra_args=('--debug',))
+</code></pre>
+<p>The child process calls <code>sc.run</code> again on its own. Return values therefore
+describe the child process.</p>
+<h3 id="host"><a class="header" href="#host">Host</a></h3>
+<p><code>host</code> chooses the interface to bind:</p>
+<ul>
+<li><code>'0.0.0.0'</code>: all interfaces; the app is reachable on the LAN.</li>
+<li><code>'127.0.0.1'</code>: this machine only.</li>
+<li><code>'localhost'</code>: this machine only, including IPv6 loopback.</li>
+</ul>
+<p>When <code>host</code> is omitted, it follows <code>show_window</code>:</p>
+<ul>
+<li><code>show_window=True</code>: <code>'localhost'</code>, because a desktop window is a local
+session and binding every interface would only earn a firewall prompt;</li>
+<li>otherwise: <code>'0.0.0.0'</code>.</li>
+</ul>
+<h2 id="opening-a-native-window"><a class="header" href="#opening-a-native-window">Opening a native window</a></h2>
+<p><code>show_window=True</code> serves the app and opens it in a desktop window through
+<code>pyapp-window</code>:</p>
+<pre><code class="language-python">sc.run(
+    app,
+    port=2201,
+    show_window=True,
+    window_size=(980, 760),
+    window_title='My App',
+    window_icon='assets/app.ico',
+)
+</code></pre>
+<p>The window is not a browser tab; it is a native webview. Closing it ends
+the session. With <code>blocking=True</code>, the server is stopped as well.</p>
+<h3 id="window_size"><a class="header" href="#window_size"><code>window_size</code></a></h3>
+<p><code>window_size</code> is the <strong>page viewport</strong>, in CSS pixels. A 700x600 window
+shows 700x600 CSS pixels of the page regardless of the display’s scale
+factor, so the layout sees exactly the size requested.</p>
+<pre><code class="language-python">window_size=(1200, 900)   # width, height
+window_size='maximized'
+window_size='fullscreen'
+</code></pre>
+<p>The window manager may crop the requested box when it does not fit the
+screen. Size the window from the layout the app builds, not from a fixed
+guess: a form with a known number of rows has a known height.</p>
+<h3 id="window_pos"><a class="header" href="#window_pos"><code>window_pos</code></a></h3>
+<p>The default is <code>'center'</code>. A screen position can also be passed the way
+<code>pyapp-window</code> accepts it. Leave it alone unless the app has a reason to
+place itself.</p>
+<h3 id="window_title-and-window_icon"><a class="header" href="#window_title-and-window_icon"><code>window_title</code> and <code>window_icon</code></a></h3>
+<p><code>window_title</code> sets the OS window title. If omitted, the title is
+<code>'Streamlit Canary Application'</code>.</p>
+<p><code>window_icon</code> points to an icon file for the window.</p>
+<p><code>title</code> and <code>icon</code> are shorter aliases:</p>
+<pre><code class="language-python">sc.run(app, show_window=True, title='My App', icon='app.ico')
+</code></pre>
+<h3 id="platform-note"><a class="header" href="#platform-note">Platform note</a></h3>
+<p>The window backend is provided by <code>pyapp-window</code>. On Windows, its <code>toga</code>
+backend requires .NET 10. If the runtime is installed outside the default
+location, point <code>DOTNET_ROOT</code> at it before starting the app.</p>
+<h2 id="blocking-behavior"><a class="header" href="#blocking-behavior">Blocking behavior</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target</th><th><code>blocking=True</code></th><th><code>blocking=False</code></th></tr>
+</thead>
+<tbody>
+<tr><td>Callable</td><td>Serves in the current thread until stopped</td><td>Serves on a daemon thread and returns</td></tr>
+<tr><td>Path / module</td><td>Waits for the child process</td><td>Leaves the child running and returns</td></tr>
+</tbody>
+</table>
+</div>
+<p>With <code>show_window=True</code> and <code>blocking=True</code>, <code>run()</code> waits for the window
+to close and then stops the server.</p>
+<h2 id="stopping-an-app"><a class="header" href="#stopping-an-app">Stopping an app</a></h2>
+<ul>
+<li>Press Ctrl+C in the terminal that started a blocking server.</li>
+<li>With a native window, close the window.</li>
+<li>With <code>blocking=False</code>, the caller owns the process (for a callable) or
+the returned child process (for a path target).</li>
+</ul>
+<p>The server exposes a <code>/shutdown</code> endpoint, which is how a window session
+asks the serving child to stop cleanly before falling back to terminating
+it.</p>
+<h2 id="related-pages"><a class="header" href="#related-pages">Related pages</a></h2>
+<ul>
+<li><a href="#the-event-driven-system">The Event Driven System</a></li>
+<li><a href="#session-state">Session State</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="components-v1-legacy"><a class="header" href="#components-v1-legacy">Components V1 (Legacy)</a></h1>
+<blockquote class="blockquote-tag blockquote-tag-caution">
+<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Caution</p>
+<p>This part is going to be removed in future versions, for latest reference, please read <a href="#components-v3">Components V3 docs</a>.</p>
+</blockquote>
+<p>Components V1 is the original layer of Streamlit Canary. It is built
+directly on top of Streamlit and follows the same rerun model: every
+interaction re-executes the script, and widgets return their current value
+from that run.</p>
+<p>V1 is still available under the top-level namespace:</p>
+<pre><code class="language-python">import streamlit_canary as sc
+
+value = sc.selectbox('Choose one', ('a', 'b', 'c'))
+</code></pre>
+<p>It remains useful for:</p>
+<ul>
+<li>small scripts that do not need persistent state;</li>
+<li>porting an existing Streamlit app with minimal changes;</li>
+<li>comparing behavior against upstream Streamlit.</li>
+</ul>
+<p>It is <strong>not</strong> the recommended way to build a new app. The rerun model is
+exactly what V3 removes, and V1 widgets cannot participate in the V3
+component tree or its delta patches.</p>
+<h2 id="related-pages-1"><a class="header" href="#related-pages-1">Related pages</a></h2>
+<ul>
+<li><a href="#migrating-to-v3">Migrating to V3</a></li>
+<li><a href="#components-v3">Components V3</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="migrating-to-v3"><a class="header" href="#migrating-to-v3">Migrating to V3</a></h1>
+<p>V1 and V3 can live in the same process, but they do not share a component
+tree. A V3 app should use only <code>sc.v3.*</code> components inside its app
+function.</p>
+<h2 id="the-mental-model"><a class="header" href="#the-mental-model">The mental model</a></h2>
+<p>V1:</p>
+<pre><code class="language-python">import streamlit as st
+
+count = st.session_state.get('count', 0)
+
+if st.button('Increase'):
+    count += 1
+    st.session_state.count = count
+
+st.text('Click count: {}'.format(count))
+</code></pre>
+<p>V3:</p>
+<pre><code class="language-python">import streamlit_canary as sc
+
+
+class State(sc.StateV2):
+    count = sc.Property(0)
+
+
+state = State()
+
+
+def app():
+    with sc.v3.Text('Click count: 0') as txt:
+        @state.count.on_change.partial(sc._self)
+        def _(cnt):
+            txt.text.set('Click count: {}'.format(cnt.get()))
+
+    with sc.v3.Button('Increase') as btn:
+        @btn.on_click
+        def _():
+            state['count'] += 1
+</code></pre>
+<p>The differences:</p>
+<ol>
+<li><strong>The app function runs once.</strong> There is no <code>if st.button(...)</code> branch
+that runs on the next rerun.</li>
+<li><strong>State is explicit.</strong> <code>StateV2</code> fields are <code>Property</code> objects, not
+dictionary entries.</li>
+<li><strong>Widgets expose properties and signals.</strong> You attach a handler with
+<code>@widget.on_click</code> or <code>@widget.value.on_change</code> instead of reading a
+return value.</li>
+<li><strong>Updates are pushed.</strong> Changing <code>txt.text</code> sends a patch; the browser
+replaces that text node.</li>
+</ol>
+<h2 id="a-practical-checklist"><a class="header" href="#a-practical-checklist">A practical checklist</a></h2>
+<ul>
+<li>Replace <code>st.session_state</code> with a <code>StateV2</code> subclass.</li>
+<li>Replace <code>st.button(...)</code> plus an <code>if</code> branch with <code>v3.Button(...)</code> plus
+<code>@button.on_click</code>.</li>
+<li>Replace “read the widget’s return value” with <code>widget.value.get()</code>.</li>
+<li>Replace “write a widget’s value by assigning its return value” with
+<code>widget.value.set(...)</code>.</li>
+<li>Move conditional rendering into a <code>Container(visible=...)</code> or an
+<code>Expander</code>, rather than skipping code on a rerun.</li>
+<li>Replace <code>st.rerun()</code> with a state change. A rerun is neither needed nor
+available in the V3 runtime.</li>
+</ul>
+<h2 id="things-that-do-not-translate-one-to-one"><a class="header" href="#things-that-do-not-translate-one-to-one">Things that do not translate one to one</a></h2>
+<ul>
+<li>A V3 component is created once. If a widget should not exist at all, keep
+it hidden with <code>visible=False</code> instead of not creating it.</li>
+<li>Layout is built with context managers (<code>with v3.Row(): ...</code>), not by
+assigning columns to variables.</li>
+<li>Server-side code inside a handler runs on a worker thread. Keep handlers
+short, and do not block the event loop for long periods.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="components-v2-broken"><a class="header" href="#components-v2-broken">Components V2 (Broken)</a></h1>
+<blockquote class="blockquote-tag blockquote-tag-caution">
+<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Caution</p>
+<p>This part is going to be removed in future versions, for latest reference, please read <a href="#components-v3">Components V3 docs</a>.</p>
+</blockquote>
+<p>Components V2 was a transitional implementation between the original
+Streamlit-based components and the event-driven V3 library. It explored a
+reactive property model, but it was never finished and is <strong>not
+maintained</strong>.</p>
+<p>The module is still importable as <code>sc.v2</code> so that old experiments do not
+fail at import time, but:</p>
+<ul>
+<li>its behavior is not guaranteed;</li>
+<li>it does not receive fixes;</li>
+<li>it is not covered by this manual.</li>
+</ul>
+<p>Do not start a new app with V2. Use <a href="#components-v3">Components V3</a>
+instead. If you have an app written against V2, the V3 API is close enough
+that porting it is usually a mechanical change.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="components-v3"><a class="header" href="#components-v3">Components V3</a></h1>
+<p>Components V3 is the event-driven component library. It has no dependency
+on Streamlit: every component is a plain Python object that owns reactive
+<code>Property</code> fields and emits <code>Signal</code>s.</p>
+<h2 id="two-rules-to-remember"><a class="header" href="#two-rules-to-remember">Two rules to remember</a></h2>
+<ol>
+<li><strong>Build the tree once.</strong> The app function passed to <code>sc.run</code> is called
+once. Components created inside it stay alive for the session.</li>
+<li><strong>Change values, not the tree.</strong> Attach handlers to signals, then update
+properties. The runtime sends the difference to the browser.</li>
+</ol>
+<h2 id="a-first-component"><a class="header" href="#a-first-component">A first component</a></h2>
+<pre><code class="language-python">import streamlit_canary as sc
+
+with sc.v3.Button('Say hello') as button:
+    @button.on_click
+    def _():
+        print('clicked')
+</code></pre>
+<p>The <code>with</code> block is how a component is added to its parent. Outside a
+<code>with</code> block it is attached to the current component on the context stack,
+which is the app root by default.</p>
+<h2 id="namespaces"><a class="header" href="#namespaces">Namespaces</a></h2>
+<p>V3 lives under <code>sc.v3</code> so it does not collide with the legacy API:</p>
+<pre><code class="language-python">import streamlit_canary as sc
+
+sc.v3.Button
+sc.v3.Text
+sc.v3.Row
+</code></pre>
+<p>The kernel is available at the top level:</p>
+<pre><code class="language-python">sc.Property
+sc.Signal
+sc.StateV2
+sc.bind
+sc.bbind
+sc.run
+</code></pre>
+<h2 id="component-groups"><a class="header" href="#component-groups">Component groups</a></h2>
+<p>The library follows Streamlit’s API reference categories:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module</th><th>Components</th></tr>
+</thead>
+<tbody>
+<tr><td><code>texts</code></td><td><code>Text</code>, <code>Markdown</code>, <code>Title</code>, <code>PageTitle</code>, <code>Caption</code>, <code>Code</code></td></tr>
+<tr><td><code>data</code></td><td><code>Table</code></td></tr>
+<tr><td><code>charts</code></td><td><code>AltairChart</code></td></tr>
+<tr><td><code>buttons</code></td><td><code>Button</code>, <code>IconButton</code>, <code>MenuButton</code>, <code>ToggleButton</code></td></tr>
+<tr><td><code>inputs</code></td><td><code>Checkbox</code>, <code>CheckGroup</code>, <code>Radio</code>, <code>RadioGroup</code>, <code>Selectbox</code>, <code>Multiselect</code>, <code>NumberInput</code>, <code>TextInput</code>, <code>TextArea</code>, <code>Toggle</code>, <code>SegmentedControl</code>, <code>SelectSlider</code>, <code>ReducibleGroup</code></td></tr>
+<tr><td><code>layouts</code></td><td><code>Row</code>, <code>Column</code>, <code>Container</code>, <code>Expander</code>, <code>Grid</code>, <code>Tabs</code>, <code>Dialog</code>, <code>Popover</code>, <code>FloatingContainer</code>, <code>Space</code>, <code>BottomContainer</code></td></tr>
+<tr><td><code>status</code></td><td><code>Info</code>, <code>Success</code>, <code>Warning</code>, <code>Error</code>, <code>Callout</code>, <code>Spinner</code>, <code>Progress</code>, <code>Toast</code>, <code>LogPanel</code></td></tr>
+<tr><td><code>media</code></td><td><code>PdfViewer</code></td></tr>
+<tr><td><code>page</code></td><td><code>PageConfig</code></td></tr>
+<tr><td><code>trees</code></td><td><code>SingleTreeSelect</code>, <code>TreeView</code>, <code>FileTreeView</code>, <code>DualTreeSelect</code>, <code>ColumnView</code>, <code>PathInput</code>, <code>PathSelect</code>, <code>PathInputBrowse</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="shared-conventions"><a class="header" href="#shared-conventions">Shared conventions</a></h2>
+<h3 id="sizing"><a class="header" href="#sizing">Sizing</a></h3>
+<p>Every component accepts the same size keywords:</p>
+<pre><code class="language-python">v3.Button('Go', width='stretch')
+v3.Container(height=320)
+v3.Text('x', min_height=40)
+</code></pre>
+<ul>
+<li><code>width</code> / <code>height</code>: an <code>int</code> in CSS pixels, <code>'stretch'</code>, <code>'content'</code>, or
+<code>'auto'</code> (where the component supports it).</li>
+<li><code>max_width</code> / <code>min_width</code> / <code>max_height</code> / <code>min_height</code>: positive
+integers or <code>None</code>.</li>
+</ul>
+<p>A capped height makes the box scroll. <code>'stretch'</code> on one axis drops that
+axis’s min / max bounds.</p>
+<h3 id="visibility"><a class="header" href="#visibility">Visibility</a></h3>
+<p>Most components take <code>visible</code>. Text-like components default to
+<code>'auto'</code>: they show when their content is non-empty and hide when it is
+blank. A boolean or a bound property is used as given.</p>
+<pre><code class="language-python">v3.Text('')                       # hidden
+v3.Text('hello')                  # shown
+v3.Text('hello', visible=False)   # hidden
+v3.Text('', visible=True)         # shown, but empty
+</code></pre>
+<p>To reserve a line without text, use exactly one space: <code>v3.Title(' ')</code>.</p>
+<h3 id="reading-and-writing"><a class="header" href="#reading-and-writing">Reading and writing</a></h3>
+<p>All reactive fields use the same style:</p>
+<pre><code class="language-python">widget.value.get()
+widget.value.set(42)
+widget['value']          # same as .get()
+widget['value'] = 42     # same as .set(42)
+widget['on_value']       # same as widget.value.on_change
+</code></pre>
+<h3 id="binding"><a class="header" href="#binding">Binding</a></h3>
+<p><code>sc.bind(source, transform)</code> creates a read-only, derived property.
+<code>sc.bbind(source)</code> creates a two-way binding for widgets that write back.</p>
+<pre><code class="language-python">v3.Text(sc.bind(state.count, lambda n: 'Count: {}'.format(n)))
+v3.NumberInput('Channel', sc.bbind(state.channel))
+</code></pre>
+<h2 id="pages-in-this-section"><a class="header" href="#pages-in-this-section">Pages in this section</a></h2>
+<ul>
+<li><a href="#the-event-driven-system">The Event Driven System</a></li>
+<li><a href="#session-state">Session State</a></li>
+<li><a href="#api-reference">API Reference</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-event-driven-system"><a class="header" href="#the-event-driven-system">The Event Driven System</a></h1>
+<p>Streamlit Canary replaces Streamlit’s rerun loop with a persistent
+component tree and a small event protocol.</p>
+<h2 id="the-old-model"><a class="header" href="#the-old-model">The old model</a></h2>
+<p>In Streamlit, a widget interaction triggers a full script rerun:</p>
+<pre><code>click -&gt; rerun script -&gt; rebuild the UI -&gt; diff -&gt; send the page
+</code></pre>
+<p>The cost grows with the size of the script, not with the size of the
+change. A large app pays the whole price for one checkbox.</p>
+<h2 id="the-v3-model"><a class="header" href="#the-v3-model">The V3 model</a></h2>
+<p>In V3, the app function runs once:</p>
+<pre><code>start -&gt; run app() once -&gt; build the component tree -&gt; render HTML
+click -&gt; WebSocket event -&gt; find the handler -&gt; update properties
+      -&gt; send delta patches -&gt; patch the DOM
+</code></pre>
+<p>The app function is never called again for that session. A handler runs
+only the code registered on the signal that fired.</p>
+<h2 id="the-pieces"><a class="header" href="#the-pieces">The pieces</a></h2>
+<h3 id="runtime"><a class="header" href="#runtime">Runtime</a></h3>
+<p><code>sc.run(app_function, port=2201)</code> starts a Starlette + Uvicorn server. The
+runtime keeps one component tree per session and owns the WebSocket
+endpoint. It is a no-rerun runtime: there is no script re-execution path.</p>
+<p>See <a href="#running-apps">Running Apps</a> for <code>sc.run</code>’s full argument list
+and for opening the app in a native window.</p>
+<h3 id="component-tree"><a class="header" href="#component-tree">Component tree</a></h3>
+<p>Components are nested with context managers:</p>
+<pre><code class="language-python">with sc.v3.Row('center'):
+    sc.v3.Text('Left')
+    sc.v3.Button('Right')
+</code></pre>
+<p>Each component has an <code>id</code>, a <code>parent</code>, and <code>children</code>. The tree is built
+once and kept for the life of the session.</p>
+<h3 id="properties"><a class="header" href="#properties">Properties</a></h3>
+<p>A <code>Property</code> is a reactive value container:</p>
+<pre><code class="language-python">count = sc.Property(0)
+count.set(1)
+print(count.get())     # 1
+</code></pre>
+<p>Setting a value emits <code>on_change</code> only when the value actually changes.
+Pass <code>notify=True</code> to force a notification when something outside the
+value changed but the rendered result still needs a refresh.</p>
+<h3 id="signals"><a class="header" href="#signals">Signals</a></h3>
+<p>A <code>Signal</code> is a publish / subscribe primitive with no value:</p>
+<pre><code class="language-python">clicked = sc.Signal()
+
+@clicked
+def handler():
+    print('clicked')
+
+clicked.emit()
+</code></pre>
+<p>Signals may declare payload types:</p>
+<pre><code class="language-python">changed = sc.Signal(int)
+changed.emit(42)
+</code></pre>
+<h3 id="handlers"><a class="header" href="#handlers">Handlers</a></h3>
+<p>A component exposes named signals:</p>
+<pre><code class="language-python">with sc.v3.Button('Save') as button:
+    @button.on_click
+    def _():
+        ...
+</code></pre>
+<p><code>on_click</code>, <code>on_change</code>, <code>on_submit</code>, and the other signals are ordinary
+<code>Signal</code> objects. A handler runs on a daemon worker thread, so a long
+operation does not block the WebSocket loop.</p>
+<h3 id="delta-patches"><a class="header" href="#delta-patches">Delta patches</a></h3>
+<p>When a property changes, the runtime serializes the new value and sends a
+patch naming the component and the field. The browser updates that field
+in place. No HTML page is reloaded.</p>
+<p>Some elements own client-side state that never reaches the server:
+expanding an <code>Expander</code>, switching a <code>Tabs</code> panel, opening a <code>Popover</code>.
+Those interactions are handled entirely in the browser.</p>
+<h2 id="binding-values"><a class="header" href="#binding-values">Binding values</a></h2>
+<p><code>sc.bind</code> derives a property from one or more sources:</p>
+<pre><code class="language-python">label = sc.bind(state.count, lambda n: 'Count: {}'.format(n))
+</code></pre>
+<p>The derived property updates when a source changes. A <code>Signal</code> may be
+listed beside the value sources as a trigger: it forces a recomputation
+even when the value comes out the same, which is useful when the rendered
+result depends on more than the value.</p>
+<pre><code class="language-python">label = sc.bind(
+    (state.items, state.reloaded),
+    lambda pair: ', '.join(pair[0]),
+)
+</code></pre>
+<p><code>sc.bbind</code> binds in both directions:</p>
+<pre><code class="language-python">v3.NumberInput('Channel', sc.bbind(state.channel))
+</code></pre>
+<p>The widget mirrors the state, and a user edit writes back into it.</p>
+<h2 id="special-markers"><a class="header" href="#special-markers">Special markers</a></h2>
+<p><code>sc._self</code>, <code>sc._value</code>, and <code>sc._undefined</code> are sentinel objects used by
+the kernel. They are not values; they tell a handler or a binding how to
+resolve something at the moment it runs.</p>
+<h3 id="sc_self"><a class="header" href="#sc_self"><code>sc._self</code></a></h3>
+<p>Bind <code>sc._self</code> in <code>.partial(...)</code> to receive the signal’s owner:</p>
+<pre><code class="language-python">@state.count.on_change.partial(sc._self)
+def _(prop):
+    print(prop.get())
+</code></pre>
+<p>For a property, the owner is the <code>Property</code> itself. For a component
+signal such as <code>button.on_click</code>, the owner is the component:</p>
+<pre><code class="language-python">@button.on_click.partial(sc._self)
+def _(btn):
+    print(btn.text.get())
+</code></pre>
+<p>Without <code>.partial(...)</code>, a handler receives whatever the signal emits. Use
+<code>sc._self</code> when the handler should read several fields of the owner, or
+when it needs the handle rather than a snapshot of its value.</p>
+<h3 id="sc_value"><a class="header" href="#sc_value"><code>sc._value</code></a></h3>
+<p>Bind <code>sc._value</code> to receive the owner’s current value:</p>
+<pre><code class="language-python">@state.count.on_change.partial(sc._value)
+def _(value):
+    print(value)
+</code></pre>
+<p>This is shorthand for calling <code>.get()</code> inside the handler. It is
+meaningful only on a signal whose owner holds a value: a <code>Property</code> has
+one, a plain <code>Button</code> does not.</p>
+<h3 id="sc_undefined"><a class="header" href="#sc_undefined"><code>sc._undefined</code></a></h3>
+<p>A <code>Property</code> declared without a default starts as <code>sc._undefined</code>:</p>
+<pre><code class="language-python">class State(sc.StateV2):
+    selection: sc.Property[str]
+</code></pre>
+<p><code>sc._undefined</code> is falsy. Two consequences matter:</p>
+<ul>
+<li><code>sc.bind</code> does not run its transform while the source still holds
+<code>sc._undefined</code>, because the transform may not accept it.</li>
+<li>A bound target that needs a defined starting value should be given one
+explicitly:</li>
+</ul>
+<pre><code class="language-python">label = sc.bind(state.selection, str.upper, default='')
+</code></pre>
+<p>Test for it with identity:</p>
+<pre><code class="language-python">if state.selection.get() is sc._undefined:
+    ...
+</code></pre>
+<h2 id="what-a-handler-should-do"><a class="header" href="#what-a-handler-should-do">What a handler should do</a></h2>
+<p>A handler is the equivalent of the body of an <code>if st.button(...)</code> branch,
+but it runs only when that event happens. It should:</p>
+<ul>
+<li>update one or more properties;</li>
+<li>keep the work short;</li>
+<li>avoid touching the component tree (create components in <code>app()</code>, not in
+a handler).</li>
+</ul>
+<pre><code class="language-python">with sc.v3.Button('Load') as button:
+    @button.on_click
+    def _():
+        state.status.set('loading')
+        data = load_data()
+        state.rows.set(data)
+        state.status.set('ready')
+</code></pre>
+<p>Reading a property gives its current value. Writing it schedules a patch.</p>
+<h2 id="ordering-and-batching"><a class="header" href="#ordering-and-batching">Ordering and batching</a></h2>
+<p>During a single event, property writes are staged and flushed together.
+A derived property that depends on several sources is recomputed once,
+after the last declared source has settled. This keeps a multi-field
+update from producing a chain of intermediate renders.</p>
+<h2 id="client-side-interactions"><a class="header" href="#client-side-interactions">Client-side interactions</a></h2>
+<p>Not every interaction needs the server. The following are local to the
+browser:</p>
+<ul>
+<li>opening and closing an <code>Expander</code>;</li>
+<li>switching <code>Tabs</code>;</li>
+<li>opening and closing a <code>Popover</code> (the server can still call <code>close()</code>);</li>
+<li>folding a folder row in a tree;</li>
+<li>highlighting a row.</li>
+</ul>
+<p>The server is told only about the results it needs: a new <code>value</code>, a
+submitted path, a closed dialog.</p>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Concept</th><th>Role</th></tr>
+</thead>
+<tbody>
+<tr><td><code>sc.run</code></td><td>Starts the persistent runtime</td></tr>
+<tr><td>Component tree</td><td>The UI, built once per session</td></tr>
+<tr><td><code>Property</code></td><td>A reactive value</td></tr>
+<tr><td><code>Signal</code></td><td>An event with no value</td></tr>
+<tr><td>Handler</td><td>The code that reacts to one event</td></tr>
+<tr><td>Delta patch</td><td>The small update sent to the browser</td></tr>
+<tr><td><code>sc.bind</code> / <code>sc.bbind</code></td><td>Derived and two-way values</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="session-state"><a class="header" href="#session-state">Session State</a></h1>
+<p><code>StateV2</code> is the base class for application state. It is a
+<code>PropertyHost</code>: a plain object whose fields are reactive <code>Property</code> and
+<code>Signal</code> handles.</p>
+<h2 id="declaring-state"><a class="header" href="#declaring-state">Declaring state</a></h2>
+<p>The simplest form declares fields inside <code>__init__</code>:</p>
+<pre><code class="language-python">import streamlit_canary as sc
+
+
+class State(sc.StateV2):
+    def __init__(self):
+        super().__init__()
+        self.count = sc.Property(0)
+        self.name = sc.Property('')
+
+
+state = State()
+</code></pre>
+<p>A field may also be declared by annotation. <code>PropertyHost</code> builds one
+handle per instance:</p>
+<pre><code class="language-python">class State(sc.StateV2):
+    count: sc.Property[int] = 0
+    name: sc.Property[str]
+    reloaded: sc.Signal
+</code></pre>
+<ul>
+<li><code>Property[int]</code> with a class-body value uses that value as the default.</li>
+<li>Without a class-body value the property starts as <code>sc._undefined</code> (see
+<a href="#special-markers">Special markers</a>).</li>
+<li><code>Signal</code> declares no payload; <code>Signal[int]</code> declares one positional
+payload.</li>
+</ul>
+<p>Do not declare a <code>Property</code> instance at class level unless the state class
+has a single instance. Class-level properties are shared between
+instances.</p>
+<h2 id="reading-and-writing-1"><a class="header" href="#reading-and-writing-1">Reading and writing</a></h2>
+<pre><code class="language-python">state.count.get()        # 0
+state.count.set(1)       # 1, emits state.count.on_change
+state['count']           # 1
+state['count'] = 2       # 2
+state['on_count']        # state.count.on_change
+</code></pre>
+<p><code>state.count += 1</code> is not supported by the property object itself. Use
+the subscript form, which the runtime maps to <code>get</code> and <code>set</code>:</p>
+<pre><code class="language-python">state['count'] += 1
+</code></pre>
+<h2 id="reacting-to-changes"><a class="header" href="#reacting-to-changes">Reacting to changes</a></h2>
+<pre><code class="language-python">@state.count.on_change
+def _():
+    print('count is now', state.count.get())
+</code></pre>
+<p>A handler may receive the property handle or its current value:</p>
+<pre><code class="language-python">@state.count.on_change.partial(sc._self)
+def _(prop):
+    print(prop.get())
+
+@state.count.on_change.partial(sc._value)
+def _(value):
+    print(value)
+</code></pre>
+<h2 id="binding-1"><a class="header" href="#binding-1">Binding</a></h2>
+<p>A derived value is created with <code>sc.bind</code>:</p>
+<pre><code class="language-python">double = sc.bind(state.count, lambda n: n * 2)
+</code></pre>
+<p>A two-way binding is created with <code>sc.bbind</code>:</p>
+<pre><code class="language-python">v3.NumberInput('Count', sc.bbind(state.count))
+</code></pre>
+<p>See <a href="#the-event-driven-system">The Event Driven System</a> for the full
+explanation of triggers, multiple sources, and <code>default=</code>.</p>
+<h2 id="versioning"><a class="header" href="#versioning">Versioning</a></h2>
+<p><code>StateV2</code> tracks a schema version:</p>
+<pre><code class="language-python">class State(sc.StateV2):
+    __version__ = 2
+    ...
+</code></pre>
+<p>or pass it explicitly:</p>
+<pre><code class="language-python">state = State(version=2)
+</code></pre>
+<p>The version is currently metadata (<code>state.version</code>). It gives the app a
+place to detect an incompatible state layout and rebuild it.</p>
+<h2 id="lifetime"><a class="header" href="#lifetime">Lifetime</a></h2>
+<p>State lives in the server process for the life of a session. Because the
+app function does not rerun, a value written in one handler is still there
+in the next handler.</p>
+<p>This also means that state is <strong>not</strong> rebuilt from the script. If you need
+a value to reset, reset it explicitly:</p>
+<pre><code class="language-python">state.count.set(0)
+</code></pre>
+<h2 id="relationship-to-streamlits-session_state"><a class="header" href="#relationship-to-streamlits-session_state">Relationship to Streamlit’s <code>session_state</code></a></h2>
+<p><code>StateV2</code> replaces <code>st.session_state</code> for V3 apps. The two are not
+synchronized. A V3 app should keep its state in <code>StateV2</code> and pass it to
+handlers by closure, or store it on the app object.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="api-reference"><a class="header" href="#api-reference">API Reference</a></h1>
+<p>This section documents the Components V3 library, grouped the way
+Streamlit groups its own API reference.</p>
+<p>Each page follows the same shape:</p>
+<ul>
+<li>what the component is for;</li>
+<li>its constructor arguments;</li>
+<li>its reactive properties and signals;</li>
+<li>a short example.</li>
+</ul>
+<h2 id="pages"><a class="header" href="#pages">Pages</a></h2>
+<ul>
+<li><a href="#text-elements">Text Elements</a></li>
+<li><a href="#data-elements">Data Elements</a></li>
+<li><a href="#chart-elements">Chart Elements</a></li>
+<li><a href="#button">Button</a></li>
+<li><a href="#inputs">Inputs</a></li>
+<li><a href="#layout">Layout</a></li>
+<li><a href="#status-elements">Status Elements</a></li>
+<li><a href="#media-elements">Media Elements</a></li>
+<li><a href="#page-config">Page Config</a></li>
+<li><a href="#trees">Trees</a></li>
+</ul>
+<h2 id="common-keywords"><a class="header" href="#common-keywords">Common keywords</a></h2>
+<p>All components accept <code>width</code>, <code>height</code>, <code>max_width</code>, <code>min_width</code>,
+<code>max_height</code>, <code>min_height</code>, and <code>visible</code>, unless a page says otherwise.
+Widgets also accept <code>key</code> where a stable identity is useful.</p>
+<pre><code class="language-python">v3.Button('Go', width='stretch', visible=state.ready)
+</code></pre>
+<p>Text-like components default to <code>visible='auto'</code>, which hides them while
+their content is blank.</p>
+<h2 id="reactive-fields"><a class="header" href="#reactive-fields">Reactive fields</a></h2>
+<p>A property is read and written through the same interface everywhere:</p>
+<pre><code class="language-python">comp.value.get()
+comp.value.set(new_value)
+comp['value']
+comp['value'] = new_value
+comp['on_value']
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="text-elements"><a class="header" href="#text-elements">Text Elements</a></h1>
+<p>Text elements display read-only content. They share a reactive <code>text</code>
+field and default to <code>visible='auto'</code>: empty content hides the element.</p>
+<h2 id="text"><a class="header" href="#text"><code>Text</code></a></h2>
+<p>Plain text. It is rendered literally: markdown is not parsed, and
+whitespace is preserved.</p>
+<pre><code class="language-python">with v3.Text('Click count: 0') as txt:
+    @state.count.on_change.partial(sc._self)
+    def _(count):
+        txt.text.set('Click count: {}'.format(count.get()))
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>The content</td></tr>
+<tr><td><code>font_family</code></td><td><code>str</code></td><td>Optional font override</td></tr>
+<tr><td><code>font_size</code></td><td><code>str</code></td><td>Optional size override</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>.</p>
+<p>Use <code>Text</code> when the content must never be interpreted as markdown, for
+example a path, a file name, or user input.</p>
+<h2 id="markdown"><a class="header" href="#markdown"><code>Markdown</code></a></h2>
+<p>Renders markdown. The source is stored in a <code>data-md</code> attribute and parsed
+in the browser by the bundled <code>markdown-it</code>, so formatting, icons, and
+colors stay consistent with the rest of the page.</p>
+<pre><code class="language-python">v3.Markdown('**Ready** in :green[3] seconds')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Markdown source</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>.</p>
+<p>Streamlit extensions are supported:</p>
+<ul>
+<li><code>:color[text]</code>, for example <code>:red[error]</code>;</li>
+<li><code>:material/icon_name:</code>, for material icons;</li>
+<li>emoji shortcodes such as <code>:smile:</code>;</li>
+<li>effect markers <code>:bold[x]</code>, <code>:italic[x]</code>, <code>:strike[x]</code>, <code>:underline[x]</code>.</li>
+</ul>
+<p>The source is dedented and stripped before rendering, so a triple-quoted
+block can be indented naturally.</p>
+<h2 id="title"><a class="header" href="#title"><code>Title</code></a></h2>
+<p>A section heading.</p>
+<pre><code class="language-python">v3.Title('Configuration')
+v3.Title('Centered', horizontal_alignment='center')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Heading text</td></tr>
+<tr><td><code>horizontal_alignment</code></td><td><code>'left' | 'center' | 'right'</code></td><td>Default <code>'left'</code></td></tr>
+<tr><td><code>help</code></td><td><code>str</code></td><td>Optional tooltip</td></tr>
+<tr><td><code>font_family</code></td><td><code>str</code></td><td>Optional font override</td></tr>
+<tr><td><code>font_size</code></td><td><code>str</code></td><td>Optional size override</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><code>Title(' ')</code> (exactly one space) is the supported way to reserve an empty
+heading line.</p>
+<h2 id="pagetitle"><a class="header" href="#pagetitle"><code>PageTitle</code></a></h2>
+<p>A <code>Title</code> that also configures the page. It writes the text into the
+document title and accepts the page-level options.</p>
+<pre><code class="language-python">v3.PageTitle('My App', layout='wide', default_theme='dark')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Page title</td></tr>
+<tr><td><code>layout</code></td><td><code>'centered' | 'wide'</code></td><td>Page width</td></tr>
+<tr><td><code>default_theme</code></td><td><code>'light' | 'dark'</code></td><td>Theme</td></tr>
+<tr><td><code>font_family</code></td><td><code>str</code></td><td>Page font family</td></tr>
+<tr><td><code>dunder_literal</code></td><td><code>bool</code></td><td>Treat <code>__x__</code> as literal text</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>PageTitle</code> is a canary extra. For page-level configuration without a
+visible heading, use <a href="#page-config"><code>PageConfig</code></a>.</p>
+<h2 id="caption"><a class="header" href="#caption"><code>Caption</code></a></h2>
+<p>Small, muted text.</p>
+<pre><code class="language-python">v3.Caption('Last updated: 2026-10-19')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Caption text</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="code"><a class="header" href="#code"><code>Code</code></a></h2>
+<p>A code block. Canary renders it as plain monospace text; there is no
+syntax highlighting.</p>
+<pre><code class="language-python">v3.Code('print("hello")', language='python')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Code text</td></tr>
+<tr><td><code>language</code></td><td><code>str</code></td><td>Language label, default <code>'python'</code></td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="fonts-and-alignment"><a class="header" href="#fonts-and-alignment">Fonts and alignment</a></h2>
+<p>Pass <code>font_family=sc.MONOSPACE</code> when a column of text must line up with
+code. Monospace also defaults the size one step down, because the same
+pixel size looks larger in a monospaced face. Pass <code>font_size</code> to override
+that.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="data-elements"><a class="header" href="#data-elements">Data Elements</a></h1>
+<h2 id="table"><a class="header" href="#table"><code>Table</code></a></h2>
+<p>A static table. <code>rows</code> is a sequence of rows, and the first cell of each
+row is rendered as a row header (<code>&lt;th scope="row"&gt;</code>).</p>
+<pre><code class="language-python">v3.Table(
+    rows=[
+        ('Alice', 'Engineering', 'alice@example.com'),
+        ('Bob', 'Design', 'bob@example.com'),
+    ],
+    header=('Name', 'Team', 'Email'),
+    caption='Team directory',
+    footer='3 people',
+)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>rows</code></td><td>sequence of sequences</td><td>Body rows</td></tr>
+<tr><td><code>header</code></td><td>sequence of strings</td><td>Optional header row</td></tr>
+<tr><td><code>caption</code></td><td><code>str</code></td><td>Caption above the table</td></tr>
+<tr><td><code>footer</code></td><td><code>str</code></td><td>Footer below the table</td></tr>
+<tr><td><code>header_background</code></td><td><code>bool</code></td><td>Draw a background behind the header</td></tr>
+<tr><td><code>title</code></td><td><code>str</code></td><td>Optional table title</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>rows</code>.</p>
+<p>The table is static in the DOM: to update it, set a new <code>rows</code> value. The
+row header cell is useful for a matrix-like table where the first column
+labels the row.</p>
+<p>Markdown color markers such as <code>:red[overdue]</code> work inside cells.</p>
+<p>An empty <code>rows</code> value hides the table when <code>visible='auto'</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="chart-elements"><a class="header" href="#chart-elements">Chart Elements</a></h1>
+<h2 id="altairchart"><a class="header" href="#altairchart"><code>AltairChart</code></a></h2>
+<p>Renders an Altair / Vega-Lite chart.</p>
+<pre><code class="language-python">import altair as alt
+
+chart = alt.Chart(data).mark_bar().encode(
+    x='category',
+    y='value',
+)
+
+v3.AltairChart(chart)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>chart</code></td><td>Altair chart or dict</td><td>The chart specification</td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>Chart width</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Default <code>True</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>chart</code>.</p>
+<p><code>AltairChart</code> accepts either an Altair chart object (anything with a
+<code>to_dict()</code> method) or a plain Vega-Lite dictionary. Altair itself is an
+optional dependency: the component does not import it.</p>
+<p>To update a chart, call <code>set_chart()</code> or set the <code>chart</code> property with a
+new specification:</p>
+<pre><code class="language-python">with v3.AltairChart(chart) as view:
+    @state.data.on_change
+    def _():
+        view.set_chart(alt.Chart(state.data.get()).mark_line())
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="button"><a class="header" href="#button">Button</a></h1>
+<p>Button-style widgets trigger actions. They have no value of their own,
+except for <code>ToggleButton</code>.</p>
+<h2 id="button-1"><a class="header" href="#button-1"><code>Button</code></a></h2>
+<pre><code class="language-python">with v3.Button('Save', type='primary') as button:
+    @button.on_click
+    def _():
+        save()
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Button text</td></tr>
+<tr><td><code>type</code></td><td><code>'secondary' | 'primary'</code></td><td>Visual style, default <code>'secondary'</code></td></tr>
+<tr><td><code>help</code></td><td><code>str | Property</code></td><td>Markdown tooltip</td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>Default <code>'content'</code></td></tr>
+<tr><td><code>enabled</code></td><td><code>bool | Property</code></td><td>Default <code>True</code></td></tr>
+<tr><td><code>on_click</code></td><td>callable</td><td>Optional handler, attached at construction</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>, <code>type</code>, <code>enabled</code>, <code>help</code>.</p>
+<p>Signals: <code>on_click</code>.</p>
+<p><code>type</code>, <code>enabled</code>, and <code>help</code> are reactive, so a button can change
+appearance or availability as state changes:</p>
+<pre><code class="language-python">v3.Button(
+    'Deploy',
+    enabled=sc.bind(state.ready, lambda x: x),
+)
+</code></pre>
+<h2 id="iconbutton"><a class="header" href="#iconbutton"><code>IconButton</code></a></h2>
+<p>A button that contains only an icon. A bare material icon name is wrapped
+as <code>:material/&lt;name&gt;:</code> automatically.</p>
+<pre><code class="language-python">v3.IconButton('refresh', help='Reload the list')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>icon</code></td><td><code>str | Property</code></td><td>Icon name or short label</td></tr>
+<tr><td><code>help</code></td><td><code>str</code></td><td>Tooltip; recommended</td></tr>
+</tbody>
+</table>
+</div>
+<p>Other arguments are inherited from <code>Button</code>.</p>
+<h2 id="menubutton"><a class="header" href="#menubutton"><code>MenuButton</code></a></h2>
+<p>A button that opens a menu of options. Choosing a row sets <code>value</code> and
+closes the menu, without a server round trip.</p>
+<pre><code class="language-python">menu = v3.MenuButton('Export', options=('CSV', 'JSON'))
+
+@menu.value.on_change
+def _():
+    export_as(menu.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Trigger label</td></tr>
+<tr><td><code>options</code></td><td>sequence | Property</td><td>Menu rows</td></tr>
+<tr><td><code>value</code></td><td>any</td><td>Current choice</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Row labels</td></tr>
+<tr><td><code>panel_max_height</code></td><td><code>int</code></td><td>Scroll the menu past this height</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>, <code>options</code>, <code>value</code>.</p>
+<h2 id="togglebutton"><a class="header" href="#togglebutton"><code>ToggleButton</code></a></h2>
+<p>A canary extra: a button that stays lit while its <code>value</code> is true.</p>
+<pre><code class="language-python">with v3.ToggleButton('Bold') as bold:
+    @bold.value.on_change
+    def _():
+        apply_style(bold.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Button text</td></tr>
+<tr><td><code>value</code></td><td><code>bool | Property</code></td><td>Initial on / off state</td></tr>
+<tr><td><code>help</code>, <code>width</code>, <code>enabled</code></td><td>as <code>Button</code></td><td></td></tr>
+<tr><td><code>on_click</code></td><td>callable</td><td>Runs after <code>value</code> flips</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, and a read-only <code>type</code> derived from <code>value</code>
+(<code>'primary'</code> while on, <code>'secondary'</code> while off).</p>
+<p><code>ToggleButton</code> does not accept a <code>type</code> argument. Writing <code>type</code> raises an
+error, so the look cannot disagree with the state.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="inputs"><a class="header" href="#inputs">Inputs</a></h1>
+<p>Input widgets hold a value that the user can change. Every widget in this
+section follows the same property model:</p>
+<pre><code class="language-python">with v3.Checkbox('Enabled', value=True) as box:
+    @box.value.on_change
+    def _():
+        print(box.value.get())
+</code></pre>
+<h2 id="shared-arguments"><a class="header" href="#shared-arguments">Shared arguments</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td>Text drawn above the widget; bindable</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>'auto'</code> (default), <code>'visible'</code>, <code>'hidden'</code>, <code>'collapsed'</code></td></tr>
+<tr><td><code>help</code></td><td>Markdown tooltip next to the label</td></tr>
+<tr><td><code>enabled</code></td><td>Whether the widget accepts input; bindable</td></tr>
+<tr><td><code>width</code></td><td>Size keyword, usually defaulting to <code>'stretch'</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><code>label_visibility='auto'</code> behaves like <code>'visible'</code> when the label has
+content and like <code>'collapsed'</code> when it is empty. This is decided when the
+page is rendered; a later change to <code>label</code> does not re-evaluate it.</p>
+<h2 id="option-widgets"><a class="header" href="#option-widgets">Option widgets</a></h2>
+<p><code>CheckGroup</code>, <code>RadioGroup</code>, <code>Selectbox</code>, <code>Multiselect</code>,
+<code>SegmentedControl</code>, and <code>SelectSlider</code> share an options model:</p>
+<ul>
+<li><code>options</code>: the choices, bindable;</li>
+<li><code>index</code>: the selected position, or <code>None</code>;</li>
+<li><code>value</code>: the selected value (a list for multi-select widgets);</li>
+<li><code>format</code>: a callable <code>value -&gt; text</code>, or a list of labels parallel to
+<code>options</code>.</li>
+</ul>
+<p><code>index</code> and <code>value</code> are kept in sync. Setting either one updates the
+other.</p>
+<pre><code class="language-python">v3.Selectbox(
+    'Level',
+    options=(1, 2, 3),
+    value=2,
+    format=lambda n: 'Level {}'.format(n),
+)
+</code></pre>
+<h2 id="submitting-text"><a class="header" href="#submitting-text">Submitting text</a></h2>
+<p><code>TextInput</code>, <code>TextArea</code>, and <code>NumberInput</code> expose:</p>
+<ul>
+<li><code>on_value</code>: the committed value changed (on blur or Enter);</li>
+<li><code>on_submit</code>: Enter was pressed (Ctrl+Enter for <code>TextArea</code>);</li>
+<li><code>on_editing_finished</code>: editing ended, either by submit or by losing
+focus.</li>
+</ul>
+<p><code>TextInput</code> additionally exposes <code>on_editing</code>, which fires on every
+keystroke while the text is still uncommitted.</p>
+<h2 id="pages-1"><a class="header" href="#pages-1">Pages</a></h2>
+<ul>
+<li><a href="#checkbox-and-group">Checkbox and Group</a></li>
+<li><a href="#radiobox-and-group">Radiobox and Group</a></li>
+<li><a href="#selectbox-and-multiselect">Selectbox and Multiselect</a></li>
+<li><a href="#numberinput">NumberInput</a></li>
+<li><a href="#textinput-and-textarea">TextInput and TextArea</a></li>
+<li><a href="#toggle">Toggle</a></li>
+<li><a href="#segmentedcontrol-and-selectslider">SegmentedControl and SelectSlider</a></li>
+<li><a href="#reduciblegroup">ReducibleGroup</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="checkbox-and-group"><a class="header" href="#checkbox-and-group">Checkbox and Group</a></h1>
+<h2 id="checkbox"><a class="header" href="#checkbox"><code>Checkbox</code></a></h2>
+<p>A single tick box.</p>
+<pre><code class="language-python">with v3.Checkbox('Enable caching', value=True) as box:
+    @box.value.on_change
+    def _():
+        cache_enabled.set(box.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>value</code></td><td><code>bool | Property</code></td><td>Checked state, default <code>False</code></td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>value</code>.</p>
+<p>Signals: <code>value.on_change</code> (<code>box['on_value']</code>).</p>
+<h2 id="checkgroup"><a class="header" href="#checkgroup"><code>CheckGroup</code></a></h2>
+<p>A group of tick boxes for choosing several values.</p>
+<pre><code class="language-python">with v3.CheckGroup(
+    'Extras',
+    options=('Deps', 'Docs', 'Tests'),
+    value=('Deps', 'Tests'),
+) as group:
+    @group.on_change
+    def _():
+        print(group.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>options</code></td><td>sequence, dict, or Property</td><td>Choices</td></tr>
+<tr><td><code>value</code></td><td>sequence | Property</td><td>Ticked values</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Labels</td></tr>
+<tr><td><code>horizontal</code></td><td><code>bool</code></td><td>Lay out in a row</td></tr>
+<tr><td><code>max_height</code></td><td><code>int</code></td><td>Cap and scroll the list</td></tr>
+<tr><td><code>enabled</code></td><td><code>bool | Property</code></td><td>Whether input is accepted</td></tr>
+<tr><td><code>box_disabled</code></td><td>callable</td><td>Predicate for rows that cannot be ticked</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>options</code>, <code>value</code>, <code>focused_index</code>.</p>
+<p>Signals: <code>on_change</code> (same as <code>value.on_change</code>), <code>options.on_change</code>.</p>
+<h3 id="dictionary-form"><a class="header" href="#dictionary-form">Dictionary form</a></h3>
+<p>Passing a dictionary spells each option’s starting state:</p>
+<pre><code class="language-python">v3.CheckGroup('Extras', options={'Deps': True, 'Docs': False})
+</code></pre>
+<p>The keys become <code>options</code>, and <code>value</code> becomes a list of booleans parallel
+to <code>options</code>, not a subset of them. This is useful when a caller wants to
+keep the flags in a fixed order.</p>
+<h3 id="focused-row"><a class="header" href="#focused-row">Focused row</a></h3>
+<p><code>focused_index</code> is the row the client last clicked, or <code>-1</code>. It can drive
+an action that applies to the highlighted row:</p>
+<pre><code class="language-python">v3.Button(
+    'Open',
+    enabled=sc.bind(group.focused_index, lambda i: i &gt;= 0),
+)
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="radiobox-and-group"><a class="header" href="#radiobox-and-group">Radiobox and Group</a></h1>
+<h2 id="radiogroup"><a class="header" href="#radiogroup"><code>RadioGroup</code></a></h2>
+<p>A group of radio buttons for choosing exactly one value.</p>
+<pre><code class="language-python">with v3.RadioGroup(
+    'Project scope',
+    options=('All', 'Current', 'Selected'),
+    value='Current',
+) as radio:
+    @radio.value.on_change
+    def _():
+        scope.set(radio.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>options</code></td><td>sequence | Property</td><td>Choices</td></tr>
+<tr><td><code>index</code></td><td><code>int</code></td><td>Selected position</td></tr>
+<tr><td><code>value</code></td><td>any</td><td>Selected value</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Labels</td></tr>
+<tr><td><code>horizontal</code></td><td><code>bool</code></td><td>Lay out in a row</td></tr>
+<tr><td><code>max_height</code></td><td><code>int</code></td><td>Cap and scroll the list</td></tr>
+<tr><td><code>enabled</code></td><td><code>bool | Property</code></td><td>Whether input is accepted</td></tr>
+<tr><td><code>box_disabled</code></td><td>callable</td><td>Predicate for rows that cannot be selected</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>options</code>, <code>index</code>, <code>value</code>, <code>focused_index</code>.</p>
+<p>Signals: <code>value.on_change</code> (<code>radio['on_value']</code>), <code>options.on_change</code>.</p>
+<p><code>Radio = RadioGroup</code> is an alias, matching the name used in some
+Streamlit examples.</p>
+<h2 id="choosing-between-radiogroup-and-selectbox"><a class="header" href="#choosing-between-radiogroup-and-selectbox">Choosing between <code>RadioGroup</code> and <code>Selectbox</code></a></h2>
+<p>Use <code>RadioGroup</code> when every option should be visible at once and the list
+is short. Use <a href="#selectbox-and-multiselect"><code>Selectbox</code></a> when the list is long or the
+space is tight.</p>
+<h2 id="disabled-rows"><a class="header" href="#disabled-rows">Disabled rows</a></h2>
+<p><code>box_disabled</code> marks rows that are visible but cannot be selected:</p>
+<pre><code class="language-python">v3.RadioGroup(
+    'Target',
+    options=('dev', 'prod'),
+    box_disabled=lambda x: x == 'prod',
+)
+</code></pre>
+<p>The tree panels use this for the <code>..</code> navigation row, which is a target
+for a click but not a value.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="selectbox-and-multiselect"><a class="header" href="#selectbox-and-multiselect">Selectbox and Multiselect</a></h1>
+<h2 id="selectbox"><a class="header" href="#selectbox"><code>Selectbox</code></a></h2>
+<p>A dropdown for choosing one value.</p>
+<pre><code class="language-python">with v3.Selectbox(
+    'Choose a branch',
+    options=('main', 'dev', 'release'),
+    value='main',
+) as box:
+    @box.value.on_change
+    def _():
+        branch.set(box.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>options</code></td><td>sequence | Property</td><td>Choices</td></tr>
+<tr><td><code>index</code></td><td><code>int</code></td><td>Selected position</td></tr>
+<tr><td><code>value</code></td><td>any</td><td>Selected value</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Labels</td></tr>
+<tr><td><code>placeholder</code></td><td><code>str | Property</code></td><td>Hint while nothing is picked</td></tr>
+<tr><td><code>accept_new_option</code></td><td><code>bool</code></td><td>Offer an input row in the dropdown</td></tr>
+<tr><td><code>format_new_option</code></td><td>callable</td><td>Convert typed text into a value</td></tr>
+<tr><td><code>take_new_option</code></td><td>callable</td><td>Handle typed text yourself</td></tr>
+<tr><td><code>truncate_start</code></td><td><code>bool</code></td><td>Show the tail of an overlong label</td></tr>
+<tr><td><code>enabled</code></td><td><code>bool | Property</code></td><td>Whether input is accepted</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>options</code>, <code>index</code>, <code>value</code>, <code>placeholder</code>.</p>
+<p>Signals: <code>value.on_change</code>, <code>options.on_change</code>.</p>
+<h3 id="accepting-a-new-option"><a class="header" href="#accepting-a-new-option">Accepting a new option</a></h3>
+<pre><code class="language-python">v3.Selectbox(
+    'Channel',
+    options=('A', 'B'),
+    accept_new_option=True,
+)
+</code></pre>
+<p>A submitted value that is not already an option is added at the front and
+selected. <code>format_new_option</code> converts the text before it is stored:</p>
+<pre><code class="language-python">v3.Selectbox(
+    'Port',
+    options=(80, 443),
+    accept_new_option=True,
+    format_new_option=lambda x: int(x, 0),
+)
+</code></pre>
+<p><code>take_new_option</code> replaces that behavior entirely. Nothing is added to
+<code>options</code>; the callable receives the text and decides what to do. This is
+what a path bar uses.</p>
+<h3 id="width"><a class="header" href="#width">Width</a></h3>
+<p>With <code>width='content'</code>, the trigger is as wide as the widest option, not
+as wide as the current value. Switching options therefore does not make
+the control jump in size.</p>
+<h2 id="multiselect"><a class="header" href="#multiselect"><code>Multiselect</code></a></h2>
+<p>A dropdown for choosing several values.</p>
+<pre><code class="language-python">with v3.Multiselect(
+    'Select chart results',
+    options=('Droop', 'PSD', 'SNDR'),
+    value=('Droop', 'PSD'),
+) as box:
+    @box.value.on_change
+    def _():
+        print(box.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>options</code></td><td>sequence | Property</td><td>Choices</td></tr>
+<tr><td><code>value</code></td><td>sequence | Property</td><td>Selected values</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Labels</td></tr>
+<tr><td><code>placeholder</code></td><td><code>str | Property</code></td><td>Hint while nothing is selected</td></tr>
+<tr><td><code>height</code></td><td><code>'fixed'</code> | size keyword</td><td>Default <code>'fixed'</code></td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>options</code>, <code>value</code>, <code>placeholder</code>.</p>
+<p>Signals: <code>value.on_change</code>.</p>
+<h3 id="selection-order"><a class="header" href="#selection-order">Selection order</a></h3>
+<p>The selection keeps the order in which rows were ticked. That order is
+what the trigger shows, what <code>value</code> reports, and what the server stores.
+Ticking adds to the end; unticking removes from the list.</p>
+<h3 id="height"><a class="header" href="#height">Height</a></h3>
+<p><code>height='fixed'</code> keeps the trigger on one line and scrolls the summary
+sideways. This avoids the control growing taller as more options are
+picked. Pass a size keyword to override it.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="numberinput"><a class="header" href="#numberinput">NumberInput</a></h1>
+<p>A box for entering a number.</p>
+<pre><code class="language-python">with v3.NumberInput('Workers', value=4, min_value=1, step=1) as box:
+    @box.value.on_change
+    def _():
+        workers.set(box.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>value</code></td><td><code>int | float | Property</code></td><td>Current number</td></tr>
+<tr><td><code>min_value</code></td><td><code>int | float</code></td><td>Inclusive lower bound</td></tr>
+<tr><td><code>max_value</code></td><td><code>int | float</code></td><td>Inclusive upper bound</td></tr>
+<tr><td><code>step</code></td><td><code>int | float</code></td><td>Stepper increment, default <code>0</code></td></tr>
+<tr><td><code>format</code></td><td>callable</td><td>Display formatter (for example <code>hex</code>)</td></tr>
+<tr><td><code>placeholder</code></td><td><code>str | Property</code></td><td>Hint while empty</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>value</code>, <code>placeholder</code>.</p>
+<p>Signals: <code>value.on_change</code>, <code>on_submit</code>, <code>on_editing_finished</code>.</p>
+<h2 id="integer-versus-float"><a class="header" href="#integer-versus-float">Integer versus float</a></h2>
+<p>The initial <code>value</code> decides the widget’s numeric type:</p>
+<pre><code class="language-python">v3.NumberInput('Count', value=0)     # int widget
+v3.NumberInput('Ratio', value=0.0)   # float widget
+</code></pre>
+<p>An int widget requires int bounds and an int step. A float widget also
+accepts ints and converts them to float.</p>
+<p>The client sends the text; the server parses it with the widget’s type. An
+int widget therefore accepts both <code>'41'</code> and <code>'0x29'</code>.</p>
+<h2 id="stepper"><a class="header" href="#stepper">Stepper</a></h2>
+<p><code>step=0</code> (the default) shows no stepper. A positive value adds <code>+</code> / <code>-</code>
+controls. If the stepper does not fit the available width, it degrades to
+a vertical form and is eventually dropped.</p>
+<h2 id="signals-1"><a class="header" href="#signals-1">Signals</a></h2>
+<ul>
+<li><code>on_value</code>: the committed value changed.</li>
+<li><code>on_submit</code>: Enter was pressed; carries the raw text.</li>
+<li><code>on_editing_finished</code>: editing ended (submit or blur); carries the raw
+text.</li>
+</ul>
+<p>A submit emits both <code>on_submit</code> and <code>on_editing_finished</code>, in that order.</p>
+<h2 id="validation"><a class="header" href="#validation">Validation</a></h2>
+<p>Constructing a widget with an out-of-range value raises <code>ValueError</code>.
+Passing a bound property that later falls out of range leaves the
+validation to your handler.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="textinput-and-textarea"><a class="header" href="#textinput-and-textarea">TextInput and TextArea</a></h1>
+<h2 id="textinput"><a class="header" href="#textinput"><code>TextInput</code></a></h2>
+<p>A single-line text box.</p>
+<pre><code class="language-python">with v3.TextInput('Project name', value='') as box:
+    @box.on_submit
+    def _(text):
+        create_project(text)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>value</code></td><td><code>str | Property</code></td><td>Current text</td></tr>
+<tr><td><code>placeholder</code></td><td><code>str | Property</code></td><td>Hint while empty</td></tr>
+<tr><td><code>enabled</code></td><td><code>bool | Property</code></td><td>Whether input is accepted</td></tr>
+<tr><td><code>help</code></td><td><code>str</code></td><td>Tooltip</td></tr>
+<tr><td><code>input_history</code></td><td>sequence, Property, or <code>None</code></td><td>Suggestions panel</td></tr>
+<tr><td><code>accept_new_option</code></td><td><code>bool</code></td><td>Add an “Add: …” row to the panel</td></tr>
+<tr><td><code>truncate_start</code></td><td><code>bool</code></td><td>Show the tail of an overlong value</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>value</code>, <code>placeholder</code>, <code>enabled</code>, <code>input_history</code>.</p>
+<p>Signals: <code>value.on_change</code>, <code>on_editing</code>, <code>on_submit</code>,
+<code>on_editing_finished</code>.</p>
+<p><code>value</code> is committed on blur or Enter. <code>on_editing</code> reports every
+keystroke, which is how a caller can follow text before it is committed.</p>
+<h3 id="input-history"><a class="header" href="#input-history">Input history</a></h3>
+<p><code>input_history</code> adds a caret that opens a list of suggestions:</p>
+<pre><code class="language-python">v3.TextInput('File', input_history=('/tmp/a.txt', '/tmp/b.txt'))
+</code></pre>
+<ul>
+<li><code>None</code>: no caret.</li>
+<li>An empty sequence: a caret that is disabled.</li>
+<li>A non-empty sequence: a working panel.</li>
+</ul>
+<p>Picking a row fills the box. The text remains freely editable, so this is
+also a way to get “selectbox with free text”.</p>
+<p><code>accept_new_option=True</code> adds an “Add: …” row for the current text.</p>
+<h3 id="truncating-from-the-start"><a class="header" href="#truncating-from-the-start">Truncating from the start</a></h3>
+<p><code>truncate_start=True</code> keeps the end of an overlong value in view. Use it
+for paths, where the last segment is the part that distinguishes one value
+from another.</p>
+<h2 id="textarea"><a class="header" href="#textarea"><code>TextArea</code></a></h2>
+<p>A multi-line text box. It has the same fields and signals as
+<code>TextInput</code>, except <code>on_editing</code>, <code>input_history</code>, <code>accept_new_option</code>,
+and <code>truncate_start</code>.</p>
+<pre><code class="language-python">with v3.TextArea('Notes', height=160) as box:
+    @box.on_submit
+    def _(text):
+        save_notes(text)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>value</code></td><td><code>str | Property</code></td><td>Current text</td></tr>
+<tr><td><code>placeholder</code></td><td><code>str | Property</code></td><td>Hint while empty</td></tr>
+<tr><td><code>height</code></td><td>size keyword</td><td>Default <code>200</code></td></tr>
+<tr><td><code>enabled</code></td><td><code>bool | Property</code></td><td>Whether input is accepted</td></tr>
+<tr><td><code>help</code></td><td><code>str</code></td><td>Tooltip</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Press Ctrl+Enter to submit. Plain Enter inserts a newline. The box
+scrolls when the text overflows its height.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="toggle"><a class="header" href="#toggle">Toggle</a></h1>
+<p>A sliding on / off switch.</p>
+<pre><code class="language-python">with v3.Toggle('Auto refresh', value=True) as toggle:
+    @toggle.value.on_change
+    def _():
+        auto_refresh.set(toggle.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>value</code></td><td><code>bool | Property</code></td><td>On / off state, default <code>False</code></td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>value</code>.</p>
+<p>Signals: <code>value.on_change</code> (<code>toggle['on_value']</code>).</p>
+<p><code>Toggle</code> is an alias of <code>ToggleBox</code>. Its fields match <code>Checkbox</code>; only the
+visual differs.</p>
+<h2 id="toggle-versus-togglebutton"><a class="header" href="#toggle-versus-togglebutton"><code>Toggle</code> versus <code>ToggleButton</code></a></h2>
+<ul>
+<li><code>ToggleBox</code> (<code>Toggle</code>) is an input widget: it belongs among other form
+controls and has a label above it.</li>
+<li><a href="#button"><code>ToggleButton</code></a> is a button that stays lit. It belongs
+in a toolbar, and its <code>type</code> is derived from its state.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="segmentedcontrol-and-selectslider"><a class="header" href="#segmentedcontrol-and-selectslider">SegmentedControl and SelectSlider</a></h1>
+<p>Both widgets choose one value from a fixed list, but present it
+differently.</p>
+<h2 id="segmentedcontrol"><a class="header" href="#segmentedcontrol"><code>SegmentedControl</code></a></h2>
+<p>A row of pills inside one rounded track.</p>
+<pre><code class="language-python">with v3.SegmentedControl(
+    'View',
+    options=('List', 'Grid', 'Tree'),
+    value='List',
+) as control:
+    @control.on_switch
+    def _(value):
+        change_view(value)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>options</code></td><td>sequence | Property</td><td>Choices</td></tr>
+<tr><td><code>index</code></td><td><code>int</code></td><td>Selected position</td></tr>
+<tr><td><code>value</code></td><td>any</td><td>Selected value</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Labels</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>options</code>, <code>index</code>, <code>value</code>.</p>
+<p>Signals: <code>on_switch</code> (the new value), <code>value.on_change</code>.</p>
+<p><code>on_switch</code> fires only for a user click. A programmatic <code>value.set</code> or
+<code>index.set</code> stays silent, so a listener can tell a click apart from a
+refresh.</p>
+<p>The track hugs its options by default (<code>width='content'</code>). Pass
+<code>width='stretch'</code> to fill the parent.</p>
+<p>Only single selection is implemented.</p>
+<h2 id="selectslider"><a class="header" href="#selectslider"><code>SelectSlider</code></a></h2>
+<p>A slider whose ticks are a fixed set of options.</p>
+<pre><code class="language-python">with v3.SelectSlider(
+    'Start level',
+    options=range(15, 0, -1),
+    value=15,
+    format=lambda x: 'Lv.{}'.format(x),
+) as slider:
+    @slider.value.on_change
+    def _():
+        start_level.set(slider.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>options</code></td><td>sequence | Property</td><td>Discrete choices</td></tr>
+<tr><td><code>index</code></td><td><code>int</code></td><td>Selected position</td></tr>
+<tr><td><code>value</code></td><td>any</td><td>Selected value</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Labels</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>options</code>, <code>index</code>, <code>value</code>.</p>
+<p>Signals: <code>value.on_change</code>.</p>
+<p>Every option is a tick on one track. Clicking or dragging to a tick
+selects it; the interaction is client-side and the result comes back as a
+change event. The slider fills its parent by default.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="reduciblegroup"><a class="header" href="#reduciblegroup">ReducibleGroup</a></h1>
+<p>A list of items, each of which can be removed from its own trailing <code>x</code>.</p>
+<pre><code class="language-python">with v3.ReducibleGroup('Files', options=('a.txt', 'b.txt')) as group:
+    @group.on_reduce
+    def _(item):
+        print('removed', item)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Optional label</td></tr>
+<tr><td><code>options</code></td><td>sequence | Property</td><td>The items</td></tr>
+<tr><td><code>format</code></td><td>callable or sequence</td><td>Labels</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>options</code>.</p>
+<p>Signals: <code>on_reduce</code> (the dropped item), <code>options.on_change</code>.</p>
+<p>The rows are laid out like a <code>MenuButton</code>’s menu. Hovering a row reveals
+the <code>x</code>; clicking it removes the item from <code>options</code> and emits
+<code>on_reduce</code>.</p>
+<p>The component updates its own <code>options</code> list. Your handler receives the
+dropped item so it can keep an external list in sync.</p>
+<pre><code class="language-python">@group.on_reduce
+def _(item):
+    state.files.set([x for x in state.files.get() if x != item])
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="layout"><a class="header" href="#layout">Layout</a></h1>
+<p>Layout components decide where other components go. They are used as
+context managers; every component created inside the block becomes a
+child.</p>
+<pre><code class="language-python">with v3.Row('center'):
+    v3.Text('Left')
+    v3.Button('Right')
+</code></pre>
+<h2 id="pages-2"><a class="header" href="#pages-2">Pages</a></h2>
+<ul>
+<li><a href="#row">Row</a> — horizontal layout</li>
+<li><a href="#column">Column</a> — vertical layout with a flex weight</li>
+<li><a href="#container">Container</a> — bordered, sized, scrollable box</li>
+<li><a href="#expander">Expander</a> — collapsible section</li>
+<li><a href="#grid">Grid</a> — explicit rows and columns</li>
+<li><a href="#tabs">Tabs</a> — tab bar with one panel per label</li>
+<li><a href="#dialog">Dialog</a> — modal dialog</li>
+<li><a href="#popover">Popover</a> — floating panel behind a trigger</li>
+<li><a href="#floating">Floating</a> — sticky corner cluster</li>
+<li><a href="#space">Space</a> — flexible spacer</li>
+<li><a href="#bottom">Bottom</a> — bottom-anchored container</li>
+</ul>
+<h2 id="spacing"><a class="header" href="#spacing">Spacing</a></h2>
+<p>The layout uses two spacing tokens:</p>
+<ul>
+<li><code>--st-hgap</code> (8px) for horizontal gaps;</li>
+<li><code>--st-vgap</code> (16px) for vertical gaps.</li>
+</ul>
+<p>A <code>Row</code> spaces its children with the horizontal gap and uses the vertical
+gap when it wraps. A <code>Container</code> and a <code>Grid</code> use the vertical gap between
+their children / rows.</p>
+<h2 id="sizing-1"><a class="header" href="#sizing-1">Sizing</a></h2>
+<p>Layout components accept the shared size keywords. A <code>Container</code> with a
+fixed <code>height</code> scrolls when its content overflows. <code>height='stretch'</code>
+fills the parent instead; inside a <code>Row</code>, it makes the column span the
+row’s tallest sibling.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="row"><a class="header" href="#row">Row</a></h1>
+<p>A horizontal layout container.</p>
+<pre><code class="language-python">with v3.Row('center'):
+    v3.IconButton('home')
+    v3.Space()
+    v3.Button('Save')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>vertical_alignment</code></td><td><code>'top' | 'center' | 'bottom'</code></td><td>Cross-axis alignment, default <code>'top'</code></td></tr>
+<tr><td><code>hide_when_empty</code></td><td><code>bool</code></td><td>Hide the row when every child is hidden</td></tr>
+<tr><td><code>width</code>, <code>height</code>, …</td><td>size keywords</td><td>The row’s own size</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>visible</code>.</p>
+<h2 id="alignment"><a class="header" href="#alignment">Alignment</a></h2>
+<p><code>vertical_alignment</code> decides how children line up when they differ in
+height:</p>
+<pre><code class="language-python">with v3.Row('bottom'):
+    v3.Text('Label')
+    v3.TextInput('Value')
+</code></pre>
+<h2 id="wrapping"><a class="header" href="#wrapping">Wrapping</a></h2>
+<p>A <code>Row</code> lays children out left to right and wraps when there is not enough
+width. The horizontal gap is used between items on one line; the vertical
+gap is used between wrapped lines.</p>
+<h2 id="hide_when_empty"><a class="header" href="#hide_when_empty"><code>hide_when_empty</code></a></h2>
+<p>A row that exists only to be filled later still costs its parent one gap,
+because a zero-height box is still a box. Set <code>hide_when_empty=True</code> to
+hide the row while all of its children are hidden:</p>
+<pre><code class="language-python">with v3.Row(hide_when_empty=True):
+    v3.Button('Retry', visible=state.failed)
+</code></pre>
+<p>This is decided at render time. A child that a later patch turns visible
+does not bring the row back, because patches reach the child, not its
+parent.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="column"><a class="header" href="#column">Column</a></h1>
+<p>A vertical layout container inside a <code>Row</code>. <code>Column</code> is an alias of
+<code>Container</code>, so it takes every <code>Container</code> argument plus <code>weight</code>.</p>
+<pre><code class="language-python">with v3.Row():
+    with v3.Column(weight=5):
+        v3.Text('Main pane')
+    with v3.Column(weight=2):
+        v3.Text('Side pane')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>weight</code></td><td><code>float</code></td><td>Flex-grow ratio inside a <code>Row</code></td></tr>
+<tr><td><code>width</code>, <code>height</code>, …</td><td>size keywords</td><td>The column’s own size</td></tr>
+<tr><td><code>border</code></td><td><code>bool</code></td><td>Draw a border</td></tr>
+<tr><td><code>border_title</code></td><td><code>str | Property</code></td><td>Title in the border</td></tr>
+<tr><td><code>animated</code></td><td><code>bool</code></td><td>Animate height when <code>visible</code> flips</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>border_title</code>, <code>visible</code>.</p>
+<h2 id="weights"><a class="header" href="#weights">Weights</a></h2>
+<p><code>weight</code> decides how the leftover width is shared. A <code>(5, 2)</code> split is two
+columns with <code>weight=5</code> and <code>weight=2</code>. Without weights, columns share the
+width equally.</p>
+<pre><code class="language-python">with v3.Row():
+    v3.Column(weight=3)
+    v3.Column(weight=1)
+</code></pre>
+<p>A column is a full <code>Container</code>; see <a href="#container">Container</a> for
+borders, fixed heights, and scrolling.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="container"><a class="header" href="#container">Container</a></h1>
+<p>A vertical box for grouping components. <code>Column</code> is an alias of
+<code>Container</code>.</p>
+<pre><code class="language-python">with v3.Container(border=True, border_title='Settings', height=320):
+    v3.Checkbox('Enable caching')
+    v3.NumberInput('Workers', value=4)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>width</code></td><td>size keyword</td><td>Width</td></tr>
+<tr><td><code>weight</code></td><td><code>float</code></td><td>Flex-grow ratio inside a <code>Row</code></td></tr>
+<tr><td><code>border</code></td><td><code>bool</code></td><td>Draw a frame</td></tr>
+<tr><td><code>border_title</code></td><td><code>str | Property</code></td><td>Title drawn in the top border</td></tr>
+<tr><td><code>height</code></td><td>size keyword</td><td>Fixed height; content scrolls</td></tr>
+<tr><td><code>animated</code></td><td><code>bool</code></td><td>Animate the height when <code>visible</code> flips</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Default <code>True</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>border_title</code>, <code>visible</code>.</p>
+<h2 id="scrolling"><a class="header" href="#scrolling">Scrolling</a></h2>
+<p>A fixed <code>height</code> caps the box and makes it scroll:</p>
+<pre><code class="language-python">with v3.Container(height=240):
+    for line in lines:
+        v3.Text(line)
+</code></pre>
+<p><code>max_height</code> has the same effect. <code>min_height</code> does not.</p>
+<h2 id="stretching-inside-a-row"><a class="header" href="#stretching-inside-a-row">Stretching inside a row</a></h2>
+<p><code>height='stretch'</code> makes the container fill the parent’s height. Inside a
+<code>Row</code>, it spans the row’s tallest sibling:</p>
+<pre><code class="language-python">with v3.Row():
+    with v3.Container(height='stretch'):
+        v3.Text('Left')
+    with v3.Container(height='stretch'):
+        v3.Text('Right')
+</code></pre>
+<h2 id="showing-and-hiding"><a class="header" href="#showing-and-hiding">Showing and hiding</a></h2>
+<p><code>visible</code> controls whether the container is rendered. <code>animated=True</code>
+transitions the height instead of making it pop:</p>
+<pre><code class="language-python">with v3.Container(visible=state.show_advanced, animated=True):
+    v3.Text('Advanced options')
+</code></pre>
+<p>The container stays in the tree either way, so a later patch can bring it
+back.</p>
+<h2 id="border-title"><a class="header" href="#border-title">Border title</a></h2>
+<p><code>border_title</code> is only honored with <code>border=True</code>. It is drawn inline in
+the frame, the way a <code>&lt;legend&gt;</code> sits in a fieldset.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="expander"><a class="header" href="#expander">Expander</a></h1>
+<p>A collapsible section with a clickable header.</p>
+<pre><code class="language-python">with v3.Expander('Configurations', expanded=True):
+    v3.Checkbox('Enable caching')
+    v3.Button('Force refresh')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Header text</td></tr>
+<tr><td><code>expanded</code></td><td><code>bool</code></td><td>Whether the body starts open</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Whether the expander is shown</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>label</code>, <code>visible</code>.</p>
+<p>Expanding and collapsing is handled entirely in the browser, so it never
+reaches the server and never triggers a rerun.</p>
+<h2 id="dynamic-header"><a class="header" href="#dynamic-header">Dynamic header</a></h2>
+<p><code>label</code> is bindable:</p>
+<pre><code class="language-python">v3.Expander(sc.bind(state.file_count, lambda n: 'Files ({})'.format(n)))
+</code></pre>
+<h2 id="hiding"><a class="header" href="#hiding">Hiding</a></h2>
+<p><code>visible=False</code> removes the whole expander, header included. To keep the
+header but hide the body, use a <code>Container</code> with <code>animated=True</code> and drive
+its <code>visible</code> from a <code>ToggleButton</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="grid"><a class="header" href="#grid">Grid</a></h1>
+<p>A layout with an explicit number of rows and columns.</p>
+<pre><code class="language-python">with v3.Grid(rows=1, cols=2) as grid:
+    with next(grid):
+        v3.Button('A')
+    with next(grid):
+        v3.Button('B')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>rows</code></td><td><code>int</code></td><td>Number of rows, default <code>1</code></td></tr>
+<tr><td><code>cols</code></td><td><code>int</code> or sequence of floats</td><td>Column count or weights, default <code>2</code></td></tr>
+<tr><td><code>columns</code></td><td>same as <code>cols</code></td><td>Alias kept for compatibility</td></tr>
+<tr><td><code>vertical_alignment</code></td><td><code>'top' | 'center' | 'bottom'</code></td><td>Cell content alignment</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>visible</code>.</p>
+<h2 id="addressing-cells"><a class="header" href="#addressing-cells">Addressing cells</a></h2>
+<p>Three forms are available:</p>
+<pre><code class="language-python"># 1. Sequential
+with v3.Grid(rows=2, cols=2) as grid:
+    with next(grid):
+        v3.Text('row 0, col 0')
+    with next(grid):
+        v3.Text('row 0, col 1')
+
+# 2. By coordinate, reusable
+with grid[1, 0]:
+    v3.Text('row 1, col 0')
+
+# 3. Iteration
+for cell in grid:
+    with cell:
+        v3.Text('...')
+</code></pre>
+<p><code>next(grid)</code> and <code>for cell in grid</code> walk left to right, then top to
+bottom. <code>grid[row, col]</code> returns a stable <code>Cell</code>; accessing the same
+coordinate again reuses it.</p>
+<h2 id="column-weights"><a class="header" href="#column-weights">Column weights</a></h2>
+<p><code>cols</code> accepts a sequence of weights, mirroring <code>st.columns((5, 2))</code>:</p>
+<pre><code class="language-python">with v3.Grid(cols=(5, 2)) as grid:
+    ...
+</code></pre>
+<h2 id="alignment-1"><a class="header" href="#alignment-1">Alignment</a></h2>
+<p><code>vertical_alignment</code> decides how a cell’s content sits in its row when the
+columns differ in height.</p>
+<h2 id="grid-flow"><a class="header" href="#grid-flow">Grid flow</a></h2>
+<p>A grid defines its rows and columns up front. It is not a masonry layout;
+use nested <code>Row</code> / <code>Column</code> structures when the content should determine
+its own height.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="tabs"><a class="header" href="#tabs">Tabs</a></h1>
+<p>A tab bar with one panel per label.</p>
+<pre><code class="language-python">with v3.Tabs(('Overview', 'Details')) as tabs:
+    with tabs['Overview']:
+        v3.Text('Summary')
+    with tabs['Details']:
+        v3.Text('Full details')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>labels</code></td><td>sequence of strings</td><td>Tab labels</td></tr>
+<tr><td><code>active</code></td><td><code>str | Property</code></td><td>Visible tab, default the first</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>active</code>.</p>
+<p>Signals: <code>active.on_change</code> (<code>tabs['on_active']</code>).</p>
+<h2 id="addressing-panels"><a class="header" href="#addressing-panels">Addressing panels</a></h2>
+<pre><code class="language-python">with tabs['Overview']:
+    ...
+
+# or in label order
+with v3.Tabs(('a', 'b')) as tabs:
+    with next(tabs):
+        ...
+    with next(tabs):
+        ...
+</code></pre>
+<p><code>tabs[label]</code> returns that label’s panel, creating it on first access and
+reusing it afterwards. Panels are built up front; switching tabs is
+entirely client-side.</p>
+<h2 id="label-collisions"><a class="header" href="#label-collisions">Label collisions</a></h2>
+<p>A label wins over property access. A tab named <code>active</code> is not reachable
+as <code>tabs['active']</code>; read the property through <code>tabs.active</code> instead.</p>
+<h2 id="programmatic-switching"><a class="header" href="#programmatic-switching">Programmatic switching</a></h2>
+<pre><code class="language-python">tabs.active.set('Details')
+</code></pre>
+<p>The client switches to that panel on the next patch.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="dialog"><a class="header" href="#dialog">Dialog</a></h1>
+<p>A modal dialog.</p>
+<pre><code class="language-python">with v3.Dialog('Select a file', visible=state.browsing) as dialog:
+    v3.Text('...')
+    v3.Button('Close', on_click=lambda: dialog.visible.set(False))
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Dialog title</td></tr>
+<tr><td><code>width</code></td><td><code>'small' | 'medium' | 'large' | int</code></td><td>Panel width</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Whether the dialog is open</td></tr>
+<tr><td><code>max_height</code></td><td><code>int</code></td><td>Cap the panel height; the panel scrolls</td></tr>
+<tr><td><code>min_height</code></td><td><code>int</code></td><td>Floor the panel height</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>, <code>visible</code>.</p>
+<p>Signals: <code>on_close</code>.</p>
+<h2 id="opening-and-closing"><a class="header" href="#opening-and-closing">Opening and closing</a></h2>
+<p>A V3 dialog is an ordinary component built once. Unlike <code>st.dialog</code>, it
+does not decorate a function and it does not rerun when opened. Set
+<code>visible</code> to open or close it:</p>
+<pre><code class="language-python">state.browsing.set(True)    # open
+state.browsing.set(False)   # close
+</code></pre>
+<p><code>visible</code> may be bound directly at construction, as in the example above.</p>
+<h2 id="width-presets"><a class="header" href="#width-presets">Width presets</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Value</th><th>Width</th></tr>
+</thead>
+<tbody>
+<tr><td><code>'small'</code></td><td>500px (default)</td></tr>
+<tr><td><code>'medium'</code></td><td>750px</td></tr>
+<tr><td><code>'large'</code></td><td>1280px</td></tr>
+<tr><td><code>int</code></td><td>Explicit pixels</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="client-dismissal"><a class="header" href="#client-dismissal">Client dismissal</a></h2>
+<p>The close button, a click on the backdrop, and Escape all dismiss the
+dialog. When that happens:</p>
+<ol>
+<li><code>visible</code> is set to <code>False</code>;</li>
+<li><code>on_close</code> is emitted.</li>
+</ol>
+<pre><code class="language-python">@dialog.on_close
+def _():
+    state.browsing.set(False)
+</code></pre>
+<p>The first step already closes the dialog; the signal lets your app clean
+up or log the dismissal.</p>
+<h2 id="height-1"><a class="header" href="#height-1">Height</a></h2>
+<p><code>max_height</code> and <code>min_height</code> apply to the panel, not to the full-screen
+backdrop. A capped panel scrolls as a whole.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="popover"><a class="header" href="#popover">Popover</a></h1>
+<p>A trigger button that reveals a floating panel.</p>
+<pre><code class="language-python">with v3.Popover('Export requirements'):
+    v3.RadioGroup('Mirror source', options=('PyPI', 'Local'))
+    v3.Checkbox('Lock self', value=True)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Trigger label</td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>Trigger width, default <code>'content'</code></td></tr>
+<tr><td><code>help</code></td><td><code>str | Property</code></td><td>Tooltip on the trigger</td></tr>
+<tr><td><code>enabled</code></td><td><code>bool | Property</code></td><td>Whether the trigger accepts clicks</td></tr>
+<tr><td><code>panel_align</code></td><td><code>'trigger' | 'row' | 'above'</code></td><td>Panel placement</td></tr>
+<tr><td><code>panel_max_height</code></td><td><code>int</code></td><td>Cap the panel height; it scrolls</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Whether the trigger is shown</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>, <code>visible</code>.</p>
+<p>Signals: <code>on_open</code>, <code>on_close</code>.</p>
+<h2 id="placement"><a class="header" href="#placement">Placement</a></h2>
+<ul>
+<li><code>'trigger'</code> (default): the panel opens under the trigger.</li>
+<li><code>'row'</code>: the panel stretches across the surrounding <code>Row</code>.</li>
+<li><code>'above'</code>: the panel opens above the trigger. Use this when the trigger
+sits at the bottom of a scrollable box, where a downward panel would be
+clipped.</li>
+</ul>
+<h2 id="opening-and-closing-1"><a class="header" href="#opening-and-closing-1">Opening and closing</a></h2>
+<p>Open and close are handled in the browser and do not reach the server.
+Two signals report the ends:</p>
+<pre><code class="language-python">@popover.on_open
+def _():
+    refresh_preview()
+
+@popover.on_close
+def _():
+    clear_preview()
+</code></pre>
+<p>Calling <code>popover.close()</code> asks the client to fold the panel away while
+leaving the trigger in place. This is how a widget such as
+<code>SingleTreeSelect</code> dismisses its own panel after a Confirm.</p>
+<h2 id="server-side-state"><a class="header" href="#server-side-state">Server-side state</a></h2>
+<p>The open / closed state lives in the browser; the server cannot read it.
+Use <code>on_open</code> and <code>on_close</code> when work should happen only while the panel
+is up.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="floating"><a class="header" href="#floating">Floating</a></h1>
+<p>A container that sticks to a corner of its parent’s visible area.</p>
+<pre><code class="language-python">with v3.Popover('Browse', panel_max_height=420):
+    with v3.FloatingContainer('top-right'):
+        v3.IconButton('refresh')
+    v3.RadioGroup('Folder contents', options=('a.txt', 'b.txt'))
+    with v3.FloatingContainer('bottom-right'):
+        v3.Button('Confirm', type='primary')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>position</code></td><td><code>'top-left'</code>, <code>'top-center'</code>, <code>'top-right'</code>, <code>'bottom-left'</code>, <code>'bottom-center'</code>, <code>'bottom-right'</code></td><td>Required</td></tr>
+<tr><td><code>width</code>, <code>height</code>, …</td><td>size keywords</td><td>See <code>Container</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>border_title</code>, <code>visible</code>.</p>
+<p><code>Floating</code> is an alias of <code>FloatingContainer</code>.</p>
+<h2 id="how-it-behaves"><a class="header" href="#how-it-behaves">How it behaves</a></h2>
+<ul>
+<li>Children lay out in a row; the cluster hugs them.</li>
+<li>The box sticks to its corner of the parent’s visible area, so content
+scrolls underneath while the box stays put.</li>
+<li>It keeps its place in the layout (<code>position: sticky</code>, not an overlay),
+so the parent needs no extra padding.</li>
+</ul>
+<h2 id="where-it-may-go"><a class="header" href="#where-it-may-go">Where it may go</a></h2>
+<p>A floating cluster must sit directly in a vertical layout:</p>
+<ul>
+<li>a <code>Container</code>,</li>
+<li>a <code>Popover</code>,</li>
+<li>a <code>Dialog</code>,</li>
+<li>or the app root.</li>
+</ul>
+<p>Anything else raises <code>ValueError</code>. A <code>Row</code> cannot hold one, because the
+corner’s horizontal half comes from <code>align-self</code>, which a row would fight.</p>
+<h2 id="authoring-order"><a class="header" href="#authoring-order">Authoring order</a></h2>
+<p>Sticky positioning can only offset a box from its own flow position:</p>
+<ul>
+<li>author a <code>top-*</code> cluster as the parent’s <strong>first</strong> child;</li>
+<li>author a <code>bottom-*</code> cluster as the parent’s <strong>last</strong> child.</li>
+</ul>
+<p>A bottom cluster also receives <code>margin-top: auto</code>, so it drops to the end
+of the remaining room.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="space"><a class="header" href="#space">Space</a></h1>
+<p>A flexible spacer.</p>
+<pre><code class="language-python">with v3.Row():
+    v3.IconButton('home')
+    v3.Space(size='stretch')
+    v3.Popover(':material/bucket_check: 0')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>size</code></td><td>size keyword</td><td>Alias of <code>width</code></td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>The spacer’s width</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>visible</code>.</p>
+<p>Inside a <code>Row</code>, a stretching <code>Space</code> absorbs the leftover width, pushing
+everything after it to the right edge. In a vertical container there is no
+leftover width to absorb, so it renders nothing.</p>
+<p><code>size</code> is the spelling used by <code>st.space</code>. <code>Space(size='stretch')</code> and
+<code>Space(width='stretch')</code> are the same spacer, and passing both raises an
+error.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="bottom"><a class="header" href="#bottom">Bottom</a></h1>
+<p>A container that is pushed to the bottom of its parent layout.</p>
+<pre><code class="language-python">with v3.Container(height=320):
+    v3.Text('Content')
+    with v3.BottomContainer():
+        v3.Button('Close')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>width</code>, <code>height</code>, …</td><td>size keywords</td><td>See <code>Container</code></td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Whether it is shown</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>border_title</code>, <code>visible</code>.</p>
+<p><code>Bottom</code> is an alias of <code>BottomContainer</code>.</p>
+<h2 id="inside-a-container"><a class="header" href="#inside-a-container">Inside a container</a></h2>
+<p>The parent pushes the bottom container down, so a card can keep its
+actions at the bottom and a dialog can pin a button to its base.</p>
+<h2 id="at-the-app-root"><a class="header" href="#at-the-app-root">At the app root</a></h2>
+<p>At the app root, a bottom container becomes a <strong>dock</strong>:</p>
+<ul>
+<li>it hangs 16px above the window’s bottom edge;</li>
+<li>it stays there while the page scrolls;</li>
+<li>the page reserves the dock’s height at its end, so the last content can
+still be scrolled clear of it.</li>
+</ul>
+<p>This is the same idea as <code>st.bottom</code>, but a canary <code>BottomContainer</code> is
+allowed in any layout, not only at the root.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="status-elements"><a class="header" href="#status-elements">Status Elements</a></h1>
+<p>Status elements report what the app is doing. Most of them are reactive:
+update the text or value and the browser follows.</p>
+<h2 id="callouts"><a class="header" href="#callouts">Callouts</a></h2>
+<p><code>Info</code>, <code>Success</code>, <code>Warning</code>, and <code>Error</code> are one alert box in four
+palettes. <code>Callout</code> is the shared base.</p>
+<pre><code class="language-python">v3.Info('Loading the project...')
+v3.Success('Saved.')
+v3.Warning('This overwrites the existing file.')
+v3.Error('Could not connect to the server.')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Message; <code>:color[..]</code> markup allowed</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>, <code>visible</code>.</p>
+<p>With <code>visible='auto'</code>, a blank message draws nothing, and a non-blank one
+shows. Pass a bound value to drive visibility yourself:</p>
+<pre><code class="language-python">v3.Error(state.error, visible=sc.bind(state.error, bool))
+</code></pre>
+<h2 id="spinner"><a class="header" href="#spinner"><code>Spinner</code></a></h2>
+<p>A spinner indicator. It is hidden by default and is usually driven with a
+<code>with</code> block or a bound flag.</p>
+<pre><code class="language-python">spinner = v3.Spinner()
+
+with spinner('Syncing...'):
+    do_work()
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Label next to the ring</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Default <code>False</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>text</code>, <code>visible</code>; method <code>reset(text='')</code>.</p>
+<p>Calling the spinner sets its text and returns the spinner, so
+<code>with spinner('Syncing...')</code> reads naturally. Entering shows it; exiting
+restores the visibility it had before.</p>
+<p>A state-driven form:</p>
+<pre><code class="language-python">v3.Spinner(state.busy_text, visible=sc.bind(state.busy_text, bool))
+</code></pre>
+<h2 id="progress"><a class="header" href="#progress"><code>Progress</code></a></h2>
+<p>A progress bar.</p>
+<pre><code class="language-python">with v3.Progress(total=len(sheets)) as progress:
+    for sheet in sheets:
+        progress.update(sheet.title)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>value</code></td><td><code>int | None | Property</code></td><td>Percentage, or <code>None</code> for indeterminate</td></tr>
+<tr><td><code>text</code></td><td><code>str | Property</code></td><td>Caption under the bar</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>How the caption row is drawn</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property</code></td><td>Default <code>False</code></td></tr>
+<tr><td><code>total</code></td><td><code>int</code></td><td>Steps used by <code>update()</code></td></tr>
+<tr><td><code>auto_close</code></td><td><code>bool</code></td><td>Hide the bar when the <code>with</code> block ends</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, <code>text</code>, <code>visible</code>; attributes <code>total</code>, <code>index</code>.</p>
+<p>Methods:</p>
+<ul>
+<li><code>update(item=None)</code>: advance one step and set the caption;</li>
+<li><code>close()</code>: hide the bar, keeping its value;</li>
+<li><code>reset(text='', value=0)</code>: put it back to idle.</li>
+</ul>
+<p>Use the <code>with</code> form <strong>inside a handler</strong>, where the block spans the work.
+At build time the block would be the build itself and would close the bar
+immediately.</p>
+<h2 id="toast"><a class="header" href="#toast"><code>Toast</code></a></h2>
+<p>A stack of transient notifications at the page’s top-right.</p>
+<pre><code class="language-python">toast.show('Saved!', icon=':material/check:')
+</code></pre>
+<p>Properties: <code>messages</code> (a list of dictionaries).</p>
+<p>Methods:</p>
+<ul>
+<li><code>show(text, icon='', duration='short')</code>;</li>
+<li><code>clear()</code>.</li>
+</ul>
+<p>Durations follow Streamlit: <code>'short'</code> (4s), <code>'long'</code> (10s), <code>'infinite'</code>,
+or a positive number of seconds. Up to five messages are visible. Hovering
+the stack fans it out and pauses the countdowns; each message also has a
+close button.</p>
+<p>Most apps do not declare a <code>Toast</code>. <code>sc.toast(...)</code> reaches the page’s
+single stack, which the runtime creates if needed.</p>
+<h2 id="logpanel"><a class="header" href="#logpanel"><code>LogPanel</code></a></h2>
+<p>A live view of what the app prints to the terminal.</p>
+<pre><code class="language-python">with v3.BottomContainer():
+    v3.LogPanel(source='stdout')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>source</code></td><td><code>'stdout' | 'stderr'</code></td><td>Stream to follow</td></tr>
+<tr><td><code>border_title</code></td><td><code>str | Property</code></td><td>Border title, default <code>'LOG'</code></td></tr>
+<tr><td><code>placeholder</code></td><td><code>str | Property</code></td><td>Hint while there are no lines</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+<tr><td><code>height</code></td><td>size keyword</td><td>Default <code>200</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>lines</code>, <code>border_title</code>, <code>placeholder</code>, <code>visible</code>.</p>
+<p>Every line written to <code>source</code> lands in the panel, newest at the bottom.
+The buffer keeps the last 500 lines; the oldest are dropped. ANSI color
+codes are stripped.</p>
+<p><code>push_divider(title='')</code> inserts a rule, which is useful for marking the
+boundary between two runs:</p>
+<pre><code class="language-python">panel.push_divider('12:00:00')
+</code></pre>
+<p>A clear button floats in the top-right corner while there is something to
+clear.</p>
+<p>With <code>visible='auto'</code>, an empty panel is hidden. A <code>placeholder</code> counts as
+content, so a panel with only a hint keeps its frame.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="media-elements"><a class="header" href="#media-elements">Media Elements</a></h1>
+<h2 id="pdfviewer"><a class="header" href="#pdfviewer"><code>PdfViewer</code></a></h2>
+<p>Displays a PDF in the page using the bundled <code>pdf.js</code>.</p>
+<pre><code class="language-python">v3.PdfViewer('manual.pdf')
+v3.PdfViewer('https://example.com/report.pdf')
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>src</code></td><td><code>str | bytes</code></td><td>A local path, a URL, or PDF bytes</td></tr>
+<tr><td><code>pages_to_render</code></td><td>sequence of ints</td><td>Pages to draw; empty means all</td></tr>
+<tr><td><code>height</code></td><td>size keyword</td><td>Default <code>500</code></td></tr>
+<tr><td><code>max_height</code></td><td><code>int</code></td><td>Cap the viewer height</td></tr>
+<tr><td><code>visible</code></td><td><code>bool | Property | 'auto'</code></td><td>Default <code>'auto'</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>src</code>, <code>visible</code>.</p>
+<p><code>src</code> may be:</p>
+<ul>
+<li>a filesystem path;</li>
+<li>an HTTP(S) URL;</li>
+<li>raw PDF bytes.</li>
+</ul>
+<p><code>pages_to_render</code> limits which pages are drawn. This is useful for a large
+document where only a few pages matter.</p>
+<p>If only <code>max_height</code> is given, the height becomes <code>'content'</code> and the
+viewer grows up to that cap. An empty <code>src</code> hides the viewer when
+<code>visible='auto'</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="page-config"><a class="header" href="#page-config">Page Config</a></h1>
+<h2 id="pageconfig"><a class="header" href="#pageconfig"><code>PageConfig</code></a></h2>
+<p>Configures the page without rendering a visible element.</p>
+<pre><code class="language-python">v3.PageConfig(
+    title='My App',
+    layout='wide',
+    default_theme='dark',
+)
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>title</code></td><td><code>str</code></td><td>Document title</td></tr>
+<tr><td><code>layout</code></td><td><code>'centered' | 'wide'</code></td><td>Page width</td></tr>
+<tr><td><code>default_theme</code></td><td><code>'light' | 'dark'</code></td><td>Theme</td></tr>
+<tr><td><code>font_family</code></td><td><code>str</code></td><td>Page font family</td></tr>
+<tr><td><code>dunder_literal</code></td><td><code>bool</code></td><td>Treat <code>__x__</code> as literal text</td></tr>
+</tbody>
+</table>
+</div>
+<p>Every argument defaults to <code>None</code>, which means “leave this setting
+alone”. Page settings are written into a single global configuration;
+later writers override earlier ones item by item.</p>
+<p><code>PageConfig</code> renders nothing. It is the class form of the older
+<code>sc.set_page_config(...)</code>, which still works but is deprecated.</p>
+<h2 id="pagetitle-1"><a class="header" href="#pagetitle-1"><code>PageTitle</code></a></h2>
+<p><code>PageTitle</code> is <code>Title</code> and <code>PageConfig</code> combined. It draws a visible page
+heading and also sets the document title and page options.</p>
+<pre><code class="language-python">v3.PageTitle('My App', layout='wide', default_theme='dark')
+</code></pre>
+<p>Use <code>PageTitle</code> when the app should show a heading. Use <code>PageConfig</code> when
+the page needs configuration but no visible title.</p>
+<h2 id="dunder_literal"><a class="header" href="#dunder_literal"><code>dunder_literal</code></a></h2>
+<p>Markdown normally reads <code>__text__</code> as bold. Real content often contains
+dunder names such as <code>__init__</code> or <code>__name__</code>, which then turn bold by
+accident.</p>
+<p>Set <code>dunder_literal=True</code> to treat <code>__x__</code> as literal text. Bold remains
+available as <code>**x**</code> or <code>:bold[x]</code>.</p>
+<pre><code class="language-python">v3.PageConfig(dunder_literal=True)
+</code></pre>
+<p>This is an experimental switch and is off by default.</p>
+<h2 id="document-title-updates"><a class="header" href="#document-title-updates">Document title updates</a></h2>
+<p>The first render sets the browser tab title from the page configuration.
+After that, changing the text of a <code>PageTitle</code> patches the document title
+as well. A title element is treated as plain text for this purpose, while
+its visible heading still renders markdown.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="trees"><a class="header" href="#trees">Trees</a></h1>
+<p>The tree components browse a folder hierarchy. They are canary extras:
+Streamlit has no equivalent.</p>
+<p>There are four panels, all built on the same row and selection engine:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Component</th><th>Shape</th></tr>
+</thead>
+<tbody>
+<tr><td><code>SingleTreeSelect</code></td><td>One folder at a time; <code>..</code> walks up</td></tr>
+<tr><td><code>TreeView</code></td><td>Every level in one listing over a static data model</td></tr>
+<tr><td><code>FileTreeView</code></td><td>The same classic tree, rooted on a real folder</td></tr>
+<tr><td><code>DualTreeSelect</code></td><td>Two columns: subfolders left, files right</td></tr>
+<tr><td><code>ColumnView</code></td><td>Finder-style stack of columns, one level per column</td></tr>
+</tbody>
+</table>
+</div>
+<p>On top of the panels there are path inputs:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Component</th><th>Shape</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PathInput</code></td><td>A text box that resolves its text into a path</td></tr>
+<tr><td><code>PathSelect</code></td><td><code>PathInput</code> plus a navigation ladder</td></tr>
+<tr><td><code>PathInputBrowse</code></td><td>A path box paired with one of the panels</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="shared-selection-modes"><a class="header" href="#shared-selection-modes">Shared selection modes</a></h2>
+<p>The single-list, classic, and file trees share three modes:</p>
+<ul>
+<li><code>'single'</code>: one node;</li>
+<li><code>'multiple'</code>: several nodes within the folder being browsed; leaving the
+folder drops them;</li>
+<li><code>'multicross'</code>: nodes gathered across folders into a bucket.</li>
+</ul>
+<p>A tuple of modes, such as <code>('single', 'multicross')</code>, shows a mode switch.
+<code>selection_mode</code> decides which modes are offered; <code>initial_mode</code> decides
+which one opens.</p>
+<p><code>DualTreeSelect</code> and <code>ColumnView</code> are single-select only.</p>
+<h2 id="shared-row-gestures"><a class="header" href="#shared-row-gestures">Shared row gestures</a></h2>
+<ul>
+<li>Clicking a row picks or ticks it.</li>
+<li>Hovering a folder reveals an <code>-&gt;</code> arrow; clicking it walks into the
+folder.</li>
+<li>The <code>..</code> row walks up. Its checkbox is frozen because it is a
+navigation target, not a node.</li>
+</ul>
+<h2 id="filtering"><a class="header" href="#filtering">Filtering</a></h2>
+<p><code>filter</code> keeps files by suffix:</p>
+<pre><code class="language-python">v3.FileTreeView(filter='.py')
+v3.FileTreeView(filter=('.py', '.pyi'))
+</code></pre>
+<p>Folders are always listed.</p>
+<h2 id="pages-3"><a class="header" href="#pages-3">Pages</a></h2>
+<ul>
+<li><a href="#singletreeselect">SingleTreeSelect</a></li>
+<li><a href="#treeview">TreeView</a></li>
+<li><a href="#filetreeview">FileTreeView</a></li>
+<li><a href="#dualtreeselect">DualTreeSelect</a></li>
+<li><a href="#columnview">ColumnView</a></li>
+<li><a href="#pathinput-and-pathselect">PathInput and PathSelect</a></li>
+<li><a href="#pathinputbrowse">PathInputBrowse</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="singletreeselect"><a class="header" href="#singletreeselect">SingleTreeSelect</a></h1>
+<p>The single-pane folder browser: one folder on show at a time, with <code>..</code> to
+walk up.</p>
+<pre><code class="language-python">with v3.Popover('Browse', panel_align='row', panel_max_height=500):
+    tree = v3.SingleTreeSelect(filter='.txt')
+
+path = tree.value.get()
+</code></pre>
+<p>Layout:</p>
+<pre><code>[ /current/folder v ] [home] [refresh] [bucket] [mode]   &lt;- toolbar
+..   (go to parent)
+subfolder/                                        -&gt;
+another-file.txt
+[                    Confirm                    ]
+</code></pre>
+<h2 id="arguments"><a class="header" href="#arguments">Arguments</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label above the panel</td></tr>
+<tr><td><code>start_directory</code></td><td><code>str</code></td><td>Folder to open, default the cwd</td></tr>
+<tr><td><code>home_directory</code></td><td><code>str</code></td><td>Where <code>home</code> returns; defaults to <code>start_directory</code></td></tr>
+<tr><td><code>filter</code></td><td><code>str</code> or tuple</td><td>Suffixes to keep</td></tr>
+<tr><td><code>height</code></td><td><code>int</code></td><td>Cap the listing height and scroll</td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>Panel width</td></tr>
+<tr><td><code>selection_mode</code></td><td><code>str</code> or tuple</td><td><code>'single'</code>, <code>'multiple'</code>, <code>'multicross'</code>, <code>'none'</code></td></tr>
+<tr><td><code>initial_mode</code></td><td><code>str</code></td><td>Which offered mode opens</td></tr>
+<tr><td><code>show_confirm_button</code></td><td><code>bool</code></td><td>Default <code>True</code></td></tr>
+<tr><td><code>border</code></td><td><code>bool</code></td><td>Draw a frame; defaults to standalone</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+<tr><td><code>help</code></td><td><code>str | Property</code></td><td>Tooltip</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>leading</code> and <code>trailing</code> are builders run at the head and tail of the
+toolbar row. They are used by wrappers to put their own widgets around the
+actions, not usually by an app.</p>
+<h2 id="properties-1"><a class="header" href="#properties-1">Properties</a></h2>
+<ul>
+<li><code>value</code>: the selection.
+<ul>
+<li><code>'single'</code>: one path, or <code>''</code>.</li>
+<li>Multi modes: a list of paths.</li>
+</ul>
+</li>
+<li><code>mode</code>: the active mode.</li>
+<li><code>directory</code>: the folder on show (read-only).</li>
+<li><code>rows_visible</code>: whether the listing is drawn.</li>
+</ul>
+<p>Prefer <code>select()</code> and <code>clear()</code> over writing <code>value</code> directly; those keep
+the listing in step.</p>
+<h2 id="signals-2"><a class="header" href="#signals-2">Signals</a></h2>
+<ul>
+<li><code>value.on_change</code>: the selection changed.</li>
+<li><code>on_navigate(directory)</code>: the listing moved to a new folder.</li>
+<li><code>on_submit(paths)</code>: Confirm was clicked; carries the resolved paths.</li>
+</ul>
+<h2 id="methods"><a class="header" href="#methods">Methods</a></h2>
+<ul>
+<li><code>reload()</code>: re-read the current folder from disk.</li>
+<li><code>select(path)</code>: add a path that is not in the listing.</li>
+<li><code>clear()</code>: drop the selection.</li>
+<li><code>resolve()</code>: the paths Confirm reports.</li>
+<li><code>open_path(path)</code>: move the panel onto what a path names.</li>
+</ul>
+<h2 id="widgets"><a class="header" href="#widgets">Widgets</a></h2>
+<p><code>tree.widgets</code> exposes two sub-components:</p>
+<ul>
+<li><code>bottom_bar</code>: the <code>Row</code> under the listing. Enter it to append actions
+after the Confirm button.</li>
+<li><code>confirm_button</code>: the button itself, reachable even when hidden.</li>
+</ul>
+<pre><code class="language-python">with tree.widgets['bottom_bar']:
+    v3.Button('Open input folder')
+</code></pre>
+<h2 id="selection-modes"><a class="header" href="#selection-modes">Selection modes</a></h2>
+<ul>
+<li><code>'single'</code> picks one node.</li>
+<li><code>'multiple'</code> holds picks within the folder being browsed. Walking away
+drops them.</li>
+<li><code>'multicross'</code> gathers picks into a bucket across folders. Only a mode
+set containing it draws the bucket.</li>
+<li><code>'none'</code> draws no boxes; the rows are read-only.</li>
+</ul>
+<p>A tuple draws a mode switch, but only when it contains more than one mode.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="treeview"><a class="header" href="#treeview">TreeView</a></h1>
+<p>A classic tree over a static data model: every level lives in one listing,
+and folders fold open in place.</p>
+<pre><code class="language-python">with v3.TreeView('Distribution', {
+    'A': {
+        'B': None,        # a leaf
+        'C': {},          # an empty folder
+        'D': {'E': None, 'G': {}},
+    }
+}) as tree:
+    ...
+
+node = tree.value.get()
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>data</code></td><td><code>dict</code></td><td>The model (bindable)</td></tr>
+<tr><td><code>filter</code></td><td><code>str</code> or tuple</td><td>Suffixes to keep</td></tr>
+<tr><td><code>start_directory</code>, <code>height</code>, <code>selection_mode</code>, …</td><td>see <code>SingleTreeSelect</code></td><td></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, <code>mode</code>, <code>directory</code>, <code>rows_visible</code>, <code>data</code>.</p>
+<p>Signals: <code>value.on_change</code>, <code>on_navigate</code>, <code>on_submit</code>.</p>
+<h2 id="the-data-model"><a class="header" href="#the-data-model">The data model</a></h2>
+<p><code>data</code> is one map from a name to a sub-map or <code>None</code>:</p>
+<ul>
+<li>a <code>dict</code> value is a folder; <code>{}</code> is an empty folder;</li>
+<li><code>None</code> is a leaf;</li>
+<li>the map must have exactly one key, which is the root.</li>
+</ul>
+<p>Node paths are the names joined with <code>/</code>, for example <code>A/D/G</code>. This is what
+the location bar shows, and what <code>value</code> contains.</p>
+<p>An empty model (<code>{}</code> or <code>None</code>) lists no rows. A model can be handed in
+later.</p>
+<h2 id="re-rooting"><a class="header" href="#re-rooting">Re-rooting</a></h2>
+<p><code>data</code> is bindable. Setting a new model re-roots the tree and clears the
+selection, because the old paths belong to the old model:</p>
+<pre><code class="language-python">tree.data.set(new_model)
+</code></pre>
+<p>The new model is validated on assignment, so a malformed one raises
+instead of drawing nothing.</p>
+<h2 id="folding"><a class="header" href="#folding">Folding</a></h2>
+<p>A folder with children carries a chevron to the left of its row. Clicking
+it folds the folder open in place; clicking the row itself picks or ticks
+it. The two gestures are independent.</p>
+<h2 id="multi-select"><a class="header" href="#multi-select">Multi-select</a></h2>
+<p>In the multi modes a folder stands for its whole subtree:</p>
+<ul>
+<li>ticking a folder drops any picks it covers, then adds it;</li>
+<li>once every child is picked, the picks fold into the folder itself;</li>
+<li>unticking a row inside a pick opens the pick one level at a time and
+leaves that row out.</li>
+</ul>
+<p>A folder with only part of its subtree picked draws a half-ticked box.</p>
+<h2 id="root-behavior"><a class="header" href="#root-behavior">Root behavior</a></h2>
+<p><code>..</code> is drawn only after leaving the root. Standing on the root, there is
+no outside to walk to.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="filetreeview"><a class="header" href="#filetreeview">FileTreeView</a></h1>
+<p>The classic cascading tree, backed by the real filesystem.</p>
+<pre><code class="language-python">with v3.FileTreeView('Source', start_directory='./data') as tree:
+    ...
+
+picked = tree.value.get()
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>start_directory</code></td><td><code>str | Property</code></td><td>Folder to open; <code>'.'</code> and <code>''</code> mean the cwd</td></tr>
+<tr><td><code>root_directory</code></td><td><code>str | Property</code></td><td>Top the panel may not pass; default <code>'/'</code></td></tr>
+<tr><td><code>home_directory</code></td><td><code>str</code></td><td>Where <code>home</code> returns</td></tr>
+<tr><td><code>filter</code></td><td><code>str</code> or tuple</td><td>Suffixes to keep</td></tr>
+<tr><td><code>height</code>, <code>selection_mode</code>, …</td><td>see <code>SingleTreeSelect</code></td><td></td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, <code>mode</code>, <code>directory</code>, <code>rows_visible</code>,
+<code>start_directory</code>, <code>root_directory</code>.</p>
+<p>Signals: <code>value.on_change</code>, <code>on_navigate</code>, <code>on_submit</code>.</p>
+<p>Methods: <code>open_path(path)</code>, <code>reload()</code>, <code>select(path)</code>, <code>clear()</code>,
+<code>resolve()</code>.</p>
+<h2 id="start_directory"><a class="header" href="#start_directory"><code>start_directory</code></a></h2>
+<p>The folder the panel opens on. It is bindable: a caller that owns the
+value can move the panel by setting it.</p>
+<pre><code class="language-python">tree.start_directory.set('C:/work/project')
+</code></pre>
+<h2 id="root_directory"><a class="header" href="#root_directory"><code>root_directory</code></a></h2>
+<p>The top the panel may not pass. <code>'/'</code> means the whole machine.</p>
+<p>When confined:</p>
+<ul>
+<li>the location ladder starts at the root;</li>
+<li>drives and the root’s own ancestors are not offered;</li>
+<li><code>..</code> disappears while the panel stands on the root.</li>
+</ul>
+<p><code>start_directory</code> must be the root or somewhere under it. A violation
+raises <code>ValueError</code>.</p>
+<h2 id="location-ladder"><a class="header" href="#location-ladder">Location ladder</a></h2>
+<p>With no real root, the ladder lists the machine’s drives followed by the
+ancestors of the folder on show, itself last:</p>
+<pre><code>['C:/', 'D:/', 'E:/', 'C:/Likianta', ..., &lt;current folder&gt;]
+</code></pre>
+<p>Every parent, and every other drive, is one pick away.</p>
+<h2 id="paths"><a class="header" href="#paths">Paths</a></h2>
+<p>Every row is a real file or folder, listed on demand. <code>value</code> and
+<code>resolve()</code> return absolute paths.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="dualtreeselect"><a class="header" href="#dualtreeselect">DualTreeSelect</a></h1>
+<p>A two-column browser: subfolders on the left, files on the right.</p>
+<pre><code class="language-python">with v3.DualTreeSelect('data/sample', filter='.txt') as tree:
+    @tree.on_confirm
+    def _():
+        path = tree.value.get()
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>start_directory</code></td><td><code>str</code></td><td>Folder to open, default the cwd</td></tr>
+<tr><td><code>filter</code></td><td><code>str</code> or tuple</td><td>Suffixes to keep</td></tr>
+<tr><td><code>height</code></td><td><code>int</code></td><td>Height of both columns, default <code>500</code></td></tr>
+<tr><td><code>node_type</code></td><td><code>'file' | 'folder'</code></td><td>What may be selected, default <code>'file'</code></td></tr>
+<tr><td><code>preview_subfolders</code></td><td><code>bool</code></td><td>Also list the highlighted subfolder’s contents</td></tr>
+<tr><td><code>show_confirm_button</code></td><td><code>bool</code></td><td>Default <code>True</code></td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>Panel width</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code> (the highlighted path), <code>directory</code> (the folder the
+left column is on).</p>
+<p>Signals: <code>on_confirm</code>.</p>
+<p>Methods: <code>reload()</code>.</p>
+<h2 id="left-column"><a class="header" href="#left-column">Left column</a></h2>
+<p>The left column navigates subfolders:</p>
+<ul>
+<li>back;</li>
+<li>forward (enter the highlighted subfolder);</li>
+<li>refresh;</li>
+<li>create a new folder.</li>
+</ul>
+<p>The “Current location” bar at the top lists every ancestor, so any parent
+is one pick away.</p>
+<h2 id="right-column"><a class="header" href="#right-column">Right column</a></h2>
+<p>The right column lists the files of the current folder, or the files of
+the highlighted subfolder when <code>preview_subfolders=True</code>. A single click on
+a subfolder previews it.</p>
+<p><code>value</code> follows the highlighted row, so it is live rather than waiting for
+Confirm.</p>
+<h2 id="confirm"><a class="header" href="#confirm">Confirm</a></h2>
+<p>With <code>show_confirm_button=True</code>, the Confirm button is disabled while
+nothing is selected. Clicking it emits <code>on_confirm</code>.</p>
+<h2 id="differences-from-the-other-panels"><a class="header" href="#differences-from-the-other-panels">Differences from the other panels</a></h2>
+<ul>
+<li>It is single-select only; there are no modes.</li>
+<li>It has no <code>selection_mode</code>, <code>label</code>, or <code>help</code> arguments.</li>
+<li>Its toolbar is its own (back / forward / refresh / new folder), so
+<code>PathInputBrowse</code> uses it only in the popup style.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="columnview"><a class="header" href="#columnview">ColumnView</a></h1>
+<p>A Finder-style stack of columns, one level per column.</p>
+<pre><code class="language-python">with v3.ColumnView('Pick a file', 'data/sample') as tree:
+    ...
+
+path = tree.value.get()
+</code></pre>
+<p>Layout:</p>
+<pre><code>[ /current/folder v ] [home] [refresh]        &lt;- toolbar
++---------+ +---------+ +---------+
+| alpha/  | | one.py  | | a.txt   |
+| beta/   | | two.py  | | b.txt   |
++---------+ +---------+ +---------+
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str | Property</code></td><td>Label</td></tr>
+<tr><td><code>start_directory</code></td><td><code>str</code></td><td>Folder the first column opens on</td></tr>
+<tr><td><code>filter</code></td><td><code>str</code> or tuple</td><td>Suffixes to keep</td></tr>
+<tr><td><code>height</code></td><td><code>int</code></td><td>Height of every column, default <code>500</code></td></tr>
+<tr><td><code>max_columns</code></td><td><code>int</code></td><td>Columns on show at once, default <code>4</code></td></tr>
+<tr><td><code>home_directory</code></td><td><code>str</code></td><td>Where <code>home</code> returns</td></tr>
+<tr><td><code>accept_new_option</code></td><td><code>bool</code></td><td>Offer a typed path in the location bar</td></tr>
+<tr><td><code>show_location</code></td><td><code>bool</code></td><td>Draw the location ladder</td></tr>
+<tr><td><code>show_confirm_button</code></td><td><code>bool</code></td><td>Default <code>True</code></td></tr>
+<tr><td><code>rows_visible</code></td><td><code>bool | Property</code></td><td>Whether the columns are drawn</td></tr>
+<tr><td><code>label_visibility</code></td><td><code>str</code></td><td>See <a href="#inputs">Inputs</a></td></tr>
+<tr><td><code>help</code></td><td><code>str | Property</code></td><td>Tooltip</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, <code>mode</code> (always <code>'single'</code>), <code>directory</code> (the folder
+the rightmost column shows).</p>
+<p>Signals: <code>on_navigate(directory)</code>, <code>on_submit(paths)</code>.</p>
+<p>Methods: <code>reload()</code>, <code>select(path)</code>, <code>clear()</code>, <code>resolve()</code>.</p>
+<h2 id="interaction"><a class="header" href="#interaction">Interaction</a></h2>
+<ul>
+<li>Clicking a folder opens its contents in a new column to the right.</li>
+<li>Clicking a file marks it.</li>
+<li>Clicking a folder in a column further left replaces everything to its
+right, so the whole trail stays on show.</li>
+<li>The panel needs no “go up” row; the trail is the way back.</li>
+</ul>
+<h2 id="value"><a class="header" href="#value"><code>value</code></a></h2>
+<p>Single-select. It names the node picked in the rightmost column, or that
+column’s folder while nothing inside is picked. A column view always has a
+current folder, so <code>value</code> is never empty.</p>
+<h2 id="windowing"><a class="header" href="#windowing">Windowing</a></h2>
+<p>At most <code>max_columns</code> columns are on show. Walking deeper scrolls the
+earlier ones out; the window keeps the last <code>max_columns</code> folders, so the
+column just opened stays visible. The location ladder and <code>home</code> still
+reach any ancestor in one pick.</p>
+<h2 id="toolbar"><a class="header" href="#toolbar">Toolbar</a></h2>
+<p>The toolbar holds the location ladder, <code>home</code>, and <code>refresh</code>. With
+<code>leading</code> / <code>trailing</code>, a wrapper can add its own widgets around them.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pathinput-and-pathselect"><a class="header" href="#pathinput-and-pathselect">PathInput and PathSelect</a></h1>
+<h2 id="pathinput"><a class="header" href="#pathinput"><code>PathInput</code></a></h2>
+<p>A text input whose text is resolved into a path.</p>
+<pre><code class="language-python">with v3.PathInput('Output folder', 'C:/work') as box:
+    @box.on_submit
+    def _(text):
+        use_path(box.value.get())
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str</code></td><td>Label</td></tr>
+<tr><td><code>value</code></td><td><code>str</code></td><td>Initial text</td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>Width</td></tr>
+<tr><td><code>input_history</code></td><td>sequence, Property, or <code>None</code></td><td>Suggestions</td></tr>
+<tr><td><code>accept_new_option</code></td><td><code>bool</code></td><td>Add an “Add: …” row</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, <code>input_history</code>.</p>
+<p>Signals: <code>on_submit</code>, <code>on_editing_finished</code> (both carry the text as typed).</p>
+<p>Method: <code>show(path)</code>, which makes <code>path</code> the value and rewrites the box
+even when it already shows that path in another spelling (backslashes, a
+trailing separator, a <code>..</code>).</p>
+<h3 id="path-resolution"><a class="header" href="#path-resolution">Path resolution</a></h3>
+<ul>
+<li>Blank text resolves to <code>''</code>.</li>
+<li>Text that names something on disk resolves to an absolute path with
+forward slashes.</li>
+<li>Text that names nothing yet is kept, with only its separators
+straightened. A path that does not exist is still a path, and the caller
+decides what it means.</li>
+</ul>
+<h3 id="history"><a class="header" href="#history">History</a></h3>
+<p><code>input_history</code> is both a suggestion list and a memory:</p>
+<ul>
+<li><code>None</code>: no caret, no panel.</li>
+<li>A literal sequence: seeds a memory. Every non-empty path the box holds
+joins it (newest first, no duplicates). Capacity is at least 20; a
+larger seed rounds up to the next ten. The panel lists the memory in
+alphabetical order.</li>
+<li>A <code>Property</code>: the caller owns the list; nothing is remembered.</li>
+</ul>
+<h2 id="pathselect"><a class="header" href="#pathselect"><code>PathSelect</code></a></h2>
+<p>A <code>PathInput</code> with a navigation ladder.</p>
+<pre><code class="language-python">with v3.PathSelect(
+    'Go to',
+    '.',
+    ladder=['C:/', 'C:/work', 'C:/work/app'],
+) as box:
+    ...
+
+path = box.value.get()
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ladder</code></td><td>sequence or Property</td><td>Rungs; the current folder is last</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, <code>input_history</code>, <code>ladder</code>.</p>
+<p>The box looks the same as <code>PathInput</code>, but has two dropdowns:</p>
+<ul>
+<li>clicking the input area opens the <strong>ladder</strong>: drives, then the ancestors
+of the folder on show. The last rung is drawn as selected.</li>
+<li>clicking the caret opens <code>input_history</code>. The caret is greyed out while
+the history is empty.</li>
+</ul>
+<p>Both close on a click outside or Escape. <code>PathSelect</code> takes no
+<code>accept_new_option</code>, because clicking the box already opens the ladder,
+and typing plus Enter already resolves the path.</p>
+<p>The ladder is fed by the host, since the box does not know which folder it
+is “in”.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pathinputbrowse"><a class="header" href="#pathinputbrowse">PathInputBrowse</a></h1>
+<p>A path box paired with one of the tree panels.</p>
+<pre><code class="language-python">with v3.PathInputBrowse(
+    'Select a file',
+    'data/sample',
+    filter='.txt',
+) as browse:
+    ...
+
+path = browse.value.get()
+</code></pre>
+<h2 id="arguments-1"><a class="header" href="#arguments-1">Arguments</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Argument</th><th>Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>label</code></td><td><code>str</code></td><td>Path box label</td></tr>
+<tr><td><code>start_directory</code></td><td><code>str</code></td><td>Path shown and folder opened</td></tr>
+<tr><td><code>panel_style</code></td><td><code>'popup' | 'fold' | 'inline'</code></td><td>Where the panel lives</td></tr>
+<tr><td><code>expanded</code></td><td><code>bool</code></td><td>Whether a foldable panel starts open</td></tr>
+<tr><td><code>tree_style</code></td><td><code>'single_list' | 'tree_view' | 'dual_pane' | 'column_view'</code></td><td>Which panel</td></tr>
+<tr><td><code>filter</code></td><td><code>str</code> or tuple</td><td>Suffixes to keep</td></tr>
+<tr><td><code>initial_mode</code></td><td><code>str</code></td><td>Mode to open in</td></tr>
+<tr><td><code>selection_mode</code></td><td><code>str</code> or tuple</td><td>Modes offered</td></tr>
+<tr><td><code>input_history</code></td><td>sequence, Property, or <code>None</code></td><td>Seed for the box’s history</td></tr>
+<tr><td><code>node_type</code></td><td><code>'file' | 'folder'</code></td><td>Dual-pane only</td></tr>
+<tr><td><code>panel_height</code></td><td><code>int</code></td><td>Cap on the panel height</td></tr>
+<tr><td><code>width</code></td><td>size keyword</td><td>Width</td></tr>
+</tbody>
+</table>
+</div>
+<p>Properties: <code>value</code>, <code>mode</code>, <code>directory</code>, <code>input_history</code>.</p>
+<h2 id="start_directory-1"><a class="header" href="#start_directory-1"><code>start_directory</code></a></h2>
+<ul>
+<li><code>'.'</code> (the default): the cwd for both the box and the panel.</li>
+<li><code>''</code>: the panel opens on the cwd, but the box is blank (“nothing picked
+yet”).</li>
+<li>Any other value: shown in the box. If it names a file, the panel opens
+on its folder; otherwise on the value itself.</li>
+</ul>
+<h2 id="panel-styles"><a class="header" href="#panel-styles">Panel styles</a></h2>
+<h3 id="popup-default"><a class="header" href="#popup-default"><code>'popup'</code> (default)</a></h3>
+<p>The panel lives in a <code>Browse</code> popover with its own toolbar and a Confirm
+button.</p>
+<ul>
+<li>Confirm closes the popover and writes the choice into the box.</li>
+<li>The choice is the panel’s pick, or, with nothing ticked, the folder the
+panel ended on.</li>
+<li>The choice also joins the selection, so <code>value</code> carries it.</li>
+</ul>
+<p>Only this style accepts <code>tree_style='dual_pane'</code>, because the dual-pane
+panel has its own toolbar and is not a good fit for the inline toolbar.</p>
+<h3 id="fold"><a class="header" href="#fold"><code>'fold'</code></a></h3>
+<p>The panel sits under the box and is unfolded by a fold button.</p>
+<ul>
+<li>No popover, no Confirm.</li>
+<li>The fold button shows and hides the rows.</li>
+<li>The box follows the panel’s pick live.</li>
+</ul>
+<h3 id="inline"><a class="header" href="#inline"><code>'inline'</code></a></h3>
+<p>The panel sits under the box and is always on show.</p>
+<h2 id="toolbar-takeover"><a class="header" href="#toolbar-takeover">Toolbar takeover</a></h2>
+<p>In the fold and inline styles, the path box leads the panel’s toolbar row
+and the fold button (fold style only) trails it. The panel’s own location
+bar is turned off, because the box carries the ladder. <code>home</code>, <code>refresh</code>,
+the bucket, and the mode control sit between them.</p>
+<p>The box used here is a <a href="#pathinput-and-pathselect"><code>PathSelect</code></a>, so clicking it
+opens the navigation ladder and clicking the caret opens its history.</p>
+<h2 id="tree_style"><a class="header" href="#tree_style"><code>tree_style</code></a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Value</th><th>Panel</th></tr>
+</thead>
+<tbody>
+<tr><td><code>'single_list'</code></td><td><code>SingleTreeSelect</code></td></tr>
+<tr><td><code>'tree_view'</code></td><td><code>FileTreeView</code></td></tr>
+<tr><td><code>'dual_pane'</code></td><td><code>DualTreeSelect</code> (popup only)</td></tr>
+<tr><td><code>'column_view'</code></td><td><code>ColumnView</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="typed-paths"><a class="header" href="#typed-paths">Typed paths</a></h2>
+<p>A path typed into the box and submitted moves the panel onto the folder
+that holds it, and joins the panel’s selection. A path that does not exist
+names no folder, so the panel is left where it was.</p>
+<p>Writes made by the wrapper itself are silenced, so a pick in the panel
+does not echo back as a typed path and pull the panel away.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h1>
+<p>This page lists the work that is currently planned for Streamlit Canary.
+It is indicative rather than a promise, and the order may change.</p>
+<h2 id="v3-stabilization"><a class="header" href="#v3-stabilization">V3 stabilization</a></h2>
+<ul>
+<li>Finish the remaining widget parity with Streamlit.</li>
+<li>Replace the leftover V2 internals that V3 still shares.</li>
+<li>Harden the patch protocol and reconnect / resync behavior.</li>
+<li>Add more automated tests for the runtime, the renderer, and the trees.</li>
+</ul>
+<h2 id="api-consolidation"><a class="header" href="#api-consolidation">API consolidation</a></h2>
+<ul>
+<li>Port Streamlit’s chart elements to V3.</li>
+<li>Remove (or downgrade) V1, remove V2 entirely, and drop the <code>v3</code> prefix
+so the V3 components become the default <code>sc.*</code> API.</li>
+</ul>
+<h2 id="documentation"><a class="header" href="#documentation">Documentation</a></h2>
+<ul>
+<li>Complete the API reference for every V3 component.</li>
+<li>Add a migration guide for larger real-world apps.</li>
+<li>Publish runnable examples for the most common layouts and widgets.</li>
+</ul>
+<h2 id="developer-experience"><a class="header" href="#developer-experience">Developer experience</a></h2>
+<ul>
+<li>Improve error messages when a component is used outside a valid parent.</li>
+<li>Document the sizing and visibility rules in one place.</li>
+<li>Provide a small project template that can be copied to start a new app.</li>
+</ul>
+<h2 id="packaging-and-release"><a class="header" href="#packaging-and-release">Packaging and release</a></h2>
+<ul>
+<li>Keep the published package in step with the repository.</li>
+<li>Add a <code>LICENSE</code> file and make the license visible on GitHub.</li>
+<li>Automate the release checklist (tests, version bump, changelog, tag).</li>
+</ul>
+<h2 id="applications"><a class="header" href="#applications">Applications</a></h2>
+<ul>
+<li>Rewrite a few third-party Streamlit apps with V3 components to validate
+the API against real use cases.</li>
+<li>Publish the rewritten apps as reference implementations.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>
