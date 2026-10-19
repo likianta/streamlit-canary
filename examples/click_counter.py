@@ -51,10 +51,10 @@ state = _State()
 
 
 def click_counter_demo():
-    sc.set_page_config('Click Counter', default_theme='dark')
+    sc.v3.PageTitle('Click Counter', default_theme='dark')
     # v3 components live under `sc.v3.*` so they don't pollute the stable v1
     # namespace while the event-driven model is still evolving.
-    with sc.v3.Row():
+    with sc.v3.Row('center'):
         # `with sc.v3.Text(...) as txt` creates a persistent Text component
         # whose identity survives across interactions.
         # `txt.text` is itself a `Property` (same model as state), so it is
