@@ -13,6 +13,8 @@ import asyncio
 import json
 import os
 import sys
+import threading
+import typing as tp
 from pathlib import Path
 
 import uvicorn
@@ -83,6 +85,49 @@ class WebSocketClient:
         asyncio.run_coroutine_threadsafe(
             self._ws.send_json(message), self._loop
         )
+
+
+async def _run_on_daemon_thread(
+    target: tp.Callable[..., tp.Any], *args: tp.Any
+) -> tp.Any:
+    """Await `target(*args)` running on a *daemon* thread.
+
+    `asyncio.to_thread` would hand the call to the loop's default
+    `ThreadPoolExecutor`, whose workers are non-daemon and get joined at
+    interpreter exit (`threading._register_atexit`). A handler still running
+    at that moment -- a long command, say -- then holds the process up, and
+    the listening socket stays bound until it finishes. A daemon thread
+    carries the work instead: Ctrl+C cutting a command off mid-flight is what
+    stopping a CLI app means anyway, and the port comes back right away.
+    """
+    loop = asyncio.get_running_loop()
+    future: asyncio.Future = loop.create_future()
+
+    def deliver(result: tp.Any, exc: tp.Optional[BaseException]) -> None:
+        if future.cancelled():
+            return
+        if exc is not None:
+            future.set_exception(exc)
+        else:
+            future.set_result(result)
+
+    def run() -> None:
+        outcome: tp.Tuple[tp.Any, tp.Optional[BaseException]]
+        try:
+            result = target(*args)
+        except BaseException as exc:  # pass it on to whoever awaits us
+            outcome = (None, exc)
+        else:
+            outcome = (result, None)
+        try:
+            loop.call_soon_threadsafe(deliver, *outcome)
+        except RuntimeError:
+            # the loop is closed already: the app is on its way down and
+            # nothing is waiting for this result
+            pass
+
+    threading.Thread(target=run, name='sc-handler', daemon=True).start()
+    return await future
 
 
 def create_app(runtime: Runtime) -> Starlette:
@@ -171,13 +216,14 @@ def create_app(runtime: Runtime) -> Starlette:
                 message = json.loads(data)
                 msg_type = message.get('type')
                 if msg_type == 'event':
-                    # Run the handler in a worker thread so that blocking
-                    # calls (e.g. ``time.sleep``) don't block the event
-                    # loop.  Delta patches produced during the handler
-                    # are scheduled back on the loop via
-                    # ``run_coroutine_threadsafe`` and reach the client
-                    # immediately.
-                    await asyncio.to_thread(
+                    # Run the handler off the event loop so that blocking
+                    # calls (e.g. ``time.sleep``) don't block it. Delta
+                    # patches produced during the handler are scheduled back
+                    # on the loop via ``run_coroutine_threadsafe`` and reach
+                    # the client immediately. The thread is a daemon one --
+                    # see `_run_on_daemon_thread` for why not
+                    # `asyncio.to_thread`.
+                    await _run_on_daemon_thread(
                         runtime.on_event,
                         message['id'],
                         message['event'],

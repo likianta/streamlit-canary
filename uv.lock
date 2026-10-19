@@ -297,14 +297,14 @@ wheels = [
 
 [[package]]
 name = "argsense"
-version = "2.1.0"
+version = "3.0.0b0"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "neoprint" },
     { name = "rich" },
 ]
 wheels = [
-    { url = "http://localhost:2131/argsense/argsense-2.1.0-py3-none-any.whl" },
+    { url = "http://localhost:2131/argsense/argsense-3.0.0b0-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -364,7 +364,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
-    { name = "pycparser", marker = "implementation_name != 'PyPy'" },
+    { name = "pycparser", marker = "(python_full_version >= '3.12' and implementation_name != 'PyPy') or (implementation_name != 'PyPy' and sys_platform == 'win32')" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -535,7 +535,7 @@ name = "clr-loader"
 version = "0.3.1"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
-    { name = "cffi" },
+    { name = "cffi", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e4/46/7eea92b6aa2d68af78e049cbecec5f757f1aad44ecdecdc16bbad7eead51/clr_loader-0.3.1.tar.gz", hash = "sha256:2e073e9aaf49d1ae2f56ecba27987ad5fb68be4bcd9dd34a5bed8f0e4e128366", size = 86805, upload-time = "2026-04-18T17:49:44.287Z" }
 wheels = [
@@ -1407,7 +1407,7 @@ wheels = [
 
 [[package]]
 name = "lk-utils"
-version = "3.8.2a20"
+version = "3.8.2b0"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
@@ -1417,7 +1417,7 @@ dependencies = [
     { name = "rich" },
 ]
 wheels = [
-    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2a20-py3-none-any.whl" },
+    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2b0-py3-none-any.whl" },
 ]
 
 [package.optional-dependencies]
@@ -2545,17 +2545,17 @@ wheels = [
 
 [[package]]
 name = "pyapp-window"
-version = "2.3.0b0"
+version = "2.3.0"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
     { name = "lk-utils" },
-    { name = "pythonnet" },
+    { name = "pythonnet", marker = "sys_platform == 'win32'" },
     { name = "pywebview", marker = "python_full_version < '3.15' and sys_platform == 'linux'" },
     { name = "toga", marker = "sys_platform != 'linux'" },
 ]
 wheels = [
-    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.3.0b0-py3-none-any.whl" },
+    { url = "http://localhost:2131/pyapp-window/pyapp_window-2.3.0-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -2778,14 +2778,14 @@ wheels = [
 
 [[package]]
 name = "pythonnet"
-version = "3.2.0rc1"
+version = "3.2.1"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
-    { name = "clr-loader" },
+    { name = "clr-loader", marker = "sys_platform == 'win32'" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/59/23/98190cb1c7ab3acfd78c119a95f1060948f052917a15c50a8f4352abb5fd/pythonnet-3.2.0rc1.tar.gz", hash = "sha256:7dbdd92dd99ac98934e651990511d4bdd34e1b764217f39255b67c9df85f13cb", size = 273192, upload-time = "2026-09-20T12:40:29.975Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/ef/34/98f38d7ca1e9eb684d297d1d6a9420f3f3a32f411eae82a7f25a2b783539/pythonnet-3.2.1.tar.gz", hash = "sha256:c86e8dd31268f6e0c48fcc4d6030041316d49ed2764a1cb6ea8c37876e07c572", size = 257852, upload-time = "2026-10-08T12:23:35.866Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/16/b2/cd430bed1657124f1ca5dcb0ce51368dcdeed8b66c87d6ee867726f1ac40/pythonnet-3.2.0rc1-cp311.cp312.cp313.cp314.cp315-none-any.whl", hash = "sha256:7ef91803cf9731db7ebd92453ff6843c2fc7901ad8c454e5a2a513d46b3e7f2f", size = 219738, upload-time = "2026-09-20T12:40:28.135Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d8/dc/c96a542079a69d3d091e91808fc8aaf9a0d5e2f8e73a63560e4379134bb6/pythonnet-3.2.1-cp311.cp312.cp313.cp314.cp315-none-any.whl", hash = "sha256:dd5668b74b0c903d9a24e1ba86f728fc490f8e919d56b3c24bf06739b9ee2b7f", size = 222572, upload-time = "2026-10-08T12:23:34.129Z" },
 ]
 
 [[package]]
@@ -3162,14 +3162,13 @@ wheels = [
 
 [[package]]
 name = "streamlit"
-version = "1.65.0"
+version = "1.66.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
 dependencies = [
     { name = "altair", version = "6.2.1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.12'" },
     { name = "altair", version = "6.2.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.12'" },
     { name = "anyio" },
     { name = "click" },
-    { name = "httptools" },
     { name = "itsdangerous" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version < '3.12'" },
     { name = "numpy", version = "2.5.0rc1", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }, marker = "python_full_version >= '3.12'" },
@@ -3182,20 +3181,19 @@ dependencies = [
     { name = "python-multipart" },
     { name = "requests" },
     { name = "starlette" },
-    { name = "toml" },
     { name = "typing-extensions" },
     { name = "uvicorn" },
     { name = "watchdog", marker = "sys_platform != 'darwin'" },
     { name = "websockets" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/8f/61/75c550a2d2acd79402aa1f32c8068c6cf47fa621d3995883a43caafeeadc/streamlit-1.65.0.tar.gz", hash = "sha256:42acd9ebdf3576a35584977c48a044ec0b5d3e4997fa9248809b9891598ac6a0", size = 9749831, upload-time = "2026-10-02T21:40:36.584Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/35/a3/e1d5c76e9b09e7863763238529b20a8ea99116e2c28c464ad710a322e221/streamlit-1.66.0.tar.gz", hash = "sha256:8b79761394664035ff5d691b4502b70385a39123e6d78a051c79e8ae28c29f8c", size = 9826614, upload-time = "2026-10-14T16:07:53.564Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/fa/e3/5c9d2e88563c9974e53ac744b1523ebb1fd8f0ebb1ecc28a5f6f6bb0baea/streamlit-1.65.0-py3-none-any.whl", hash = "sha256:517a7254e223f4986d2b2e0745d02acf8ca64656943e63e422d345ce34a7495b", size = 10313469, upload-time = "2026-10-02T21:40:33.164Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/72/52/21e7af3e1611d10bccffcdec63d17c7a824a6388cf4714814afc36630545/streamlit-1.66.0-py3-none-any.whl", hash = "sha256:bae7c746f868c09431177df5ee7929839efe7d8fb2cedd553d2bb3c2e969822a", size = 10364953, upload-time = "2026-10-14T16:07:50.423Z" },
 ]
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0a69"
+version = "0.4.0b1"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3224,12 +3222,12 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "argsense", specifier = ">=2.1.0", index = "http://localhost:2131/" },
-    { name = "lk-utils", specifier = ">=3.8.1" },
+    { name = "argsense", specifier = ">=2.1.0" },
+    { name = "lk-utils", specifier = ">=3.8.2b0", index = "http://localhost:2131/" },
     { name = "neoprint", specifier = ">=0.1.13" },
-    { name = "pyapp-window", specifier = ">=2.3.0b0", index = "http://localhost:2131/" },
+    { name = "pyapp-window", specifier = ">=2.3.0", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
-    { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.61.0,!=1.62.*" },
+    { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.65.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
     { name = "watchdog", specifier = ">=6.0.0" },
 ]
@@ -3242,7 +3240,7 @@ dev = [
     { name = "faker", specifier = ">=40.43.0" },
     { name = "jlsemi-adoc-toolkit", marker = "python_full_version >= '3.12'", specifier = ">=2026.10.13a0" },
     { name = "playwright", specifier = ">=1.63.0" },
-    { name = "streamlit", specifier = ">=1.65.0" },
+    { name = "streamlit", specifier = ">=1.66.0" },
 ]
 
 [[package]]
@@ -3392,15 +3390,6 @@ sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/5f/6d/e7fa1073ce5152
 wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/16/28/363f80f93a05b42bb1faa64799d0378e530863d3c7d53b087af6e6841b61/toga_winforms-0.5.6-py3-none-win_amd64.whl", hash = "sha256:93cf515d0b1a31635718e3419d5fd1e4fba7cd19859c370e84f3e8f11ec6b362", size = 380155, upload-time = "2026-07-08T01:05:55.129Z" },
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/2d/26/b5070de2ec93cee54db7df661592789467a98e23099da3fb3501f01e9eea/toga_winforms-0.5.6-py3-none-win_arm64.whl", hash = "sha256:007b710f59c8fd9519e30af2af8610b82f4c5b6541fbc18310217831035cbbb8", size = 367772, upload-time = "2026-07-08T01:05:56.766Z" },
-]
-
-[[package]]
-name = "toml"
-version = "0.10.2"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple/" }
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
 ]
 
 [[package]]
