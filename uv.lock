@@ -1407,7 +1407,7 @@ wheels = [
 
 [[package]]
 name = "lk-utils"
-version = "3.8.2b0"
+version = "3.8.2"
 source = { registry = "http://localhost:2131/" }
 dependencies = [
     { name = "argsense" },
@@ -1417,7 +1417,7 @@ dependencies = [
     { name = "rich" },
 ]
 wheels = [
-    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2b0-py3-none-any.whl" },
+    { url = "http://localhost:2131/lk-utils/lk_utils-3.8.2-py3-none-any.whl" },
 ]
 
 [package.optional-dependencies]
@@ -3193,7 +3193,7 @@ wheels = [
 
 [[package]]
 name = "streamlit-canary"
-version = "0.4.0b1"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "argsense" },
@@ -3223,11 +3223,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argsense", specifier = ">=2.1.0" },
-    { name = "lk-utils", specifier = ">=3.8.2b0", index = "http://localhost:2131/" },
+    { name = "lk-utils", specifier = ">=3.8.2", index = "http://localhost:2131/" },
     { name = "neoprint", specifier = ">=0.1.13" },
     { name = "pyapp-window", specifier = ">=2.3.0", index = "http://localhost:2131/" },
     { name = "starlette", specifier = ">=1.6.0" },
-    { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.65.0" },
+    { name = "streamlit", marker = "extra == 'st'", specifier = ">=1.61.0,!=1.62.*" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.4" },
     { name = "watchdog", specifier = ">=6.0.0" },
 ]

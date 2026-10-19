@@ -1,11 +1,10 @@
 # CHANGELOG
 
-### 0.4.0 (WIP)
+### 0.4.0 (2026-10-19)
 
 - Native execution flow (event-driven, no-rerun).
 - Add pure-Python kernel: `Property`, `Signal`, `StateV2`.
 - Craft new v3 component library (`sc.v3.*`).
-- Mark Streamlit optional dependency.
 
 ### 0.3.2 (2026-07-18)
 
