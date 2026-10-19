@@ -1,6 +1,7 @@
 # Summary
 
 - [Home](./index.md)
+- [Running Apps](./running-apps.md)
 - [Components V1 (Legacy)](./components-v1/index.md)
     - [Migrating to V3](./components-v1/migration-to-v3.md)
 - [Components V2 (Broken)](./components-v2/index.md)

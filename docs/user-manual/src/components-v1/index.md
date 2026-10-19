@@ -1,5 +1,8 @@
 # Components V1 (Legacy)
 
+> [!CAUTION]
+> This part is going to be removed in future versions, for latest reference, please read [Components V3 docs](../components-v3/index.md).
+
 Components V1 is the original layer of Streamlit Canary. It is built
 directly on top of Streamlit and follows the same rerun model: every
 interaction re-executes the script, and widgets return their current value

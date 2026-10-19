@@ -1,5 +1,8 @@
 # Components V2 (Broken)
 
+> [!CAUTION]
+> This part is going to be removed in future versions, for latest reference, please read [Components V3 docs](../components-v3/index.md).
+
 Components V2 was a transitional implementation between the original
 Streamlit-based components and the event-driven V3 library. It explored a
 reactive property model, but it was never finished and is **not

@@ -10,6 +10,12 @@ It is indicative rather than a promise, and the order may change.
 - Harden the patch protocol and reconnect / resync behavior.
 - Add more automated tests for the runtime, the renderer, and the trees.
 
+## API consolidation
+
+- Port Streamlit's chart elements to V3.
+- Remove (or downgrade) V1, remove V2 entirely, and drop the `v3` prefix
+  so the V3 components become the default `sc.*` API.
+
 ## Documentation
 
 - Complete the API reference for every V3 component.

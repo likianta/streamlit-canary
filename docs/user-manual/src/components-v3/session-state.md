@@ -33,7 +33,8 @@ class State(sc.StateV2):
 ```
 
 - `Property[int]` with a class-body value uses that value as the default.
-- Without a class-body value the property starts as `sc._undefined`.
+- Without a class-body value the property starts as `sc._undefined` (see
+  [Special markers](./event-driven-system.md#special-markers)).
 - `Signal` declares no payload; `Signal[int]` declares one positional
   payload.
 

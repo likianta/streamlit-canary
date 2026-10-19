@@ -35,6 +35,9 @@ only the code registered on the signal that fired.
 runtime keeps one component tree per session and owns the WebSocket
 endpoint. It is a no-rerun runtime: there is no script re-execution path.
 
+See [Running Apps](../running-apps.md) for `sc.run`'s full argument list
+and for opening the app in a native window.
+
 ### Component tree
 
 Components are nested with context managers:
@@ -135,6 +138,76 @@ v3.NumberInput('Channel', sc.bbind(state.channel))
 ```
 
 The widget mirrors the state, and a user edit writes back into it.
+
+## Special markers
+
+`sc._self`, `sc._value`, and `sc._undefined` are sentinel objects used by
+the kernel. They are not values; they tell a handler or a binding how to
+resolve something at the moment it runs.
+
+### `sc._self`
+
+Bind `sc._self` in `.partial(...)` to receive the signal's owner:
+
+```python
+@state.count.on_change.partial(sc._self)
+def _(prop):
+    print(prop.get())
+```
+
+For a property, the owner is the `Property` itself. For a component
+signal such as `button.on_click`, the owner is the component:
+
+```python
+@button.on_click.partial(sc._self)
+def _(btn):
+    print(btn.text.get())
+```
+
+Without `.partial(...)`, a handler receives whatever the signal emits. Use
+`sc._self` when the handler should read several fields of the owner, or
+when it needs the handle rather than a snapshot of its value.
+
+### `sc._value`
+
+Bind `sc._value` to receive the owner's current value:
+
+```python
+@state.count.on_change.partial(sc._value)
+def _(value):
+    print(value)
+```
+
+This is shorthand for calling `.get()` inside the handler. It is
+meaningful only on a signal whose owner holds a value: a `Property` has
+one, a plain `Button` does not.
+
+### `sc._undefined`
+
+A `Property` declared without a default starts as `sc._undefined`:
+
+```python
+class State(sc.StateV2):
+    selection: sc.Property[str]
+```
+
+`sc._undefined` is falsy. Two consequences matter:
+
+- `sc.bind` does not run its transform while the source still holds
+  `sc._undefined`, because the transform may not accept it.
+- A bound target that needs a defined starting value should be given one
+  explicitly:
+
+```python
+label = sc.bind(state.selection, str.upper, default='')
+```
+
+Test for it with identity:
+
+```python
+if state.selection.get() is sc._undefined:
+    ...
+```
 
 ## What a handler should do
 
