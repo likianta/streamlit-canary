@@ -1,5 +1,4 @@
 import typing as tp
-from functools import partial
 from inspect import currentframe
 from threading import current_thread
 from types import FrameType
@@ -133,15 +132,6 @@ def dump_state(state: tp.Union[dict, _ClassType]) -> str:
     )
 
 
-# DELETE: deprecated
-def _init_class_attrs(cls: type, module_name: str):
-    current_fields = frozenset(cls.__dict__.keys())
-    for name, type_ in cls.__annotations__.items():
-        if name not in current_fields:
-            setattr(cls, name, type_())
-    setattr(cls, '__module__', module_name)
-
-
 def _is_running_in_streamlit() -> bool:
     return hasattr(current_thread(), 'streamlit_script_run_ctx')
 
@@ -153,95 +143,3 @@ if _is_running_in_streamlit():
     shared_data = st.session_state['_shared_data']
 else:
     shared_data = {}
-
-
-def init_shared_data(version: int = 0):
-    if _is_running_in_streamlit():
-        if st.session_state['_shared_data:version'] != version:
-            st.session_state['_shared_data:version'] = version
-            shared_data.clear()
-
-
-# ------------------------------------------------------------------------------
-# v2
-
-
-class SessionStateV2:
-    def __init__(self, version: int, origin_class: _ClassType) -> None:
-        origin_fields = origin_class.__dict__
-        annotations = origin_class.__annotations__
-        self.fields = {}
-        self._version = version
-        for key, val in origin_fields.items():
-            if not key.startswith('__'):
-                self.fields[key] = {'initial_value': val, 'current_value': val}
-        for key, type_ in annotations.items():
-            if key not in origin_fields:
-                value = type_()
-                self.fields[key] = {
-                    'initial_value': value,
-                    'current_value': value,
-                }
-
-    def __getattr__(self, key: str) -> tp.Any:
-        if key.startswith('__'):
-            return super().__getattribute__(key)
-        elif key in ('fields', '_set_field'):
-            return super().__getattribute__(key)
-        elif key in self.fields:
-            return SessionDataV2(
-                self._version,
-                self.fields[key]['current_value'],
-                partial(self._set_field, key),
-            )
-        else:
-            return super().__getattribute__(key)
-
-    def _set_field(self, key: str, value: tp.Any) -> None:
-        self.fields[key]['current_value'] = value
-
-
-class SessionDataV2:
-    def __init__(self, version: int, initial_value, value_setter):
-        self.generation = version
-        self.initial_value = initial_value
-        self.value = initial_value
-        self._set_value = value_setter
-
-    def get(self) -> tp.Any:
-        return self.value
-
-    def get_initial(self) -> tp.Any:
-        return self.initial_value
-
-    def set(self, value: tp.Any) -> None:
-        self._set_value(value)
-        self.value = value
-
-
-def init_state_v2(state_class: _ClassType) -> SessionStateV2:
-    if _is_running_in_streamlit():
-        session_state = st.session_state
-    else:
-        session_state = _plain_state
-
-    last_frame: FrameType = currentframe().f_back  # type:ignore
-    module_name = last_frame.f_globals['__name__']
-    module_path = last_frame.f_globals['__file__']
-
-    data_key = module_path
-    version_key = '{}:version'.format(module_path)
-    version = getattr(
-        state_class, '__revision__', getattr(state_class, '__version__', 0)
-    )
-    if version_key in session_state and session_state[version_key] != version:
-        print('rebuild session data', module_name, version)
-    if (
-        version_key not in session_state
-        or session_state[version_key] != version
-    ):
-        out = session_state[data_key] = SessionStateV2(version, state_class)
-        session_state[version_key] = version
-        return out
-    else:
-        return session_state[data_key]

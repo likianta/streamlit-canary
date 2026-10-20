@@ -1,11 +1,4 @@
-"""Streamlit pages, and the canary's page-level configuration."""
-
-import typing as t
-
-from ._streamlit import st
-
-if t.TYPE_CHECKING:
-    from streamlit.navigation.page import StreamlitPage
+import typing as tp
 
 
 # ---------------------------------------------------------------------------
@@ -15,7 +8,7 @@ if t.TYPE_CHECKING:
 # `sc.PageConfig` write into it as they are constructed, and the runtime reads
 # it back when it renders the page (see `runtime/render.py:render_page`). A
 # plain dict, so the runtime (and tests) can read it directly.
-global_page_config: t.Dict[str, t.Any] = {
+global_page_config: tp.Dict[str, tp.Any] = {
     'title': 'Streamlit Canary',
     'layout': 'centered',
     'default_theme': 'dark',
@@ -26,11 +19,11 @@ global_page_config: t.Dict[str, t.Any] = {
 
 def update_page_config(
     *,
-    title: t.Optional[str] = None,
-    layout: t.Optional[str] = None,
-    default_theme: t.Optional[str] = None,
-    font_family: t.Optional[str] = None,
-    dunder_literal: t.Optional[bool] = None,
+    title: tp.Optional[str] = None,
+    layout: tp.Optional[str] = None,
+    default_theme: tp.Optional[str] = None,
+    font_family: tp.Optional[str] = None,
+    dunder_literal: tp.Optional[bool] = None,
 ) -> None:
     """Merge the given page settings into `global_page_config`.
 
@@ -47,16 +40,3 @@ def update_page_config(
     ):
         if value is not None:
             global_page_config[key] = value
-
-
-def pages(
-    elements: t.Dict[str, t.Callable[[], t.Any]]
-) -> 'StreamlitPage':
-    normalized_elements = []
-    for k, v in elements.items():
-        normalized_elements.append(st.Page(
-            v,
-            title=k,
-            url_path=k.lower().replace(' ', '-'),
-        ))
-    return st.navigation(normalized_elements)

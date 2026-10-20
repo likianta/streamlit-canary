@@ -14,7 +14,7 @@ import streamlit_canary as sc
 
 from streamlit_canary.kernel import Property
 from streamlit_canary.kernel import Signal
-from streamlit_canary.kernel import StateV2
+from streamlit_canary.kernel import State
 
 Row = sc.Row
 Text = sc.Text
@@ -111,7 +111,7 @@ check('on_click fires handlers', clicks[0] == 2)
 print('4. Click counter end-to-end')
 
 
-class _State(StateV2):
+class _State(State):
     count = Property(0)
 
 

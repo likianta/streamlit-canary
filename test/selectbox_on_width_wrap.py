@@ -54,7 +54,7 @@ APP_CONTENT_WIDTH = 704
 # A sub-pixel difference (glyph rounding) is not a resize.
 EPS = 0.6
 
-class _State(sc.StateV2):
+class _State(sc.State):
     modes: sc.Property[list] = ['Single', 'Multiple']
 
 state = _State()

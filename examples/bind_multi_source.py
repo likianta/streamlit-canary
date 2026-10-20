@@ -50,7 +50,7 @@ half-updated pair is ever published.
 import streamlit_canary as sc
 
 
-class _State(sc.StateV2):
+class _State(sc.State):
     rows = sc.Property(1)
     cols = sc.Property(1)
     __version__ = 0

@@ -33,7 +33,7 @@ count.set(42)
 # so a state class does not have to repeat its fields in `__init__`.
 
 
-class _AnnotatedState(sc.StateV2):
+class _AnnotatedState(sc.State):
     name: sc.Property[str]
     age: sc.Property[int] = 0
     scope: str = 'not a property'
@@ -61,7 +61,7 @@ assert first.name.get() == 'abc'  # ... even through the sugar
 print('annotated state', repr(first))
 
 
-class _ClassLevelState(sc.StateV2):
+class _ClassLevelState(sc.State):
     count: sc.Property[int] = sc.Property(5)
 
 

@@ -12,37 +12,25 @@ import typing as tp
 import warnings
 
 from . import components
-from . import keygen
+from . import legacy_streamlit_wrappers as legacy
 from . import opener
-from . import session
 from .components import *
-from .event_loop import event_loop
 from .kernel import Property
 from .kernel import Signal
-from .kernel import StateV2
+from .kernel import State
 from .kernel import _self
 from .kernel import _undefined
 from .kernel import _value
 from .kernel import bbind
 from .kernel import bind
 from .kernel import pending_updates
-from .keygen import generate_keygen
 from .opener import open_file
 from .opener import open_folder
-from .page import pages
-from .runner import legacy_run
 from .runner import run
 from .runtime import add_watch_file
 from .runtime import add_watch_folder
 from .runtime import set_page_config
 from .runtime import toast
-from .session import dump_state
-from .session import init_shared_data
-from .session import init_state
-from .session import init_state as get_state
-from .session import init_state_v2
-from .session import is_session_init
-from .session import shared_data
 from .text import blue
 from .text import bold
 from .text import dim
@@ -68,28 +56,30 @@ __version__ = '0.5.0'
 #   that says so, instead of a bare "no attribute".
 # ---------------------------------------------------------------------------
 
-_V1_NAMES = frozenset({
-    'AnyComponent',
-    'AnyContainer',
-    'anynum_input',
-    'card',
-    'column',
-    'columns',
-    'filelist',
-    'hex_input',
-    'long_button',
-    'path_input',
-    'progress',
-    'radio',
-    'row',
-    'toggle_button',
-    'tree_select',
-    'tree_select_dialog',
-    'tree_select_with_input',
-    'void_column',
-    'void_container',
-    'void_row',
-})
+_V1_NAMES = frozenset(
+    {
+        'AnyComponent',
+        'AnyContainer',
+        'anynum_input',
+        'card',
+        'column',
+        'columns',
+        'filelist',
+        'hex_input',
+        'long_button',
+        'path_input',
+        'progress',
+        'radio',
+        'row',
+        'toggle_button',
+        'tree_select',
+        'tree_select_dialog',
+        'tree_select_with_input',
+        'void_column',
+        'void_container',
+        'void_row',
+    }
+)
 
 
 def __getattr__(name: str) -> tp.Any:

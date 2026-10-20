@@ -36,7 +36,7 @@ def run(
     # ---
     icon: tp.Optional[str] = None,  # alias of window_icon
     title: tp.Optional[str] = None,  # alias of window_title
-    _v3: tp.Optional[tp.Literal[True]] = None,  # experimental
+    legacy: bool = False,
     **kwargs,
 ) -> tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]:
     """
@@ -67,6 +67,27 @@ def run(
     Returns:
         (streamlit_process, window_process)
     """
+
+    if legacy:
+        assert isinstance(target, str)
+
+        from .legacy_streamlit_wrappers import run as legacy_run
+
+        return legacy_run(
+            target,
+            port,
+            blocking=blocking,
+            extra_args=extra_args,
+            show_window=show_window,
+            window_icon=window_icon or icon,
+            window_pos=window_pos,
+            window_size=window_size,
+            window_title=window_title or title,
+            **kwargs,
+        )
+
+    # --------------------------------------------------------------------------
+
     if host is None:
         # a str target is served by a *child* process, which calls `run()`
         # again on its own, so `host` has to cross a process boundary; it
@@ -77,83 +98,68 @@ def run(
             'localhost' if show_window else '0.0.0.0',
         )
 
-    if _v3 or callable(target):  # the event-driven entrance
-        if isinstance(target, str):
-            env = os.environ.copy()
-            env['STREAMLIT_CANARY_HOST_FOR_PORT_{}'.format(port)] = host
-            result = run_cmd_args(
-                _v3_argv(target, extra_args),
-                blocking=False if show_window else blocking,
-                verbose=True,
-                ignore_return=not show_window,
-                env=env,
-            )
-            # a Popen comes back only when the child was left running; when we
-            # waited for it, what comes back is its output.
-            proc_v3 = result if isinstance(result, Popen) else None
+    if isinstance(target, str):
+        env = os.environ.copy()
+        env['STREAMLIT_CANARY_HOST_FOR_PORT_{}'.format(port)] = host
+        result = run_cmd_args(
+            _parse_argv(target, extra_args),
+            blocking=False if show_window else blocking,
+            verbose=True,
+            ignore_return=not show_window,
+            env=env,
+        )
+        # a Popen comes back only when the child was left running; when we
+        # waited for it, what comes back is its output.
+        proc_v3 = result if isinstance(result, Popen) else None
 
-            if show_window:
-                _wait_until_port_ready(port, host, proc_v3)
-                proc_win = _open_window(
-                    title=window_title or title,
-                    host=host,
-                    port=port,
-                    icon=window_icon or icon,
-                    pos=window_pos,
-                    size=window_size,
-                    blocking=blocking,
-                )
-                if blocking and proc_v3 is not None:
-                    # the session is over; the server has no reason to outlive
-                    # it.
-                    _stop_server(proc_v3, port, host)
-                return proc_v3, proc_win
-            else:
-                return proc_v3, None
+        if show_window:
+            _wait_until_port_ready(port, host, proc_v3)
+            proc_win = _open_window(
+                title=window_title or title,
+                host=host,
+                port=port,
+                icon=window_icon or icon,
+                pos=window_pos,
+                size=window_size,
+                blocking=blocking,
+            )
+            if blocking and proc_v3 is not None:
+                # the session is over; the server has no reason to outlive
+                # it.
+                _stop_server(proc_v3, port, host)
+            return proc_v3, proc_win
+        else:
+            return proc_v3, None
+
+    else:
+        # callable: the server is this very process
+        runtime = Runtime(target)
+        _print_urls(port, host)
+
+        if show_window:
+            server = serve_async(runtime, port=port, host=host)
+            _wait_until_server_started(server)
+            proc_win = _open_window(
+                title=window_title or title,
+                host=host,
+                port=port,
+                icon=window_icon or icon,
+                pos=window_pos,
+                size=window_size,
+                blocking=blocking,
+            )
+            if blocking:
+                server.should_exit = True
+            return None, proc_win
 
         else:
-            # callable: the server is this very process
-            runtime = Runtime(target)
-            _print_urls(port, host)
-
-            if show_window:
-                server = serve_async(runtime, port=port, host=host)
-                _wait_until_server_started(server)
-                proc_win = _open_window(
-                    title=window_title or title,
-                    host=host,
-                    port=port,
-                    icon=window_icon or icon,
-                    pos=window_pos,
-                    size=window_size,
-                    blocking=blocking,
-                )
-                if blocking:
-                    server.should_exit = True
-                return None, proc_win
-
+            if blocking:
+                serve(runtime, port=port, host=host)  # blocking
             else:
-                if blocking:
-                    serve(runtime, port=port, host=host)  # blocking
-                else:
-                    # the caller keeps the process; the server rides on a daemon
-                    # thread and goes down with it
-                    serve_async(runtime, port=port, host=host)
-                return None, None
-    else:
-        return legacy_run(
-            target,
-            port,
-            blocking=blocking,
-            extra_args=extra_args,
-            host=host,
-            show_window=show_window,
-            window_icon=window_icon or icon,
-            window_pos=window_pos,
-            window_size=window_size,
-            window_title=window_title or title,
-            **kwargs,
-        )
+                # the caller keeps the process; the server rides on a daemon
+                # thread and goes down with it
+                serve_async(runtime, port=port, host=host)
+            return None, None
 
 
 def _get_local_ip() -> str:
@@ -225,6 +231,15 @@ def _open_window(
     return proc
 
 
+def _parse_argv(
+    target: str, extra_args: tp.Sequence[str]
+) -> tp.Tuple[str, ...]:
+    # note that target may be "xxx.yyy.zzz" or "xxx/yyy/zzz.py".
+    if target.endswith('.py'):
+        return (sys.executable, target, *extra_args)
+    return (sys.executable, '-m', target, *extra_args)
+
+
 def _print_urls(port: int, host: str) -> None:
     urls = ['http://localhost:{}'.format(port)]
     if host in ('0.0.0.0', '::'):
@@ -278,13 +293,6 @@ def _stop_server(proc: Popen, port: int, host: str, timeout: float = 5) -> None:
     proc.terminate()
 
 
-def _v3_argv(target: str, extra_args: tp.Sequence[str]) -> tp.Tuple[str, ...]:
-    # note that target may be "xxx.yyy.zzz" or "xxx/yyy/zzz.py".
-    if target.endswith('.py'):
-        return (sys.executable, target, *extra_args)
-    return (sys.executable, '-m', target, *extra_args)
-
-
 def _wait_until_port_ready(
     port: int, host: str, proc: tp.Optional[Popen] = None, timeout: float = 10
 ) -> None:
@@ -310,61 +318,3 @@ def _wait_until_server_started(
     for _ in wait(timeout, 0.05):
         if server.started:
             return
-
-
-def legacy_run(
-    target: str,
-    port: int = 3001,
-    *,
-    blocking: bool = True,
-    extra_args: tp.Sequence[str] = (),
-    host: str = '0.0.0.0',
-    show_error_details_on_ui: bool = True,
-    show_window: bool = False,
-    window_icon: tp.Optional[str] = None,
-    window_pos: pyapp_window.opener.T.AnyPos = 'center',
-    window_size: pyapp_window.opener.T.AnySize = (1200, 900),
-    window_title: tp.Optional[str] = None,
-    # -- alias
-    icon: tp.Optional[str] = None,
-    title: tp.Optional[str] = None,
-) -> tp.Tuple[tp.Optional[Popen], tp.Optional[Popen]]:
-    result = run_cmd_args(
-        (
-            (sys.executable, '-m', 'streamlit', 'run'),
-            ('--browser.gatherUsageStats', 'false'),
-            (
-                '--client.showErrorDetails',
-                'full' if show_error_details_on_ui else 'type',
-            ),
-            ('--global.developmentMode', 'false'),
-            ('--runner.magicEnabled', 'false'),
-            ('--server.headless', 'true'),
-            ('--server.address', host),
-            ('--server.port', str(port)),
-            target,
-            ('--', *extra_args) if extra_args else (),
-        ),
-        verbose=True,
-        blocking=False if show_window else blocking,
-        ignore_return=not show_window,
-    )
-    proc_st = result if isinstance(result, Popen) else None
-
-    if show_window:
-        _wait_until_port_ready(port, host, proc_st)
-        proc_win = _open_window(
-            title=window_title or title,
-            host=host,
-            port=port,
-            icon=window_icon or icon,
-            pos=window_pos,
-            size=window_size,
-            blocking=blocking,
-        )
-        if blocking and proc_st is not None:
-            # the session is over; the server has no reason to outlive it
-            proc_st.terminate()
-        return proc_st, proc_win
-    else:
-        return proc_st, None

@@ -15,4 +15,4 @@ from .special_value import _self
 from .special_value import _undefined
 from .special_value import _value
 from .state import PropertyHost
-from .state import StateV2
+from .state import State

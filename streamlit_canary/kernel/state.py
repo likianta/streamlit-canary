@@ -143,7 +143,7 @@ class PropertyHost:
                 yield name, value
 
 
-class StateV2(PropertyHost):
+class State(PropertyHost):
     """
     Base class for event-driven state.
 

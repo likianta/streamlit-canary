@@ -25,7 +25,7 @@ import streamlit_canary as sc
 # ---------------------------------------------------------------------------
 
 
-class _State(sc.StateV2):
+class _State(sc.State):
     count = sc.Property(0)
     #   Six accessors reachable from the instance:
     #       1. state.count.get()        -> int           (read current value)
