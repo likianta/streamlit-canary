@@ -1,10 +1,10 @@
 [project]
 name = "streamlit-canary"
-version = "0.4.0"
-description = "Event-driven WebUI framework with Streamlit styled components, no re-runs."
+version = "0.4.1a0"
+description = "Streamlit-flavored components with an event-driven system, no-reruns."
 authors = [{ name = "Likianta", email = "likianta@foxmail.com" }]
 license = "MIT"
-# readme = "README.md"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "argsense>=2.1.0",
