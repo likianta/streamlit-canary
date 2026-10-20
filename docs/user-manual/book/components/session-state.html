@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-86d97e74.js";
+            window.path_to_searchindex_js = "../searchindex-64814695.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4cae05ca.js"></script>
@@ -176,7 +176,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="session-state"><a class="header" href="#session-state">Session State</a></h1>
-<p><code>StateV2</code> is the base class for application state. It is a
+<p><code>State</code> is the base class for application state. It is a
 <code>PropertyHost</code>: a plain object whose fields are reactive <code>Property</code> and
 <code>Signal</code> handles.</p>
 <h2 id="declaring-state"><a class="header" href="#declaring-state">Declaring state</a></h2>
@@ -184,7 +184,7 @@
 <pre><code class="language-python">import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     def __init__(self):
         super().__init__()
         self.count = sc.Property(0)
@@ -195,7 +195,7 @@ state = State()
 </code></pre>
 <p>A field may also be declared by annotation. <code>PropertyHost</code> builds one
 handle per instance:</p>
-<pre><code class="language-python">class State(sc.StateV2):
+<pre><code class="language-python">class State(sc.State):
     count: sc.Property[int] = 0
     name: sc.Property[str]
     reloaded: sc.Signal
@@ -245,8 +245,8 @@ def _(value):
 <p>See <a href="./event-driven-system.html">The Event Driven System</a> for the full
 explanation of triggers, multiple sources, and <code>default=</code>.</p>
 <h2 id="versioning"><a class="header" href="#versioning">Versioning</a></h2>
-<p><code>StateV2</code> tracks a schema version:</p>
-<pre><code class="language-python">class State(sc.StateV2):
+<p><code>State</code> tracks a schema version:</p>
+<pre><code class="language-python">class State(sc.State):
     __version__ = 2
     ...
 </code></pre>
@@ -264,8 +264,8 @@ a value to reset, reset it explicitly:</p>
 <pre><code class="language-python">state.count.set(0)
 </code></pre>
 <h2 id="relationship-to-streamlits-session_state"><a class="header" href="#relationship-to-streamlits-session_state">Relationship to Streamlit’s <code>session_state</code></a></h2>
-<p><code>StateV2</code> replaces <code>st.session_state</code> for V3 apps. The two are not
-synchronized. A V3 app should keep its state in <code>StateV2</code> and pass it to
+<p><code>State</code> replaces <code>st.session_state</code> for V3 apps. The two are not
+synchronized. A V3 app should keep its state in <code>State</code> and pass it to
 handlers by closure, or store it on the app object.</p>
 
                     </main>

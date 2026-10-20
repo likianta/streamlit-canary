@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-86d97e74.js";
+            window.path_to_searchindex_js = "searchindex-64814695.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-4cae05ca.js"></script>
@@ -194,7 +194,7 @@ as small patches, and the page updates in place.</p>
 <tbody>
 <tr><td>Execution model</td><td>The script reruns on every interaction</td><td>The app function runs once</td></tr>
 <tr><td>UI updates</td><td>A new render tree is diffed on every rerun</td><td>A delta patch updates the affected DOM nodes</td></tr>
-<tr><td>State</td><td><code>st.session_state</code> is rebuilt on each rerun</td><td><code>StateV2</code> holds <code>Property</code> objects for the session</td></tr>
+<tr><td>State</td><td><code>st.session_state</code> is rebuilt on each rerun</td><td><code>State</code> holds <code>Property</code> objects for the session</td></tr>
 <tr><td>Widgets</td><td>Return values from the last run</td><td>Expose reactive <code>Property</code> fields and <code>Signal</code>s</td></tr>
 <tr><td>Cost of one click</td><td>Proportional to the whole script</td><td>Proportional to the handlers that listen to it</td></tr>
 </tbody>
@@ -241,7 +241,7 @@ away in a later release.</p>
 <pre><code class="language-python">import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 
@@ -478,7 +478,7 @@ deprecated: it emits a <code>DeprecationWarning</code>.</p>
 <p>The kernel is available at the top level:</p>
 <pre><code class="language-python">sc.Property
 sc.Signal
-sc.StateV2
+sc.State
 sc.bind
 sc.bbind
 sc.run
@@ -669,7 +669,7 @@ meaningful only on a signal whose owner holds a value: a <code>Property</code> h
 one, a plain <code>Button</code> does not.</p>
 <h3 id="sc_undefined"><a class="header" href="#sc_undefined"><code>sc._undefined</code></a></h3>
 <p>A <code>Property</code> declared without a default starts as <code>sc._undefined</code>:</p>
-<pre><code class="language-python">class State(sc.StateV2):
+<pre><code class="language-python">class State(sc.State):
     selection: sc.Property[str]
 </code></pre>
 <p><code>sc._undefined</code> is falsy. Two consequences matter:</p>
@@ -739,7 +739,7 @@ submitted path, a closed dialog.</p>
 </div>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="session-state"><a class="header" href="#session-state">Session State</a></h1>
-<p><code>StateV2</code> is the base class for application state. It is a
+<p><code>State</code> is the base class for application state. It is a
 <code>PropertyHost</code>: a plain object whose fields are reactive <code>Property</code> and
 <code>Signal</code> handles.</p>
 <h2 id="declaring-state"><a class="header" href="#declaring-state">Declaring state</a></h2>
@@ -747,7 +747,7 @@ submitted path, a closed dialog.</p>
 <pre><code class="language-python">import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     def __init__(self):
         super().__init__()
         self.count = sc.Property(0)
@@ -758,7 +758,7 @@ state = State()
 </code></pre>
 <p>A field may also be declared by annotation. <code>PropertyHost</code> builds one
 handle per instance:</p>
-<pre><code class="language-python">class State(sc.StateV2):
+<pre><code class="language-python">class State(sc.State):
     count: sc.Property[int] = 0
     name: sc.Property[str]
     reloaded: sc.Signal
@@ -808,8 +808,8 @@ def _(value):
 <p>See <a href="#the-event-driven-system">The Event Driven System</a> for the full
 explanation of triggers, multiple sources, and <code>default=</code>.</p>
 <h2 id="versioning"><a class="header" href="#versioning">Versioning</a></h2>
-<p><code>StateV2</code> tracks a schema version:</p>
-<pre><code class="language-python">class State(sc.StateV2):
+<p><code>State</code> tracks a schema version:</p>
+<pre><code class="language-python">class State(sc.State):
     __version__ = 2
     ...
 </code></pre>
@@ -827,8 +827,8 @@ a value to reset, reset it explicitly:</p>
 <pre><code class="language-python">state.count.set(0)
 </code></pre>
 <h2 id="relationship-to-streamlits-session_state"><a class="header" href="#relationship-to-streamlits-session_state">Relationship to Streamlit’s <code>session_state</code></a></h2>
-<p><code>StateV2</code> replaces <code>st.session_state</code> for V3 apps. The two are not
-synchronized. A V3 app should keep its state in <code>StateV2</code> and pass it to
+<p><code>State</code> replaces <code>st.session_state</code> for V3 apps. The two are not
+synchronized. A V3 app should keep its state in <code>State</code> and pass it to
 handlers by closure, or store it on the app object.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="api-reference"><a class="header" href="#api-reference">API Reference</a></h1>
@@ -3062,7 +3062,7 @@ st.text('Click count: {}'.format(count))
 <pre><code class="language-python">import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 
@@ -3084,7 +3084,7 @@ def app():
 <ol>
 <li><strong>The app function runs once.</strong> There is no <code>if st.button(...)</code> branch
 that runs on the next rerun.</li>
-<li><strong>State is explicit.</strong> <code>StateV2</code> fields are <code>Property</code> objects, not
+<li><strong>State is explicit.</strong> <code>State</code> fields are <code>Property</code> objects, not
 dictionary entries.</li>
 <li><strong>Widgets expose properties and signals.</strong> You attach a handler with
 <code>@widget.on_click</code> or <code>@widget.value.on_change</code> instead of reading a
@@ -3094,7 +3094,7 @@ replaces that text node.</li>
 </ol>
 <h2 id="a-practical-checklist"><a class="header" href="#a-practical-checklist">A practical checklist</a></h2>
 <ul>
-<li>Replace <code>st.session_state</code> with a <code>StateV2</code> subclass.</li>
+<li>Replace <code>st.session_state</code> with a <code>State</code> subclass.</li>
 <li>Replace <code>st.button(...)</code> plus an <code>if</code> branch with <code>sc.Button(...)</code> plus
 <code>@button.on_click</code>.</li>
 <li>Replace “read the widget’s return value” with <code>widget.value.get()</code>.</li>
@@ -3121,8 +3121,6 @@ It is indicative rather than a promise, and the order may change.</p>
 <h2 id="stabilization"><a class="header" href="#stabilization">Stabilization</a></h2>
 <ul>
 <li>Finish the remaining widget parity with Streamlit.</li>
-<li>Rename the leftover <code>StateV2</code> / <code>init_state_v2</code> to plain names (the class
-the components use for app state still carries its old suffix).</li>
 <li>Harden the patch protocol and reconnect / resync behavior.</li>
 <li>Add more automated tests for the runtime, the renderer, and the trees.</li>
 </ul>

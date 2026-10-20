@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-86d97e74.js";
+            window.path_to_searchindex_js = "../searchindex-64814695.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4cae05ca.js"></script>
@@ -294,7 +294,7 @@ meaningful only on a signal whose owner holds a value: a <code>Property</code> h
 one, a plain <code>Button</code> does not.</p>
 <h3 id="sc_undefined"><a class="header" href="#sc_undefined"><code>sc._undefined</code></a></h3>
 <p>A <code>Property</code> declared without a default starts as <code>sc._undefined</code>:</p>
-<pre><code class="language-python">class State(sc.StateV2):
+<pre><code class="language-python">class State(sc.State):
     selection: sc.Property[str]
 </code></pre>
 <p><code>sc._undefined</code> is falsy. Two consequences matter:</p>

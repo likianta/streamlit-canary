@@ -6,9 +6,9 @@ rerun model, and another part comes from how hard it is to isolate the
 performance-critical pieces of a script.
 
 I wanted to remove the rerun and move to a signal-slot, event-driven design
-inspired by QtQuick. That experiment became
-[Streamlit Canary](https://github.com/likianta/streamlit-canary). The user
-manual is at [likianta.github.io/streamlit-canary](https://likianta.github.io/streamlit-canary/).
+inspired by QtQuick. This is a huge engineering effort, almost impossible for one person, so the idea I had since last year progressed on my own very slowly -- until I started using an AI Agent. Judging from the recent GitHub commit frequency, I succeeded.
+
+It took me about a month (most of the work was actually done in the first week) to implement this feature. You can find the GitHub repository here: https://github.com/likianta/streamlit-canary (the docs: https://likianta.github.io/streamlit-canary/).
 
 ## Screenshots
 
@@ -267,11 +267,12 @@ whether an equivalent already exists before switching.
 pip install streamlit-canary
 ```
 
+Requires Python 3.11 or higher version.
+
 ## Quick start
 
 ```python
 import streamlit_canary as sc
-from streamlit_canary import components as v3
 
 class State(sc.State):
     count = sc.Property(0)
@@ -299,8 +300,3 @@ if __name__ == '__main__':
 
 Read the [user manual](https://likianta.github.io/streamlit-canary/) for
 the full API reference.
-
----
-
-**A note on component coverage:** At v0.4.x, the V3 library does not yet
-cover every Streamlit component. The work is still in progress.

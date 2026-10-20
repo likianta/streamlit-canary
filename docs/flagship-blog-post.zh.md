@@ -243,7 +243,6 @@ pip install streamlit-canary
 
 ```python
 import streamlit_canary as sc
-from streamlit_canary import components as v3
 
 class State(sc.State):
     count = sc.Property(0)

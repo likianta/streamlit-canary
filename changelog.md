@@ -1,6 +1,6 @@
 # CHANGELOG
 
-### 0.5.0 (WIP)
+### 0.5.0 (2026-10-20)
 
 - Downgrade components V1 API, remove V2, make V3 default.
 

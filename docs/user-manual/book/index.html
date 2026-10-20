@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-86d97e74.js";
+            window.path_to_searchindex_js = "searchindex-64814695.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-4cae05ca.js"></script>
@@ -193,7 +193,7 @@ as small patches, and the page updates in place.</p>
 <tbody>
 <tr><td>Execution model</td><td>The script reruns on every interaction</td><td>The app function runs once</td></tr>
 <tr><td>UI updates</td><td>A new render tree is diffed on every rerun</td><td>A delta patch updates the affected DOM nodes</td></tr>
-<tr><td>State</td><td><code>st.session_state</code> is rebuilt on each rerun</td><td><code>StateV2</code> holds <code>Property</code> objects for the session</td></tr>
+<tr><td>State</td><td><code>st.session_state</code> is rebuilt on each rerun</td><td><code>State</code> holds <code>Property</code> objects for the session</td></tr>
 <tr><td>Widgets</td><td>Return values from the last run</td><td>Expose reactive <code>Property</code> fields and <code>Signal</code>s</td></tr>
 <tr><td>Cost of one click</td><td>Proportional to the whole script</td><td>Proportional to the handlers that listen to it</td></tr>
 </tbody>
@@ -240,7 +240,7 @@ away in a later release.</p>
 <pre><code class="language-python">import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 

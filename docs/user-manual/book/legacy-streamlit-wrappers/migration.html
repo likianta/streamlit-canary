@@ -36,7 +36,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-86d97e74.js";
+            window.path_to_searchindex_js = "../searchindex-64814695.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-4cae05ca.js"></script>
@@ -195,7 +195,7 @@ st.text('Click count: {}'.format(count))
 <pre><code class="language-python">import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 
@@ -217,7 +217,7 @@ def app():
 <ol>
 <li><strong>The app function runs once.</strong> There is no <code>if st.button(...)</code> branch
 that runs on the next rerun.</li>
-<li><strong>State is explicit.</strong> <code>StateV2</code> fields are <code>Property</code> objects, not
+<li><strong>State is explicit.</strong> <code>State</code> fields are <code>Property</code> objects, not
 dictionary entries.</li>
 <li><strong>Widgets expose properties and signals.</strong> You attach a handler with
 <code>@widget.on_click</code> or <code>@widget.value.on_change</code> instead of reading a
@@ -227,7 +227,7 @@ replaces that text node.</li>
 </ol>
 <h2 id="a-practical-checklist"><a class="header" href="#a-practical-checklist">A practical checklist</a></h2>
 <ul>
-<li>Replace <code>st.session_state</code> with a <code>StateV2</code> subclass.</li>
+<li>Replace <code>st.session_state</code> with a <code>State</code> subclass.</li>
 <li>Replace <code>st.button(...)</code> plus an <code>if</code> branch with <code>sc.Button(...)</code> plus
 <code>@button.on_click</code>.</li>
 <li>Replace “read the widget’s return value” with <code>widget.value.get()</code>.</li>
