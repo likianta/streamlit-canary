@@ -21,8 +21,8 @@ from ..kernel import Property
 
 if tp.TYPE_CHECKING:
     from .server import WebSocketClient
-    from ..components_v3.base import Component
-    from ..components_v3.status import Toast
+    from ..components.base import Component
+    from ..components.status import Toast
 else:
     Component = tp.Any
     WebSocketClient = tp.Any
@@ -118,14 +118,14 @@ class Runtime:
         if self._built:
             return
         # avoid circular import at module load time
-        from ..components_v3.base import Component
+        from ..components.base import Component
 
         Component._active_runtime = self
         try:
             self._app_func()
             # `sc.toast()` broadcasts through one shared stack, so the page
             # gets one whether or not the app asked for it. Ensured *after*
-            # the app has run, so an app that declares a `v3.Toast` of its own
+            # the app has run, so an app that declares a `sc.Toast` of its own
             # keeps that element instead.
             self._ensure_toast_host()
         finally:
@@ -404,15 +404,15 @@ class Runtime:
     def _ensure_toast_host(self) -> Toast:
         """The page's toast stack, created on first use.
 
-        An app rarely declares a `v3.Toast` of its own: `sc.toast()` needs a
+        An app rarely declares a `sc.Toast` of its own: `sc.toast()` needs a
         single element to broadcast through, so `build()` makes sure one is
         there either way. An app that *does* declare one keeps it -- the first
         `Toast` found is the shared one, so both routes write to the same
         element.
         """
         # avoid circular import at module load time
-        from ..components_v3.base import Component as _Component
-        from ..components_v3.status import Toast as _Toast
+        from ..components.base import Component as _Component
+        from ..components.status import Toast as _Toast
 
         for comp in self._components.values():
             if isinstance(comp, _Toast):

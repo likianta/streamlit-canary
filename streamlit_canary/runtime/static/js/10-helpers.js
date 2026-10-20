@@ -115,7 +115,7 @@
   // The option-item shell shared by the RadioGroup and CheckGroup rebuilds
   // (mirrors the server's `_choice_group_items_html`). The two differ only in
   // the input's type, its checked test, the change handler and the box
-  // (the radio's circle vs the square box of `v3.Checkbox`).
+  // (the radio's circle vs the square box of `sc.Checkbox`).
   //
   // A click anywhere on the row lands on the `<label>` that wraps it, so the
   // browser ticks the option on its own -- no script, and nothing held back

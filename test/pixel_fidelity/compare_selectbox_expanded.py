@@ -1,5 +1,5 @@
 """
-Compare the expanded `st.selectbox` (Streamlit) with `v3.Selectbox`
+Compare the expanded `st.selectbox` (Streamlit) with `sc.Selectbox`
 (Streamlit Canary): the popup chrome, the item geometry, and -- sampled frame
 by frame with a `requestAnimationFrame` observer -- the colours the two apps
 show while the popup opens and while the pointer slides over the items.

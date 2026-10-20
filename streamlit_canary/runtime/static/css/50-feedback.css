@@ -323,7 +323,7 @@
     overflow: auto;
   }
 
-  /* -- Icon-only button (`v3.IconButton`) -- */
+  /* -- Icon-only button (`sc.IconButton`) -- */
   /* A square: the side is the shared control height, so an icon button lines
      up with the buttons and inputs beside it. `min-width` rather than
      `width`, so an unusually long label still gets its 8px of padding. */

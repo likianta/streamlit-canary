@@ -8,11 +8,10 @@
 if 1: import neoprint as _np; _np.setup()  # noqa
 # fmt: on
 
-# from . import components
-from . import components_v2
-from . import components_v2 as v2
-from . import components_v3
-from . import components_v3 as v3
+import typing as tp
+import warnings
+
+from . import components
 from . import keygen
 from . import opener
 from . import session
@@ -26,8 +25,8 @@ from .kernel import _undefined
 from .kernel import _value
 from .kernel import bbind
 from .kernel import bind
-from .keygen import generate_keygen
 from .kernel import pending_updates
+from .keygen import generate_keygen
 from .opener import open_file
 from .opener import open_folder
 from .page import pages
@@ -55,4 +54,67 @@ from .text import orange
 from .text import red
 from .text import yellow
 
-__version__ = '0.4.1'
+__version__ = '0.5.0'
+
+# ---------------------------------------------------------------------------
+# compatibility
+#
+# The event-driven components are the API now: they are exported above as
+# plain `sc.<Name>`. Two things stay behind for the transition:
+#
+#   sc.v3.*   still works, but warns -- the prefix goes away in a later
+#             release;
+#   the v1 / v2 entries are gone; asking for one raises an AttributeError
+#   that says so, instead of a bare "no attribute".
+# ---------------------------------------------------------------------------
+
+_V1_NAMES = frozenset({
+    'AnyComponent',
+    'AnyContainer',
+    'anynum_input',
+    'card',
+    'column',
+    'columns',
+    'filelist',
+    'hex_input',
+    'long_button',
+    'path_input',
+    'progress',
+    'radio',
+    'row',
+    'toggle_button',
+    'tree_select',
+    'tree_select_dialog',
+    'tree_select_with_input',
+    'void_column',
+    'void_container',
+    'void_row',
+})
+
+
+def __getattr__(name: str) -> tp.Any:
+    if name == 'v3':
+        warnings.warn(
+            'sc.v3 is deprecated; the components are now plain `sc.<Name>` '
+            '(e.g. `sc.Button`). The `v3.` prefix is dropped in a later '
+            'release.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return components
+    if name == 'v2':
+        raise AttributeError(
+            'sc.v2 was removed in 0.5.0: the v2 components are gone, and the '
+            'event-driven components are the only API now, as plain '
+            '`sc.<Name>`.'
+        )
+    if name in _V1_NAMES:
+        raise AttributeError(
+            'sc.{0} was removed in 0.5.0: the v1 components are no longer '
+            'exported. The event-driven components are plain `sc.<Name>`; '
+            'see docs/user-manual/src/components-v1/migration-to-v3.md for '
+            'the mapping.'.format(name)
+        )
+    raise AttributeError(
+        'module {!r} has no attribute {!r}'.format(__name__, name)
+    )

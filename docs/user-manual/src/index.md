@@ -47,20 +47,24 @@ pip install streamlit-canary
 
 Python 3.11 or newer is required.
 
-> [!WARNING]
-> Streamlit Canary evolves from 0.1.0 to 0.4.0 (the latest version), it contains three generation of implementations in one code base:
+> [!NOTE]
+> Streamlit Canary 0.5.0 is the event-driven API, and it is the default:
+> the components are exported at the top level (`sc.Button`, `sc.Text`,
+> `sc.Row`, ...).
 >
-> - The components V1, which are wrappers of Streamlit components, not event-driven.
-> - Components V2, broken, unable to use.
-> - Components V3, the event-driven structure.
+> Two earlier generations are no longer part of `sc`:
 >
-> We will remove V1 and V2, then strip V3 prefix and make it default in the future. Currently be noted they are all importable, by exclusive statements (e.g. `from streamlit_canary import components_v3 as v3`). Current codebase and examples follow the way, they will be updated once refactoring is done.
+> - the V1 wrappers (Streamlit component wrappers, rerun model) now live in
+>   `streamlit_canary.legacy_streamlit_wrappers`;
+> - the V2 experiment has been removed.
+>
+> `sc.v3.*` still resolves, but it is deprecated and warns -- the prefix goes
+> away in a later release.
 
 ## Hello world
 
 ```python
 import streamlit_canary as sc
-from streamlit_canary import components_v3 as v3
 
 
 class State(sc.StateV2):
@@ -71,15 +75,15 @@ state = State()
 
 
 def app():
-    v3.PageTitle('Click Counter')
+    sc.PageTitle('Click Counter')
 
-    with v3.Row('center'):
-        with v3.Text('Click count: 0') as txt:
+    with sc.Row('center'):
+        with sc.Text('Click count: 0') as txt:
             @state.count.on_change
             def _():
                 txt.text.set('Click count: {}'.format(state.count.get()))
 
-        with v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 state.count.set(state.count.get() + 1)
@@ -96,16 +100,14 @@ page reload, and `app()` is not called again.
 
 ## How this manual is organized
 
-- **Components V1 (Legacy)** documents the original Streamlit-based API
-  that still ships with the package.
-- **Components V2 (Broken)** describes an abandoned transitional
-  implementation. It is kept only for historical reference.
-- **Components V3** explains the runtime model, session state, and every
-  component in the V3 library.
+- **Components** explains the runtime model, session state, and every
+  component in the library.
+- **Legacy Streamlit Wrappers** documents the original Streamlit-based API,
+  which now lives in `streamlit_canary.legacy_streamlit_wrappers`.
 - **Roadmap** lists the work that is planned next.
 
 If you are starting a new app, read
 [Running Apps](./running-apps.md),
-[The Event Driven System](./components-v3/event-driven-system.md), and
-[Session State](./components-v3/session-state.md) first, then use the
-[API Reference](./components-v3/api-reference/index.md) as a lookup.
+[The Event Driven System](./components/event-driven-system.md), and
+[Session State](./components/session-state.md) first, then use the
+[API Reference](./components/api-reference/index.md) as a lookup.

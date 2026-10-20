@@ -8,8 +8,8 @@ import streamlit_canary as sc
 
 
 def app():
-    sc.v3.PageTitle('Hello')
-    sc.v3.Text('This page has no rerun loop.')
+    sc.PageTitle('Hello')
+    sc.Text('This page has no rerun loop.')
 
 
 if __name__ == '__main__':
@@ -191,5 +191,5 @@ it.
 
 ## Related pages
 
-- [The Event Driven System](./components-v3/event-driven-system.md)
-- [Session State](./components-v3/session-state.md)
+- [The Event Driven System](./components/event-driven-system.md)
+- [Session State](./components/session-state.md)

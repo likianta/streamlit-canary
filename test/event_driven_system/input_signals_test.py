@@ -12,8 +12,8 @@ Run:
 
 import typing as tp
 
-from streamlit_canary import components_v3 as v3
-from streamlit_canary.components_v3.trees import PathInput
+import streamlit_canary as sc
+from streamlit_canary.components.trees import PathInput
 from streamlit_canary.kernel import Signal
 from streamlit_canary.runtime.render import render_tree
 from streamlit_canary.runtime.runtime import Runtime
@@ -37,18 +37,18 @@ box: dict[str, tp.Any] = {}
 
 
 def app() -> None:
-    box['text'] = ti = v3.TextInput('Text', key='ti')
-    box['area'] = ta = v3.TextArea('Area', key='ta')
-    box['number'] = ni = v3.NumberInput('Number', step=1, key='ni')
-    box['multi'] = ms = v3.Multiselect('Multi', ('a', 'b'), key='ms')
-    box['select'] = sb = v3.Selectbox(
+    box['text'] = ti = sc.TextInput('Text', key='ti')
+    box['area'] = ta = sc.TextArea('Area', key='ta')
+    box['number'] = ni = sc.NumberInput('Number', step=1, key='ni')
+    box['multi'] = ms = sc.Multiselect('Multi', ('a', 'b'), key='ms')
+    box['select'] = sb = sc.Selectbox(
         'Select',
         ('x', 'y'),
         accept_new_option=True,
         format_new_option=lambda text: text,
         key='sb',
     )
-    box['plain'] = v3.Selectbox('Plain', ('x', 'y'), key='plain')
+    box['plain'] = sc.Selectbox('Plain', ('x', 'y'), key='plain')
     box['path'] = pi = PathInput('Path', key='pi')
 
     for name, widget in (('ti', ti), ('ta', ta), ('ni', ni), ('ms', ms)):
@@ -190,7 +190,7 @@ check(
 check('a blur adds nothing', 'q' not in box['select'].options.get())
 
 taken: list = []
-hook_box = v3.Selectbox(
+hook_box = sc.Selectbox(
     'Hooked',
     ('x', 'y'),
     accept_new_option=True,
@@ -203,7 +203,7 @@ check(
     list(hook_box.options.get()) == ['x', 'y'] and hook_box.value.get() == 'x',
 )
 try:
-    v3.Selectbox(
+    sc.Selectbox(
         'Both',
         ('x',),
         accept_new_option=True,

@@ -77,7 +77,7 @@ def run(
             'localhost' if show_window else '0.0.0.0',
         )
 
-    if _v3 or callable(target):  # v3 entrance
+    if _v3 or callable(target):  # the event-driven entrance
         if isinstance(target, str):
             env = os.environ.copy()
             env['STREAMLIT_CANARY_HOST_FOR_PORT_{}'.format(port)] = host

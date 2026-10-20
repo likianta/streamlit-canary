@@ -1,21 +1,96 @@
-from ._typing import AnyComponent
-from ._typing import AnyContainer
-from .button import long_button
-from .card import card
-from .container import column
-from .container import columns
-from .container import row
-from .container import void_column
-from .container import void_container
-from .container import void_row
-from .filelist import filelist
-from .input import anynum_input
-from .input import hex_input
-from .input import path_input
-from .progress import Progress
-from .progress import progress
-from .radio import radio
-from .toggle import toggle_button
-from .tree_select import tree_select
-from .tree_select import tree_select_dialog
-from .tree_select import tree_select_with_input
+"""
+The event-driven component model.
+
+Pure-Python components used by the event-driven runtime. No Streamlit
+dependency here — the frontend bridge is added in a later phase.
+
+The components are grouped into modules the way Streamlit groups its API
+reference (the category list is taken from
+`references/streamlit_api_reference_categories.html`):
+
+    texts    Streamlit's "Text elements" (`api-reference/text`)
+    data     Streamlit's "Data elements" (`api-reference/data`)
+    charts   Streamlit's "Chart elements" (`api-reference/charts`)
+    buttons  Streamlit's "Input widgets" (`api-reference/widgets`), buttons
+    inputs   Streamlit's "Input widgets", the value inputs
+    layouts  Streamlit's "Layouts and containers" (`api-reference/layout`)
+    status   Streamlit's "Status elements" (`api-reference/status`)
+    media    Streamlit's "Media elements" (`api-reference/media`)
+
+Its "Input widgets" page is broad, so we split it into `buttons` and
+`inputs`. `trees` and `page` are ours (a folder browser; page-level
+configuration) and keep their own modules; the private bases the modules
+share live in `_shared`.
+"""
+
+from .base import Component
+
+from .buttons import Button
+from .buttons import IconButton
+from .buttons import MenuButton
+from .buttons import ToggleButton
+
+from .charts import AltairChart
+
+from .data import Table
+
+from .inputs import CheckGroup
+from .inputs import Checkbox
+from .inputs import Multiselect
+from .inputs import NumberInput
+from .inputs import Radio
+from .inputs import RadioGroup
+from .inputs import ReducibleGroup
+from .inputs import SegmentedControl
+from .inputs import SelectSlider
+from .inputs import Selectbox
+from .inputs import TextArea
+from .inputs import TextInput
+from .inputs import Toggle
+from .inputs import ToggleBox
+
+from .layouts import Bottom
+from .layouts import BottomContainer
+from .layouts import Cell
+from .layouts import Column
+from .layouts import Container
+from .layouts import Dialog
+from .layouts import Expander
+from .layouts import Floating
+from .layouts import FloatingContainer
+from .layouts import Grid
+from .layouts import Popover
+from .layouts import Row
+from .layouts import Space
+from .layouts import Tabs
+
+from .media import PdfViewer
+
+from .page import PageConfig
+
+from .status import Callout
+from .status import Error
+from .status import Info
+from .status import LogPanel
+from .status import Progress
+from .status import Spinner
+from .status import Success
+from .status import Toast
+from .status import Warning
+
+from .texts import Caption
+from .texts import Code
+from .texts import Markdown
+from .texts import PageTitle
+from .texts import Text
+from .texts import Title
+
+from .trees import ColumnView
+from .trees import DualTreeSelect
+from .trees import FileTreeView
+from .trees import PathInput
+from .trees import PathInputBrowse
+from .trees import PathSelect
+from .trees import SingleTreeSelect
+from .trees import TreeSelect
+from .trees import TreeView

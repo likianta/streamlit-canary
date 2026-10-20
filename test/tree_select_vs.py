@@ -18,8 +18,8 @@ Run: `python test/tree_select_vs.py`
 
 import typing as tp
 
-from streamlit_canary import components_v3 as v3
-from streamlit_canary.components_v3.trees import _shared
+import streamlit_canary as sc
+from streamlit_canary.components.trees import _shared
 from streamlit_canary.runtime import render
 
 ROOT = 'test'  # a folder holding both sub-folders and files
@@ -81,7 +81,7 @@ def files_in(rows: tp.List[str]) -> tp.List[str]:
 
 section('SingleTreeSelect (flat listing)')
 
-flat = v3.SingleTreeSelect('Pick', ROOT)
+flat = sc.SingleTreeSelect('Pick', ROOT)
 rows = rows_of(flat)
 folders = folders_in(rows)
 files = files_in(rows)
@@ -110,7 +110,7 @@ check('home goes back', flat.directory == flat._home_dir)
 
 section('FileTreeView (cascading tree)')
 
-cascade = v3.FileTreeView('Cascade', ROOT)
+cascade = sc.FileTreeView('Cascade', ROOT)
 rows = rows_of(cascade)
 folders = folders_in(rows)
 
@@ -150,7 +150,7 @@ else:
 
 section('the tick math')
 
-math_tree = v3.FileTreeView('Math', ROOT, selection_mode='multicross')
+math_tree = sc.FileTreeView('Math', ROOT, selection_mode='multicross')
 rows = rows_of(math_tree)
 with_files = [
     f for f in folders_in(rows) if files_in(
@@ -182,7 +182,7 @@ check('...while its siblings stay ticked', math_tree._is_ticked(
     files[1] if len(files) > 1 else after[0], after
 ))
 
-single = v3.SingleTreeSelect('One', ROOT)
+single = sc.SingleTreeSelect('One', ROOT)
 check('`single` picks still work', (
     single._multi_list is not None and single.mode.get() == 'single'
 ))
@@ -194,7 +194,7 @@ check('`single` picks still work', (
 
 section('TreeView (static model)')
 
-model = v3.TreeView('Distribution', {
+model = sc.TreeView('Distribution', {
     'A': {'B': None, 'C': {}, 'D': {'E': None, 'F': None, 'G': {}}}
 })
 
@@ -215,7 +215,7 @@ check('walking back up shortens it', (
 check('a leaf has no "enter" arrow', not model._is_enterable('A/B'))
 check('a folder does', model._is_enterable('A/D/'))
 
-empty = v3.TreeView('Empty', None)
+empty = sc.TreeView('Empty', None)
 check('an empty model lists nothing at all -- not even `..`',
       rows_of(empty) == [])
 
@@ -226,7 +226,7 @@ check('an empty model lists nothing at all -- not even `..`',
 
 section("selection_mode='none'")
 
-none_tree = v3.TreeView('None', {'A': {'B': None, 'D': {}}},
+none_tree = sc.TreeView('None', {'A': {'B': None, 'D': {}}},
                         selection_mode='none')
 html = render._render_radio_group(none_tree._single_list)
 
@@ -240,7 +240,7 @@ check('the Confirm bar is hidden', not none_tree.widgets[
 ].visible.get())
 check('nothing is picked', none_tree.value.get() == '')
 
-single_tree = v3.TreeView('Plain', {'A': {'B': None}})
+single_tree = sc.TreeView('Plain', {'A': {'B': None}})
 plain_html = render._render_radio_group(single_tree._single_list)
 check('a normal listing still draws its box', 'st-radio-circle' in plain_html)
 check('...and still confirms', single_tree.widgets[
@@ -273,7 +273,7 @@ for rel in ('pkg/a.py', 'readme.md'):
         f.write('')
 
 # an empty model draws no row at all -- not even the walk-up
-dst = v3.TreeView('Distribution', {}, selection_mode='none')
+dst = sc.TreeView('Distribution', {}, selection_mode='none')
 check('a fresh distribution tree draws nothing (no `..`)',
       rows_of(dst) == [])
 
@@ -346,7 +346,7 @@ check('a root is spelled the way the chain spells it', (
 ))
 
 # a confined panel opens below its root, so `..` still leads the listing
-rooted = v3.FileTreeView('Rooted', INNER, root_directory=HERE)
+rooted = sc.FileTreeView('Rooted', INNER, root_directory=HERE)
 check('a confined panel homes on its root', rooted._home_dir == HERE)
 check('the ladder stops at the root', (
     rooted._location.options.get() == [HERE, INNER]
@@ -365,14 +365,14 @@ rooted._jump('D:/')
 check('a jump to another drive is refused', rooted.directory == HERE)
 
 # the default root is the whole machine
-loose = v3.FileTreeView('Loose', INNER)
+loose = sc.FileTreeView('Loose', INNER)
 check('the default root confines nothing', (
     loose._root_dir() == '' and not loose._is_at_root()
 ))
 
 # a root that does not hold the start is rejected
 try:
-    v3.FileTreeView('Bad', INNER, root_directory=ABOVE + '/elsewhere')
+    sc.FileTreeView('Bad', INNER, root_directory=ABOVE + '/elsewhere')
     check('a root outside the start is rejected', False)
 except ValueError:
     check('a root outside the start is rejected', True)
@@ -381,7 +381,7 @@ except ValueError:
 from streamlit_canary.kernel import Property  # noqa: E402
 
 root_src = Property(HERE)
-follows = v3.FileTreeView('Follows', INNER, root_directory=root_src)
+follows = sc.FileTreeView('Follows', INNER, root_directory=root_src)
 check('a bound root confines from the start', (
     follows._location.options.get() == [HERE, INNER]
 ))

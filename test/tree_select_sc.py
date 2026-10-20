@@ -24,7 +24,6 @@ import typing as tp
 from pprint import pformat
 
 import streamlit_canary as sc
-from streamlit_canary import components_v3 as v3
 
 
 def _readout(name: str) -> tp.Callable[[tp.Any], str]:
@@ -35,7 +34,7 @@ def _readout(name: str) -> tp.Callable[[tp.Any], str]:
 
 
 def main() -> None:
-    with v3.PathInputBrowse(
+    with sc.PathInputBrowse(
         'Select a script',
         '.',
         filter='.py',
@@ -43,18 +42,18 @@ def main() -> None:
         selection_mode='single',
     ) as popup:
         pass
-    v3.Text(sc.bind(popup.value, _readout('Popup')))
+    sc.Text(sc.bind(popup.value, _readout('Popup')))
 
     # `tree_style='tree_view'`: both of these hold the folded-in-place tree,
     # so the expander's rows and the expanded one's are the same kind of row
-    with v3.PathInputBrowse(
+    with sc.PathInputBrowse(
         'Expander', '.', filter='.py', panel_style='fold',
         tree_style='tree_view',
     ) as expander:
         pass
-    v3.Text(sc.bind(expander.value, _readout('Expander')))
+    sc.Text(sc.bind(expander.value, _readout('Expander')))
 
-    with v3.PathInputBrowse(
+    with sc.PathInputBrowse(
         'Expanded',
         'streamlit_canary',
         filter='.py',
@@ -63,21 +62,21 @@ def main() -> None:
         tree_style='tree_view',
     ) as expanded:
         pass
-    v3.Text(sc.bind(expanded.value, _readout('Expanded')))
+    sc.Text(sc.bind(expanded.value, _readout('Expanded')))
 
-    # The bare column view: `sc.v3.ColumnView` is the panel with no path box,
+    # The bare column view: `sc.ColumnView` is the panel with no path box,
     # which is what the Playwright driver clicks through (a folder opens the
     # next column; a file just marks its row).
-    with v3.ColumnView(
+    with sc.ColumnView(
         'Column view', 'streamlit_canary', filter='.py'
     ) as column:
         pass
-    v3.Text(sc.bind(column.value, _readout('Column')))
+    sc.Text(sc.bind(column.value, _readout('Column')))
 
     # ... and the same panel wrapped, so the `tree_style='column_view'` wiring
     # (a `PathSelect` leading the toolbar, the box following the pick live) is
     # exercised too.
-    with v3.PathInputBrowse(
+    with sc.PathInputBrowse(
         'Column view (wrapped)',
         'streamlit_canary',
         filter='.py',
@@ -85,7 +84,7 @@ def main() -> None:
         tree_style='column_view',
     ) as wrapped:
         pass
-    v3.Text(sc.bind(wrapped.value, _readout('Wrapped')))
+    sc.Text(sc.bind(wrapped.value, _readout('Wrapped')))
 
 
 if __name__ == '__main__':

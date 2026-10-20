@@ -28,18 +28,17 @@ import time
 import streamlit_canary as sc
 from argsense import cli
 from playwright.sync_api import sync_playwright
-from streamlit_canary import components_v3 as v3
 
 PORT = 2201
 URL = 'http://localhost:{}'.format(PORT)
 
 
 def ui():
-    v3.Title('Window Scrollbar Quiver Test')
-    v3.Text('Click the expander to trigger scrollbar visibility change.')
-    with v3.Expander('Long list layout'):
-        # v3.TextArea('', height=2000)
-        v3.FileTreeView(start_directory='.venv/Lib/site-packages')
+    sc.Title('Window Scrollbar Quiver Test')
+    sc.Text('Click the expander to trigger scrollbar visibility change.')
+    with sc.Expander('Long list layout'):
+        # sc.TextArea('', height=2000)
+        sc.FileTreeView(start_directory='.venv/Lib/site-packages')
 
 
 @cli

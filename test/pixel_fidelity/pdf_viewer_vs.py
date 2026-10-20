@@ -1,5 +1,5 @@
 """
-Compare `v3.PdfViewer` (Streamlit Canary) against `streamlit_pdf_viewer` --
+Compare `sc.PdfViewer` (Streamlit Canary) against `streamlit_pdf_viewer` --
 the viewer the reference `pdf_watermaker` app previews documents with.
 
 Streamlit's own media element, `st.pdf`, is only a thin wrapper around the
@@ -53,7 +53,7 @@ from PIL import Image
 from playwright.sync_api import Page
 from playwright.sync_api import sync_playwright
 
-from streamlit_canary.components_v3 import media
+from streamlit_canary.components import media
 
 ST_URL = 'http://localhost:2202'
 SC_URL = 'http://localhost:2203'
@@ -113,7 +113,7 @@ def viewer_bytes(url: str) -> bytes:
     """The PDF a viewer was handed.
 
     Canary publishes the document over HTTP under `/media/<hash>` (see
-    `streamlit_canary.components_v3.media._to_url`), while
+    `streamlit_canary.components.media._to_url`), while
     `streamlit_pdf_viewer` passes it inline, so both are understood.
     """
     if url.startswith('/media/'):

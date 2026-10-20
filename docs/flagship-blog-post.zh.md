@@ -61,15 +61,15 @@ Streamlit Canary:
 import streamlit_canary as sc
 
 def app():
-    sc.v3.PageTitle('Click Counter', default_theme='dark')
+    sc.PageTitle('Click Counter', default_theme='dark')
     
     cnt = sc.Property(0)
     
-    with sc.v3.Row('center'):
-        sc.v3.Text(sc.bind(cnt, lambda x: 'Click count: {}'.format(x)))
+    with sc.Row('center'):
+        sc.Text(sc.bind(cnt, lambda x: 'Click count: {}'.format(x)))
         #   when `cnt` changes, `sc.bind` emits new text to the Text component.
 
-        with sc.v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 cnt.set(cnt.get() + 1)
@@ -130,8 +130,8 @@ class State(sc.StateV2):
 state = State()
 
 def app():
-    sc.v3.TextInput('Name', sc.bbind(state.name))
-    sc.v3.Text(
+    sc.TextInput('Name', sc.bbind(state.name))
+    sc.Text(
         sc.bind(state.name, lambda x: 'Hello, {}'.format(x or 'stranger'))
     )
 ```
@@ -164,12 +164,12 @@ class State(sc.StateV2):
 state = State()
 
 def app():
-    with sc.v3.Text('Click count: 0') as txt:
+    with sc.Text('Click count: 0') as txt:
         @state.count.on_change.partial(sc._self)
         def _(count):
             txt.text.set('Click count: {}'.format(count.get()))
 
-    with sc.v3.Button('Increase counter') as btn:
+    with sc.Button('Increase counter') as btn:
         @btn.on_click
         def _():
             state['count'] += 1
@@ -179,7 +179,7 @@ def app():
 
 ### 更多对比示例
 
-**布局**. Streamlit 用 `st.columns` / `st.container` / `st.expander` / `st.tabs`; Canary 用对应的 `v3.Row` / `v3.Column` / `v3.Container` / `v3.Expander` / `v3.Tabs`. 组件树只构建一次, 之后改属性即可:
+**布局**. Streamlit 用 `st.columns` / `st.container` / `st.expander` / `st.tabs`; Canary 用对应的 `sc.Row` / `sc.Column` / `sc.Container` / `sc.Expander` / `sc.Tabs`. 组件树只构建一次, 之后改属性即可:
 
 ```python
 # Streamlit
@@ -192,11 +192,11 @@ with right:
 
 ```python
 # Streamlit Canary
-with sc.v3.Row():
-    with sc.v3.Column(weight=1):
-        sc.v3.Text('Left')
-    with sc.v3.Column(weight=1):
-        sc.v3.Text('Right')
+with sc.Row():
+    with sc.Column(weight=1):
+        sc.Text('Left')
+    with sc.Column(weight=1):
+        sc.Text('Right')
 ```
 
 **条件显示**. Streamlit 里通常写成 `if` 分支; Canary 里组件先创建, 再用`visible` 控制显示:
@@ -209,17 +209,17 @@ if st.toggle('Advanced'):
 
 ```python
 # Streamlit Canary
-advanced = sc.v3.Toggle('Advanced')
-with sc.v3.Container(visible=advanced.value, animated=True):
-    sc.v3.TextInput('Extra option')
+advanced = sc.Toggle('Advanced')
+with sc.Container(visible=advanced.value, animated=True):
+    sc.TextInput('Extra option')
 ```
 
 **自研组件**. 除了 Streamlit 风格的组件, Canary 还内置了文件树, PDF Viewer, 实时日志面板, 浮动通知等:
 
 ```python
-sc.v3.PathInputBrowse('Project folder', '.')
-sc.v3.PdfViewer('manual.pdf')
-sc.v3.LogPanel(source='stdout')
+sc.PathInputBrowse('Project folder', '.')
+sc.PdfViewer('manual.pdf')
+sc.LogPanel(source='stdout')
 sc.toast('Saved!', icon=':material/check:')
 ```
 
@@ -243,7 +243,7 @@ pip install streamlit-canary
 
 ```python
 import streamlit_canary as sc
-from streamlit_canary import components_v3 as v3
+from streamlit_canary import components as v3
 
 class State(sc.StateV2):
     count = sc.Property(0)
@@ -251,15 +251,15 @@ class State(sc.StateV2):
 state = State()
 
 def app():
-    v3.PageTitle('Click Counter')
+    sc.PageTitle('Click Counter')
 
-    with v3.Row('center'):
-        with v3.Text('Click count: 0') as txt:
+    with sc.Row('center'):
+        with sc.Text('Click count: 0') as txt:
             @state.count.on_change
             def _():
                 txt.text.set('Click count: {}'.format(state.count.get()))
 
-        with v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 state.count.set(state.count.get() + 1)

@@ -17,9 +17,7 @@ import time
 import streamlit_canary as sc
 from lk_utils import fs
 from playwright.sync_api import sync_playwright
-from streamlit_canary.components_v3.trees import SingleTreeSelect
-
-v3 = sc.v3
+from streamlit_canary.components.trees import SingleTreeSelect
 
 PORT = 2219
 URL = 'http://localhost:{}'.format(PORT)
@@ -27,15 +25,12 @@ URL = 'http://localhost:{}'.format(PORT)
 HERE = fs.abspath(os.getcwd())
 UP = fs.parent(HERE)
 
-
 def check(label: str, good: bool) -> bool:
     print('  [{}] {}'.format('ok  ' if good else 'FAIL', label))
     return bool(good)
 
-
 def rule(text: str) -> None:
     print('== {} {}'.format(text, '=' * max(0, 66 - len(text))))
-
 
 # == 1. left out, home is where the panel opens =============================
 
@@ -81,16 +76,13 @@ ok = check('resolved against the cwd', tree._home_dir == fs.abspath('.')) and ok
 
 # == 5. in a browser ========================================================
 
-
 def scene() -> None:
     sc.set_page_config('home directory')
-    v3.SingleTreeSelect('Pick', HERE, home_directory=UP, key='tree')
-
+    sc.SingleTreeSelect('Pick', HERE, home_directory=UP, key='tree')
 
 _LOCATION_JS = "() => document.querySelector('.st-selectbox-value').textContent"
 # the toolbar's `home` icon button: an icon-only button whose glyph is `home`
 _HOME_BTN = 'button.st-btn-icon:has-text("home")'
-
 
 def phase_browser() -> bool:
     rule('5. in a browser')
@@ -142,7 +134,6 @@ def phase_browser() -> bool:
         server.terminate()
     return good
 
-
 def main() -> int:
     if '--scene' in sys.argv:
         sc.run(scene, port=PORT)
@@ -151,7 +142,6 @@ def main() -> int:
     print('')
     print('RESULT:', 'ok' if good else 'FAILED')
     return 0 if good else 1
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

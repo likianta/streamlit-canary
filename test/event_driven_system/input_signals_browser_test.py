@@ -59,8 +59,6 @@ import streamlit_canary as sc
 from playwright.sync_api import Page
 from playwright.sync_api import sync_playwright
 
-v3 = sc.v3
-
 PORT = 2214
 URL = 'http://localhost:{}'.format(PORT)
 
@@ -71,24 +69,22 @@ LOG_PREFIX = 'LOG|'
 entries: list[str] = []
 box: dict[str, Any] = {}
 
-
 def record(tag: str, text: str) -> None:
     entries.append('{}={}'.format(tag, text))
     box['log'].text.set(LOG_PREFIX + '|'.join(entries))
 
-
 def scene() -> None:
-    box['ti'] = ti = v3.TextInput('Text', key='ti')
-    box['ta'] = ta = v3.TextArea('Area', key='ta')
-    box['ni'] = ni = v3.NumberInput('Number', step=1, key='ni')
-    box['sb'] = sb = v3.Selectbox(
+    box['ti'] = ti = sc.TextInput('Text', key='ti')
+    box['ta'] = ta = sc.TextArea('Area', key='ta')
+    box['ni'] = ni = sc.NumberInput('Number', step=1, key='ni')
+    box['sb'] = sb = sc.Selectbox(
         'Select',
         ('x', 'y'),
         accept_new_option=True,
         format_new_option=lambda text: text,
         key='sb',
     )
-    box['log'] = v3.Text('LOG|', key='log')
+    box['log'] = sc.Text('LOG|', key='log')
 
     ti.on_submit.connect(lambda text: record('ti.submit', text))
     ti.on_editing_finished.connect(
@@ -109,7 +105,6 @@ def scene() -> None:
         lambda text: record('sb.new_option_editing_finished', text)
     )
 
-
 # Read the server-side log through the raw markdown source of its `Text`.
 _LOG_JS = """
 () => {
@@ -126,19 +121,15 @@ _STEPPED_JS = """
 () => (document.querySelector('div.st-number-input input') || {}).value || ''
 """
 
-
 def read_log(page: Page) -> str:
     return page.evaluate(_LOG_JS)
-
 
 def count(page: Page, needle: str) -> int:
     return read_log(page).count(needle)
 
-
 def report(label: str, good: bool, detail: str = '') -> bool:
     print('  [{}] {}{}'.format('ok  ' if good else 'FAIL', label, detail))
     return good
-
 
 def wait_for_scene(page: Page) -> None:
     """Poll the port until the scene answers (the server is a child process)."""
@@ -154,7 +145,6 @@ def wait_for_scene(page: Page) -> None:
     page.wait_for_selector('div.st-text-input', timeout=10000)
     # the labels are markdown, filled by page.js on load
     page.wait_for_timeout(800)
-
 
 def verify() -> int:
     with sync_playwright() as p:
@@ -366,7 +356,6 @@ def verify() -> int:
         browser.close()
         return 0 if (ok and not errors) else 1
 
-
 def main() -> int:
     if '--scene' in sys.argv:
         sc.run(scene, port=PORT)
@@ -376,7 +365,6 @@ def main() -> int:
         return verify()
     finally:
         server.terminate()
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

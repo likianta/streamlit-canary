@@ -78,15 +78,15 @@ Streamlit Canary:
 import streamlit_canary as sc
 
 def app():
-    sc.v3.PageTitle('Click Counter', default_theme='dark')
+    sc.PageTitle('Click Counter', default_theme='dark')
     
     cnt = sc.Property(0)
     
-    with sc.v3.Row('center'):
-        sc.v3.Text(sc.bind(cnt, lambda x: 'Click count: {}'.format(x)))
+    with sc.Row('center'):
+        sc.Text(sc.bind(cnt, lambda x: 'Click count: {}'.format(x)))
         #   when `cnt` changes, `sc.bind` emits new text to the Text component.
 
-        with sc.v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 cnt.set(cnt.get() + 1)
@@ -151,8 +151,8 @@ class State(sc.StateV2):
 state = State()
 
 def app():
-    sc.v3.TextInput('Name', sc.bbind(state.name))
-    sc.v3.Text(
+    sc.TextInput('Name', sc.bbind(state.name))
+    sc.Text(
         sc.bind(state.name, lambda x: 'Hello, {}'.format(x or 'stranger'))
     )
 ```
@@ -191,12 +191,12 @@ class State(sc.StateV2):
 state = State()
 
 def app():
-    with sc.v3.Text('Click count: 0') as txt:
+    with sc.Text('Click count: 0') as txt:
         @state.count.on_change.partial(sc._self)
         def _(count):
             txt.text.set('Click count: {}'.format(count.get()))
 
-    with sc.v3.Button('Increase counter') as btn:
+    with sc.Button('Increase counter') as btn:
         @btn.on_click
         def _():
             state['count'] += 1
@@ -210,8 +210,8 @@ owner or for its current value when the signal fires.
 ### More comparisons
 
 **Layout.** Streamlit uses `st.columns`, `st.container`, `st.expander`, and
-`st.tabs`. Canary maps those to `v3.Row`, `v3.Column`, `v3.Container`,
-`v3.Expander`, and `v3.Tabs`. The tree is built once; later changes are
+`st.tabs`. Canary maps those to `sc.Row`, `sc.Column`, `sc.Container`,
+`sc.Expander`, and `sc.Tabs`. The tree is built once; later changes are
 property updates:
 
 ```python
@@ -225,11 +225,11 @@ with right:
 
 ```python
 # Streamlit Canary
-with sc.v3.Row():
-    with sc.v3.Column(weight=1):
-        sc.v3.Text('Left')
-    with sc.v3.Column(weight=1):
-        sc.v3.Text('Right')
+with sc.Row():
+    with sc.Column(weight=1):
+        sc.Text('Left')
+    with sc.Column(weight=1):
+        sc.Text('Right')
 ```
 
 **Conditional UI.** In Streamlit this is usually an `if` branch. In Canary
@@ -243,9 +243,9 @@ if st.toggle('Advanced'):
 
 ```python
 # Streamlit Canary
-advanced = sc.v3.Toggle('Advanced')
-with sc.v3.Container(visible=advanced.value, animated=True):
-    sc.v3.TextInput('Extra option')
+advanced = sc.Toggle('Advanced')
+with sc.Container(visible=advanced.value, animated=True):
+    sc.TextInput('Extra option')
 ```
 
 **Desktop windows.** `sc.run(..., show_window=True)` opens the app in a
@@ -271,7 +271,7 @@ pip install streamlit-canary
 
 ```python
 import streamlit_canary as sc
-from streamlit_canary import components_v3 as v3
+from streamlit_canary import components as v3
 
 class State(sc.StateV2):
     count = sc.Property(0)
@@ -279,15 +279,15 @@ class State(sc.StateV2):
 state = State()
 
 def app():
-    v3.PageTitle('Click Counter')
+    sc.PageTitle('Click Counter')
 
-    with v3.Row('center'):
-        with v3.Text('Click count: 0') as txt:
+    with sc.Row('center'):
+        with sc.Text('Click count: 0') as txt:
             @state.count.on_change
             def _():
                 txt.text.set('Click count: {}'.format(state.count.get()))
 
-        with v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 state.count.set(state.count.get() + 1)

@@ -1,6 +1,6 @@
 """Demo: tree select with single / multiple / multi-cross selection.
 
-`v3.PathInputBrowse(selection_mode=..., panel_style='popup')` carries all
+`sc.PathInputBrowse(selection_mode=..., panel_style='popup')` carries all
 three modes now:
 
     'single'        pick one node (a radio list)
@@ -40,13 +40,11 @@ import json
 
 import streamlit_canary as sc
 
-v3 = sc.v3
-
 
 def main() -> None:
     sc.set_page_config('Tree Select - Multi / Cross-folders')
 
-    sel = v3.PathInputBrowse(
+    sel = sc.PathInputBrowse(
         'Node',
         '',
         filter=None,
@@ -55,9 +53,9 @@ def main() -> None:
         selection_mode='multicross',
     )
 
-    with v3.Row():
-        btn = v3.Button('Print results', type='primary')
-    out = v3.Code('')
+    with sc.Row():
+        btn = sc.Button('Print results', type='primary')
+    out = sc.Code('')
 
     @btn.on_click
     def _print_results() -> None:

@@ -110,18 +110,18 @@ def bind_multi_source_demo():
         _log(report_log, 'report    {}'.format(report.get()))
 
     # -- ui -----------------------------------------------------------------
-    with sc.v3.Container():
-        sc.v3.Title('Binding several sources')
+    with sc.Container():
+        sc.Title('Binding several sources')
 
-        with sc.v3.Row():
+        with sc.Row():
             # `sc.bbind` so an edit in the box is written back to the state.
-            sc.v3.NumberInput('Rows', sc.bbind(state.rows), min_value=1, step=1)
-            sc.v3.NumberInput('Cols', sc.bbind(state.cols), min_value=1, step=1)
+            sc.NumberInput('Rows', sc.bbind(state.rows), min_value=1, step=1)
+            sc.NumberInput('Cols', sc.bbind(state.cols), min_value=1, step=1)
 
-        with sc.v3.Row(width='content'):
-            each = sc.v3.Button('Preset, set one at a time')
-            batched = sc.v3.Button('Preset, one transaction', type='primary')
-            reset = sc.v3.Button('Clear the logs')
+        with sc.Row(width='content'):
+            each = sc.Button('Preset, set one at a time')
+            batched = sc.Button('Preset, one transaction', type='primary')
+            reset = sc.Button('Clear the logs')
 
         @each.on_click
         def _():
@@ -143,22 +143,22 @@ def bind_multi_source_demo():
             state.rows.set(1)
             state.cols.set(1)
 
-        sc.v3.Markdown('---')
+        sc.Markdown('---')
 
-        sc.v3.Markdown(
+        sc.Markdown(
             '**Canonical**: `bind((rows, cols), f)` -- independent sources, '
             'the label computed inside.'
         )
-        sc.v3.Text(cells)
-        sc.v3.Code(cells_log)
+        sc.Text(cells)
+        sc.Code(cells_log)
 
-        sc.v3.Markdown(
+        sc.Markdown(
             '**Sloppy**: `bind((rows_label, rows), f)` -- `rows_label` is '
             'derived from `rows`, so the target is re-synced with a pair that '
             'is half-updated.'
         )
-        sc.v3.Text(report)
-        sc.v3.Code(report_log)
+        sc.Text(report)
+        sc.Code(report_log)
 
 
 if __name__ == '__main__':

@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-db9c1852.js";
+            window.path_to_searchindex_js = "searchindex-86d97e74.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-d47d577b.js"></script>
+        <script src="toc-4cae05ca.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -222,19 +222,22 @@ pyarrow, or Altair. Altair is needed only if you use <code>AltairChart</code>.</
 <pre><code class="language-bash">pip install streamlit-canary
 </code></pre>
 <p>Python 3.11 or newer is required.</p>
-<blockquote class="blockquote-tag blockquote-tag-warning">
-<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg>Warning</p>
-<p>Streamlit Canary evolves from 0.1.0 to 0.4.0 (the latest version), it contains three generation of implementations in one code base:</p>
+<blockquote class="blockquote-tag blockquote-tag-note">
+<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Note</p>
+<p>Streamlit Canary 0.5.0 is the event-driven API, and it is the default:
+the components are exported at the top level (<code>sc.Button</code>, <code>sc.Text</code>,
+<code>sc.Row</code>, …).</p>
+<p>Two earlier generations are no longer part of <code>sc</code>:</p>
 <ul>
-<li>The components V1, which are wrappers of Streamlit components, not event-driven.</li>
-<li>Components V2, broken, unable to use.</li>
-<li>Components V3, the event-driven structure.</li>
+<li>the V1 wrappers (Streamlit component wrappers, rerun model) now live in
+<code>streamlit_canary.legacy_streamlit_wrappers</code>;</li>
+<li>the V2 experiment has been removed.</li>
 </ul>
-<p>We will remove V1 and V2, then strip V3 prefix and make it default in the future. Currently be noted they are all importable, by exclusive statements (e.g. <code>from streamlit_canary import components_v3 as v3</code>). Current codebase and examples follow the way, they will be updated once refactoring is done.</p>
+<p><code>sc.v3.*</code> still resolves, but it is deprecated and warns – the prefix goes
+away in a later release.</p>
 </blockquote>
 <h2 id="hello-world"><a class="header" href="#hello-world">Hello world</a></h2>
 <pre><code class="language-python">import streamlit_canary as sc
-from streamlit_canary import components_v3 as v3
 
 
 class State(sc.StateV2):
@@ -245,15 +248,15 @@ state = State()
 
 
 def app():
-    v3.PageTitle('Click Counter')
+    sc.PageTitle('Click Counter')
 
-    with v3.Row('center'):
-        with v3.Text('Click count: 0') as txt:
+    with sc.Row('center'):
+        with sc.Text('Click count: 0') as txt:
             @state.count.on_change
             def _():
                 txt.text.set('Click count: {}'.format(state.count.get()))
 
-        with v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 state.count.set(state.count.get() + 1)
@@ -268,19 +271,17 @@ if __name__ == '__main__':
 page reload, and <code>app()</code> is not called again.</p>
 <h2 id="how-this-manual-is-organized"><a class="header" href="#how-this-manual-is-organized">How this manual is organized</a></h2>
 <ul>
-<li><strong>Components V1 (Legacy)</strong> documents the original Streamlit-based API
-that still ships with the package.</li>
-<li><strong>Components V2 (Broken)</strong> describes an abandoned transitional
-implementation. It is kept only for historical reference.</li>
-<li><strong>Components V3</strong> explains the runtime model, session state, and every
-component in the V3 library.</li>
+<li><strong>Components</strong> explains the runtime model, session state, and every
+component in the library.</li>
+<li><strong>Legacy Streamlit Wrappers</strong> documents the original Streamlit-based API,
+which now lives in <code>streamlit_canary.legacy_streamlit_wrappers</code>.</li>
 <li><strong>Roadmap</strong> lists the work that is planned next.</li>
 </ul>
 <p>If you are starting a new app, read
 <a href="./running-apps.html">Running Apps</a>,
-<a href="./components-v3/event-driven-system.html">The Event Driven System</a>, and
-<a href="./components-v3/session-state.html">Session State</a> first, then use the
-<a href="./components-v3/api-reference/index.html">API Reference</a> as a lookup.</p>
+<a href="./components/event-driven-system.html">The Event Driven System</a>, and
+<a href="./components/session-state.html">Session State</a> first, then use the
+<a href="./components/api-reference/index.html">API Reference</a> as a lookup.</p>
 
                     </main>
 
@@ -311,6 +312,22 @@ component in the V3 library.</li>
         <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
         <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
         <script>

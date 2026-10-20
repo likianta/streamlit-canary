@@ -2,11 +2,11 @@
 Demo: Event-driven click counter (runnable).
 
 This is the reference demo for the event-driven Streamlit framework. The
-kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`), v3 components
-(`sc.v3.Row`, `sc.v3.Text`, `sc.v3.Button`) and the event runtime
+kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`), the components
+(`sc.Row`, `sc.Text`, `sc.Button`) and the event runtime
 (`sc.run(func, port=...)`) are all implemented, so this file runs end-to-end:
 
-    python test/event_driven_system/demo_click_counter.py
+    python examples/click_counter.py
 
 Open http://127.0.0.1:2201 in a browser and click the button — the counter
 updates in place without a full page reload, because the app function only
@@ -51,15 +51,13 @@ state = _State()
 
 
 def click_counter_demo():
-    sc.v3.PageTitle('Click Counter', default_theme='dark')
-    # v3 components live under `sc.v3.*` so they don't pollute the stable v1
-    # namespace while the event-driven model is still evolving.
-    with sc.v3.Row('center'):
-        # `with sc.v3.Text(...) as txt` creates a persistent Text component
+    sc.PageTitle('Click Counter', default_theme='dark')
+    with sc.Row('center'):
+        # `with sc.Text(...) as txt` creates a persistent Text component
         # whose identity survives across interactions.
         # `txt.text` is itself a `Property` (same model as state), so it is
         # updated via `txt.text.set(...)`, which emits `txt.text.on_change`.
-        with sc.v3.Text('Click count: 0') as txt:
+        with sc.Text('Click count: 0') as txt:
             # `state.count.on_change` is a Signal. Using it as a decorator
             # registers the handler. The signal does not pass its owner by
             # default, so `.partial(sc._self)` binds the Property handle as
@@ -69,7 +67,7 @@ def click_counter_demo():
             def _(cnt: sc.Property):
                 txt.text.set('Click count: {}'.format(cnt.get()))
 
-        with sc.v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             # `btn.on_click` is a Signal. Using it as a decorator registers the
             # handler. When the user clicks the button in the frontend, only
             # this handler runs — no full app re-execution.

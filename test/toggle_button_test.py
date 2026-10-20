@@ -18,23 +18,18 @@ import time
 
 import streamlit_canary as sc
 from playwright.sync_api import sync_playwright
-from streamlit_canary.components_v3.buttons import ToggleButton
+from streamlit_canary.components.buttons import ToggleButton
 from streamlit_canary.runtime.render import render_tree
-
-v3 = sc.v3
 
 PORT = 2216
 URL = 'http://localhost:{}'.format(PORT)
-
 
 def check(label: str, good: bool) -> bool:
     print('  [{}] {}'.format('ok  ' if good else 'FAIL', label))
     return bool(good)
 
-
 def rule(text: str) -> None:
     print('== {} {}'.format(text, '=' * max(0, 66 - len(text))))
-
 
 def rejects_type_kwarg() -> bool:
     try:
@@ -43,14 +38,12 @@ def rejects_type_kwarg() -> bool:
         return True
     return False
 
-
 def refuses(fn, *args) -> bool:
     try:
         fn(*args)
     except AttributeError:
         return True
     return False
-
 
 # == 1. the fields ==========================================================
 
@@ -106,11 +99,9 @@ ok = check('and type returns to secondary', tb['type'] == 'secondary') and ok
 seen = []
 tb2 = ToggleButton('Bold', on_click=lambda: seen.append(tb2['value']))
 
-
 @tb2.on_click
 def _() -> None:
     seen.append(tb2['value'])
-
 
 tb2.on_click.emit()
 ok = check('on_click handlers see the new value', seen == [True, True]) and ok
@@ -127,11 +118,9 @@ ok = check('without writing the field', bound['value'] is True) and ok
 
 # == 4. in a browser ========================================================
 
-
 def scene() -> None:
     sc.set_page_config('toggle button')
-    v3.ToggleButton('Bold', key='bold')
-
+    sc.ToggleButton('Bold', key='bold')
 
 _STATE_JS = """
 () => {
@@ -142,7 +131,6 @@ _STATE_JS = """
   };
 }
 """
-
 
 def phase_browser() -> bool:
     rule('4. in a browser')
@@ -217,7 +205,6 @@ def phase_browser() -> bool:
         server.terminate()
     return good
 
-
 def main() -> int:
     if '--scene' in sys.argv:
         sc.run(scene, port=PORT)
@@ -226,7 +213,6 @@ def main() -> int:
     print('')
     print('RESULT:', 'ok' if good else 'FAILED')
     return 0 if good else 1
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

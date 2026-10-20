@@ -26,7 +26,7 @@ import streamlit_canary as sc
 from playwright.sync_api import sync_playwright
 from streamlit_canary.runtime.render import render_tree
 
-v3 = sc.v3
+v3 = sc
 
 PORT = 2214
 URL = 'http://localhost:{}'.format(PORT)
@@ -88,7 +88,7 @@ for name in TOGGLED_BY_DEFAULT:
 # == 2. text and visible are separate Properties ============================
 
 rule('2. both are Properties')
-box = v3.Info('', key='probe')
+box = sc.Info('', key='probe')
 
 ok = check('`text` is a Property', isinstance(box.text, sc.Property))
 ok = (
@@ -112,12 +112,12 @@ ok = check('`visible.set` reaches `[visible]`', box['visible'] is False) and ok
 rule('3. shown only when filled and switched on')
 
 blank = {
-    'Text': v3.Text(''),
-    'Title': v3.Title(''),
-    'Caption': v3.Caption(''),
-    'Code': v3.Code(''),
-    'Markdown': v3.Markdown(''),
-    'Info': v3.Info(''),
+    'Text': sc.Text(''),
+    'Title': sc.Title(''),
+    'Caption': sc.Caption(''),
+    'Code': sc.Code(''),
+    'Markdown': sc.Markdown(''),
+    'Info': sc.Info(''),
 }
 for name, comp in blank.items():
     html = render_tree([comp])
@@ -131,7 +131,7 @@ for name in blank:
     if not ok:
         break
 
-off = v3.Info('something', visible=False)
+off = sc.Info('something', visible=False)
 ok = check('a filled box switched off is hidden', off.is_hidden())
 ok = (
     check(
@@ -143,7 +143,7 @@ ok = (
 
 # an explicit flag wins over the content: a blank element can be shown on
 # purpose (the old design ANDed the two, so this was impossible)
-forced = v3.Info('', visible=True)
+forced = sc.Info('', visible=True)
 ok = check('a blank box forced on is drawn', not forced.is_hidden()) and ok
 ok = (
     check(
@@ -154,7 +154,7 @@ ok = (
 )
 
 flag = sc.Property(True)
-forced_bound = v3.Text('', visible=flag)
+forced_bound = sc.Text('', visible=flag)
 ok = (
     check('a bound flag shows a blank text', not forced_bound.is_hidden())
     and ok
@@ -167,23 +167,23 @@ ok = (
 
 # only a bool / Property / 'auto' is meaningful; a stray string is a bug
 try:
-    v3.Text('x', visible='visible')
+    sc.Text('x', visible='visible')
 except ValueError:
     ok = check('a stray string is rejected', True) and ok
 else:
     ok = check('a stray string is rejected', False) and ok
 
 # the same rule drives the non-text sources too (`Table.rows` here)
-ok = check('Table: empty rows hide it', v3.Table([]).is_hidden()) and ok
-ok = check('Table: rows show it', not v3.Table([('a', 'b')]).is_hidden()) and ok
+ok = check('Table: empty rows hide it', sc.Table([]).is_hidden()) and ok
+ok = check('Table: rows show it', not sc.Table([('a', 'b')]).is_hidden()) and ok
 
 # a space is content on purpose: the placeholder that keeps the line
-ws = v3.Text(' ')
+ws = sc.Text(' ')
 ok = check('a space placeholder still shows', not ws.is_hidden()) and ok
 
 # a bound text drives `visible` without any explicit flag
 source = sc.Property('')
-bound = v3.Text(source)
+bound = sc.Text(source)
 ok = check('a bound empty text starts hidden', bound.is_hidden()) and ok
 source.set('now you see me')
 ok = check('and shows once it fills in', not bound.is_hidden()) and ok
@@ -208,25 +208,25 @@ _SCENE_JS = """
 
 def scene() -> None:
     sc.set_page_config('text/visible')
-    v3.Title('', key='t-empty')
-    v3.Title('A title', key='t-filled')
-    v3.Info('', key='i-empty')
-    v3.Info('Some info', key='i-filled')
-    v3.Info('', key='forced', visible=True)
+    sc.Title('', key='t-empty')
+    sc.Title('A title', key='t-filled')
+    sc.Info('', key='i-empty')
+    sc.Info('Some info', key='i-filled')
+    sc.Info('', key='forced', visible=True)
 
     source = sc.Property('')
-    v3.Text(source, key='bound')
+    sc.Text(source, key='bound')
 
     shown = sc.Property(True)
-    v3.Info('Toggle me', key='toggle', visible=shown)
+    sc.Info('Toggle me', key='toggle', visible=shown)
 
-    with v3.Button('Fill', key='fill') as fill:
+    with sc.Button('Fill', key='fill') as fill:
 
         @fill.on_click
         def _() -> None:
             source.set('hello')
 
-    with v3.Button('Toggle', key='toggle-btn') as toggle:
+    with sc.Button('Toggle', key='toggle-btn') as toggle:
 
         @toggle.on_click
         def _() -> None:

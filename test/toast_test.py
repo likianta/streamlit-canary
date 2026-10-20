@@ -17,51 +17,44 @@ import time
 
 import streamlit_canary as sc
 from playwright.sync_api import sync_playwright
-from streamlit_canary.components_v3.status import Toast
+from streamlit_canary.components.status import Toast
 from streamlit_canary.runtime import Runtime
 from streamlit_canary.runtime import get_current_runtime
-
-v3 = sc.v3
 
 PORT = 2217
 URL = 'http://localhost:{}'.format(PORT)
 
-
 def _app_declaring_a_toast() -> None:
-    v3.Toast()
-    v3.Text('hello')
-
+    sc.Toast()
+    sc.Text('hello')
 
 def _app_declaring_nothing() -> None:
-    v3.Text('hello')
-
+    sc.Text('hello')
 
 def scene() -> None:
     sc.set_page_config('Toast demo')
 
-    with v3.Button('Make toast') as btn:
+    with sc.Button('Make toast') as btn:
 
         @btn.on_click
         def _() -> None:
             sc.toast('AAA')
 
-    with v3.Button('Make toast 2') as btn2:
+    with sc.Button('Make toast 2') as btn2:
 
         @btn2.on_click
         def _() -> None:
             sc.toast('BBB')
 
-    with v3.Button('Icon + infinite') as btn3:
+    with sc.Button('Icon + infinite') as btn3:
 
         @btn3.on_click
         def _() -> None:
             sc.toast('Saved!', icon=':material/check:', duration='infinite')
 
-
 # ---------------------------------------------------------------------------
 # in-process (no browser)
 # ---------------------------------------------------------------------------
-
 
 def phase_python() -> bool:
     print('-- in-process --')
@@ -130,7 +123,6 @@ def phase_python() -> bool:
 
     return ok
 
-
 # ---------------------------------------------------------------------------
 # browser
 # ---------------------------------------------------------------------------
@@ -158,7 +150,6 @@ _STACK_JS = """
 }
 """
 
-
 def phase_browser() -> bool:
     print('-- browser --')
     server = subprocess.Popen(
@@ -170,7 +161,6 @@ def phase_browser() -> bool:
         return _browse()
     finally:
         server.terminate()
-
 
 def _browse() -> bool:
     ok = True
@@ -264,11 +254,9 @@ def _browse() -> bool:
         browser.close()
     return ok
 
-
 def report(label: str, good: bool) -> bool:
     print('  [{}] {}'.format('ok  ' if good else 'FAIL', label))
     return good
-
 
 def main() -> int:
     if '--scene' in sys.argv:
@@ -279,7 +267,6 @@ def main() -> int:
     ok = ok_py and ok_web
     print('RESULT:', 'ok' if ok else 'FAILED')
     return 0 if ok else 1
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

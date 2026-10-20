@@ -1,0 +1,518 @@
+"""Shared private bases and helpers for the component modules.
+
+Nothing here is public API: the per-category modules import these bases, and
+`components/__init__.py` re-exports only the components themselves.
+"""
+
+import textwrap
+import typing as tp
+
+from .base import Component
+from ..kernel import Property
+from ..kernel import Signal
+from ..kernel import bind
+
+_T = tp.TypeVar('_T')
+
+
+def _as_list(source: tp.Any) -> tp.Any:
+    """`_prop` takes a list or a Property; accept any sequence as well."""
+    if isinstance(source, Property):
+        return source
+    return list(source or ())
+
+
+def _prop(default: _T, source: _T | Property[_T]) -> Property[_T]:
+    """Create a `Property` seeded with `default`, then `set_or_bind(source)`.
+
+    Collapses the usual two-step setup into one line, so a field can be
+    declared as either a plain value or a bound `Property`:
+
+        self.text = _prop('', text)
+    """
+    prop = Property(default)
+    prop.set_or_bind(source)
+    return prop
+
+
+def _is_blank(value: tp.Any) -> bool:
+    """Whether a data source draws nothing.
+
+    `None`, an empty string and an empty sequence all count, and so does a
+    string of nothing but whitespace -- with a single exception, the lone
+    space. `' '` is how an element keeps its place while showing nothing
+    (`sc.Title(' ')`), the way `st.title('')` still occupies a line. Every
+    other whitespace-only string (`'\\t'`, `'\\n'`, `'  '`) is blank, so a
+    component that tidies its input first (`Markdown` dedents and trims)
+    leaves nothing behind instead of an invisible row -- see
+    `_resolve_visible`.
+    """
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value != ' ' and not value.strip()
+    return not value
+
+
+def _not_blank(value: tp.Any) -> bool:
+    """`_is_blank` negated -- the transform an `'auto'` `visible` binds."""
+    return not _is_blank(value)
+
+
+# The `visible` a content-driven element takes: a plain flag, the caller's
+# own bound flag, or `'auto'` (follow the content).
+Visible: tp.TypeAlias = bool | Property | tp.Literal['auto']
+
+
+def _resolve_visible(
+    data: Property, visible: Visible, *extra: Property
+) -> Property[bool]:
+    """The `visible` of an element whose content decides whether it draws.
+
+    `'auto'` -- the default -- ties the flag to `data`: the element shows
+    while the content holds something and hides while it does not. "Blank"
+    is `_is_blank`'s call, so the lone space is content and keeps its line
+    while `''` / `'  '` / `None` / `[]` do not. Any further `extra` fields
+    count as content too, and any one of them is enough on its own -- that is
+    how a `LogPanel` stays on screen for the hint it draws in place of its
+    lines. A `Property` is the caller's own flag, mirrored as given; a plain
+    `bool` is a fixed one.
+    Either way the caller's flag *wins* over the content -- `visible=True`
+    on a blank element shows it, `visible=False` on a filled one hides it.
+    (It used to be ANDed with the content test, which left no way to show a
+    blank element on purpose and made the flag hard to reason about while
+    debugging; it is a plain override now.)
+
+    `data` must already hold its value when this is called.
+
+    One rough edge, for a caller-driven flag: a source that still holds
+    `sc._undefined` skips `sc.bind`'s transform, so the derived flag keeps
+    its own default instead of one computed from the source -- hidden while
+    the content is unset (nothing to draw yet), but shown while a mirrored
+    flag is unset (mirroring a flag starts from `True`, the base class' own
+    default). Pass `sc.bind(..., default=...)` to pin what "not yet" means.
+    That a caller has to is a stopgap -- see `kernel.property.bind`: the plan
+    is to give `sc.bind` a transform it can run safely on `_undefined` too
+    (a "lean transformer"), after which `default=` should rarely be needed.
+    """
+    if isinstance(visible, str):
+        if visible != 'auto':
+            raise ValueError(
+                "visible must be a bool, a Property or 'auto', got {!r}".format(
+                    visible
+                )
+            )
+        if not extra:
+            return bind(data, _not_blank)
+        # Several fields make up the content, so the flag has to watch them
+        # all: `bind` mirrors a single source, and there is no expression
+        # node behind this one.
+        sources = (data, *extra)
+        flag: Property[bool] = Property(False)
+
+        def _sync() -> None:
+            flag.set(any(not _is_blank(p.get()) for p in sources))
+
+        for prop in sources:
+            prop.on_change.connect(_sync)
+        _sync()
+        return flag
+    if isinstance(visible, Property):
+        out: Property[bool] = Property(True)
+        out.bind(visible)
+        return out
+    return Property(bool(visible))
+
+
+class _ReadOnlyProperty(Property):
+    """A `Property` a caller may read (and watch) but not write.
+
+    `set` -- what `prop.set(...)` and `comp['x'] = ...` call -- is refused, so
+    a derived field cannot be forced out of step with what it derives from.
+    The owning component updates it through `_write` (see `_derive`).
+    """
+
+    def set(self, value: tp.Any, notify: tp.Optional[bool] = None) -> None:
+        raise AttributeError(
+            'this is a derived, read-only property; change the value it is '
+            'derived from instead'
+        )
+
+    def _write(self, value: tp.Any, notify: tp.Optional[bool] = None) -> None:
+        super().set(value, notify)
+
+
+def _derive(
+    source: Property, transform: tp.Callable[[tp.Any], tp.Any]
+) -> Property:
+    """A read-only `Property` mirroring `transform(source.get())`.
+
+    Used for a field the component owns and the caller only reads, e.g.
+    `ToggleButton.type` (on -> "primary", off -> "secondary"). Writing it
+    raises, so it can never disagree with `source`.
+    """
+    out = _ReadOnlyProperty()
+    out._write(transform(source.get()))
+    source.on_change.connect(lambda: out._write(transform(source.get())))
+    return out
+
+
+def _dedent_help(value: tp.Any) -> str:
+    """Strip the common indentation from a `help` text.
+
+    Help is normally written as an indented triple-quoted literal. Markdown
+    reads four leading spaces as a code block, so the indent has to go before
+    the text is ever handed to the parser -- Streamlit dedents for the same
+    reason. Deeper indentation (an intentional code block) is left alone,
+    since only the *common* prefix is removed.
+    """
+    if value is None:
+        return ''
+    return textwrap.dedent(str(value))
+
+
+def _help_prop(help: str | Property) -> Property[str]:
+    """Declare a `help` Property, dedenting its text on the way in.
+
+    The dedent has to happen on the property itself (rather than while
+    rendering) so that a `help` reachable through a `Property` is dedented too
+    -- the frontend receives its value as a delta patch.
+    """
+    prop: Property[str] = Property('')
+    if isinstance(help, Property):
+        prop.bind(help, _dedent_help)
+    else:
+        prop.set(_dedent_help(help))
+    return prop
+
+
+# -- shared bases ----------------------------------------------------------
+
+
+class _HasBorderTitle:
+    """Mixin for a bordered box whose title rides on its top border.
+
+    Fields:
+        border_title: Property[str] — the title, drawn inline in the box's top
+            border the way a `<legend>` sits in a fieldset's frame (bindable;
+            blank draws no title). `render.py` puts it in an `st-border-title`
+            span, and the stylesheet paints the box's own surface colour
+            behind that span -- which is what makes the border line read as
+            interrupted rather than crossed (see `20-layouts.css`).
+
+    A mixin rather than a base: the boxes that carry one (`Container`,
+    `LogPanel`) otherwise share nothing, and `Container`'s own subclasses
+    would inherit the field through `**kwargs` anyway. Each `__init__` calls
+    `_init_border_title` directly -- the same arrangement as
+    `_HasPlaceholder`.
+    """
+
+    def _init_border_title(self, border_title: str | Property = '') -> None:
+        self.border_title = _prop('', border_title)
+
+
+class _HasPlaceholder:
+    """Mixin for widgets that show a hint while nothing is picked.
+
+    Fields:
+        placeholder: Property[str] — drawn while the widget holds nothing: an
+            empty box for the three text-like widgets (`TextInput` /
+            `TextArea` / `NumberInput`), an empty selection for the two option
+            triggers (`Selectbox` / `Multiselect`). Bindable, so a hint can
+            follow the state it hints at (see
+            `test/pixel_fidelity/ui_scene_sc.py`).
+
+    A mixin rather than a base: these widgets already meet through `_Labeled`
+    (or `_OptionsWidget`), so there is no single `super()` to chain into and
+    each `__init__` calls `_init_placeholder` directly -- the same
+    arrangement as `_RowGestures._init_rows`.
+    """
+
+    def _init_placeholder(self, placeholder: str | Property = '') -> None:
+        self.placeholder = _prop('', placeholder)
+
+
+class _HasText(Component):
+    """Shared base for components carrying a single bindable `text` field.
+
+    Used by Button, Code and Popover, and (through `_HelpText`) by Caption,
+    Text and Title. The text is the first positional argument and accepts a
+    plain value or a `Property`.
+    """
+
+    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
+        super().__init__(**kwargs)
+        self.text = _prop('', text)
+
+
+class _HelpText(_HasText):
+    """
+    Shared base for text elements that also carry a `help` tooltip.
+
+    Mirrors Streamlit, whose text and heading elements (`st.text`, `st.caption`,
+    `st.title`) all accept `help`. Used by Caption, Markdown, Text and Title.
+
+    Fields:
+        text: Property[str] — the displayed text (bindable).
+        help: Property[str] — markdown tooltip shown next to the text
+            (bindable; bind it when the text depends on state).
+        visible: Property[bool] — whether the text is drawn (bindable).
+            Defaults to `'auto'`, i.e. tied to the text: a blank one draws
+            nothing and comes back as it fills in. Pass a bool or a bound
+            flag to drive it yourself -- an explicit flag wins over the
+            content, so a blank element can still be shown on purpose (see
+            `_resolve_visible`).
+        font_family: str — the CSS `font-family` to draw the text in (static,
+            not bindable). Empty means inherit, i.e. the page's own font;
+            `sc.MONOSPACE` is the stack to reach for when the text has to line
+            up in columns (a log, an ASCII table).
+        font_size: str — a CSS length to draw the text at (static). Empty
+            leaves it to the stylesheet, i.e. the shared body size -- with one
+            exception: `font_family=sc.MONOSPACE` brings `0.875em` along,
+            because a monospace face reads a size larger at the same pixels
+            (see `MONOSPACED_SIZE`). Pass a length here to override that.
+
+    `width` defaults to `'auto'` (mirroring Streamlit's markdown family): the
+    text stretches inside a vertical container and shrinks to its content
+    inside a horizontal one. Pass an explicit `width` to override.
+    """
+
+    _default_width = 'auto'
+
+    def __init__(
+        self,
+        text: str | Property = '',
+        *,
+        help: str | Property = '',
+        visible: Visible = 'auto',
+        font_family: str = '',
+        font_size: str = '',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(text, **kwargs)
+        self.help = _help_prop(help)
+        self._font_family = font_family
+        self._font_size = font_size
+        self.visible = _resolve_visible(self.text, visible)
+
+
+class _Labeled(Component):
+    """Shared base for widgets that render a `label` above the control.
+
+    Fields:
+        label: Property[str]   — the widget label (bindable).
+        _label_visibility: str — "auto" | "visible" | "hidden" | "collapsed";
+            see `inputs.T.LabelVisibility` for all four. "auto" is the
+            default: the row follows the label, showing when it draws
+            something and collapsing when it draws nothing.
+        help: Property[str]    — markdown tooltip shown next to the label
+            (bindable; bind it when the text depends on state).
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        *,
+        label_visibility: str = 'auto',
+        help: str | Property = '',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.label = _prop('', label)
+        self._label_visibility = label_visibility
+        self.help = _help_prop(help)
+
+
+class _OptionsWidget(_Labeled):
+    """Shared base for the option-picking widgets (Selectbox / RadioGroup /
+    SegmentedControl / SelectSlider).
+
+    Fields:
+        options: Property[list] — the raw choices (bindable).
+        index:   Property[int]  — the selected position (bindable).
+        value:   Property[any]  — the raw selected value (bindable).
+        enabled: Property[bool] — whether the widget accepts input (bindable).
+        format:  Callable[[Any], str] | Sequence[str] — how an option is
+            rendered: a callable (raw value → display string), or a label
+            sequence parallel to `options`. The resolved callable is kept on
+            `format_func`.
+
+    `index` and `value` mirror each other, so either one may be set: `index`
+    is the position of `value` in `options`, and setting `index` selects
+    `options[index]`. When `options` change and the current `value` is no
+    longer among them, `value` falls back to the first option.
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        options: tp.Sequence[tp.Any] | Property | None = None,
+        *,
+        index: int | Property | None = None,
+        value: tp.Any = None,
+        format: (tp.Callable[[tp.Any], str] | tp.Sequence[str] | None) = None,
+        enabled: bool | Property = True,
+        label_visibility: str = 'auto',
+        **kwargs: tp.Any,
+    ) -> None:
+        super().__init__(label, label_visibility=label_visibility, **kwargs)
+        self.options = Property([])
+        self.index = Property(0)
+        self.value = Property('')
+        self.enabled = _prop(True, enabled)
+        self.format_func: tp.Callable[[tp.Any], str] = self._make_format(format)
+        self.options.on_change.connect(self._auto_select)
+        self.value.on_change.connect(self._sync_index)
+        self.index.on_change.connect(self._sync_value)
+        if options is not None:
+            self.options.set_or_bind(tp.cast(tp.Any, options))
+        if value is not None:
+            self.value.set_or_bind(value)
+        elif index is not None:
+            self.index.set_or_bind(tp.cast(tp.Any, index))
+
+    def _make_format(
+        self, format: tp.Callable[[tp.Any], str] | tp.Sequence[str] | None
+    ) -> tp.Callable[[tp.Any], str]:
+        """Resolve the display formatter from `format`.
+
+        `format` may be either a callable (raw value -> display string) or a
+        sequence parallel to `options` (index -> display string). A sequence
+        is resolved lazily against the *current* options, so it stays correct
+        after `options` changes.
+        """
+        if format is None:
+            return str
+        if callable(format):
+            return tp.cast(tp.Callable[[tp.Any], str], format)
+        labels = list(format)
+
+        def _fmt(v: tp.Any) -> str:
+            options = list(self.options.get() or [])
+            try:
+                i = options.index(v)
+            except ValueError:
+                return str(v)
+            return str(labels[i]) if i < len(labels) else str(v)
+
+        return _fmt
+
+    def _auto_select(self) -> None:
+        options = self.options.get()
+        if options and self.value.get() not in options:
+            self.value.set(options[0])
+
+    def _sync_index(self) -> None:
+        """Mirror `value` into `index` (its position in `options`)."""
+        options = list(self.options.get() or [])
+        value = self.value.get()
+        if value in options:
+            self.index.set(options.index(value))
+
+    def _sync_value(self) -> None:
+        """Mirror `index` into `value`."""
+        options = list(self.options.get() or [])
+        i = self.index.get()
+        if isinstance(i, int) and 0 <= i < len(options):
+            self.value.set(options[i])
+
+    def _coerce_value(self, raw: tp.Any) -> tp.Any:
+        """Recover an option's real type from the client-sent string.
+
+        The DOM only carries strings, so clicking an option sends `'48'`
+        even when the option itself is the int `48`. This maps the text back
+        onto the matching entry of `options`; an unknown value is passed
+        through unchanged (it may be a `new_option` mid-flight).
+        """
+        for option in self.options.get() or []:
+            if str(option) == str(raw):
+                return option
+        return raw
+
+
+class _RowGestures:
+    """Mixin for the two option lists whose rows carry a click highlight.
+
+    `RadioGroup` and `CheckGroup` both draw rows a client can click *beside*
+    the box: such a click highlights the row and reports it back through a
+    `focus` event. That highlight and the state behind it live here so the
+    widgets stay thin; `_init_rows` is called from each `__init__` (the two
+    meet through `_Labeled`, so there is no single `super()` to chain into).
+
+    Fields:
+        focused_index: Property[int] — the row the client last clicked, or -1
+            while none is. Dropped whenever `options` change: the rows are
+            rebuilt, so a remembered index would point at the wrong one.
+        _box_disabled: Callable[[Any], bool] | None — marks options whose box
+            may never be ticked. They are drawn dimmed and their field is
+            inert, so only the row's other half still acts.
+    """
+
+    def _init_rows(
+        self, box_disabled: tp.Callable[[tp.Any], bool] | None
+    ) -> None:
+        self.focused_index = Property(-1)
+        self._box_disabled = box_disabled
+        self.options.on_change.connect(self._reset_focus)
+
+    def _on_focus(self, value: tp.Any) -> None:
+        """Record the option row the client just clicked.
+
+        Fired by a `focus` event (see `scHighlightChoice`); the payload is the
+        row's index.
+        """
+        try:
+            index = int(value)
+        except (TypeError, ValueError):
+            index = -1
+        self.focused_index.set(index)
+
+    def _reset_focus(self) -> None:
+        """Drop the highlight when the options are rebuilt (indices shift)."""
+        self.focused_index.set(-1)
+
+
+class _Submittable:
+    """Mixin for input widgets whose text is committed as a separate act.
+
+    Signals:
+        on_submit: `Signal(str)` — the text was committed on purpose: Enter
+            in a `TextInput` / `NumberInput`, Ctrl+Enter in a `TextArea`, or
+            Enter (equivalently, the "Add" row) in a `Selectbox`'s
+            `accept_new_option` box. Carries the raw text as typed.
+        on_editing_finished: `Signal(str)` — the editing session ended,
+            whether by a submit or by the box losing focus. Carries the text
+            as it stood then. A submit emits both, `on_submit` first.
+
+    The pair is declared together because it describes one act from two
+    angles: `on_submit` is the deliberate commit, `on_editing_finished` the
+    end of the session it belongs to.
+
+    A mixin, like `_HasPlaceholder`: these widgets already meet through
+    `_Labeled`, so there is no single `super()` to chain into and each
+    `__init__` calls `_init_submittable` directly. `Multiselect` carries the
+    pair for symmetry with its siblings, but nothing fires them until it
+    grows an `accept_new_option` box of its own.
+    """
+
+    def _init_submittable(self) -> None:
+        # `_owner_factory` mirrors `on_click`, so a handler can ask for the
+        # widget itself through `@sig.partial(sc._self)`.
+        self.on_submit: Signal = Signal(str, _owner_factory=lambda: self)
+        self.on_editing_finished: Signal = Signal(
+            str, _owner_factory=lambda: self
+        )
+
+
+class _TextVisible(_HasText):
+    """Shared base for status boxes: a `text` plus a bindable `visible`.
+
+    The flag itself lives on `Component`; this base leaves the default to
+    its users, because the two families want opposite things. `Spinner`
+    starts it *off* (an explicit `False`), so it stays out of the way until
+    it is entered. The `Callout` family starts it at `'auto'`, so it hides
+    only while its message is blank (see `_resolve_visible`).
+    """
+
+    def __init__(self, text: str | Property = '', **kwargs: tp.Any) -> None:
+        super().__init__(text, **kwargs)

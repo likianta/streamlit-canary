@@ -1,5 +1,5 @@
 """
-Compare the popover layout of `st.popover` (Streamlit) with `v3.Popover`
+Compare the popover layout of `st.popover` (Streamlit) with `sc.Popover`
 (Streamlit Canary), measured with the popover expanded.
 
 The two apps under test (start them first):

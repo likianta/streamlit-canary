@@ -1,4 +1,4 @@
-"""`v3.Selectbox(width='content')` sizes to its widest *option*.
+"""`sc.Selectbox(width='content')` sizes to its widest *option*.
 
 Pseudo-code (the spec this script implements):
 
@@ -39,8 +39,6 @@ import streamlit_canary as sc
 from playwright.sync_api import Page
 from playwright.sync_api import sync_playwright
 
-v3 = sc.v3
-
 PORT = 2212
 URL = 'http://localhost:{}'.format(PORT)
 
@@ -56,23 +54,20 @@ APP_CONTENT_WIDTH = 704
 # A sub-pixel difference (glyph rounding) is not a resize.
 EPS = 0.6
 
-
 class _State(sc.StateV2):
     modes: sc.Property[list] = ['Single', 'Multiple']
 
-
 state = _State()
 
-
 def scene() -> None:
-    v3.Selectbox('Mode', ('Single', 'Multiple', 'Multi-cross'), width='content')
-    v3.Selectbox(
+    sc.Selectbox('Mode', ('Single', 'Multiple', 'Multi-cross'), width='content')
+    sc.Selectbox(
         'Icons',
         (':material/abc: Alpha', ':material/account_tree: A longer label'),
         width='content',
     )
-    v3.Selectbox('Dynamic', options=state.modes, width='content')
-    with v3.Button('Add a longer option') as add:
+    sc.Selectbox('Dynamic', options=state.modes, width='content')
+    with sc.Button('Add a longer option') as add:
 
         @add.on_click
         def _():
@@ -80,8 +75,7 @@ def scene() -> None:
                 state.modes.get() + ['a considerably longer option']
             )
 
-    v3.Selectbox('Stretched', ('Single', 'Multi-cross'))
-
+    sc.Selectbox('Stretched', ('Single', 'Multi-cross'))
 
 # Everything about one selectbox that the assertions below need. The option
 # texts are measured from the dropdown, so they only have a width while it is
@@ -112,10 +106,8 @@ _MEASURE_JS = """
 }
 """
 
-
 def measure(page: Page, index: int) -> dict[str, Any]:
     return page.evaluate(_MEASURE_JS, index)
-
 
 def open_dropdown(page: Page, index: int) -> None:
     box = page.locator('.st-selectbox').nth(index)
@@ -123,7 +115,6 @@ def open_dropdown(page: Page, index: int) -> None:
     if dropdown.get_attribute('hidden') is not None:
         box.locator('.st-selectbox-trigger').click()
         page.wait_for_timeout(250)
-
 
 def close_dropdown(page: Page, index: int) -> None:
     """An open dropdown floats over the boxes below it, so a pass that ends
@@ -133,7 +124,6 @@ def close_dropdown(page: Page, index: int) -> None:
         box.locator('.st-selectbox-trigger').click()
         page.wait_for_timeout(250)
 
-
 def pick(page: Page, index: int, option: int) -> None:
     """Open the box and click one of its options."""
     open_dropdown(page, index)
@@ -141,7 +131,6 @@ def pick(page: Page, index: int, option: int) -> None:
         '.st-selectbox-option'
     ).nth(option).click()
     page.wait_for_timeout(250)
-
 
 def wait_for_scene(page: Page) -> None:
     """Poll the port until the scene answers (the server is a child process)."""
@@ -157,7 +146,6 @@ def wait_for_scene(page: Page) -> None:
     page.wait_for_selector('.st-selectbox', timeout=10000)
     # the labels and option texts are markdown, filled by page.js on load
     page.wait_for_timeout(800)
-
 
 def check_content_box(page: Page, index: int, name: str) -> bool:
     """One `width='content'` box: one width for every option, sized to the
@@ -202,7 +190,6 @@ def check_content_box(page: Page, index: int, name: str) -> bool:
     )
     close_dropdown(page, index)
     return ok
-
 
 def verify() -> int:
     with sync_playwright() as p:
@@ -273,7 +260,6 @@ def verify() -> int:
         browser.close()
         return 0 if ok else 1
 
-
 def main() -> int:
     if '--scene' in sys.argv:
         sc.run(scene, port=PORT)
@@ -283,7 +269,6 @@ def main() -> int:
         return verify()
     finally:
         server.terminate()
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

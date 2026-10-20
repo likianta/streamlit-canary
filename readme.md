@@ -18,11 +18,11 @@ patches the DOM in place. There is no page reload and no script re-run.
 - **Desktop windows.** `sc.run(..., show_window=True)` serves the app and
   opens it in a native `pyapp-window` window, sized in CSS pixels.
 - **Custom components included.** Folder trees, `PathInputBrowse`, a PDF
-  viewer, a live log panel, animated toasts, and the rest of the V3
-  library ship with the package.
+  viewer, a live log panel, animated toasts, and the rest of the library
+  ship with the package.
 - **`dunder_literal`.** `PageConfig(dunder_literal=True)` keeps names such
   as `__init__` and `__name__` from turning into bold text.
-- **Fewer dependencies.** The V3 core runs without Streamlit, pandas,
+- **Fewer dependencies.** The core runs without Streamlit, pandas,
   NumPy, SciPy, pyarrow, or Altair. Altair is needed only if you use
   `AltairChart`.
 
@@ -48,15 +48,15 @@ state = State()
 
 
 def app():
-    sc.v3.PageTitle('Click Counter')
+    sc.PageTitle('Click Counter')
 
-    with sc.v3.Row('center'):
-        with sc.v3.Text('Click count: 0') as txt:
+    with sc.Row('center'):
+        with sc.Text('Click count: 0') as txt:
             @state.count.on_change.partial(sc._self)
             def _(cnt):
                 txt.text.set('Click count: {}'.format(cnt.get()))
 
-        with sc.v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 state['count'] += 1
@@ -115,12 +115,12 @@ mdbook serve
 
 ## Components and namespaces
 
-- `sc.v3.*` — the event-driven components. This is the recommended API.
-- `sc.*` — the legacy V1 components, built on Streamlit and the rerun
-  model. They will be removed in a future version.
-- `sc.v2` — an abandoned transitional implementation. It is broken and
-  will be removed.
+- `sc.*` -- the components. This is the API.
+- `streamlit_canary.legacy_streamlit_wrappers` -- the legacy V1 components,
+  built on Streamlit and the rerun model. They are no longer exported as
+  `sc.*` (asking for one raises an `AttributeError` with a migration hint)
+  and will be removed in a future version.
+- `sc.v2` is gone: the abandoned transitional components were deleted.
 
-The V3 library currently keeps the `v3` prefix to avoid colliding with the
-legacy namespace. The prefix is planned to be dropped once V1 and V2 are
-gone.
+`sc.v3.*` still resolves for apps written before 0.5.0, but it is
+deprecated -- it warns, and the alias goes away in a later release.

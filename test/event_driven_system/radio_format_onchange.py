@@ -1,19 +1,16 @@
 import streamlit_canary as sc
 
-v3 = sc.v3
-
-
 def main():
     projects = sc.Property()
 
-    with v3.Radio(
+    with sc.Radio(
         'Radio group',
         options=sc.bind(projects),
         format=lambda x: '{} :gray[(v{})]'.format(x['name'], x['version']),
     ):
         ...
 
-    with v3.Button('Change options') as btn:
+    with sc.Button('Change options') as btn:
 
         @btn.on_click
         def _():
@@ -22,7 +19,7 @@ def main():
             else:
                 projects.set((1, 2, 3))
 
-    with v3.Button('No change but notify') as btn:
+    with sc.Button('No change but notify') as btn:
 
         @btn.on_click
         def _():

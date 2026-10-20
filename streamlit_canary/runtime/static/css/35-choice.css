@@ -277,7 +277,7 @@
 
   /* Check group: RadioGroup's option shell (the renderer emits the very same
      item markup -- see `_render_check_group`), with the square box of
-     `v3.Checkbox` -- a 1px border plus a checkmark -- in place of the radio's
+     `sc.Checkbox` -- a 1px border plus a checkmark -- in place of the radio's
      circle. The box's own rules live in the checkbox section below; only the
      checked state needs the check group's hookup. */
   .st-check-group {

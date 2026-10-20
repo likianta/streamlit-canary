@@ -11,8 +11,8 @@ if t.TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # page-level configuration (canary-specific)
 # ---------------------------------------------------------------------------
-# The single place a page's own settings live. `v3.PageTitle` and
-# `v3.PageConfig` write into it as they are constructed, and the runtime reads
+# The single place a page's own settings live. `sc.PageTitle` and
+# `sc.PageConfig` write into it as they are constructed, and the runtime reads
 # it back when it renders the page (see `runtime/render.py:render_page`). A
 # plain dict, so the runtime (and tests) can read it directly.
 global_page_config: t.Dict[str, t.Any] = {

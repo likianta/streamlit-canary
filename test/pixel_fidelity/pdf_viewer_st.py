@@ -5,7 +5,7 @@ Streamlit's own media element, `st.pdf`, is a thin wrapper around the
 third-party `streamlit-pdf` package, which this environment does not have.
 The reference `pdf_watermaker` app previews documents with
 `streamlit_pdf_viewer.pdf_viewer`, so that is the counterpart the canary
-`v3.PdfViewer` is compared against.
+`sc.PdfViewer` is compared against.
 
 Start this app, then `pdf_viewer_sc.py`, then run `pdf_viewer_vs.py`
 (its docstring has the exact commands):
@@ -26,7 +26,7 @@ SAMPLE = fs.here('sample.pdf')
 
 def main():
     # A plain viewer, then one that asks for a page range -- the two things
-    # `v3.PdfViewer` has to match.
+    # `sc.PdfViewer` has to match.
     pdf_viewer(SAMPLE, height=400)
     pdf_viewer(SAMPLE, height=300, pages_to_render=[1, 2])
 

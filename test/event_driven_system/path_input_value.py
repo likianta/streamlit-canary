@@ -23,23 +23,18 @@ import time
 import streamlit_canary as sc
 from lk_utils import fs
 from playwright.sync_api import sync_playwright
-from streamlit_canary.components_v3.trees.path_inputs import PathInput
+from streamlit_canary.components.trees.path_inputs import PathInput
 from streamlit_canary.runtime import Runtime
-
-v3 = sc.v3
 
 PORT = 2212
 URL = 'http://localhost:{}'.format(PORT)
-
 
 def check(label: str, good: bool) -> bool:
     print('  [{}] {}'.format('ok  ' if good else 'FAIL', label))
     return bool(good)
 
-
 def rule(text: str) -> None:
     print('== {} {}'.format(text, '=' * max(0, 66 - len(text))))
-
 
 # == 1. the field ===========================================================
 
@@ -83,10 +78,8 @@ ok = check('one notification per change', seen == ['C:/Likianta/workspace']) and
 
 rule('4. the trees keep working')
 
-
 def _app() -> None:
-    v3.PathInputBrowse('Tree', 'C:/', filter='.txt', panel_style='popup')
-
+    sc.PathInputBrowse('Tree', 'C:/', filter='.txt', panel_style='popup')
 
 built, runtime = True, None
 try:
@@ -109,20 +102,18 @@ if runtime is not None:
 
 # == 5. in a browser: typing reaches a bound Property =======================
 
-
 def scene() -> None:
     sc.set_page_config('PathInput value')
-    src = v3.PathInput('Source path', input_history=())
-    tgt = v3.PathInput('Target path', input_history=())
+    src = sc.PathInput('Source path', input_history=())
+    tgt = sc.PathInput('Target path', input_history=())
 
     path_i = sc.Property('')
     path_o = sc.Property('')
     path_i.bind(src.value)
     path_o.bind((src.value, tgt.value), lambda x: '{}+{}'.format(x[0], x[1]))
 
-    v3.Text(sc.bind(path_i, lambda x: 'I|' + x))
-    v3.Text(sc.bind(path_o, lambda x: 'O|' + x))
-
+    sc.Text(sc.bind(path_i, lambda x: 'I|' + x))
+    sc.Text(sc.bind(path_o, lambda x: 'O|' + x))
 
 _LOG_JS = """
 (prefix) => {
@@ -131,7 +122,6 @@ _LOG_JS = """
   return el ? el.textContent.trim() : '';
 }
 """
-
 
 def phase_browser() -> bool:
     rule('5. a browser run of the pattern')
@@ -178,7 +168,6 @@ def phase_browser() -> bool:
         server.terminate()
     return check('a Property bound to `value` followed the typing', good)
 
-
 def main() -> int:
     if '--scene' in sys.argv:
         sc.run(scene, port=PORT)
@@ -187,7 +176,6 @@ def main() -> int:
     print('')
     print('RESULT:', 'ok' if good else 'FAILED')
     return 0 if good else 1
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

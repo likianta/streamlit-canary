@@ -1,0 +1,918 @@
+"""The single-pane browser: one folder on show at a time.
+
+The panel itself, with no path input attached -- see `path_inputs.py` for the
+`PathInput` + panel pairings.
+"""
+
+import typing as tp
+
+from lk_utils import fs
+
+from ._shared import (
+    _MODE_LABELS,
+    _MODE_MULTICROSS,
+    _MODE_MULTIPLE,
+    _MODE_SINGLE,
+    _NavCheckGroup,
+    _NavRadioGroup,
+    _TreeNav,
+    NAV_UP,
+    T,
+    _location_options,
+    _filter_func,
+    _path_label,
+    _is_enterable,
+    _is_nav_up,
+    _is_under,
+    _as_picked,
+    _bucket_text,
+    _check_initial_mode,
+    _check_selection_mode,
+    _empty_value,
+    _is_multi,
+    _is_multicross,
+    _is_none,
+    _is_radio,
+    bucket_label,
+    entry_label,
+    listing_options,
+    option_path,
+)
+from .._shared import _Labeled
+from ..base import Component
+from ..base import Width
+from ..buttons import Button
+from ..buttons import IconButton
+from ..inputs import CheckGroup
+from ..inputs import RadioGroup
+from ..inputs import ReducibleGroup
+from ..inputs import Selectbox
+from ..layouts import Container
+from ..layouts import FloatingContainer
+from ..layouts import Popover
+from ..layouts import Row
+from ...kernel import Property
+from ...kernel import Signal
+from ...kernel import bind
+
+
+class SingleTreeSelect(_Labeled, Container):
+    """The single-pane tree browser: a folder listing that navigates itself.
+
+        with Popover('Browse', panel_align='row', panel_max_height=500):
+            tree = sc.SingleTreeSelect(filter='.txt')
+        ...
+        picked = tree.value.get()
+
+    Layout::
+
+        [ /current/folder v ] [home] [refresh] [bucket] [mode]  <- toolbar
+        ..   (goto parent)            <- one click walks up, no arrow
+        subfolder/                              ->
+        another-file.txt                 <- scrolls past `height` px
+        [              Confirm               ]
+
+    The toolbar is a row across the top of the panel: a location selectbox
+    listing every ancestor of the folder on show -- itself included, so any
+    parent is one pick away -- with the machine's other drives in front of
+    them (`_location_options`), and then the actions: `home` returns to the
+    home folder (`home_directory`, which defaults to where the panel
+    opened), `refresh` re-reads the folder on show.  Both the trigger
+    and the ladder's items clip a path too long for them, and a clipped item
+    shows its whole label on hover (`st-truncate-help`).
+
+    `_vendored` settles where the Confirm button goes and what frame the
+    panel wears.  Left alone (the default) the panel is a standalone widget:
+    the button sits under the listing, in the ordinary flow, and the panel
+    draws its own `border`.  A wrapper that already lives inside a frame --
+    `PathInputBrowse`, inside a popover -- passes `_vendored=True`
+    instead: the button rides in a `FloatingContainer` in the panel's
+    corner, staying put while the listing scrolls beneath it (and, being
+    sticky, keeping its place in the flow, so no row can end up hidden under
+    it for good), and `border` falls back to `False` so the popover's own
+    frame is not doubled.
+
+    Two gestures live on a row, and neither one waits on the other:
+
+        one click   tick / pick that row -- the whole row is the box's label,
+                    so `single` picks the node and the multi modes tick it.
+                    Nothing is held back: there is no double click to leave
+                    room for, so the tick lands with the click.
+        the arrow   walk into that row (`->` to the right of the text, on
+                    hover -- see `_NavigationGroup`).  Only a folder draws
+                    one; every arrow sits at the same x, past the longest
+                    folder name, so the pointer can aim without re-reading
+                    -- and the whole tail of the row, from the glyph out to
+                    the right edge, is that same target, so entering a
+                    folder never asks the pointer to find the icon itself.
+                    While it is armed the row's icon and name turn the
+                    amber `..` wears, so the row reads as one link.
+
+    `..` leads the listing as the way back up.  Its box is frozen -- dimmed
+    and never tickable -- because it is a target rather than a node
+    (`_is_nav_up`), and that is what frees its own click for the gesture: one
+    click anywhere on the row walks up, so it draws no arrow of its own.
+
+    Walking back up marks where the panel came from: leaving `a/b/c` for
+    `a/b` -- through `..`, or by picking a rung on the ladder -- leaves `c/`'s
+    row highlighted, so the place just left stands out.  The index is
+    remembered per node as folders are listed (`_TreeNav.node_index`) and
+    resolved back to a row by `_focus_index`, since the client's own click
+    highlight is wiped whenever the rows are rebuilt.
+
+    `selection_mode` settles how much may be picked at once (see `value`);
+    only a set that includes `'multicross'` draws the bucket, and only a set
+    holding more than one draws the segmented control that switches between
+    them.
+
+    Args:
+        start_directory: the folder to open (default: the cwd).
+        label: the widget label, drawn above the panel the way an input's
+            label is (same markup / metrics as `TextInput.label`).
+        label_visibility: `'auto'` (the default: the label row follows the
+            label, so an empty one costs no height) | `'visible'` | `'hidden'`
+            | `'collapsed'`. See `inputs.T.LabelVisibility`.
+        help: optional markdown tooltip shown next to the label.
+        home_directory: where the `home` button goes back to; left out it is
+            `start_directory`, so `home` means "back where I opened".
+            Passed alone it only moves that button -- the folder the panel
+            opens in stays `start_directory`.
+        filter: a suffix (`'.txt'`) or a tuple of suffixes to keep.
+        height: optional cap in px on the listing, after which it scrolls.
+            Left `None` when an enclosing `Popover` does the scrolling.
+        width: see `Container`.
+        selection_mode: `'single'` (one node, the default), `'multiple'`
+            (nodes of the folder being browsed -- leaving it drops them), or
+            `'multicross'` (nodes gathered across folders into a bucket). A
+            tuple of them -- e.g. `('single', 'multicross')` -- offers a
+            segmented control over exactly those, starting with the first;
+            the sequence is respected whichever way you order it.
+        initial_mode: which of `selection_mode` to open in (default: its
+            first entry). A mode the tuple no longer offers falls back to
+            that first entry, so a remembered mode can be handed straight
+            back (see `mode`).
+        _vendored: whether the panel is delivered inside a wrapper's frame,
+            which also floats the Confirm button into the corner (see the
+            Layout note above).  The path inputs all pass `True`.
+        border: whether the panel draws its own frame.  Left `None` it is
+            `not _vendored`, so a standalone panel is framed by default.
+        show_confirm_button: whether the Confirm button is shown (default
+            `True`). With `False` the button is hidden rather than skipped:
+            the bottom bar it lives in stays built, which is what a caller
+            hangs its own actions off (see `Widgets`).
+
+    Properties:
+        value: str | list[str] — the selection. `single` keeps one path (`''`
+            while nothing is picked); the multi modes keep a list of paths --
+            `multiple` holds the folder being browsed, `multicross` holds the
+            whole bucket. Prefer `select` / `clear` over writing it: those
+            keep the listing in step.
+        mode: str — the active mode (never `'any'`).
+        directory: str — the folder the listing shows (read-only; an
+            absolute, forward-slash path). Left alone it is
+            `start_directory`; the panel's own walking and a wrapper's jump
+            move it. Read it to remember where the user was.
+
+    Signals:
+        on_value (via `tree['on_value']` or `tree.value.on_change`)
+        on_navigate: emitted with the new folder every time the listing is
+            refreshed -- walking into a row (its arrow, or `..`'s own click),
+            a `_goto` from a wrapper, or the initial build. Anything derived
+            from the current folder (a path input's history list, say)
+            should be refreshed from here.
+        on_submit: emitted when the Confirm button is clicked, carrying the
+            resolved absolute paths (see `resolve`);
+            a pick another pick already covers is dropped, so a ticked folder
+            stands in for everything under it. A wrapper such as
+            `PathInputBrowse` listens for it to dismiss the popover it
+            opened.
+
+    Call `reload()` to re-read the folder from disk, `select(path)` to add a
+    path that is not in the listing, `clear()` to drop the selection, and
+    `resolve()` for the paths the Confirm button reports.
+
+    Widgets:
+        The sub-components worth reaching into, for a caller that wants to
+        extend the panel rather than just read it:
+
+            'bottom_bar': the `Row` under the listing that holds the Confirm
+                button. Entering it appends siblings to that very row, after
+                the button -- a panel's own extra actions, say:
+
+                    with tree.widgets['bottom_bar']:
+                        sc.Button('Open input folder')
+
+                It is always built, so it can be entered even when the
+                Confirm button is hidden.  A vendored panel wraps the row in
+                a `FloatingContainer` (that is what floats it to the corner);
+                the row is the same either way.  It is built
+                `hide_when_empty`, so a panel whose bar nobody fills in does
+                not carry an empty line at its foot.
+            'confirm_button': the button itself, built even when hidden, so a
+                caller can still reach it (`on_click`, `label`, `visible`).
+
+    Drag-and-drop is deliberately absent: a browser hands a page the dropped
+    *entries* -- names, and their contents -- never the path they came from
+    (`File.name` has none, `file.path` is Electron-only, and
+    `webkitGetAsEntry().fullPath` / `webkitRelativePath` are virtual
+    respectively relative).  With no path there is nothing to hand
+    `PathInput`, and a bare name belongs to the *client*: over a LAN it
+    names a folder the server cannot reach.  A dead end by design, not an
+    oversight.
+    """
+
+    def __init__(
+        self,
+        label: str | Property = '',
+        start_directory: str = '',
+        *,
+        accept_new_option: bool = False,
+        border: bool | None = None,
+        filter: T.Filter = None,
+        height: int | None = None,
+        help: str | Property = '',
+        home_directory: str = '',
+        initial_mode: tp.Optional[str] = None,
+        label_visibility: str = 'auto',
+        leading: tp.Optional[tp.Callable[[], None]] = None,
+        rows_visible: tp.Union[bool, Property] = True,
+        selection_mode: tp.Union[
+            T.SelectionMode, tp.Tuple[T.SelectionMode, ...]
+        ] = _MODE_SINGLE,
+        show_confirm_button: bool = True,
+        show_location: tp.Optional[bool] = None,
+        trailing: tp.Optional[tp.Callable[[], None]] = None,
+        width: Width | None = None,
+        _vendored: bool = False,
+        **kwargs: tp.Any,
+    ) -> None:
+        if border is None:
+            # a standalone panel frames itself; one delivered inside a
+            # wrapper's frame (a popover) would only nest a second frame
+            border = not _vendored
+        if show_location is None:
+            # a caller leading the row with a widget of its own (a path input)
+            # has no use for the ladder -- that widget *is* the way in
+            show_location = leading is None
+        super().__init__(
+            label,
+            label_visibility=label_visibility,
+            help=help,
+            width=width,
+            border=border,
+            **kwargs,
+        )
+        self._vendored = _vendored
+        # `leading` / `trailing` fill the head and the tail of the toolbar
+        # row, so a wrapper can lay its own widgets around the actions (the
+        # path inputs put a `PathInput` in front of `home` and a
+        # fold / unfold button after the mode control)
+        self._location: tp.Optional[Selectbox] = None
+
+        selection_mode = _check_selection_mode(selection_mode)
+        initial_mode = _check_initial_mode(initial_mode, selection_mode)
+        keeps = _filter_func(filter)
+        nav = _TreeNav(self._normalize(start_directory))
+        self._nav = nav
+        # where the Home button leads. Kept apart from `start_directory`,
+        # which is what the listing opens on (and what the bucket labels
+        # itself against); left out, the two are the same place.
+        self._home_dir = (
+            self._normalize(home_directory)
+            if home_directory
+            else nav.start_directory
+        )
+        self._keeps = keeps
+        self._selection_mode = selection_mode
+        # guards every pick handler while the listing is rebuilt: re-listing
+        # swaps `options`, which resets `focused_index` and makes a radio fall
+        # back to another row
+        self._syncing = False
+        # the folder the panel was in before the current one: coming back up
+        # highlights the row that leads there (see `_focus_index`)
+        self._came_from = ''
+        # a row the next listing should point at instead, for a wrapper's
+        # jump that has somewhere definite in mind (`_goto`)
+        self._point_at: tp.Union[str, int] = ''
+
+        self.value = Property(
+            tp.cast(tp.Union[str, tp.List[str]], _empty_value(initial_mode))
+        )
+        self.mode = Property(initial_mode)
+        # whether the listing shows at all. A wrapper that folds the panel
+        # (an expander-like path input) gates the rows with it while the
+        # toolbar row stays put.
+        self.rows_visible = Property(True)
+        self.rows_visible.set_or_bind(rows_visible)
+        self.on_navigate: Signal = Signal(str)
+        self.on_submit: Signal = Signal(tp.Iterable[str])
+
+        # only the modes that can cross folders get a bucket, and only a
+        # `selection_mode` offering more than one gets the control that
+        # switches between them -- so a plain `single` builds neither
+        crosses = _MODE_MULTICROSS in selection_mode
+        switchable = len(selection_mode) > 1
+
+        with self:
+            # The toolbar is a row across the panel's top. The location
+            # selectbox leads: it lists every ancestor of the folder on show,
+            # itself last, so the ladder doubles as "you are here" and any
+            # parent is one pick away. It is the only child that stretches, so
+            # the row needs no `Space`. Its `accept_new_option` row is for the
+            # place the ladder cannot offer -- a path typed in from outside --
+            # and takes the panel *there* rather than growing a rung.
+            #
+            # `bottom`: a leading widget carries a label of its own, so the
+            # row is taller than the 32px actions. Aligning on the bottom
+            # keeps the box's input and the icon buttons on one line instead
+            # of centering the shorter actions against the whole box.
+            with Row('bottom'):
+                if leading is not None:
+                    leading()
+                if show_location:
+                    self._location = Selectbox(
+                        'Current location',
+                        options=self._ladder(nav.directory),
+                        format=_path_label,
+                        value=nav.directory,
+                        accept_new_option=accept_new_option,
+                        take_new_option=(
+                            self._take_typed_path if accept_new_option else None
+                        ),
+                        label_visibility='collapsed',
+                        # the bar reads from its tail: the folder you are in is
+                        # the last rung, and the shared prefix is the noise
+                        truncate_start=True,
+                    )
+                self._home_btn = IconButton('home')
+                self._refresh_btn = IconButton('refresh')
+                if crosses:
+                    # The bucket holds the cross-folder haul. It rides in a
+                    # `Popover` (a `MenuButton` is an options widget, not a
+                    # container); panels are `position: fixed`, so this one
+                    # floats above the enclosing panel instead of being
+                    # clipped by it. Its trigger is inert while it is empty.
+                    self._bucket_popover = Popover(
+                        bind(self.value, _bucket_text),
+                        visible=bind(self.mode, _is_multicross),
+                        enabled=bind(self.value, bool),
+                        panel_max_height=240,
+                    )
+                    with self._bucket_popover:
+                        # `options` is bound to `value`, so a tick (or the `x`
+                        # below) redraws this list by itself.
+                        self._bucket_group = ReducibleGroup(
+                            options=bind(self.value, _as_picked),
+                            format=lambda path: bucket_label(
+                                path, nav.start_directory
+                            ),
+                        )
+                if switchable:
+                    self._mode_control = Selectbox(
+                        'Selection mode',
+                        options=selection_mode,
+                        index=selection_mode.index(initial_mode),
+                        format=lambda m: _MODE_LABELS[m],
+                        label_visibility='collapsed',
+                        width='content',
+                    )
+                if trailing is not None:
+                    trailing()
+
+            # The two lists differ only in how many nodes they may pick. Both
+            # freeze `..` and route its body click to the walk-up (one test is
+            # both predicates), and both float the "enter" arrow on their
+            # folders -- the arrow is what moves the panel for a node row, so a
+            # row's own click is free to just tick it.
+            #
+            # Every row-inspection hook goes in through `_row_extras`, which
+            # `TreeView` overrides to teach these same two groups
+            # about indentation and collapse / expand buttons.
+            def _rows_for(pred: tp.Callable[[str], bool]) -> tp.Any:
+                # the mode picks which of the two lists shows; `rows_visible`
+                # folds both away, for a wrapper that collapses the panel
+                return bind(
+                    (self.mode, self.rows_visible),
+                    lambda pair: pred(pair[0]) and pair[1],
+                )
+
+            with Container(visible=_rows_for(_is_radio)):
+                self._single_list = _NavRadioGroup(
+                    'Folder contents',
+                    options=(),
+                    format=self._entry_label,
+                    label_visibility='collapsed',
+                    max_height=height,
+                    box_disabled=self._is_frozen,
+                    boxless=self._is_boxless,
+                    navigable=self._is_enterable,
+                    body_opens=self._is_nav_up,
+                    **self._row_extras(),
+                )
+            with Container(visible=_rows_for(_is_multi)):
+                self._multi_list = _NavCheckGroup(
+                    'Folder contents',
+                    options=(),
+                    format=self._entry_label,
+                    label_visibility='collapsed',
+                    max_height=height,
+                    box_disabled=self._is_nav_up,
+                    boxless=self._is_boxless,
+                    navigable=self._is_enterable,
+                    body_opens=self._is_nav_up,
+                    **self._row_extras(),
+                )
+            # The bottom bar is where the panel's "done" action lives: a
+            # wrapper hooks `on_submit` to fold the popover away (the panel
+            # itself must not know about its parent). A vendored panel floats
+            # the bar into the corner, where it stays put while the listing
+            # scrolls; a standalone one keeps it under the listing, in the
+            # ordinary flow. Either way it is built, and always *around a
+            # `Row`*, so `widgets['bottom_bar']` is somewhere to add siblings
+            # -- including when the Confirm button is hidden. That row bows
+            # out while it has nothing to show, so a panel nobody extends
+            # does not pay for it with a gap it cannot use.
+            #
+            # The corner is the *Confirm button's* place, so a panel built
+            # without one does not float: the bar is left in the flow, where
+            # a caller's own actions line up under the listing instead of
+            # hugging the panel's right edge. The styles that skip the Confirm
+            # (inline / fold) are exactly the ones whose caller fills the bar.
+            floats = _vendored and show_confirm_button
+            if floats:
+                # a floating cluster is a `Container` (it may not sit inside a
+                # `Row`) and lays its children out in a row of its own, so the
+                # bar rides inside it rather than being it.
+                with FloatingContainer('bottom-right'):
+                    bottom_bar = Row('center', hide_when_empty=True)
+            else:
+                bottom_bar = Row('center', hide_when_empty=True)
+            with bottom_bar:
+                self._confirm_btn = Button(
+                    'Confirm',
+                    # 'content' in a floating cluster (which hugs it), full
+                    # width under the listing, as before
+                    width=None if floats else 'stretch',
+                    # `'none'` picks nothing, so there is nothing to confirm
+                    visible=bind(
+                        self.mode,
+                        lambda mode: show_confirm_button and not _is_none(mode),
+                    ),
+                )
+            self.widgets: tp.Dict[str, Component] = {
+                'bottom_bar': bottom_bar,
+                'confirm_button': self._confirm_btn,
+            }
+
+        # -- handlers -------------------------------------------------------
+
+        @self._single_list.value.on_change
+        def _on_single_pick() -> None:
+            if self._syncing:
+                return
+            option = str(self._single_list.value.get())
+            if not option or option == NAV_UP:
+                # `..` is frozen, so its box cannot be ticked; the walk-up is
+                # its row's own click (`_on_single_open`)
+                return
+            self.value.set(self._option_path(option))
+
+        @self._multi_list.value.on_change
+        def _on_multi_toggle() -> None:
+            if self._syncing:
+                return
+            self._apply_ticks()
+
+        @self._single_list.on_open
+        def _on_single_open(index: int) -> None:
+            self._open_row(self._single_list, index)
+
+        @self._multi_list.on_open
+        def _on_multi_open(index: int) -> None:
+            self._open_row(self._multi_list, index)
+
+        if self._location is not None:
+
+            @self._location.value.on_change
+            def _on_location_picked() -> None:
+                # the ladder only ever holds folders, so a pick is a jump
+                if self._syncing:
+                    return
+                directory = str(self._location.value.get())
+                if directory and directory != self._nav.directory:
+                    self._jump(directory)
+
+        @self._home_btn.on_click
+        def _on_home() -> None:
+            self._jump(self._home_dir)
+
+        @self._refresh_btn.on_click
+        def _on_refresh() -> None:
+            self.reload()
+
+        if show_confirm_button:
+
+            @self._confirm_btn.on_click
+            def _on_confirm() -> None:
+                self.on_submit.emit(self.resolve())
+
+        if crosses:
+
+            @self._bucket_group.on_reduce
+            def _on_bucket_reduced(path: str) -> None:
+                self.value.set(
+                    [p for p in _as_picked(self.value.get()) if p != path]
+                )
+                self._refresh_listing()
+
+        if switchable:
+
+            @self._mode_control.value.on_change
+            def _on_mode_changed() -> None:
+                self._set_mode(str(self._mode_control.value.get()))
+
+        self._refresh_listing()
+
+    # -- public api ---------------------------------------------------------
+
+    def clear(self) -> None:
+        """Drop the selection (`''` in `single` mode, `[]` in the others)."""
+        self.value.set(_empty_value(self.mode.get()))
+        self._refresh_listing()
+
+    @property
+    def directory(self) -> str:
+        """The folder the listing shows (see `Properties`).
+
+        Read-only: the panel's own walking, and a wrapper's jump, are what
+        move it -- writing it behind their back would leave the listing,
+        the location bar and the mode control out of step.
+        """
+        return self._nav.directory
+
+    def open_path(self, path: str) -> None:
+        """Land on what `path` names.
+
+        A folder moves the panel into it. A file moves it to the folder that
+        holds the file and marks the file's own row, so a path from outside
+        lands on the thing it names -- and a kept file joins the selection
+        too, the way a typed-in path always has. A file the listing will not
+        show has no row to mark, so its folder's listing starts at the top
+        and the file is not picked.
+
+        Text that resolves to nothing -- half-typed, or simply not there --
+        clears the pick rather than raising.
+        """
+        text = self._normalize(path.strip())
+        if not text or not self._exists(text):
+            self.clear()
+            return
+        if self._is_dir(text):
+            self._goto(text)
+            return
+        directory = self._parent_of(text)
+        keeps = bool(self._keeps(self._basename(text)))
+        if keeps:
+            self.select(text)
+        # the pick re-lists on its own, so it goes first and this jump has
+        # the last word on which row is marked
+        self._goto(directory, point_at=text if keeps else 0)
+
+    def reload(self) -> None:
+        """Re-read the current folder from disk and refresh the listing."""
+        self._nav.reload()
+        self._refresh_listing()
+
+    def resolve(self) -> tp.Tuple[str, ...]:
+        """The selection as absolute paths, for the Confirm button to report.
+
+        A ticked folder stands for everything under it, so a pick that
+        another pick already covers is dropped: the raw picks `['a/b',
+        'a/b/c', 'a/b/d.txt', 'a/e']` resolve to `('a/b', 'a/e')`. The panel's
+        own pick order is kept, so "the first pick" stays the first one the
+        user made.
+        """
+        picked = _as_picked(self.value.get())
+        return tuple(
+            path
+            for path in picked
+            if not any(_is_under(path, other) for other in picked)
+        )
+
+    def select(self, path: str) -> None:
+        """Add `path` to the selection.
+
+        `single` replaces the value; the multi modes append it, which is how a
+        path typed into a wrapper's input joins the picks (or the bucket) even
+        though it is not part of the current listing.
+        """
+        if self.mode.get() == _MODE_SINGLE:
+            self.value.set(path)
+        else:
+            picked = _as_picked(self.value.get())
+            if path not in picked:
+                picked.append(path)
+                self.value.set(picked)
+        self._refresh_listing()
+
+    # -- row model ----------------------------------------------------------
+    #
+    # What a listing row *is* is the one thing a cascading panel has to say
+    # differently: it lists several levels at once, so there a row is spelled
+    # out in full, it is indented by its depth, and its box can be drawn
+    # half-ticked.  The definitions below describe the flat case -- one
+    # folder on show, rows named relative to it -- and `TreeView`
+    # (see `tree_view.py`) overrides the ones it disagrees with.
+
+    def _apply_ticks(self) -> None:
+        """Fold the ticked rows back into the selection.
+
+        Drop this folder's previous picks, then add the ticked ones, so picks
+        made in other folders survive -- that is what makes `multicross` a
+        cross-folder gathering.  A cascading panel has more to say here: a
+        ticked folder stands for its whole subtree (see `tree_view.py`).
+        """
+        listed = self._listed_paths()
+        kept = [p for p in _as_picked(self.value.get()) if p not in listed]
+        self.value.set(kept + self._ticked_paths())
+
+    def _entry_label(self, option: tp.Any) -> str:
+        """How a row is drawn (the listing group's `format`)."""
+        return entry_label(option)
+
+    def _is_enterable(self, option: tp.Any) -> bool:
+        """Whether a row carries the "enter" arrow (`navigable`)."""
+        return _is_enterable(option)
+
+    def _is_nav_up(self, option: tp.Any) -> bool:
+        """Whether a row is `..` (`box_disabled` and `body_opens`)."""
+        return _is_nav_up(option)
+
+    def _is_frozen(self, option: tp.Any) -> bool:
+        """Whether a row's box is inert.
+
+        `..` always is -- it is a place, not a node. And every row is, in
+        `'none'`: a display-only listing has nothing to tick, and a frozen
+        box is what says so (it also stops the row's own click from ticking).
+        """
+        return self._is_nav_up(option) or _is_none(self.mode.get())
+
+    def _is_boxless(self) -> bool:
+        """Whether the rows draw no box at all (`'none'` mode).
+
+        The box is dropped rather than hidden, so the label keeps its place
+        and every other row style is reused untouched.
+        """
+        return _is_none(self.mode.get())
+
+    def _is_ticked(self, option: tp.Any, picked: tp.Set[str]) -> bool:
+        """Whether a row's box is ticked, given the paths `value` holds.
+
+        A flat panel ticks a row exactly when its own path is picked.  A
+        cascading one also ticks a row that a picked *ancestor* covers: the
+        pick stands for the whole subtree, so every row inside it is ticked
+        too (see `tree_view.py`).
+        """
+        return self._option_path(option) in picked
+
+    def _listing_options(self) -> list:
+        """The rows of the panel, top to bottom."""
+        return listing_options(self._nav, self._keeps)
+
+    # -- data source --------------------------------------------------------
+    #
+    # Where a panel reads its rows from. The filesystem is the default; a
+    # panel that lists a static model instead overrides these (see
+    # `tree_view.py`), so the listing engine itself never touches `fs`.
+
+    def _dirnames(self, directory: str) -> tp.List[str]:
+        """The folder names `directory` holds."""
+        return self._nav.dirnames(directory)
+
+    def _filenames(self, directory: str) -> tp.List[str]:
+        """The file names `directory` holds."""
+        return self._nav.filenames(directory)
+
+    def _root_dir(self) -> str:
+        """The topmost folder navigation may reach (`''` = the whole machine).
+
+        The flat panel offers the whole machine, so it has none; a panel that
+        confines itself overrides this (see `FileTreeView.root_directory`).
+        """
+        return ''
+
+    def _ladder(self, directory: str) -> tp.List[str]:
+        """The rungs the location bar offers for `directory`."""
+        return _location_options(directory, self._root_dir())
+
+    def _normalize(self, path: str) -> str:
+        """Settle a path's spelling (absolute, forward slashes, no `..`)."""
+        return fs.abspath(path)
+
+    def _parent_of(self, path: str) -> str:
+        """The folder holding `path` (itself when it is a root)."""
+        return self._nav.parent_of(path)
+
+    @staticmethod
+    def _basename(path: str) -> str:
+        return fs.basename(path)
+
+    @staticmethod
+    def _exists(path: str) -> bool:
+        return fs.exist(path)
+
+    @staticmethod
+    def _is_dir(path: str) -> bool:
+        return fs.isdir(path)
+
+    def _option_path(self, option: tp.Any) -> str:
+        """The absolute path a row stands for (`''` for `..`)."""
+        return option_path(self._nav, option)
+
+    def _row_extras(self) -> dict:
+        """Extra row-inspection hooks for the listing groups.
+
+        Handed to `_NavRadioGroup` / `_NavCheckGroup` as further keyword
+        arguments (see `_NavigationGroup`); a flat panel needs none of them,
+        since every row sits flush left, none of them folds, and none of them
+        is half-ticked.
+        """
+        return {}
+
+    # -- internals ----------------------------------------------------------
+
+    def _carried_row(self, options: list) -> str:
+        """The listing row the current pick sits on.
+
+        `single` picks exactly one node, so that node's own row is what the
+        radio should mark.  Left blank in the multi modes, where the boxes
+        already carry the selection.
+        """
+        current = self.value.get()
+        if not current or self.mode.get() != _MODE_SINGLE:
+            return ''
+        for option in options:
+            if option != NAV_UP and self._option_path(option) == current:
+                return str(option)
+        return ''
+
+    def _goto(self, directory: str, point_at: tp.Union[str, int] = '') -> None:
+        """Point the panel at a folder and re-list it (used by the wrappers).
+
+        `point_at` says which row of the new listing should carry the
+        highlight, for a jump that knows where it is going: a path that is one
+        of its rows, or leads to one, or a row number when nothing more
+        specific can be said. Left out, the listing starts unmarked -- a
+        wrapper's jump is not a walk of the panel's own, so it has nothing to
+        point back at.
+        """
+        directory = self._normalize(directory) if directory else ''
+        if directory and self._is_dir(directory):
+            self._nav.directory = directory
+        self._came_from = ''
+        self._point_at = point_at
+        self._refresh_listing()
+
+    def _jump(self, directory: str) -> None:
+        """Move the panel into `directory` and re-list it.
+
+        `multiple` drops its picks on the way out -- they belong to the folder
+        being left. `multicross` keeps the bucket, which is the whole point of
+        crossing folders, and `single` keeps the picked path.
+
+        The folder being left is remembered on the way out, so the new listing
+        can mark the row that leads back to it (see `_focus_index`).
+        """
+        self._came_from = self._nav.directory
+        self._point_at = ''
+        if self.mode.get() == _MODE_MULTIPLE:
+            self.value.set([])
+        self._nav.directory = directory
+        self._refresh_listing()
+
+    def _take_typed_path(self, text: str) -> None:
+        """The location bar's new-option row: go where the text says.
+
+        The ladder already offers every place the panel knows, so this row
+        exists for the one it does not -- a path typed in from outside -- and
+        `open_path` is what becomes of it (see `Selectbox(take_new_option=)`).
+        """
+        self.open_path(text)
+
+    def _listed_paths(self) -> set:
+        """The absolute paths of every node the listing currently shows."""
+        options = self._multi_list.options.get() or ()
+        return {p for p in (self._option_path(o) for o in options) if p}
+
+    def _open_row(self, group: RadioGroup | CheckGroup, index: tp.Any) -> None:
+        """Walk into the place a row stands for.
+
+        Two gestures land here and both send the same `open` event: the
+        "enter" arrow of a folder row, and the row click of a `body_opens` row
+        (`..`, which has no arrow). A file reaches neither -- `_is_enterable`
+        gives it no arrow, and it has nowhere to go.
+        """
+        if self._syncing:
+            return
+        options = list(group.options.get() or ())
+        if not (isinstance(index, int) and 0 <= index < len(options)):
+            return
+        option = str(options[index])
+        if option == NAV_UP:
+            self._jump(self._nav.parent_of())
+        elif option.endswith('/'):
+            self._jump(self._option_path(option))
+
+    def _refresh_listing(self) -> None:
+        nav = self._nav
+        options = self._listing_options()
+        picked = set(_as_picked(self.value.get()))
+        # Remember where each node sits in its parent's listing, so walking
+        # back up can point at the row it came from (`_focus_index`) even
+        # though the client's own highlight is gone by then.
+        for position, option in enumerate(options):
+            path = self._option_path(option)
+            if path:
+                nav.node_index[path] = position
+        focus = self._focus_index(options)
+        self._syncing = True
+        try:
+            self._single_list._focus_index = focus
+            self._multi_list._focus_index = focus
+            # `notify=True`: the rows are rebuilt out of this patch, so the
+            # highlight travelling with them has to reach the client even when
+            # the options themselves are the ones it already had
+            self._single_list.options.set(options, notify=True)
+            self._multi_list.options.set(options, notify=True)
+            # the radio *is* the pick in `single` mode, so it shows what the
+            # panel carries (see `_carried_row`)
+            self._single_list.value.set(self._carried_row(options))
+            # the check group re-ticks what was picked before, so walking back
+            # into a folder shows its ticks again. The membership test is the
+            # overridable part: a cascading panel ticks a covered row too.
+            self._multi_list.value.set(
+                [o for o in options if self._is_ticked(o, picked)]
+            )
+            # the ladder is the panel's location bar: the current folder is
+            # the last rung, so a fresh listing reads as "you are here".
+            # `value` goes in before `options` so `_auto_select` finds it
+            # already present and does not fall back to the drive root.
+            if self._location is not None:
+                self._location.value.set(nav.directory)
+                self._location.options.set(self._ladder(nav.directory))
+        finally:
+            self._syncing = False
+        self.on_navigate.emit(nav.directory)
+
+    def _focus_index(self, options: list) -> int:
+        """The row to draw highlighted: the one leading back where we came from.
+
+        Leaving `a/b/c` for `a/b` (the `..` row, or the ladder) leaves `c/`
+        marked, so it is obvious which place was just left.  A jump further
+        than one level -- a distant rung of the ladder, or `home` -- cannot
+        mark the place itself, since it is not a row of the new listing; the
+        row on the way to it is marked instead, which is the path back.
+
+        A wrapper's jump brings a row of its own to mark (`_goto`): a path
+        that is one of these rows, or leads to one.  A *number* is taken as
+        the row itself, which is the best a jump can say when the path it has
+        is not in the listing at all -- a file the filter drops.
+
+        Where a node sat is remembered per node (`_TreeNav.node_index`), but
+        the index is re-checked against the fresh listing -- the folder may
+        have gained or lost a row since that reading -- and a row found by
+        path is used when it no longer lines up.
+        """
+        target, self._point_at = self._point_at, ''
+        if isinstance(target, int):
+            return target if 0 <= target < len(options) else -1
+        origin = target or self._came_from
+        if not origin:
+            return -1
+        nav = self._nav
+        index = nav.node_index.get(origin, -1)
+        if 0 <= index < len(options):
+            if option_path(nav, options[index]) == origin:
+                return index
+        for position, option in enumerate(options):
+            if option == NAV_UP:
+                continue
+            path = option_path(nav, option)
+            if path and (origin == path or _is_under(origin, path)):
+                return position
+        return -1
+
+    def _set_mode(self, mode: str) -> None:
+        """Switch the active mode -- only to one `selection_mode` offers."""
+        if mode not in self._selection_mode or mode == self.mode.get():
+            return
+        # the selection means something different per mode, so start clean
+        self.mode.set(mode)
+        self.value.set(_empty_value(mode))
+        self._refresh_listing()
+
+    def _ticked_paths(self) -> list:
+        """The absolute paths of the ticked rows, in listing order."""
+        nav = self._nav
+        ticked = self._multi_list.value.get() or ()
+        return [p for p in (option_path(nav, o) for o in ticked) if p]

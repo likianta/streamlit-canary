@@ -19,13 +19,13 @@
     color: var(--st-text-color);
     margin-bottom: 8px;
   }
-  /* A `v3.Text()` is often used as an empty placeholder slot (it still needs
+  /* A `sc.Text()` is often used as an empty placeholder slot (it still needs
      to stay in the DOM so its text can be patched later). It renders nothing
      anyway, and hiding it keeps it out of a parent flex container's `gap`. */
   .st-text:empty { display: none; }
   /* `Text` draws its value as written, so runs of whitespace and any
      newlines are kept instead of collapsing -- and a lone space is what
-     keeps the row (`v3.Text(' ')`). */
+     keeps the row (`sc.Text(' ')`). */
   .st-plain { white-space: pre-wrap; }
   /* The same lone space, for the components that parse markdown: without
      this it collapses and the row measures zero. Scoped to that one source
@@ -35,7 +35,7 @@
      nothing but a space, so the holder is empty as well and there is no
      white space left to preserve. `min-height` is what keeps the row. */
   .st-md-block[data-md=' '] { min-height: 1lh; }
-  /* A `v3.Markdown()` block: same rhythm and same size as `.st-text` above,
+  /* A `sc.Markdown()` block: same rhythm and same size as `.st-text` above,
      only the wrapper differs. */
   .st-markdown {
     font-size: var(--st-base-font-size);

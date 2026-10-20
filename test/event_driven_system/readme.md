@@ -32,8 +32,8 @@ state = _State()
 # state = _State(version=1)
 
 def click_counter_demo():
-    with sc.v3.Row():
-        with sc.v3.Text('Click count: 0') as txt:
+    with sc.Row():
+        with sc.Text('Click count: 0') as txt:
             #   `txt.text` is also a `Property` (same model as state), so it
             #   has the same six accessors:
             #       txt.text.get() / txt.text.set(value) / txt.text.on_change
@@ -44,7 +44,7 @@ def click_counter_demo():
                 # `.partial(sc._self)` to bind the `count` Property handle.
                 txt.text.set('Click count: {}'.format(cnt.get()))
 
-        with sc.v3.Button(
+        with sc.Button(
             'Increase counter',
             type='primary',
         ) as btn:

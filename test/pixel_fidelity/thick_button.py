@@ -8,7 +8,7 @@ def st_thick_button():
 
 
 def sc_thick_button():
-    sc.v3.Button('Bump version\n\n(:red[0.1.0] -> :green[0.2.0])')
+    sc.Button('Bump version\n\n(:red[0.1.0] -> :green[0.2.0])')
 
 
 if __name__ == '__main__':

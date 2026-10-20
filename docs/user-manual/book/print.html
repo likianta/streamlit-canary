@@ -37,10 +37,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-db9c1852.js";
+            window.path_to_searchindex_js = "searchindex-86d97e74.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-d47d577b.js"></script>
+        <script src="toc-4cae05ca.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -223,19 +223,22 @@ pyarrow, or Altair. Altair is needed only if you use <code>AltairChart</code>.</
 <pre><code class="language-bash">pip install streamlit-canary
 </code></pre>
 <p>Python 3.11 or newer is required.</p>
-<blockquote class="blockquote-tag blockquote-tag-warning">
-<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg>Warning</p>
-<p>Streamlit Canary evolves from 0.1.0 to 0.4.0 (the latest version), it contains three generation of implementations in one code base:</p>
+<blockquote class="blockquote-tag blockquote-tag-note">
+<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Note</p>
+<p>Streamlit Canary 0.5.0 is the event-driven API, and it is the default:
+the components are exported at the top level (<code>sc.Button</code>, <code>sc.Text</code>,
+<code>sc.Row</code>, …).</p>
+<p>Two earlier generations are no longer part of <code>sc</code>:</p>
 <ul>
-<li>The components V1, which are wrappers of Streamlit components, not event-driven.</li>
-<li>Components V2, broken, unable to use.</li>
-<li>Components V3, the event-driven structure.</li>
+<li>the V1 wrappers (Streamlit component wrappers, rerun model) now live in
+<code>streamlit_canary.legacy_streamlit_wrappers</code>;</li>
+<li>the V2 experiment has been removed.</li>
 </ul>
-<p>We will remove V1 and V2, then strip V3 prefix and make it default in the future. Currently be noted they are all importable, by exclusive statements (e.g. <code>from streamlit_canary import components_v3 as v3</code>). Current codebase and examples follow the way, they will be updated once refactoring is done.</p>
+<p><code>sc.v3.*</code> still resolves, but it is deprecated and warns – the prefix goes
+away in a later release.</p>
 </blockquote>
 <h2 id="hello-world"><a class="header" href="#hello-world">Hello world</a></h2>
 <pre><code class="language-python">import streamlit_canary as sc
-from streamlit_canary import components_v3 as v3
 
 
 class State(sc.StateV2):
@@ -246,15 +249,15 @@ state = State()
 
 
 def app():
-    v3.PageTitle('Click Counter')
+    sc.PageTitle('Click Counter')
 
-    with v3.Row('center'):
-        with v3.Text('Click count: 0') as txt:
+    with sc.Row('center'):
+        with sc.Text('Click count: 0') as txt:
             @state.count.on_change
             def _():
                 txt.text.set('Click count: {}'.format(state.count.get()))
 
-        with v3.Button('Increase counter', type='primary') as btn:
+        with sc.Button('Increase counter', type='primary') as btn:
             @btn.on_click
             def _():
                 state.count.set(state.count.get() + 1)
@@ -269,12 +272,10 @@ if __name__ == '__main__':
 page reload, and <code>app()</code> is not called again.</p>
 <h2 id="how-this-manual-is-organized"><a class="header" href="#how-this-manual-is-organized">How this manual is organized</a></h2>
 <ul>
-<li><strong>Components V1 (Legacy)</strong> documents the original Streamlit-based API
-that still ships with the package.</li>
-<li><strong>Components V2 (Broken)</strong> describes an abandoned transitional
-implementation. It is kept only for historical reference.</li>
-<li><strong>Components V3</strong> explains the runtime model, session state, and every
-component in the V3 library.</li>
+<li><strong>Components</strong> explains the runtime model, session state, and every
+component in the library.</li>
+<li><strong>Legacy Streamlit Wrappers</strong> documents the original Streamlit-based API,
+which now lives in <code>streamlit_canary.legacy_streamlit_wrappers</code>.</li>
 <li><strong>Roadmap</strong> lists the work that is planned next.</li>
 </ul>
 <p>If you are starting a new app, read
@@ -290,8 +291,8 @@ itself or a path to a script or module.</p>
 
 
 def app():
-    sc.v3.PageTitle('Hello')
-    sc.v3.Text('This page has no rerun loop.')
+    sc.PageTitle('Hello')
+    sc.Text('This page has no rerun loop.')
 
 
 if __name__ == '__main__':
@@ -441,131 +442,9 @@ it.</p>
 <li><a href="#session-state">Session State</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="components-v1-legacy"><a class="header" href="#components-v1-legacy">Components V1 (Legacy)</a></h1>
-<blockquote class="blockquote-tag blockquote-tag-caution">
-<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Caution</p>
-<p>This part is going to be removed in future versions, for latest reference, please read <a href="#components-v3">Components V3 docs</a>.</p>
-</blockquote>
-<p>Components V1 is the original layer of Streamlit Canary. It is built
-directly on top of Streamlit and follows the same rerun model: every
-interaction re-executes the script, and widgets return their current value
-from that run.</p>
-<p>V1 is still available under the top-level namespace:</p>
-<pre><code class="language-python">import streamlit_canary as sc
-
-value = sc.selectbox('Choose one', ('a', 'b', 'c'))
-</code></pre>
-<p>It remains useful for:</p>
-<ul>
-<li>small scripts that do not need persistent state;</li>
-<li>porting an existing Streamlit app with minimal changes;</li>
-<li>comparing behavior against upstream Streamlit.</li>
-</ul>
-<p>It is <strong>not</strong> the recommended way to build a new app. The rerun model is
-exactly what V3 removes, and V1 widgets cannot participate in the V3
-component tree or its delta patches.</p>
-<h2 id="related-pages-1"><a class="header" href="#related-pages-1">Related pages</a></h2>
-<ul>
-<li><a href="#migrating-to-v3">Migrating to V3</a></li>
-<li><a href="#components-v3">Components V3</a></li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="migrating-to-v3"><a class="header" href="#migrating-to-v3">Migrating to V3</a></h1>
-<p>V1 and V3 can live in the same process, but they do not share a component
-tree. A V3 app should use only <code>sc.v3.*</code> components inside its app
-function.</p>
-<h2 id="the-mental-model"><a class="header" href="#the-mental-model">The mental model</a></h2>
-<p>V1:</p>
-<pre><code class="language-python">import streamlit as st
-
-count = st.session_state.get('count', 0)
-
-if st.button('Increase'):
-    count += 1
-    st.session_state.count = count
-
-st.text('Click count: {}'.format(count))
-</code></pre>
-<p>V3:</p>
-<pre><code class="language-python">import streamlit_canary as sc
-
-
-class State(sc.StateV2):
-    count = sc.Property(0)
-
-
-state = State()
-
-
-def app():
-    with sc.v3.Text('Click count: 0') as txt:
-        @state.count.on_change.partial(sc._self)
-        def _(cnt):
-            txt.text.set('Click count: {}'.format(cnt.get()))
-
-    with sc.v3.Button('Increase') as btn:
-        @btn.on_click
-        def _():
-            state['count'] += 1
-</code></pre>
-<p>The differences:</p>
-<ol>
-<li><strong>The app function runs once.</strong> There is no <code>if st.button(...)</code> branch
-that runs on the next rerun.</li>
-<li><strong>State is explicit.</strong> <code>StateV2</code> fields are <code>Property</code> objects, not
-dictionary entries.</li>
-<li><strong>Widgets expose properties and signals.</strong> You attach a handler with
-<code>@widget.on_click</code> or <code>@widget.value.on_change</code> instead of reading a
-return value.</li>
-<li><strong>Updates are pushed.</strong> Changing <code>txt.text</code> sends a patch; the browser
-replaces that text node.</li>
-</ol>
-<h2 id="a-practical-checklist"><a class="header" href="#a-practical-checklist">A practical checklist</a></h2>
-<ul>
-<li>Replace <code>st.session_state</code> with a <code>StateV2</code> subclass.</li>
-<li>Replace <code>st.button(...)</code> plus an <code>if</code> branch with <code>v3.Button(...)</code> plus
-<code>@button.on_click</code>.</li>
-<li>Replace “read the widget’s return value” with <code>widget.value.get()</code>.</li>
-<li>Replace “write a widget’s value by assigning its return value” with
-<code>widget.value.set(...)</code>.</li>
-<li>Move conditional rendering into a <code>Container(visible=...)</code> or an
-<code>Expander</code>, rather than skipping code on a rerun.</li>
-<li>Replace <code>st.rerun()</code> with a state change. A rerun is neither needed nor
-available in the V3 runtime.</li>
-</ul>
-<h2 id="things-that-do-not-translate-one-to-one"><a class="header" href="#things-that-do-not-translate-one-to-one">Things that do not translate one to one</a></h2>
-<ul>
-<li>A V3 component is created once. If a widget should not exist at all, keep
-it hidden with <code>visible=False</code> instead of not creating it.</li>
-<li>Layout is built with context managers (<code>with v3.Row(): ...</code>), not by
-assigning columns to variables.</li>
-<li>Server-side code inside a handler runs on a worker thread. Keep handlers
-short, and do not block the event loop for long periods.</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="components-v2-broken"><a class="header" href="#components-v2-broken">Components V2 (Broken)</a></h1>
-<blockquote class="blockquote-tag blockquote-tag-caution">
-<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Caution</p>
-<p>This part is going to be removed in future versions, for latest reference, please read <a href="#components-v3">Components V3 docs</a>.</p>
-</blockquote>
-<p>Components V2 was a transitional implementation between the original
-Streamlit-based components and the event-driven V3 library. It explored a
-reactive property model, but it was never finished and is <strong>not
-maintained</strong>.</p>
-<p>The module is still importable as <code>sc.v2</code> so that old experiments do not
-fail at import time, but:</p>
-<ul>
-<li>its behavior is not guaranteed;</li>
-<li>it does not receive fixes;</li>
-<li>it is not covered by this manual.</li>
-</ul>
-<p>Do not start a new app with V2. Use <a href="#components-v3">Components V3</a>
-instead. If you have an app written against V2, the V3 API is close enough
-that porting it is usually a mechanical change.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="components-v3"><a class="header" href="#components-v3">Components V3</a></h1>
-<p>Components V3 is the event-driven component library. It has no dependency
-on Streamlit: every component is a plain Python object that owns reactive
+<h1 id="components"><a class="header" href="#components">Components</a></h1>
+<p>The components are the event-driven library. It has no dependency on
+Streamlit: every component is a plain Python object that owns reactive
 <code>Property</code> fields and emits <code>Signal</code>s.</p>
 <h2 id="two-rules-to-remember"><a class="header" href="#two-rules-to-remember">Two rules to remember</a></h2>
 <ol>
@@ -577,7 +456,7 @@ properties. The runtime sends the difference to the browser.</li>
 <h2 id="a-first-component"><a class="header" href="#a-first-component">A first component</a></h2>
 <pre><code class="language-python">import streamlit_canary as sc
 
-with sc.v3.Button('Say hello') as button:
+with sc.Button('Say hello') as button:
     @button.on_click
     def _():
         print('clicked')
@@ -585,14 +464,17 @@ with sc.v3.Button('Say hello') as button:
 <p>The <code>with</code> block is how a component is added to its parent. Outside a
 <code>with</code> block it is attached to the current component on the context stack,
 which is the app root by default.</p>
-<h2 id="namespaces"><a class="header" href="#namespaces">Namespaces</a></h2>
-<p>V3 lives under <code>sc.v3</code> so it does not collide with the legacy API:</p>
+<h2 id="namespace"><a class="header" href="#namespace">Namespace</a></h2>
+<p>Since 0.5.0 the components are exported at the top level – <code>sc.Button</code>,
+<code>sc.Text</code>, <code>sc.Row</code>:</p>
 <pre><code class="language-python">import streamlit_canary as sc
 
-sc.v3.Button
-sc.v3.Text
-sc.v3.Row
+sc.Button
+sc.Text
+sc.Row
 </code></pre>
+<p><code>sc.v3.*</code> still resolves for apps written before 0.5.0, but that form is
+deprecated: it emits a <code>DeprecationWarning</code>.</p>
 <p>The kernel is available at the top level:</p>
 <pre><code class="language-python">sc.Property
 sc.Signal
@@ -625,9 +507,9 @@ sc.run
 <h2 id="shared-conventions"><a class="header" href="#shared-conventions">Shared conventions</a></h2>
 <h3 id="sizing"><a class="header" href="#sizing">Sizing</a></h3>
 <p>Every component accepts the same size keywords:</p>
-<pre><code class="language-python">v3.Button('Go', width='stretch')
-v3.Container(height=320)
-v3.Text('x', min_height=40)
+<pre><code class="language-python">sc.Button('Go', width='stretch')
+sc.Container(height=320)
+sc.Text('x', min_height=40)
 </code></pre>
 <ul>
 <li><code>width</code> / <code>height</code>: an <code>int</code> in CSS pixels, <code>'stretch'</code>, <code>'content'</code>, or
@@ -641,12 +523,12 @@ axis’s min / max bounds.</p>
 <p>Most components take <code>visible</code>. Text-like components default to
 <code>'auto'</code>: they show when their content is non-empty and hide when it is
 blank. A boolean or a bound property is used as given.</p>
-<pre><code class="language-python">v3.Text('')                       # hidden
-v3.Text('hello')                  # shown
-v3.Text('hello', visible=False)   # hidden
-v3.Text('', visible=True)         # shown, but empty
+<pre><code class="language-python">sc.Text('')                       # hidden
+sc.Text('hello')                  # shown
+sc.Text('hello', visible=False)   # hidden
+sc.Text('', visible=True)         # shown, but empty
 </code></pre>
-<p>To reserve a line without text, use exactly one space: <code>v3.Title(' ')</code>.</p>
+<p>To reserve a line without text, use exactly one space: <code>sc.Title(' ')</code>.</p>
 <h3 id="reading-and-writing"><a class="header" href="#reading-and-writing">Reading and writing</a></h3>
 <p>All reactive fields use the same style:</p>
 <pre><code class="language-python">widget.value.get()
@@ -658,8 +540,8 @@ widget['on_value']       # same as widget.value.on_change
 <h3 id="binding"><a class="header" href="#binding">Binding</a></h3>
 <p><code>sc.bind(source, transform)</code> creates a read-only, derived property.
 <code>sc.bbind(source)</code> creates a two-way binding for widgets that write back.</p>
-<pre><code class="language-python">v3.Text(sc.bind(state.count, lambda n: 'Count: {}'.format(n)))
-v3.NumberInput('Channel', sc.bbind(state.channel))
+<pre><code class="language-python">sc.Text(sc.bind(state.count, lambda n: 'Count: {}'.format(n)))
+sc.NumberInput('Channel', sc.bbind(state.channel))
 </code></pre>
 <h2 id="pages-in-this-section"><a class="header" href="#pages-in-this-section">Pages in this section</a></h2>
 <ul>
@@ -694,9 +576,9 @@ endpoint. It is a no-rerun runtime: there is no script re-execution path.</p>
 and for opening the app in a native window.</p>
 <h3 id="component-tree"><a class="header" href="#component-tree">Component tree</a></h3>
 <p>Components are nested with context managers:</p>
-<pre><code class="language-python">with sc.v3.Row('center'):
-    sc.v3.Text('Left')
-    sc.v3.Button('Right')
+<pre><code class="language-python">with sc.Row('center'):
+    sc.Text('Left')
+    sc.Button('Right')
 </code></pre>
 <p>Each component has an <code>id</code>, a <code>parent</code>, and <code>children</code>. The tree is built
 once and kept for the life of the session.</p>
@@ -725,7 +607,7 @@ changed.emit(42)
 </code></pre>
 <h3 id="handlers"><a class="header" href="#handlers">Handlers</a></h3>
 <p>A component exposes named signals:</p>
-<pre><code class="language-python">with sc.v3.Button('Save') as button:
+<pre><code class="language-python">with sc.Button('Save') as button:
     @button.on_click
     def _():
         ...
@@ -754,7 +636,7 @@ result depends on more than the value.</p>
 )
 </code></pre>
 <p><code>sc.bbind</code> binds in both directions:</p>
-<pre><code class="language-python">v3.NumberInput('Channel', sc.bbind(state.channel))
+<pre><code class="language-python">sc.NumberInput('Channel', sc.bbind(state.channel))
 </code></pre>
 <p>The widget mirrors the state, and a user edit writes back into it.</p>
 <h2 id="special-markers"><a class="header" href="#special-markers">Special markers</a></h2>
@@ -812,7 +694,7 @@ but it runs only when that event happens. It should:</p>
 <li>avoid touching the component tree (create components in <code>app()</code>, not in
 a handler).</li>
 </ul>
-<pre><code class="language-python">with sc.v3.Button('Load') as button:
+<pre><code class="language-python">with sc.Button('Load') as button:
     @button.on_click
     def _():
         state.status.set('loading')
@@ -921,7 +803,7 @@ def _(value):
 <pre><code class="language-python">double = sc.bind(state.count, lambda n: n * 2)
 </code></pre>
 <p>A two-way binding is created with <code>sc.bbind</code>:</p>
-<pre><code class="language-python">v3.NumberInput('Count', sc.bbind(state.count))
+<pre><code class="language-python">sc.NumberInput('Count', sc.bbind(state.count))
 </code></pre>
 <p>See <a href="#the-event-driven-system">The Event Driven System</a> for the full
 explanation of triggers, multiple sources, and <code>default=</code>.</p>
@@ -976,7 +858,7 @@ Streamlit groups its own API reference.</p>
 <p>All components accept <code>width</code>, <code>height</code>, <code>max_width</code>, <code>min_width</code>,
 <code>max_height</code>, <code>min_height</code>, and <code>visible</code>, unless a page says otherwise.
 Widgets also accept <code>key</code> where a stable identity is useful.</p>
-<pre><code class="language-python">v3.Button('Go', width='stretch', visible=state.ready)
+<pre><code class="language-python">sc.Button('Go', width='stretch', visible=state.ready)
 </code></pre>
 <p>Text-like components default to <code>visible='auto'</code>, which hides them while
 their content is blank.</p>
@@ -995,7 +877,7 @@ field and default to <code>visible='auto'</code>: empty content hides the elemen
 <h2 id="text"><a class="header" href="#text"><code>Text</code></a></h2>
 <p>Plain text. It is rendered literally: markdown is not parsed, and
 whitespace is preserved.</p>
-<pre><code class="language-python">with v3.Text('Click count: 0') as txt:
+<pre><code class="language-python">with sc.Text('Click count: 0') as txt:
     @state.count.on_change.partial(sc._self)
     def _(count):
         txt.text.set('Click count: {}'.format(count.get()))
@@ -1020,7 +902,7 @@ example a path, a file name, or user input.</p>
 <p>Renders markdown. The source is stored in a <code>data-md</code> attribute and parsed
 in the browser by the bundled <code>markdown-it</code>, so formatting, icons, and
 colors stay consistent with the rest of the page.</p>
-<pre><code class="language-python">v3.Markdown('**Ready** in :green[3] seconds')
+<pre><code class="language-python">sc.Markdown('**Ready** in :green[3] seconds')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1045,8 +927,8 @@ colors stay consistent with the rest of the page.</p>
 block can be indented naturally.</p>
 <h2 id="title"><a class="header" href="#title"><code>Title</code></a></h2>
 <p>A section heading.</p>
-<pre><code class="language-python">v3.Title('Configuration')
-v3.Title('Centered', horizontal_alignment='center')
+<pre><code class="language-python">sc.Title('Configuration')
+sc.Title('Centered', horizontal_alignment='center')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1068,7 +950,7 @@ heading line.</p>
 <h2 id="pagetitle"><a class="header" href="#pagetitle"><code>PageTitle</code></a></h2>
 <p>A <code>Title</code> that also configures the page. It writes the text into the
 document title and accepts the page-level options.</p>
-<pre><code class="language-python">v3.PageTitle('My App', layout='wide', default_theme='dark')
+<pre><code class="language-python">sc.PageTitle('My App', layout='wide', default_theme='dark')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1088,7 +970,7 @@ document title and accepts the page-level options.</p>
 visible heading, use <a href="#page-config"><code>PageConfig</code></a>.</p>
 <h2 id="caption"><a class="header" href="#caption"><code>Caption</code></a></h2>
 <p>Small, muted text.</p>
-<pre><code class="language-python">v3.Caption('Last updated: 2026-10-19')
+<pre><code class="language-python">sc.Caption('Last updated: 2026-10-19')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1104,7 +986,7 @@ visible heading, use <a href="#page-config"><code>PageConfig</code></a>.</p>
 <h2 id="code"><a class="header" href="#code"><code>Code</code></a></h2>
 <p>A code block. Canary renders it as plain monospace text; there is no
 syntax highlighting.</p>
-<pre><code class="language-python">v3.Code('print("hello")', language='python')
+<pre><code class="language-python">sc.Code('print("hello")', language='python')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1128,7 +1010,7 @@ that.</p>
 <h2 id="table"><a class="header" href="#table"><code>Table</code></a></h2>
 <p>A static table. <code>rows</code> is a sequence of rows, and the first cell of each
 row is rendered as a row header (<code>&lt;th scope="row"&gt;</code>).</p>
-<pre><code class="language-python">v3.Table(
+<pre><code class="language-python">sc.Table(
     rows=[
         ('Alice', 'Engineering', 'alice@example.com'),
         ('Bob', 'Design', 'bob@example.com'),
@@ -1171,7 +1053,7 @@ chart = alt.Chart(data).mark_bar().encode(
     y='value',
 )
 
-v3.AltairChart(chart)
+sc.AltairChart(chart)
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1191,7 +1073,7 @@ v3.AltairChart(chart)
 optional dependency: the component does not import it.</p>
 <p>To update a chart, call <code>set_chart()</code> or set the <code>chart</code> property with a
 new specification:</p>
-<pre><code class="language-python">with v3.AltairChart(chart) as view:
+<pre><code class="language-python">with sc.AltairChart(chart) as view:
     @state.data.on_change
     def _():
         view.set_chart(alt.Chart(state.data.get()).mark_line())
@@ -1201,7 +1083,7 @@ new specification:</p>
 <p>Button-style widgets trigger actions. They have no value of their own,
 except for <code>ToggleButton</code>.</p>
 <h2 id="button-1"><a class="header" href="#button-1"><code>Button</code></a></h2>
-<pre><code class="language-python">with v3.Button('Save', type='primary') as button:
+<pre><code class="language-python">with sc.Button('Save', type='primary') as button:
     @button.on_click
     def _():
         save()
@@ -1225,7 +1107,7 @@ except for <code>ToggleButton</code>.</p>
 <p>Signals: <code>on_click</code>.</p>
 <p><code>type</code>, <code>enabled</code>, and <code>help</code> are reactive, so a button can change
 appearance or availability as state changes:</p>
-<pre><code class="language-python">v3.Button(
+<pre><code class="language-python">sc.Button(
     'Deploy',
     enabled=sc.bind(state.ready, lambda x: x),
 )
@@ -1233,7 +1115,7 @@ appearance or availability as state changes:</p>
 <h2 id="iconbutton"><a class="header" href="#iconbutton"><code>IconButton</code></a></h2>
 <p>A button that contains only an icon. A bare material icon name is wrapped
 as <code>:material/&lt;name&gt;:</code> automatically.</p>
-<pre><code class="language-python">v3.IconButton('refresh', help='Reload the list')
+<pre><code class="language-python">sc.IconButton('refresh', help='Reload the list')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1250,7 +1132,7 @@ as <code>:material/&lt;name&gt;:</code> automatically.</p>
 <h2 id="menubutton"><a class="header" href="#menubutton"><code>MenuButton</code></a></h2>
 <p>A button that opens a menu of options. Choosing a row sets <code>value</code> and
 closes the menu, without a server round trip.</p>
-<pre><code class="language-python">menu = v3.MenuButton('Export', options=('CSV', 'JSON'))
+<pre><code class="language-python">menu = sc.MenuButton('Export', options=('CSV', 'JSON'))
 
 @menu.value.on_change
 def _():
@@ -1273,7 +1155,7 @@ def _():
 <p>Properties: <code>text</code>, <code>options</code>, <code>value</code>.</p>
 <h2 id="togglebutton"><a class="header" href="#togglebutton"><code>ToggleButton</code></a></h2>
 <p>A canary extra: a button that stays lit while its <code>value</code> is true.</p>
-<pre><code class="language-python">with v3.ToggleButton('Bold') as bold:
+<pre><code class="language-python">with sc.ToggleButton('Bold') as bold:
     @bold.value.on_change
     def _():
         apply_style(bold.value.get())
@@ -1299,7 +1181,7 @@ error, so the look cannot disagree with the state.</p>
 <h1 id="inputs"><a class="header" href="#inputs">Inputs</a></h1>
 <p>Input widgets hold a value that the user can change. Every widget in this
 section follows the same property model:</p>
-<pre><code class="language-python">with v3.Checkbox('Enabled', value=True) as box:
+<pre><code class="language-python">with sc.Checkbox('Enabled', value=True) as box:
     @box.value.on_change
     def _():
         print(box.value.get())
@@ -1334,7 +1216,7 @@ page is rendered; a later change to <code>label</code> does not re-evaluate it.<
 </ul>
 <p><code>index</code> and <code>value</code> are kept in sync. Setting either one updates the
 other.</p>
-<pre><code class="language-python">v3.Selectbox(
+<pre><code class="language-python">sc.Selectbox(
     'Level',
     options=(1, 2, 3),
     value=2,
@@ -1366,7 +1248,7 @@ keystroke while the text is still uncommitted.</p>
 <h1 id="checkbox-and-group"><a class="header" href="#checkbox-and-group">Checkbox and Group</a></h1>
 <h2 id="checkbox"><a class="header" href="#checkbox"><code>Checkbox</code></a></h2>
 <p>A single tick box.</p>
-<pre><code class="language-python">with v3.Checkbox('Enable caching', value=True) as box:
+<pre><code class="language-python">with sc.Checkbox('Enable caching', value=True) as box:
     @box.value.on_change
     def _():
         cache_enabled.set(box.value.get())
@@ -1387,7 +1269,7 @@ keystroke while the text is still uncommitted.</p>
 <p>Signals: <code>value.on_change</code> (<code>box['on_value']</code>).</p>
 <h2 id="checkgroup"><a class="header" href="#checkgroup"><code>CheckGroup</code></a></h2>
 <p>A group of tick boxes for choosing several values.</p>
-<pre><code class="language-python">with v3.CheckGroup(
+<pre><code class="language-python">with sc.CheckGroup(
     'Extras',
     options=('Deps', 'Docs', 'Tests'),
     value=('Deps', 'Tests'),
@@ -1418,7 +1300,7 @@ keystroke while the text is still uncommitted.</p>
 <p>Signals: <code>on_change</code> (same as <code>value.on_change</code>), <code>options.on_change</code>.</p>
 <h3 id="dictionary-form"><a class="header" href="#dictionary-form">Dictionary form</a></h3>
 <p>Passing a dictionary spells each option’s starting state:</p>
-<pre><code class="language-python">v3.CheckGroup('Extras', options={'Deps': True, 'Docs': False})
+<pre><code class="language-python">sc.CheckGroup('Extras', options={'Deps': True, 'Docs': False})
 </code></pre>
 <p>The keys become <code>options</code>, and <code>value</code> becomes a list of booleans parallel
 to <code>options</code>, not a subset of them. This is useful when a caller wants to
@@ -1426,7 +1308,7 @@ keep the flags in a fixed order.</p>
 <h3 id="focused-row"><a class="header" href="#focused-row">Focused row</a></h3>
 <p><code>focused_index</code> is the row the client last clicked, or <code>-1</code>. It can drive
 an action that applies to the highlighted row:</p>
-<pre><code class="language-python">v3.Button(
+<pre><code class="language-python">sc.Button(
     'Open',
     enabled=sc.bind(group.focused_index, lambda i: i &gt;= 0),
 )
@@ -1435,7 +1317,7 @@ an action that applies to the highlighted row:</p>
 <h1 id="radiobox-and-group"><a class="header" href="#radiobox-and-group">Radiobox and Group</a></h1>
 <h2 id="radiogroup"><a class="header" href="#radiogroup"><code>RadioGroup</code></a></h2>
 <p>A group of radio buttons for choosing exactly one value.</p>
-<pre><code class="language-python">with v3.RadioGroup(
+<pre><code class="language-python">with sc.RadioGroup(
     'Project scope',
     options=('All', 'Current', 'Selected'),
     value='Current',
@@ -1473,7 +1355,7 @@ is short. Use <a href="#selectbox-and-multiselect"><code>Selectbox</code></a> wh
 space is tight.</p>
 <h2 id="disabled-rows"><a class="header" href="#disabled-rows">Disabled rows</a></h2>
 <p><code>box_disabled</code> marks rows that are visible but cannot be selected:</p>
-<pre><code class="language-python">v3.RadioGroup(
+<pre><code class="language-python">sc.RadioGroup(
     'Target',
     options=('dev', 'prod'),
     box_disabled=lambda x: x == 'prod',
@@ -1485,7 +1367,7 @@ for a click but not a value.</p>
 <h1 id="selectbox-and-multiselect"><a class="header" href="#selectbox-and-multiselect">Selectbox and Multiselect</a></h1>
 <h2 id="selectbox"><a class="header" href="#selectbox"><code>Selectbox</code></a></h2>
 <p>A dropdown for choosing one value.</p>
-<pre><code class="language-python">with v3.Selectbox(
+<pre><code class="language-python">with sc.Selectbox(
     'Choose a branch',
     options=('main', 'dev', 'release'),
     value='main',
@@ -1518,7 +1400,7 @@ for a click but not a value.</p>
 <p>Properties: <code>label</code>, <code>options</code>, <code>index</code>, <code>value</code>, <code>placeholder</code>.</p>
 <p>Signals: <code>value.on_change</code>, <code>options.on_change</code>.</p>
 <h3 id="accepting-a-new-option"><a class="header" href="#accepting-a-new-option">Accepting a new option</a></h3>
-<pre><code class="language-python">v3.Selectbox(
+<pre><code class="language-python">sc.Selectbox(
     'Channel',
     options=('A', 'B'),
     accept_new_option=True,
@@ -1526,7 +1408,7 @@ for a click but not a value.</p>
 </code></pre>
 <p>A submitted value that is not already an option is added at the front and
 selected. <code>format_new_option</code> converts the text before it is stored:</p>
-<pre><code class="language-python">v3.Selectbox(
+<pre><code class="language-python">sc.Selectbox(
     'Port',
     options=(80, 443),
     accept_new_option=True,
@@ -1542,7 +1424,7 @@ as wide as the current value. Switching options therefore does not make
 the control jump in size.</p>
 <h2 id="multiselect"><a class="header" href="#multiselect"><code>Multiselect</code></a></h2>
 <p>A dropdown for choosing several values.</p>
-<pre><code class="language-python">with v3.Multiselect(
+<pre><code class="language-python">with sc.Multiselect(
     'Select chart results',
     options=('Droop', 'PSD', 'SNDR'),
     value=('Droop', 'PSD'),
@@ -1580,7 +1462,7 @@ picked. Pass a size keyword to override it.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="numberinput"><a class="header" href="#numberinput">NumberInput</a></h1>
 <p>A box for entering a number.</p>
-<pre><code class="language-python">with v3.NumberInput('Workers', value=4, min_value=1, step=1) as box:
+<pre><code class="language-python">with sc.NumberInput('Workers', value=4, min_value=1, step=1) as box:
     @box.value.on_change
     def _():
         workers.set(box.value.get())
@@ -1606,8 +1488,8 @@ picked. Pass a size keyword to override it.</p>
 <p>Signals: <code>value.on_change</code>, <code>on_submit</code>, <code>on_editing_finished</code>.</p>
 <h2 id="integer-versus-float"><a class="header" href="#integer-versus-float">Integer versus float</a></h2>
 <p>The initial <code>value</code> decides the widget’s numeric type:</p>
-<pre><code class="language-python">v3.NumberInput('Count', value=0)     # int widget
-v3.NumberInput('Ratio', value=0.0)   # float widget
+<pre><code class="language-python">sc.NumberInput('Count', value=0)     # int widget
+sc.NumberInput('Ratio', value=0.0)   # float widget
 </code></pre>
 <p>An int widget requires int bounds and an int step. A float widget also
 accepts ints and converts them to float.</p>
@@ -1633,7 +1515,7 @@ validation to your handler.</p>
 <h1 id="textinput-and-textarea"><a class="header" href="#textinput-and-textarea">TextInput and TextArea</a></h1>
 <h2 id="textinput"><a class="header" href="#textinput"><code>TextInput</code></a></h2>
 <p>A single-line text box.</p>
-<pre><code class="language-python">with v3.TextInput('Project name', value='') as box:
+<pre><code class="language-python">with sc.TextInput('Project name', value='') as box:
     @box.on_submit
     def _(text):
         create_project(text)
@@ -1663,7 +1545,7 @@ validation to your handler.</p>
 keystroke, which is how a caller can follow text before it is committed.</p>
 <h3 id="input-history"><a class="header" href="#input-history">Input history</a></h3>
 <p><code>input_history</code> adds a caret that opens a list of suggestions:</p>
-<pre><code class="language-python">v3.TextInput('File', input_history=('/tmp/a.txt', '/tmp/b.txt'))
+<pre><code class="language-python">sc.TextInput('File', input_history=('/tmp/a.txt', '/tmp/b.txt'))
 </code></pre>
 <ul>
 <li><code>None</code>: no caret.</li>
@@ -1681,7 +1563,7 @@ from another.</p>
 <p>A multi-line text box. It has the same fields and signals as
 <code>TextInput</code>, except <code>on_editing</code>, <code>input_history</code>, <code>accept_new_option</code>,
 and <code>truncate_start</code>.</p>
-<pre><code class="language-python">with v3.TextArea('Notes', height=160) as box:
+<pre><code class="language-python">with sc.TextArea('Notes', height=160) as box:
     @box.on_submit
     def _(text):
         save_notes(text)
@@ -1707,7 +1589,7 @@ scrolls when the text overflows its height.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="toggle"><a class="header" href="#toggle">Toggle</a></h1>
 <p>A sliding on / off switch.</p>
-<pre><code class="language-python">with v3.Toggle('Auto refresh', value=True) as toggle:
+<pre><code class="language-python">with sc.Toggle('Auto refresh', value=True) as toggle:
     @toggle.value.on_change
     def _():
         auto_refresh.set(toggle.value.get())
@@ -1741,7 +1623,7 @@ in a toolbar, and its <code>type</code> is derived from its state.</li>
 differently.</p>
 <h2 id="segmentedcontrol"><a class="header" href="#segmentedcontrol"><code>SegmentedControl</code></a></h2>
 <p>A row of pills inside one rounded track.</p>
-<pre><code class="language-python">with v3.SegmentedControl(
+<pre><code class="language-python">with sc.SegmentedControl(
     'View',
     options=('List', 'Grid', 'Tree'),
     value='List',
@@ -1775,7 +1657,7 @@ refresh.</p>
 <p>Only single selection is implemented.</p>
 <h2 id="selectslider"><a class="header" href="#selectslider"><code>SelectSlider</code></a></h2>
 <p>A slider whose ticks are a fixed set of options.</p>
-<pre><code class="language-python">with v3.SelectSlider(
+<pre><code class="language-python">with sc.SelectSlider(
     'Start level',
     options=range(15, 0, -1),
     value=15,
@@ -1808,7 +1690,7 @@ change event. The slider fills its parent by default.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="reduciblegroup"><a class="header" href="#reduciblegroup">ReducibleGroup</a></h1>
 <p>A list of items, each of which can be removed from its own trailing <code>x</code>.</p>
-<pre><code class="language-python">with v3.ReducibleGroup('Files', options=('a.txt', 'b.txt')) as group:
+<pre><code class="language-python">with sc.ReducibleGroup('Files', options=('a.txt', 'b.txt')) as group:
     @group.on_reduce
     def _(item):
         print('removed', item)
@@ -1842,9 +1724,9 @@ def _(item):
 <p>Layout components decide where other components go. They are used as
 context managers; every component created inside the block becomes a
 child.</p>
-<pre><code class="language-python">with v3.Row('center'):
-    v3.Text('Left')
-    v3.Button('Right')
+<pre><code class="language-python">with sc.Row('center'):
+    sc.Text('Left')
+    sc.Button('Right')
 </code></pre>
 <h2 id="pages-2"><a class="header" href="#pages-2">Pages</a></h2>
 <ul>
@@ -1877,10 +1759,10 @@ row’s tallest sibling.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="row"><a class="header" href="#row">Row</a></h1>
 <p>A horizontal layout container.</p>
-<pre><code class="language-python">with v3.Row('center'):
-    v3.IconButton('home')
-    v3.Space()
-    v3.Button('Save')
+<pre><code class="language-python">with sc.Row('center'):
+    sc.IconButton('home')
+    sc.Space()
+    sc.Button('Save')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1898,9 +1780,9 @@ row’s tallest sibling.</p>
 <h2 id="alignment"><a class="header" href="#alignment">Alignment</a></h2>
 <p><code>vertical_alignment</code> decides how children line up when they differ in
 height:</p>
-<pre><code class="language-python">with v3.Row('bottom'):
-    v3.Text('Label')
-    v3.TextInput('Value')
+<pre><code class="language-python">with sc.Row('bottom'):
+    sc.Text('Label')
+    sc.TextInput('Value')
 </code></pre>
 <h2 id="wrapping"><a class="header" href="#wrapping">Wrapping</a></h2>
 <p>A <code>Row</code> lays children out left to right and wraps when there is not enough
@@ -1910,8 +1792,8 @@ gap is used between wrapped lines.</p>
 <p>A row that exists only to be filled later still costs its parent one gap,
 because a zero-height box is still a box. Set <code>hide_when_empty=True</code> to
 hide the row while all of its children are hidden:</p>
-<pre><code class="language-python">with v3.Row(hide_when_empty=True):
-    v3.Button('Retry', visible=state.failed)
+<pre><code class="language-python">with sc.Row(hide_when_empty=True):
+    sc.Button('Retry', visible=state.failed)
 </code></pre>
 <p>This is decided at render time. A child that a later patch turns visible
 does not bring the row back, because patches reach the child, not its
@@ -1920,11 +1802,11 @@ parent.</p>
 <h1 id="column"><a class="header" href="#column">Column</a></h1>
 <p>A vertical layout container inside a <code>Row</code>. <code>Column</code> is an alias of
 <code>Container</code>, so it takes every <code>Container</code> argument plus <code>weight</code>.</p>
-<pre><code class="language-python">with v3.Row():
-    with v3.Column(weight=5):
-        v3.Text('Main pane')
-    with v3.Column(weight=2):
-        v3.Text('Side pane')
+<pre><code class="language-python">with sc.Row():
+    with sc.Column(weight=5):
+        sc.Text('Main pane')
+    with sc.Column(weight=2):
+        sc.Text('Side pane')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1945,9 +1827,9 @@ parent.</p>
 <p><code>weight</code> decides how the leftover width is shared. A <code>(5, 2)</code> split is two
 columns with <code>weight=5</code> and <code>weight=2</code>. Without weights, columns share the
 width equally.</p>
-<pre><code class="language-python">with v3.Row():
-    v3.Column(weight=3)
-    v3.Column(weight=1)
+<pre><code class="language-python">with sc.Row():
+    sc.Column(weight=3)
+    sc.Column(weight=1)
 </code></pre>
 <p>A column is a full <code>Container</code>; see <a href="#container">Container</a> for
 borders, fixed heights, and scrolling.</p>
@@ -1955,9 +1837,9 @@ borders, fixed heights, and scrolling.</p>
 <h1 id="container"><a class="header" href="#container">Container</a></h1>
 <p>A vertical box for grouping components. <code>Column</code> is an alias of
 <code>Container</code>.</p>
-<pre><code class="language-python">with v3.Container(border=True, border_title='Settings', height=320):
-    v3.Checkbox('Enable caching')
-    v3.NumberInput('Workers', value=4)
+<pre><code class="language-python">with sc.Container(border=True, border_title='Settings', height=320):
+    sc.Checkbox('Enable caching')
+    sc.NumberInput('Workers', value=4)
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -1978,25 +1860,25 @@ borders, fixed heights, and scrolling.</p>
 <p>Properties: <code>border_title</code>, <code>visible</code>.</p>
 <h2 id="scrolling"><a class="header" href="#scrolling">Scrolling</a></h2>
 <p>A fixed <code>height</code> caps the box and makes it scroll:</p>
-<pre><code class="language-python">with v3.Container(height=240):
+<pre><code class="language-python">with sc.Container(height=240):
     for line in lines:
-        v3.Text(line)
+        sc.Text(line)
 </code></pre>
 <p><code>max_height</code> has the same effect. <code>min_height</code> does not.</p>
 <h2 id="stretching-inside-a-row"><a class="header" href="#stretching-inside-a-row">Stretching inside a row</a></h2>
 <p><code>height='stretch'</code> makes the container fill the parent’s height. Inside a
 <code>Row</code>, it spans the row’s tallest sibling:</p>
-<pre><code class="language-python">with v3.Row():
-    with v3.Container(height='stretch'):
-        v3.Text('Left')
-    with v3.Container(height='stretch'):
-        v3.Text('Right')
+<pre><code class="language-python">with sc.Row():
+    with sc.Container(height='stretch'):
+        sc.Text('Left')
+    with sc.Container(height='stretch'):
+        sc.Text('Right')
 </code></pre>
 <h2 id="showing-and-hiding"><a class="header" href="#showing-and-hiding">Showing and hiding</a></h2>
 <p><code>visible</code> controls whether the container is rendered. <code>animated=True</code>
 transitions the height instead of making it pop:</p>
-<pre><code class="language-python">with v3.Container(visible=state.show_advanced, animated=True):
-    v3.Text('Advanced options')
+<pre><code class="language-python">with sc.Container(visible=state.show_advanced, animated=True):
+    sc.Text('Advanced options')
 </code></pre>
 <p>The container stays in the tree either way, so a later patch can bring it
 back.</p>
@@ -2006,9 +1888,9 @@ the frame, the way a <code>&lt;legend&gt;</code> sits in a fieldset.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="expander"><a class="header" href="#expander">Expander</a></h1>
 <p>A collapsible section with a clickable header.</p>
-<pre><code class="language-python">with v3.Expander('Configurations', expanded=True):
-    v3.Checkbox('Enable caching')
-    v3.Button('Force refresh')
+<pre><code class="language-python">with sc.Expander('Configurations', expanded=True):
+    sc.Checkbox('Enable caching')
+    sc.Button('Force refresh')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2027,7 +1909,7 @@ the frame, the way a <code>&lt;legend&gt;</code> sits in a fieldset.</p>
 reaches the server and never triggers a rerun.</p>
 <h2 id="dynamic-header"><a class="header" href="#dynamic-header">Dynamic header</a></h2>
 <p><code>label</code> is bindable:</p>
-<pre><code class="language-python">v3.Expander(sc.bind(state.file_count, lambda n: 'Files ({})'.format(n)))
+<pre><code class="language-python">sc.Expander(sc.bind(state.file_count, lambda n: 'Files ({})'.format(n)))
 </code></pre>
 <h2 id="hiding"><a class="header" href="#hiding">Hiding</a></h2>
 <p><code>visible=False</code> removes the whole expander, header included. To keep the
@@ -2036,11 +1918,11 @@ its <code>visible</code> from a <code>ToggleButton</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="grid"><a class="header" href="#grid">Grid</a></h1>
 <p>A layout with an explicit number of rows and columns.</p>
-<pre><code class="language-python">with v3.Grid(rows=1, cols=2) as grid:
+<pre><code class="language-python">with sc.Grid(rows=1, cols=2) as grid:
     with next(grid):
-        v3.Button('A')
+        sc.Button('A')
     with next(grid):
-        v3.Button('B')
+        sc.Button('B')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2059,27 +1941,27 @@ its <code>visible</code> from a <code>ToggleButton</code>.</p>
 <h2 id="addressing-cells"><a class="header" href="#addressing-cells">Addressing cells</a></h2>
 <p>Three forms are available:</p>
 <pre><code class="language-python"># 1. Sequential
-with v3.Grid(rows=2, cols=2) as grid:
+with sc.Grid(rows=2, cols=2) as grid:
     with next(grid):
-        v3.Text('row 0, col 0')
+        sc.Text('row 0, col 0')
     with next(grid):
-        v3.Text('row 0, col 1')
+        sc.Text('row 0, col 1')
 
 # 2. By coordinate, reusable
 with grid[1, 0]:
-    v3.Text('row 1, col 0')
+    sc.Text('row 1, col 0')
 
 # 3. Iteration
 for cell in grid:
     with cell:
-        v3.Text('...')
+        sc.Text('...')
 </code></pre>
 <p><code>next(grid)</code> and <code>for cell in grid</code> walk left to right, then top to
 bottom. <code>grid[row, col]</code> returns a stable <code>Cell</code>; accessing the same
 coordinate again reuses it.</p>
 <h2 id="column-weights"><a class="header" href="#column-weights">Column weights</a></h2>
 <p><code>cols</code> accepts a sequence of weights, mirroring <code>st.columns((5, 2))</code>:</p>
-<pre><code class="language-python">with v3.Grid(cols=(5, 2)) as grid:
+<pre><code class="language-python">with sc.Grid(cols=(5, 2)) as grid:
     ...
 </code></pre>
 <h2 id="alignment-1"><a class="header" href="#alignment-1">Alignment</a></h2>
@@ -2092,11 +1974,11 @@ its own height.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="tabs"><a class="header" href="#tabs">Tabs</a></h1>
 <p>A tab bar with one panel per label.</p>
-<pre><code class="language-python">with v3.Tabs(('Overview', 'Details')) as tabs:
+<pre><code class="language-python">with sc.Tabs(('Overview', 'Details')) as tabs:
     with tabs['Overview']:
-        v3.Text('Summary')
+        sc.Text('Summary')
     with tabs['Details']:
-        v3.Text('Full details')
+        sc.Text('Full details')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2116,7 +1998,7 @@ its own height.</p>
     ...
 
 # or in label order
-with v3.Tabs(('a', 'b')) as tabs:
+with sc.Tabs(('a', 'b')) as tabs:
     with next(tabs):
         ...
     with next(tabs):
@@ -2135,9 +2017,9 @@ as <code>tabs['active']</code>; read the property through <code>tabs.active</cod
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="dialog"><a class="header" href="#dialog">Dialog</a></h1>
 <p>A modal dialog.</p>
-<pre><code class="language-python">with v3.Dialog('Select a file', visible=state.browsing) as dialog:
-    v3.Text('...')
-    v3.Button('Close', on_click=lambda: dialog.visible.set(False))
+<pre><code class="language-python">with sc.Dialog('Select a file', visible=state.browsing) as dialog:
+    sc.Text('...')
+    sc.Button('Close', on_click=lambda: dialog.visible.set(False))
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2196,9 +2078,9 @@ backdrop. A capped panel scrolls as a whole.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="popover"><a class="header" href="#popover">Popover</a></h1>
 <p>A trigger button that reveals a floating panel.</p>
-<pre><code class="language-python">with v3.Popover('Export requirements'):
-    v3.RadioGroup('Mirror source', options=('PyPI', 'Local'))
-    v3.Checkbox('Lock self', value=True)
+<pre><code class="language-python">with sc.Popover('Export requirements'):
+    sc.RadioGroup('Mirror source', options=('PyPI', 'Local'))
+    sc.Checkbox('Lock self', value=True)
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2247,12 +2129,12 @@ is up.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="floating"><a class="header" href="#floating">Floating</a></h1>
 <p>A container that sticks to a corner of its parent’s visible area.</p>
-<pre><code class="language-python">with v3.Popover('Browse', panel_max_height=420):
-    with v3.FloatingContainer('top-right'):
-        v3.IconButton('refresh')
-    v3.RadioGroup('Folder contents', options=('a.txt', 'b.txt'))
-    with v3.FloatingContainer('bottom-right'):
-        v3.Button('Confirm', type='primary')
+<pre><code class="language-python">with sc.Popover('Browse', panel_max_height=420):
+    with sc.FloatingContainer('top-right'):
+        sc.IconButton('refresh')
+    sc.RadioGroup('Folder contents', options=('a.txt', 'b.txt'))
+    with sc.FloatingContainer('bottom-right'):
+        sc.Button('Confirm', type='primary')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2296,10 +2178,10 @@ of the remaining room.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="space"><a class="header" href="#space">Space</a></h1>
 <p>A flexible spacer.</p>
-<pre><code class="language-python">with v3.Row():
-    v3.IconButton('home')
-    v3.Space(size='stretch')
-    v3.Popover(':material/bucket_check: 0')
+<pre><code class="language-python">with sc.Row():
+    sc.IconButton('home')
+    sc.Space(size='stretch')
+    sc.Popover(':material/bucket_check: 0')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2322,10 +2204,10 @@ error.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="bottom"><a class="header" href="#bottom">Bottom</a></h1>
 <p>A container that is pushed to the bottom of its parent layout.</p>
-<pre><code class="language-python">with v3.Container(height=320):
-    v3.Text('Content')
-    with v3.BottomContainer():
-        v3.Button('Close')
+<pre><code class="language-python">with sc.Container(height=320):
+    sc.Text('Content')
+    with sc.BottomContainer():
+        sc.Button('Close')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2360,10 +2242,10 @@ update the text or value and the browser follows.</p>
 <h2 id="callouts"><a class="header" href="#callouts">Callouts</a></h2>
 <p><code>Info</code>, <code>Success</code>, <code>Warning</code>, and <code>Error</code> are one alert box in four
 palettes. <code>Callout</code> is the shared base.</p>
-<pre><code class="language-python">v3.Info('Loading the project...')
-v3.Success('Saved.')
-v3.Warning('This overwrites the existing file.')
-v3.Error('Could not connect to the server.')
+<pre><code class="language-python">sc.Info('Loading the project...')
+sc.Success('Saved.')
+sc.Warning('This overwrites the existing file.')
+sc.Error('Could not connect to the server.')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2379,12 +2261,12 @@ v3.Error('Could not connect to the server.')
 <p>Properties: <code>text</code>, <code>visible</code>.</p>
 <p>With <code>visible='auto'</code>, a blank message draws nothing, and a non-blank one
 shows. Pass a bound value to drive visibility yourself:</p>
-<pre><code class="language-python">v3.Error(state.error, visible=sc.bind(state.error, bool))
+<pre><code class="language-python">sc.Error(state.error, visible=sc.bind(state.error, bool))
 </code></pre>
 <h2 id="spinner"><a class="header" href="#spinner"><code>Spinner</code></a></h2>
 <p>A spinner indicator. It is hidden by default and is usually driven with a
 <code>with</code> block or a bound flag.</p>
-<pre><code class="language-python">spinner = v3.Spinner()
+<pre><code class="language-python">spinner = sc.Spinner()
 
 with spinner('Syncing...'):
     do_work()
@@ -2405,11 +2287,11 @@ with spinner('Syncing...'):
 <code>with spinner('Syncing...')</code> reads naturally. Entering shows it; exiting
 restores the visibility it had before.</p>
 <p>A state-driven form:</p>
-<pre><code class="language-python">v3.Spinner(state.busy_text, visible=sc.bind(state.busy_text, bool))
+<pre><code class="language-python">sc.Spinner(state.busy_text, visible=sc.bind(state.busy_text, bool))
 </code></pre>
 <h2 id="progress"><a class="header" href="#progress"><code>Progress</code></a></h2>
 <p>A progress bar.</p>
-<pre><code class="language-python">with v3.Progress(total=len(sheets)) as progress:
+<pre><code class="language-python">with sc.Progress(total=len(sheets)) as progress:
     for sheet in sheets:
         progress.update(sheet.title)
 </code></pre>
@@ -2456,8 +2338,8 @@ close button.</p>
 single stack, which the runtime creates if needed.</p>
 <h2 id="logpanel"><a class="header" href="#logpanel"><code>LogPanel</code></a></h2>
 <p>A live view of what the app prints to the terminal.</p>
-<pre><code class="language-python">with v3.BottomContainer():
-    v3.LogPanel(source='stdout')
+<pre><code class="language-python">with sc.BottomContainer():
+    sc.LogPanel(source='stdout')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2489,8 +2371,8 @@ content, so a panel with only a hint keeps its frame.</p>
 <h1 id="media-elements"><a class="header" href="#media-elements">Media Elements</a></h1>
 <h2 id="pdfviewer"><a class="header" href="#pdfviewer"><code>PdfViewer</code></a></h2>
 <p>Displays a PDF in the page using the bundled <code>pdf.js</code>.</p>
-<pre><code class="language-python">v3.PdfViewer('manual.pdf')
-v3.PdfViewer('https://example.com/report.pdf')
+<pre><code class="language-python">sc.PdfViewer('manual.pdf')
+sc.PdfViewer('https://example.com/report.pdf')
 </code></pre>
 <div class="table-wrapper">
 <table>
@@ -2522,7 +2404,7 @@ viewer grows up to that cap. An empty <code>src</code> hides the viewer when
 <h1 id="page-config"><a class="header" href="#page-config">Page Config</a></h1>
 <h2 id="pageconfig"><a class="header" href="#pageconfig"><code>PageConfig</code></a></h2>
 <p>Configures the page without rendering a visible element.</p>
-<pre><code class="language-python">v3.PageConfig(
+<pre><code class="language-python">sc.PageConfig(
     title='My App',
     layout='wide',
     default_theme='dark',
@@ -2550,7 +2432,7 @@ later writers override earlier ones item by item.</p>
 <h2 id="pagetitle-1"><a class="header" href="#pagetitle-1"><code>PageTitle</code></a></h2>
 <p><code>PageTitle</code> is <code>Title</code> and <code>PageConfig</code> combined. It draws a visible page
 heading and also sets the document title and page options.</p>
-<pre><code class="language-python">v3.PageTitle('My App', layout='wide', default_theme='dark')
+<pre><code class="language-python">sc.PageTitle('My App', layout='wide', default_theme='dark')
 </code></pre>
 <p>Use <code>PageTitle</code> when the app should show a heading. Use <code>PageConfig</code> when
 the page needs configuration but no visible title.</p>
@@ -2560,7 +2442,7 @@ dunder names such as <code>__init__</code> or <code>__name__</code>, which then 
 accident.</p>
 <p>Set <code>dunder_literal=True</code> to treat <code>__x__</code> as literal text. Bold remains
 available as <code>**x**</code> or <code>:bold[x]</code>.</p>
-<pre><code class="language-python">v3.PageConfig(dunder_literal=True)
+<pre><code class="language-python">sc.PageConfig(dunder_literal=True)
 </code></pre>
 <p>This is an experimental switch and is off by default.</p>
 <h2 id="document-title-updates"><a class="header" href="#document-title-updates">Document title updates</a></h2>
@@ -2622,8 +2504,8 @@ navigation target, not a node.</li>
 </ul>
 <h2 id="filtering"><a class="header" href="#filtering">Filtering</a></h2>
 <p><code>filter</code> keeps files by suffix:</p>
-<pre><code class="language-python">v3.FileTreeView(filter='.py')
-v3.FileTreeView(filter=('.py', '.pyi'))
+<pre><code class="language-python">sc.FileTreeView(filter='.py')
+sc.FileTreeView(filter=('.py', '.pyi'))
 </code></pre>
 <p>Folders are always listed.</p>
 <h2 id="pages-3"><a class="header" href="#pages-3">Pages</a></h2>
@@ -2640,8 +2522,8 @@ v3.FileTreeView(filter=('.py', '.pyi'))
 <h1 id="singletreeselect"><a class="header" href="#singletreeselect">SingleTreeSelect</a></h1>
 <p>The single-pane folder browser: one folder on show at a time, with <code>..</code> to
 walk up.</p>
-<pre><code class="language-python">with v3.Popover('Browse', panel_align='row', panel_max_height=500):
-    tree = v3.SingleTreeSelect(filter='.txt')
+<pre><code class="language-python">with sc.Popover('Browse', panel_align='row', panel_max_height=500):
+    tree = sc.SingleTreeSelect(filter='.txt')
 
 path = tree.value.get()
 </code></pre>
@@ -2713,7 +2595,7 @@ after the Confirm button.</li>
 <li><code>confirm_button</code>: the button itself, reachable even when hidden.</li>
 </ul>
 <pre><code class="language-python">with tree.widgets['bottom_bar']:
-    v3.Button('Open input folder')
+    sc.Button('Open input folder')
 </code></pre>
 <h2 id="selection-modes"><a class="header" href="#selection-modes">Selection modes</a></h2>
 <ul>
@@ -2729,7 +2611,7 @@ set containing it draws the bucket.</li>
 <h1 id="treeview"><a class="header" href="#treeview">TreeView</a></h1>
 <p>A classic tree over a static data model: every level lives in one listing,
 and folders fold open in place.</p>
-<pre><code class="language-python">with v3.TreeView('Distribution', {
+<pre><code class="language-python">with sc.TreeView('Distribution', {
     'A': {
         'B': None,        # a leaf
         'C': {},          # an empty folder
@@ -2792,7 +2674,7 @@ no outside to walk to.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="filetreeview"><a class="header" href="#filetreeview">FileTreeView</a></h1>
 <p>The classic cascading tree, backed by the real filesystem.</p>
-<pre><code class="language-python">with v3.FileTreeView('Source', start_directory='./data') as tree:
+<pre><code class="language-python">with sc.FileTreeView('Source', start_directory='./data') as tree:
     ...
 
 picked = tree.value.get()
@@ -2844,7 +2726,7 @@ ancestors of the folder on show, itself last:</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="dualtreeselect"><a class="header" href="#dualtreeselect">DualTreeSelect</a></h1>
 <p>A two-column browser: subfolders on the left, files on the right.</p>
-<pre><code class="language-python">with v3.DualTreeSelect('data/sample', filter='.txt') as tree:
+<pre><code class="language-python">with sc.DualTreeSelect('data/sample', filter='.txt') as tree:
     @tree.on_confirm
     def _():
         path = tree.value.get()
@@ -2898,7 +2780,7 @@ nothing is selected. Clicking it emits <code>on_confirm</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="columnview"><a class="header" href="#columnview">ColumnView</a></h1>
 <p>A Finder-style stack of columns, one level per column.</p>
-<pre><code class="language-python">with v3.ColumnView('Pick a file', 'data/sample') as tree:
+<pre><code class="language-python">with sc.ColumnView('Pick a file', 'data/sample') as tree:
     ...
 
 path = tree.value.get()
@@ -2959,7 +2841,7 @@ reach any ancestor in one pick.</p>
 <h1 id="pathinput-and-pathselect"><a class="header" href="#pathinput-and-pathselect">PathInput and PathSelect</a></h1>
 <h2 id="pathinput"><a class="header" href="#pathinput"><code>PathInput</code></a></h2>
 <p>A text input whose text is resolved into a path.</p>
-<pre><code class="language-python">with v3.PathInput('Output folder', 'C:/work') as box:
+<pre><code class="language-python">with sc.PathInput('Output folder', 'C:/work') as box:
     @box.on_submit
     def _(text):
         use_path(box.value.get())
@@ -3004,7 +2886,7 @@ alphabetical order.</li>
 </ul>
 <h2 id="pathselect"><a class="header" href="#pathselect"><code>PathSelect</code></a></h2>
 <p>A <code>PathInput</code> with a navigation ladder.</p>
-<pre><code class="language-python">with v3.PathSelect(
+<pre><code class="language-python">with sc.PathSelect(
     'Go to',
     '.',
     ladder=['C:/', 'C:/work', 'C:/work/app'],
@@ -3039,7 +2921,7 @@ is “in”.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="pathinputbrowse"><a class="header" href="#pathinputbrowse">PathInputBrowse</a></h1>
 <p>A path box paired with one of the tree panels.</p>
-<pre><code class="language-python">with v3.PathInputBrowse(
+<pre><code class="language-python">with sc.PathInputBrowse(
     'Select a file',
     'data/sample',
     filter='.txt',
@@ -3128,21 +3010,128 @@ names no folder, so the panel is left where it was.</p>
 <p>Writes made by the wrapper itself are silenced, so a pick in the panel
 does not echo back as a typed path and pull the panel away.</p>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="legacy-streamlit-wrappers-v1"><a class="header" href="#legacy-streamlit-wrappers-v1">Legacy Streamlit Wrappers (V1)</a></h1>
+<blockquote class="blockquote-tag blockquote-tag-caution">
+<p class="blockquote-tag-title"><svg viewbox="0 0 16 16" width="18" height="18"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg>Caution</p>
+<p>The V1 wrappers are no longer exported as <code>sc.*</code> (they left the top-level
+namespace in 0.5.0). Import them from
+<code>streamlit_canary.legacy_streamlit_wrappers</code>. For new work, read
+<a href="#components">Components</a>.</p>
+</blockquote>
+<p>Components V1 is the original layer of Streamlit Canary. It is built
+directly on top of Streamlit and follows the same rerun model: every
+interaction re-executes the script, and widgets return their current value
+from that run.</p>
+<p>They are still there, under their own module:</p>
+<pre><code class="language-python">from streamlit_canary import legacy_streamlit_wrappers as legacy
+
+value = legacy.toggle_button('Show details')
+</code></pre>
+<p>It remains useful for:</p>
+<ul>
+<li>small scripts that do not need persistent state;</li>
+<li>porting an existing Streamlit app with minimal changes;</li>
+<li>comparing behavior against upstream Streamlit.</li>
+</ul>
+<p>It is <strong>not</strong> the recommended way to build a new app. The rerun model is
+exactly what V3 removes, and V1 widgets cannot participate in the V3
+component tree or its delta patches.</p>
+<h2 id="related-pages-1"><a class="header" href="#related-pages-1">Related pages</a></h2>
+<ul>
+<li><a href="#migrating-to-the-default-components">Migrating to the default components</a></li>
+<li><a href="#components">Components</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="migrating-to-the-default-components"><a class="header" href="#migrating-to-the-default-components">Migrating to the default components</a></h1>
+<p>V1 and the event-driven components can live in the same process, but they do
+not share a component tree. An app should use only <code>sc.*</code> components inside
+its app function.</p>
+<h2 id="the-mental-model"><a class="header" href="#the-mental-model">The mental model</a></h2>
+<p>V1:</p>
+<pre><code class="language-python">import streamlit as st
+
+count = st.session_state.get('count', 0)
+
+if st.button('Increase'):
+    count += 1
+    st.session_state.count = count
+
+st.text('Click count: {}'.format(count))
+</code></pre>
+<p>V3:</p>
+<pre><code class="language-python">import streamlit_canary as sc
+
+
+class State(sc.StateV2):
+    count = sc.Property(0)
+
+
+state = State()
+
+
+def app():
+    with sc.Text('Click count: 0') as txt:
+        @state.count.on_change.partial(sc._self)
+        def _(cnt):
+            txt.text.set('Click count: {}'.format(cnt.get()))
+
+    with sc.Button('Increase') as btn:
+        @btn.on_click
+        def _():
+            state['count'] += 1
+</code></pre>
+<p>The differences:</p>
+<ol>
+<li><strong>The app function runs once.</strong> There is no <code>if st.button(...)</code> branch
+that runs on the next rerun.</li>
+<li><strong>State is explicit.</strong> <code>StateV2</code> fields are <code>Property</code> objects, not
+dictionary entries.</li>
+<li><strong>Widgets expose properties and signals.</strong> You attach a handler with
+<code>@widget.on_click</code> or <code>@widget.value.on_change</code> instead of reading a
+return value.</li>
+<li><strong>Updates are pushed.</strong> Changing <code>txt.text</code> sends a patch; the browser
+replaces that text node.</li>
+</ol>
+<h2 id="a-practical-checklist"><a class="header" href="#a-practical-checklist">A practical checklist</a></h2>
+<ul>
+<li>Replace <code>st.session_state</code> with a <code>StateV2</code> subclass.</li>
+<li>Replace <code>st.button(...)</code> plus an <code>if</code> branch with <code>sc.Button(...)</code> plus
+<code>@button.on_click</code>.</li>
+<li>Replace “read the widget’s return value” with <code>widget.value.get()</code>.</li>
+<li>Replace “write a widget’s value by assigning its return value” with
+<code>widget.value.set(...)</code>.</li>
+<li>Move conditional rendering into a <code>Container(visible=...)</code> or an
+<code>Expander</code>, rather than skipping code on a rerun.</li>
+<li>Replace <code>st.rerun()</code> with a state change. A rerun is neither needed nor
+available in the V3 runtime.</li>
+</ul>
+<h2 id="things-that-do-not-translate-one-to-one"><a class="header" href="#things-that-do-not-translate-one-to-one">Things that do not translate one to one</a></h2>
+<ul>
+<li>A V3 component is created once. If a widget should not exist at all, keep
+it hidden with <code>visible=False</code> instead of not creating it.</li>
+<li>Layout is built with context managers (<code>with sc.Row(): ...</code>), not by
+assigning columns to variables.</li>
+<li>Server-side code inside a handler runs on a worker thread. Keep handlers
+short, and do not block the event loop for long periods.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h1>
 <p>This page lists the work that is currently planned for Streamlit Canary.
 It is indicative rather than a promise, and the order may change.</p>
-<h2 id="v3-stabilization"><a class="header" href="#v3-stabilization">V3 stabilization</a></h2>
+<h2 id="stabilization"><a class="header" href="#stabilization">Stabilization</a></h2>
 <ul>
 <li>Finish the remaining widget parity with Streamlit.</li>
-<li>Replace the leftover V2 internals that V3 still shares.</li>
+<li>Rename the leftover <code>StateV2</code> / <code>init_state_v2</code> to plain names (the class
+the components use for app state still carries its old suffix).</li>
 <li>Harden the patch protocol and reconnect / resync behavior.</li>
 <li>Add more automated tests for the runtime, the renderer, and the trees.</li>
 </ul>
 <h2 id="api-consolidation"><a class="header" href="#api-consolidation">API consolidation</a></h2>
 <ul>
-<li>Port Streamlit’s chart elements to V3.</li>
-<li>Remove (or downgrade) V1, remove V2 entirely, and drop the <code>v3</code> prefix
-so the V3 components become the default <code>sc.*</code> API.</li>
+<li>Port Streamlit’s chart elements to sc.</li>
+<li>Drop the deprecated <code>sc.v3.*</code> alias (0.5.0 made the components the default
+<code>sc.*</code> API and retired the V1 wrappers to
+<code>streamlit_canary.legacy_streamlit_wrappers</code>).</li>
 </ul>
 <h2 id="documentation"><a class="header" href="#documentation">Documentation</a></h2>
 <ul>
@@ -3192,6 +3181,22 @@ the API against real use cases.</li>
         <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
         <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
 
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
 
 
         <script>

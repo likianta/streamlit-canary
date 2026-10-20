@@ -1,10 +1,10 @@
 """Lazy access to the optional `streamlit` dependency.
 
-`streamlit` is an optional dependency of this package: the v3 runtime
-(`kernel` / `components_v3` / `runtime`) does not need it, so `import
-streamlit_canary` must work without it. The v1/v2 API, the page helpers and
-the legacy runner do need it -- but only once actually used. Those modules
-therefore take their `st` from here instead of importing it eagerly:
+`streamlit` is an optional dependency of this package: the runtime
+(`kernel` / `components` / `runtime`) does not need it, so `import
+streamlit_canary` must work without it. The V1 wrappers, the page helpers
+and the legacy runner do need it -- but only once actually used. Those
+modules therefore take their `st` from here instead of importing it eagerly:
 
     from ._streamlit import st        # top level
     from .._streamlit import st       # one level down
@@ -45,8 +45,8 @@ def load() -> ModuleType:
                 'streamlit is an optional dependency of streamlit-canary: this '
                 'call needs it, but it is not installed. Install it with '
                 '`uv add streamlit` (or `uv add streamlit-canary[st]`). '
-                'The v3 API (`sc.v3`, `sc.Property`, the runtime) works '
-                'without it.'
+                'The components (`sc.Button`, `sc.Property`, the runtime) '
+                'work without it.'
             ) from error
         _module = module
     return _module

@@ -3,18 +3,20 @@
 This page lists the work that is currently planned for Streamlit Canary.
 It is indicative rather than a promise, and the order may change.
 
-## V3 stabilization
+## Stabilization
 
 - Finish the remaining widget parity with Streamlit.
-- Replace the leftover V2 internals that V3 still shares.
+- Rename the leftover `StateV2` / `init_state_v2` to plain names (the class
+  the components use for app state still carries its old suffix).
 - Harden the patch protocol and reconnect / resync behavior.
 - Add more automated tests for the runtime, the renderer, and the trees.
 
 ## API consolidation
 
-- Port Streamlit's chart elements to V3.
-- Remove (or downgrade) V1, remove V2 entirely, and drop the `v3` prefix
-  so the V3 components become the default `sc.*` API.
+- Port Streamlit's chart elements to sc.
+- Drop the deprecated `sc.v3.*` alias (0.5.0 made the components the default
+  `sc.*` API and retired the V1 wrappers to
+  `streamlit_canary.legacy_streamlit_wrappers`).
 
 ## Documentation
 

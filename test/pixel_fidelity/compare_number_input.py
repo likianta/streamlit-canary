@@ -1,5 +1,5 @@
 """
-Compare `st.number_input` (Streamlit) with `v3.NumberInput`
+Compare `st.number_input` (Streamlit) with `sc.NumberInput`
 (Streamlit Canary): geometry of the stepper gadget, its sequence, its hover
 state and its disabled state at the two bounds.
 

@@ -6,25 +6,24 @@ This script is hosting Streamlit Canary app.
 from time import sleep
 
 import streamlit_canary as sc
-from streamlit_canary import components_v3 as v3
 
 
 def main():
-    with v3.Row('bottom'):
-        v3.Selectbox(
+    with sc.Row('bottom'):
+        sc.Selectbox(
             'Select device', ('ASA EMEI r6p0', 'Fake device', 'Remote device')
         )
-        v3.NumberInput(
+        sc.NumberInput(
             *('Channel', 0, 0, 3, 1),
             #   positional arguments: label, value, min_value, max_value, step
             help='Available channels can be read from `0xF102[3:0]`.',
         )
-        v3.Button('Start eye monitor', type='primary', width='stretch')
-        with v3.Popover(':material/adjust:', help='Line calibration'):
-            with v3.Container(width=540):
+        sc.Button('Start eye monitor', type='primary', width='stretch')
+        with sc.Popover(':material/adjust:', help='Line calibration'):
+            with sc.Container(width=540):
                 _line_calibration()
 
-    v3.Markdown(
+    sc.Markdown(
         'Material icons: '
         ':material/adjust: '
         ':material/settings_backup_restore: '
@@ -35,7 +34,7 @@ def main():
     # character, where `:material/..:` draws a Material Symbols ligature. A
     # name Streamlit does not know (`:notanemoji:`) stays as it was typed,
     # and either kind can be wrapped by a colour / effect mark.
-    v3.Markdown(
+    sc.Markdown(
         'Emoji shortcodes: '
         ':smile: '
         ':maple_leaf: '
@@ -46,11 +45,11 @@ def main():
         'and :notanemoji: stays literal'
     )
 
-    v3.SegmentedControl(
+    sc.SegmentedControl(
         'Segmented control', ('Option A', 'Option B', 'Option C')
     )
 
-    v3.MenuButton('Menu button', options=('Option A', 'Option B', 'Option C'))
+    sc.MenuButton('Menu button', options=('Option A', 'Option B', 'Option C'))
 
     _text_input()
     _radio()
@@ -65,42 +64,42 @@ def main():
 
 
 def _radio():
-    v3.RadioGroup('Radio', options=('Option A', 'Option B', 'Option C'))
-    with v3.Row():
-        with v3.Column(weight=2):
-            v3.RadioGroup(
+    sc.RadioGroup('Radio', options=('Option A', 'Option B', 'Option C'))
+    with sc.Row():
+        with sc.Column(weight=2):
+            sc.RadioGroup(
                 'Radio (horizontal, narrow)',
                 options=(7, 8, 9, 10, 11, 12),
                 index=3,
                 horizontal=True,
             )
-        with v3.Column(weight=3):
-            v3.Caption('A horizontal radio wraps inside a narrow column.')
+        with sc.Column(weight=3):
+            sc.Caption('A horizontal radio wraps inside a narrow column.')
 
 
 def _check_group():
     # `CheckGroup` is RadioGroup's twin (canary-only: Streamlit has no
     # counterpart), so it rides along here to compare the two side by side --
     # same spacing and hover highlight, square boxes, multi-selection.
-    v3.CheckGroup(
+    sc.CheckGroup(
         'Check group',
         options=('Option A', 'Option B', 'Option C'),
         value=('Option A', 'Option C'),
     )
-    with v3.Row():
-        with v3.Column(weight=2):
-            v3.CheckGroup(
+    with sc.Row():
+        with sc.Column(weight=2):
+            sc.CheckGroup(
                 'Check group (horizontal, narrow)',
                 options=(7, 8, 9, 10, 11, 12),
                 value=(8, 10),
                 horizontal=True,
             )
-        with v3.Column(weight=3):
-            v3.Caption('A horizontal check group wraps in a narrow column.')
+        with sc.Column(weight=3):
+            sc.Caption('A horizontal check group wraps in a narrow column.')
 
 
 def _slider():
-    v3.SelectSlider(
+    sc.SelectSlider(
         'Select slider',
         options=tuple(range(15, 0, -1)),
         value=15,
@@ -109,20 +108,20 @@ def _slider():
 
 
 def _bottom_container():
-    with v3.Container(height=200, border=True):
-        v3.Text('This card is 200px tall; the button is pinned to its bottom.')
-        with v3.BottomContainer():
-            v3.Button('Close')
+    with sc.Container(height=200, border=True):
+        sc.Text('This card is 200px tall; the button is pinned to its bottom.')
+        with sc.BottomContainer():
+            sc.Button('Close')
 
 
 def _text_input():
-    with v3.Row('bottom'):
+    with sc.Row('bottom'):
         # The placeholder is the last *committed* name and the box carries a
         # value of its own, so clearing the box leaves the placeholder alone.
         # The client commits on blur / Enter, and the committed text arrives
         # through `sc._value` (`on_change` itself carries no payload).
         name = sc.Property('Alice')
-        with v3.TextInput(
+        with sc.TextInput(
             'Text input', sc.bind(name), placeholder=sc.bind(name)
         ) as inp:
 
@@ -131,7 +130,7 @@ def _text_input():
                 if text:
                     name.set(text)
 
-        with v3.Button('Hi Cindy') as btn:
+        with sc.Button('Hi Cindy') as btn:
 
             @btn.on_click
             def _():
@@ -140,8 +139,8 @@ def _text_input():
 
 def _toast():
     count = sc.Property(0)
-    toast = v3.Toast()
-    with v3.Button('Show toast') as btn:
+    toast = sc.Toast()
+    with sc.Button('Show toast') as btn:
 
         @btn.on_click
         def _():
@@ -153,7 +152,7 @@ def _toast():
 
 
 def _exception():
-    with v3.Button(':red[Raise an error]') as btn:
+    with sc.Button(':red[Raise an error]') as btn:
 
         @btn.on_click
         def _():
@@ -165,8 +164,8 @@ def _progress():
     # value to compare, and the button runs it through 1..100.  The handler
     # blocks in a worker thread (see `runtime/server.py`), so the patches it
     # emits reach the browser while the loop is still running.
-    bar = v3.Progress(37, text='37%', visible=True)
-    with v3.Button('Run progress bar') as btn:
+    bar = sc.Progress(37, text='37%', visible=True)
+    with sc.Button('Run progress bar') as btn:
 
         @btn.on_click
         def _run() -> None:
@@ -179,22 +178,22 @@ def _progress():
 def _toggle():
     # switches in a row pack onto one line; the asa_gui batch-script page
     # relies on that (three toggles plus a bar in one row).
-    with v3.Row('center'):
-        v3.Toggle('Show index', value=True)
-        v3.Toggle('Show separator line')
-        v3.Toggle('Show full list')
-        v3.Progress(37, text='37%', visible=True)
+    with sc.Row('center'):
+        sc.Toggle('Show index', value=True)
+        sc.Toggle('Show separator line')
+        sc.Toggle('Show full list')
+        sc.Progress(37, text='37%', visible=True)
 
 
 def _line_calibration() -> None:
-    with v3.Tabs(('One-line Calibration', 'Two-line Calibration')) as tabs:
+    with sc.Tabs(('One-line Calibration', 'Two-line Calibration')) as tabs:
         with next(tabs):
-            with v3.Row('bottom'):
-                with v3.Grid(
+            with sc.Row('bottom'):
+                with sc.Grid(
                     rows=1, cols=(5, 2), vertical_alignment='bottom'
                 ) as grid:
                     with next(grid):
-                        v3.NumberInput(
+                        sc.NumberInput(
                             'What is your physical line length',
                             5,
                             1,
@@ -203,7 +202,7 @@ def _line_calibration() -> None:
                             help='Unit: meter',
                         )
                     with next(grid):
-                        v3.NumberInput(
+                        sc.NumberInput(
                             'Bias',
                             2.0,
                             0,
@@ -228,10 +227,10 @@ def _line_calibration() -> None:
                                 """
                             ),
                         )
-                v3.Button('Start calibration')
+                sc.Button('Start calibration')
         with next(tabs):
-            with v3.Row('bottom'):
-                v3.TextInput(
+            with sc.Row('bottom'):
+                sc.TextInput(
                     'First line length',
                     '1m@ch0',
                     help=(
@@ -248,8 +247,8 @@ def _line_calibration() -> None:
                         """
                     ),
                 )
-                v3.Button('Calibrate')
-                v3.TextInput(
+                sc.Button('Calibrate')
+                sc.TextInput(
                     'Second line length',
                     '2m@ch1',
                     help=(
@@ -266,11 +265,11 @@ def _line_calibration() -> None:
                         """
                     ),
                 )
-                v3.Button('Calibrate')
+                sc.Button('Calibrate')
 
 
 def _table():
-    v3.Table(
+    sc.Table(
         (
             ('Link status', ':green[ON]'),
             ('PRBS error counter', ':red[123]'),
@@ -283,7 +282,7 @@ def _table():
         header=('Field', 'Value'),
         header_background=True,
     )
-    v3.Table(
+    sc.Table(
         (
             ('File name', 'droo1.mat'),
             ('File size', '28.19KB'),
@@ -291,7 +290,7 @@ def _table():
         ),
         width='stretch',  # default
     )
-    v3.Table(
+    sc.Table(
         (
             ('Link status', 'ON', 'ok'),
             ('PRBS error counter', '123', 'warn'),

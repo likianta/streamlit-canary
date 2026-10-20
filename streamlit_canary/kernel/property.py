@@ -274,14 +274,14 @@ def bind(
     Create an anonymous `Property` bound to `source`.
 
     Usage:
-        v3.Radio(sc.bind(state.project, lambda x: x['name']))
-        v3.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))
+        sc.Radio(sc.bind(state.project, lambda x: x['name']))
+        sc.Button('Go', enabled=sc.bind(state.busy, lambda x: not x))
 
     A `Signal` may sit beside a `Property` as a trigger -- it makes the derived
     property notify again even when its value comes out the same, which is what
     a widget needs when its `format` renders more than the value holds:
 
-        v3.Radio(
+        sc.Radio(
             options=sc.bind(
                 (state.projects, state.projects_reloaded),
                 lambda x: list(x[0]),
@@ -296,7 +296,7 @@ def bind(
 
         # without `default` this stays `visible=True` and shows anyway, since
         # `app_name` is `_undefined` at first and `bool` is never called.
-        v3.Expander(..., visible=sc.bind(state.app_name, bool, default=False))
+        sc.Expander(..., visible=sc.bind(state.app_name, bool, default=False))
 
     Pass `default` to pin that "no value yet" state. Once the source holds a
     value the transform takes over and `default` is forgotten.
@@ -306,7 +306,7 @@ def bind(
     think about it. The plan is a "lean transformer" -- a transform `bind`
     can run on `_undefined` too, so the derived value is defined from the
     start. Until then, reach for `default=` whenever a source can be unset
-    (see `components_v3/_shared._resolve_visible`, where a `visible` flag
+    (see `components/_shared._resolve_visible`, where a `visible` flag
     derived from a text hits this same edge).
     """
     prop = Property[T.Q](default)
@@ -335,11 +335,11 @@ def bbind(source: Property[T.Q]) -> Property[T.Q]:
     The widget mirrors `source`, and the widget's own changes are written
     back into `source`:
 
-        v3.NumberInput('Channel', sc.bbind(state.eye_channel))
+        sc.NumberInput('Channel', sc.bbind(state.eye_channel))
 
     is equivalent to:
 
-        with v3.NumberInput('Channel', sc.bind(state.eye_channel)) as inp:
+        with sc.NumberInput('Channel', sc.bind(state.eye_channel)) as inp:
             @inp.value.on_change.partial(sc._value)
             def _(new_channel):
                 state.eye_channel.set(new_channel)

@@ -46,8 +46,6 @@ import streamlit_canary as sc
 from playwright.sync_api import Page
 from playwright.sync_api import sync_playwright
 
-v3 = sc.v3
-
 PORT = 2213
 URL = 'http://localhost:{}'.format(PORT)
 
@@ -75,46 +73,44 @@ BOTTOM = 5
 # A sub-pixel difference is not a difference.
 EPS = 1.0
 
-
 def scene() -> None:
     # 1. the reported shape: a selectbox inside a height-capped box that
     # scrolls, with more content under it than the box can show
-    with v3.Container(max_height=120, border=True):
-        v3.Space(height=60)
-        v3.Selectbox('Current location', OPTIONS, key='capped')
-        v3.Space(height=400)
+    with sc.Container(max_height=120, border=True):
+        sc.Space(height=60)
+        sc.Selectbox('Current location', OPTIONS, key='capped')
+        sc.Space(height=400)
 
     # 2. the same, one box deeper
-    with v3.Container(max_height=120, border=True):
-        with v3.Container():
-            v3.Space(height=60)
-            v3.Selectbox('Nested location', OPTIONS, key='nested')
-        v3.Space(height=400)
+    with sc.Container(max_height=120, border=True):
+        with sc.Container():
+            sc.Space(height=60)
+            sc.Selectbox('Nested location', OPTIONS, key='nested')
+        sc.Space(height=400)
 
     # 3. no clipper anywhere: the ordinary case
-    v3.Selectbox('Plain', OPTIONS, key='plain')
+    sc.Selectbox('Plain', OPTIONS, key='plain')
 
     # 4. the panel case that used to need a rule of its own: a row-aligned
     # popover panel scrolls (`overflow-y: scroll`), so a dropdown inside it
     # has to escape just like the others
-    with v3.Row('center'):
-        v3.TextInput('Path', key='panel-input')
-        with v3.Popover('Browse', panel_align='row', panel_max_height=160):
-            with v3.Container():
-                v3.Space(height=40)
-                v3.Selectbox('In a panel', OPTIONS, key='panel')
-                v3.Space(height=200)
+    with sc.Row('center'):
+        sc.TextInput('Path', key='panel-input')
+        with sc.Popover('Browse', panel_align='row', panel_max_height=160):
+            with sc.Container():
+                sc.Space(height=40)
+                sc.Selectbox('In a panel', OPTIONS, key='panel')
+                sc.Space(height=200)
 
     # 5. the real-world case: the tree browser's toolbar, whose whole panel
     # is capped (so the location bar's dropdown was cut off at 200px)
-    v3.SingleTreeSelect(start_directory='test', max_height=200)
+    sc.SingleTreeSelect(start_directory='test', max_height=200)
 
     # 6. to be scrolled to the bottom of the window: no room below
-    v3.Space(height=700)
-    with v3.Container(max_height=120, border=True):
-        v3.Space(height=60)
-        v3.Selectbox('Near the bottom', OPTIONS, key='bottom')
-
+    sc.Space(height=700)
+    with sc.Container(max_height=120, border=True):
+        sc.Space(height=60)
+        sc.Selectbox('Near the bottom', OPTIONS, key='bottom')
 
 # Everything about one selectbox that the assertions below need. The clipper
 # is found exactly the way the page does it: the nearest ancestor that does
@@ -180,10 +176,8 @@ _MEASURE_JS = """
 }
 """
 
-
 def measure(page: Page, index: int) -> dict[str, Any]:
     return page.evaluate(_MEASURE_JS, index)
-
 
 def open_dropdown(page: Page, index: int) -> None:
     box = page.locator('.st-selectbox').nth(index)
@@ -192,7 +186,6 @@ def open_dropdown(page: Page, index: int) -> None:
     box.locator('.st-selectbox-trigger').click()
     page.wait_for_timeout(300)
 
-
 def close_dropdown(page: Page, index: int) -> None:
     """An open dropdown floats over the boxes below it, so a pass that ends
     with one open has to close it before the next box is clicked."""
@@ -200,7 +193,6 @@ def close_dropdown(page: Page, index: int) -> None:
     if box.locator('.st-selectbox-dropdown').get_attribute('hidden') is None:
         box.locator('.st-selectbox-trigger').click()
         page.wait_for_timeout(300)
-
 
 def wait_for_scene(page: Page) -> None:
     """Poll the port until the scene answers (the server is a child process)."""
@@ -217,11 +209,9 @@ def wait_for_scene(page: Page) -> None:
     # the labels and option texts are markdown, filled by page.js on load
     page.wait_for_timeout(800)
 
-
 def report(label: str, good: bool, detail: str = '') -> bool:
     print('  [{}] {}{}'.format('ok  ' if good else 'FAIL', label, detail))
     return good
-
 
 def check_clipped(page: Page, index: int, name: str) -> bool:
     """A dropdown inside a clipping box must escape it, whole."""
@@ -281,7 +271,6 @@ def check_clipped(page: Page, index: int, name: str) -> bool:
             and ok
         )
     return ok
-
 
 def verify() -> int:
     with sync_playwright() as p:
@@ -382,7 +371,6 @@ def verify() -> int:
         browser.close()
         return 0 if (ok and not errors) else 1
 
-
 def main() -> int:
     if '--scene' in sys.argv:
         sc.run(scene, port=PORT)
@@ -392,7 +380,6 @@ def main() -> int:
         return verify()
     finally:
         server.terminate()
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

@@ -7,7 +7,7 @@ Exposes:
     serve       — build + start the uvicorn server (blocking)
     serve_async — the same, on a background thread (for a native window)
     run_app     — convenience: app function + port → running server
-    set_page_config — deprecated; use `v3.PageConfig` instead
+    set_page_config — deprecated; use `sc.PageConfig` instead
     toast       — push a toast onto the page's shared stack
 """
 
@@ -28,8 +28,8 @@ from .watcher import add_watch_folder
 
 # ---------------------------------------------------------------------------
 # page config (the deprecated entry point; `global_page_config` itself lives
-# in `streamlit_canary/page.py` and is written by `v3.PageConfig` /
-# `v3.PageTitle`, then read back by `render_page`)
+# in `streamlit_canary/page.py` and is written by `sc.PageConfig` /
+# `sc.PageTitle`, then read back by `render_page`)
 # ---------------------------------------------------------------------------
 
 
@@ -42,10 +42,10 @@ def set_page_config(
     **kwargs: tp.Any,
 ) -> None:
     """
-    Deprecated -- use `v3.PageConfig(...)` instead.
+    Deprecated -- use `sc.PageConfig(...)` instead.
 
     Still works for existing apps: it writes the same page settings as
-    `v3.PageConfig` into the shared `global_page_config`, which `render_page`
+    `sc.PageConfig` into the shared `global_page_config`, which `render_page`
     reads back when it draws the page.
 
     Args:
@@ -62,7 +62,7 @@ def set_page_config(
             ("dark" default | "light") -- passed straight through.
     """
     warnings.warn(
-        'sc.set_page_config() is deprecated; use v3.PageConfig(...) instead.',
+        'sc.set_page_config() is deprecated; use sc.PageConfig(...) instead.',
         DeprecationWarning,
         stacklevel=2,
     )
@@ -92,7 +92,7 @@ def toast(text: str, *, icon: str = '', duration: str | int = 'short') -> None:
     page's single toast stack, which the runtime brings into being on its own.
 
     ```python
-    with v3.Button('Make toast') as btn:
+    with sc.Button('Make toast') as btn:
 
         @btn.on_click
         def _() -> None:

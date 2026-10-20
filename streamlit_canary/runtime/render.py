@@ -1,5 +1,5 @@
 """
-Render the v3 component tree to HTML with Streamlit-style theming.
+Render the component tree to HTML with Streamlit-style theming.
 
 Uses CSS custom properties (--st-*) matching Streamlit's theme variable
 convention. The dark theme is the default, matching Streamlit's built-in
@@ -14,56 +14,56 @@ import typing as tp
 
 from lk_utils import fs
 
-from ..components_v3._shared import _Labeled
-from ..components_v3._shared import _is_blank
-from ..components_v3.base import Component
-from ..components_v3.buttons import Button
+from ..components._shared import _Labeled
+from ..components._shared import _is_blank
+from ..components.base import Component
+from ..components.buttons import Button
 
-from ..components_v3.charts import AltairChart
+from ..components.charts import AltairChart
 
-from ..components_v3.data import Table
+from ..components.data import Table
 
-from ..components_v3.inputs import CheckGroup
-from ..components_v3.inputs import Checkbox
-from ..components_v3.inputs import Multiselect
-from ..components_v3.inputs import NumberInput
-from ..components_v3.inputs import RadioGroup
-from ..components_v3.inputs import ReducibleGroup
-from ..components_v3.inputs import SegmentedControl
-from ..components_v3.inputs import SelectSlider
-from ..components_v3.inputs import Selectbox
-from ..components_v3.inputs import TextArea
-from ..components_v3.inputs import TextInput
-from ..components_v3.inputs import ToggleBox
+from ..components.inputs import CheckGroup
+from ..components.inputs import Checkbox
+from ..components.inputs import Multiselect
+from ..components.inputs import NumberInput
+from ..components.inputs import RadioGroup
+from ..components.inputs import ReducibleGroup
+from ..components.inputs import SegmentedControl
+from ..components.inputs import SelectSlider
+from ..components.inputs import Selectbox
+from ..components.inputs import TextArea
+from ..components.inputs import TextInput
+from ..components.inputs import ToggleBox
 
-from ..components_v3.layouts import BottomContainer
-from ..components_v3.layouts import Cell
-from ..components_v3.layouts import Container
-from ..components_v3.layouts import Dialog
-from ..components_v3.layouts import Expander
-from ..components_v3.layouts import FloatingContainer
-from ..components_v3.layouts import Grid
-from ..components_v3.layouts import Popover
-from ..components_v3.layouts import Row
-from ..components_v3.layouts import Space
-from ..components_v3.layouts import Tabs
-from ..components_v3.layouts import _TabPanel
+from ..components.layouts import BottomContainer
+from ..components.layouts import Cell
+from ..components.layouts import Container
+from ..components.layouts import Dialog
+from ..components.layouts import Expander
+from ..components.layouts import FloatingContainer
+from ..components.layouts import Grid
+from ..components.layouts import Popover
+from ..components.layouts import Row
+from ..components.layouts import Space
+from ..components.layouts import Tabs
+from ..components.layouts import _TabPanel
 
-from ..components_v3.media import PdfViewer
+from ..components.media import PdfViewer
 
-from ..components_v3.status import DIVIDER_MARK
-from ..components_v3.status import Callout
-from ..components_v3.status import LogPanel
-from ..components_v3.status import Progress
-from ..components_v3.status import Spinner
-from ..components_v3.status import Toast
+from ..components.status import DIVIDER_MARK
+from ..components.status import Callout
+from ..components.status import LogPanel
+from ..components.status import Progress
+from ..components.status import Spinner
+from ..components.status import Toast
 
-from ..components_v3.texts import Caption
-from ..components_v3.texts import Code
-from ..components_v3.texts import Markdown
-from ..components_v3.texts import PageTitle
-from ..components_v3.texts import Text
-from ..components_v3.texts import Title
+from ..components.texts import Caption
+from ..components.texts import Code
+from ..components.texts import Markdown
+from ..components.texts import PageTitle
+from ..components.texts import Text
+from ..components.texts import Title
 from ..kernel.property import Property
 from ..page import global_page_config
 from ..text import MONOSPACE
@@ -218,7 +218,7 @@ def _render_element(comp: Component) -> str:
         # A row may carry a marker class of its own (`_css_class`), which is
         # how `ColumnView`'s strip becomes a horizontally-scrolling band of
         # fixed-width columns without drawing a second layout component (see
-        # `components_v3/trees/column_view.py`).
+        # `components/trees/column_view.py`).
         extra_cls = getattr(comp, '_css_class', '')
         return (
             f'<div class="st-row{extra_cls}" data-id="{comp.id}"'
@@ -1428,7 +1428,7 @@ def _render_select_slider(comp: SelectSlider) -> str:
 def _choice_box_html(input_type: str) -> str:
     """The option indicator: a square tick box, or the radio's circle.
 
-    `CheckGroup` reuses `v3.Checkbox`'s box; `RadioGroup` its own circle. The
+    `CheckGroup` reuses `sc.Checkbox`'s box; `RadioGroup` its own circle. The
     empty-list placeholder draws the very same indicator (see
     `_choice_group_empty_html`).
     """
@@ -1469,7 +1469,7 @@ def _row_enter_html() -> str:
     aimed at interactive content inside it, so the button opens the row
     without ticking its box on the way.  The click is reported as an `open`
     event (see `scOpenRow`), which `_NavigationGroup` in
-    `components_v3/trees/` picks up -- that is where this gesture is
+    `components/trees/` picks up -- that is where this gesture is
     defined; the generic group widgets know nothing about it.
     """
     return (
@@ -1491,7 +1491,7 @@ def _row_toggle_html(expanded: tp.Optional[bool]) -> str:
     a label ignores clicks aimed at interactive content inside it, so this
     folds the folder without ticking its box on the way.  The click is
     reported as a `toggle` event (see `scToggleRow`), which `_NavigationGroup`
-    in `components_v3/trees/` picks up -- `TreeView` is the one that
+    in `components/trees/` picks up -- `TreeView` is the one that
     uses it.
 
     The chevron points right while the folder is folded and turns a quarter
@@ -1531,7 +1531,7 @@ def _choice_group_items_html(
     spacing and hover highlight -- and differ only in the input's type, its
     checked test and the change handler: `RadioGroup` shows the radio circle,
     `CheckGroup` the very same square box (border + checkmark) as
-    `v3.Checkbox`.
+    `sc.Checkbox`.
 
     A click anywhere on the row lands on the `<label>` that wraps it, so the
     browser ticks the option by itself: no script takes part and nothing is
@@ -2215,7 +2215,7 @@ def render_page(roots: tp.Iterable[Component]) -> str:
 
     The page's own settings (`title` / `layout` / `default_theme` /
     `font_family` / `dunder_literal`) come from the shared
-    `global_page_config`, which `v3.PageTitle` and `v3.PageConfig` fill in as
+    `global_page_config`, which `sc.PageTitle` and `sc.PageConfig` fill in as
     they are constructed (see `streamlit_canary/page.py`). By the time the
     first request is served the app has already run, so those settings are
     final here -- there is no need to walk the tree looking for a `PageTitle`.

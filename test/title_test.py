@@ -4,7 +4,7 @@ Run:  python test/title_test.py
 
 `Title` gained the alignment; `PageTitle` is a `Title` that also names and
 configures the page (it writes the shared page config as it is built, the
-same as `v3.PageConfig`).
+same as `sc.PageConfig`).
 
 Sections 1-2 are in-process (the rendered HTML and the page's `<title>`);
 section 3 drives a real browser, where the alignment is a computed style and
@@ -17,25 +17,20 @@ import time
 
 import streamlit_canary as sc
 from playwright.sync_api import sync_playwright
-from streamlit_canary.components_v3.texts import PageTitle
-from streamlit_canary.components_v3.texts import Title
+from streamlit_canary.components.texts import PageTitle
+from streamlit_canary.components.texts import Title
 from streamlit_canary.runtime.render import render_page
 from streamlit_canary.runtime.render import render_tree
 
-v3 = sc.v3
-
 PORT = 2213
 URL = 'http://localhost:{}'.format(PORT)
-
 
 def check(label: str, good: bool) -> bool:
     print('  [{}] {}'.format('ok  ' if good else 'FAIL', label))
     return bool(good)
 
-
 def rule(text: str) -> None:
     print('== {} {}'.format(text, '=' * max(0, 66 - len(text))))
-
 
 # == 1. the alignment is a static field, validated like a size keyword =======
 
@@ -67,11 +62,11 @@ rule('2. the page title')
 ok = check('PageTitle is a Title', issubclass(PageTitle, Title))
 # `render_page` reads `global_page_config`, which `PageConfig` / `PageTitle`
 # write as they are constructed -- so the last one declared wins.
-v3.PageConfig('from the config')
+sc.PageConfig('from the config')
 html = render_page([PageTitle('Tab name')])
 ok = check('it marks the element', 'st-page-title' in html) and ok
 ok = check('and names the document', '<title>Tab name</title>' in html) and ok
-v3.PageConfig('from the config')
+sc.PageConfig('from the config')
 ok = (
     check(
         'without one, the config still names it',
@@ -79,8 +74,8 @@ ok = (
     )
     and ok
 )
-with v3.Container() as outer:
-    with v3.Container():
+with sc.Container() as outer:
+    with sc.Container():
         PageTitle('Nested')
 ok = (
     check(
@@ -92,20 +87,18 @@ ok = (
 
 # == 3. in a browser ========================================================
 
-
 def scene() -> None:
-    v3.PageConfig('config name')
+    sc.PageConfig('config name')
     name = sc.Property('First name')
-    v3.PageTitle(name, horizontal_alignment='center')
-    v3.Title('Left by default')
-    v3.Title('Centered', horizontal_alignment='center')
-    v3.Title('Right', horizontal_alignment='right')
-    with v3.Button('Rename') as btn:
+    sc.PageTitle(name, horizontal_alignment='center')
+    sc.Title('Left by default')
+    sc.Title('Centered', horizontal_alignment='center')
+    sc.Title('Right', horizontal_alignment='right')
+    with sc.Button('Rename') as btn:
 
         @btn.on_click
         def _() -> None:
             name.set('Second name :smile:')
-
 
 _ALIGN_JS = """
 () => {
@@ -116,7 +109,6 @@ _ALIGN_JS = """
   return out;
 }
 """
-
 
 def phase_browser() -> bool:
     rule('3. in a browser')
@@ -185,7 +177,6 @@ def phase_browser() -> bool:
         server.terminate()
     return good
 
-
 def main() -> int:
     if '--scene' in sys.argv:
         sc.run(scene, port=PORT)
@@ -194,7 +185,6 @@ def main() -> int:
     print('')
     print('RESULT:', 'ok' if good else 'FAILED')
     return 0 if good else 1
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

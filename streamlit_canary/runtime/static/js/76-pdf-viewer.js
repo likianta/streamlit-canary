@@ -1,4 +1,4 @@
-/* The pdf.js engine behind `PdfViewer` (see `components_v3/media.py`).
+/* The pdf.js engine behind `PdfViewer` (see `components/media.py`).
 
    pdf.js draws each page onto a canvas this page owns, so the box simply
    fits its document and the pages follow the app's own styling. Neither is
