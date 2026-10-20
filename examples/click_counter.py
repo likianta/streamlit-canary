@@ -16,15 +16,6 @@ runs once and subsequent clicks only execute the registered signal handlers.
 import streamlit_canary as sc
 
 
-# ---------------------------------------------------------------------------
-# 1. State definition.
-#    `sc.StateV2` is the base class for event-driven state. Each `sc.Property`
-#    declared on the class derives six accessors (see comments below).
-#    `__version__` controls schema migration: bump it when the property layout
-#    changes, and old session state will be discarded/rebuilt.
-# ---------------------------------------------------------------------------
-
-
 class _State(sc.State):
     count = sc.Property(0)
     #   Six accessors reachable from the instance:
@@ -41,13 +32,6 @@ class _State(sc.State):
 
 state = _State()
 # state = _State(version=1)
-
-
-# ---------------------------------------------------------------------------
-# 2. App function. It will be invoked ONCE by the runtime to construct the
-#    component tree. After that, user interactions only trigger the signal
-#    handlers registered below — the function body is not re-executed.
-# ---------------------------------------------------------------------------
 
 
 def click_counter_demo():
@@ -80,11 +64,6 @@ def click_counter_demo():
                 state['count'] += 1
 
 
-# ---------------------------------------------------------------------------
-# 3. Entry point. The new `sc.run` takes the app function directly and launches
-#    the event-driven runtime (no `streamlit run` subprocess).
-# ---------------------------------------------------------------------------
-
 if __name__ == '__main__':
-    # python test/event_driven_system/demo_click_counter.py
+    # python examples/click_counter.py
     sc.run(click_counter_demo, port=2201)

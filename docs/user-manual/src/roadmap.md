@@ -6,8 +6,6 @@ It is indicative rather than a promise, and the order may change.
 ## Stabilization
 
 - Finish the remaining widget parity with Streamlit.
-- Rename the leftover `StateV2` / `init_state_v2` to plain names (the class
-  the components use for app state still carries its old suffix).
 - Harden the patch protocol and reconnect / resync behavior.
 - Add more automated tests for the runtime, the renderer, and the trees.
 

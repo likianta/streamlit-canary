@@ -6,3 +6,11 @@ from .page import pages
 from .runner import run
 from .session import dump_state
 from .session import init_state
+from ..text import blue
+from ..text import dim
+from ..text import gray
+from ..text import green
+from ..text import magenta
+from ..text import orange
+from ..text import red
+from ..text import yellow
