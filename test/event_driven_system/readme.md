@@ -5,7 +5,7 @@ Here is the conceptual code:
 ```python
 import streamlit_canary as sc
 
-class _State(sc.StateV2):
+class _State(sc.State):
     count = sc.Property(0)  
     #   ref: streamlit_canary/kernel/property.py:Property
     #   it derives six methods:

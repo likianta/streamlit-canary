@@ -138,14 +138,14 @@ st.text_input('Name', key='name')
 st.text('Hello, {}'.format(st.session_state.name or 'stranger'))
 ```
 
-Streamlit Canary uses `StateV2` plus `Property`. The app function runs once,
+Streamlit Canary uses `State` plus `Property`. The app function runs once,
 and state is a long-lived reactive object. You can call `.get()` and
 `.set()` on it, or bind it directly to a component:
 
 ```python
 import streamlit_canary as sc
 
-class State(sc.StateV2):
+class State(sc.State):
     name = sc.Property('')
 
 state = State()
@@ -185,7 +185,7 @@ function is not called again:
 ```python
 import streamlit_canary as sc
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 state = State()
@@ -273,7 +273,7 @@ pip install streamlit-canary
 import streamlit_canary as sc
 from streamlit_canary import components as v3
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 state = State()

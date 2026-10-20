@@ -7,7 +7,7 @@ A Component is a pure-Python object that:
   * carries a stable `id`,
   * exposes `Property` fields (e.g. `Text.text`) that support the same
     `.get()` / `.set()` / `.on_change` and `__getitem__` / `__setitem__`
-    accessors as `StateV2` — state and components share one read/write style.
+    accessors as `State` — state and components share one read/write style.
 
 This module has no Streamlit dependency — the runtime/frontend bridge is added
 in a later phase.

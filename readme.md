@@ -40,7 +40,7 @@ Python 3.11 or newer is required.
 import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 
@@ -112,15 +112,3 @@ To preview it locally:
 cd docs/user-manual
 mdbook serve
 ```
-
-## Components and namespaces
-
-- `sc.*` -- the components. This is the API.
-- `streamlit_canary.legacy_streamlit_wrappers` -- the legacy V1 components,
-  built on Streamlit and the rerun model. They are no longer exported as
-  `sc.*` (asking for one raises an `AttributeError` with a migration hint)
-  and will be removed in a future version.
-- `sc.v2` is gone: the abandoned transitional components were deleted.
-
-`sc.v3.*` still resolves for apps written before 0.5.0, but it is
-deprecated -- it warns, and the alias goes away in a later release.

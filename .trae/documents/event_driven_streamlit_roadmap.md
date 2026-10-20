@@ -11,7 +11,7 @@
 本项目将从「Streamlit 库的封装扩展」演进为「基于事件系统驱动的 Streamlit 风格框架」。核心变化:执行流不再是每次用户交互后重跑完整脚本,而是仅触发挂载到变化信号上的处理器,并按需 patch 受影响的组件。
 
 按用户决策,采用**混合方案**:
-- 先用纯 Python 实现事件驱动内核 (Property / Signal / StateV2 / 组件树),不依赖 Qt,验证概念代码可行性;
+- 先用纯 Python 实现事件驱动内核 (Property / Signal / State / 组件树),不依赖 Qt,验证概念代码可行性;
 - 前端对接 (复用 Streamlit React 还是自建) 推迟到内核稳定后再决定。
 
 Property/Signal 系统在 streamlit_canary 内部重写一份纯 Python 版本,不依赖 qmlease/PySide6。qmlease 的 `qtcore/` 作为参考实现 (现位于 `references/qmlease/`)。
@@ -30,7 +30,7 @@ Property/Signal 系统在 streamlit_canary 内部重写一份纯 Python 版本,�
 | 模块 | 现状 (Phase 0 时点) | 与目标的关系 / 后续结果 |
 |---|---|---|
 | `streamlit_canary/runner.py` | `sc.run` 通过 `streamlit run` 启动子进程 | 已实现: `sc.run(func, port=...)` 走事件驱动运行时; 传脚本路径时仍回退到这个子进程启动器 |
-| `streamlit_canary/session.py` (`SessionStateV2` / `init_state_v2`) | 已有 version/revision 控制、setter 同步 | 该模块仍是 v1 遗留 (绑定 `st.session_state`); 事件驱动的状态容器后来独立实现为 `streamlit_canary/kernel/state.py: StateV2` |
+| `streamlit_canary/session.py` (`SessionStateV2` / `init_state_v2`) | 已有 version/revision 控制、setter 同步 | 该模块仍是 v1 遗留 (绑定 `st.session_state`); 事件驱动的状态容器后来独立实现为 `streamlit_canary/kernel/state.py: State` |
 | `streamlit_canary/event_loop.py` | 简单事件队列 + register/run | 思路对,但太简陋,无组件级路由 |
 | `streamlit_canary/event_handler_no_rerun.py` | `EventDispatcher`/`EventKey` 走 `st.session_state` | 试图解决 no-rerun,但仍是 Streamlit rerun 的补丁 |
 | `streamlit_canary/flow.py` (`PostEvents`) | `append/execute` 回调队列 | 与 event_loop 重复,需统一 |
@@ -47,7 +47,7 @@ Property/Signal 系统在 streamlit_canary 内部重写一份纯 Python 版本,�
 > `test/event_driven_system/demo_click_counter.py`。
 
 ```python
-class _State(sc.StateV2):
+class _State(sc.State):
     count = sc.Property(0)           # 派生 6 方法: get/set/on_change/__getitem__/__setitem__/on_<name>
     __version__ = 0                  # 或 __init__(version=...)
 
@@ -73,7 +73,7 @@ sc.run(click_counter_demo, port=2201)   # 直接收函数,不通过 streamlit ru
 > **不**默认把 Property 句柄传给 handler, 而是用 `Signal.partial(sc._self)` 按需注入
 > (见 §6 决策 6)。
 
-1. `sc.StateV2` 基类 — 已实现 (`streamlit_canary/kernel/state.py`)
+1. `sc.State` 基类 — 已实现 (`streamlit_canary/kernel/state.py`)
 2. `sc.Property` 纯 Python 版 — 已实现 (`streamlit_canary/kernel/property.py`)
 3. `sc.Signal` 纯 Python 版 — 已实现 (`streamlit_canary/kernel/signal.py`)
 4. `on_change` 的传参方式 — 最终实现: `Signal.emit()` 不传参; 需要 owner 时用 `.partial(sc._self)` / `.partial(sc._value)`
@@ -90,7 +90,7 @@ sc.run(click_counter_demo, port=2201)   # 直接收函数,不通过 streamlit ru
 | # | 工作面 | 职责 | 依赖 |
 |---|---|---|---|
 | A | **Property/Signal 内核** | 纯 Python 的 `Property` 描述符、`Signal` 类、`partial`; 描述符 `__get__` 返回绑定句柄 + `__init_subclass__` 缓存属性表 (不用元类) | 无 (起点) |
-| B | **StateV2 基类** | 继承 Property/Signal,加 version/revision 控制、跨"帧"持久化、与 `sc.init_state` 衔接 | A |
+| B | **State 基类** | 继承 Property/Signal,加 version/revision 控制、跨"帧"持久化、与 `sc.init_state` 衔接 | A |
 | C | **组件模型 v3** | context-manager 组件 (`Button`/`Text`/`Row`...),持久身份、信号 (`on_click`/`on_change`)、组件属性复用 `Property` 模型 (`txt.text.set(...)`) | A, B |
 | D | **组件树 & 生命周期** | 跨交互保持组件树;父-子关系;挂载/卸载;组件 id 生成 | C |
 | E | **事件运行时 (核心)** | App 函数仅调用一次构建图;事件队列;信号→处理器路由;仅重跑受影响处理器;状态持久化 | A, B, C, D |
@@ -106,11 +106,11 @@ sc.run(click_counter_demo, port=2201)   # 直接收函数,不通过 streamlit ru
 **产出**: 概念稿落在 `test/event_driven_system/readme.md`, 可运行版本为
 `test/event_driven_system/demo_click_counter.py` (概念稿已随之更新为当前 API)。
 
-**目的**: 把目标 API 钉死,作为后续所有阶段的契约。当时 Property/Signal/StateV2
+**目的**: 把目标 API 钉死,作为后续所有阶段的契约。当时 Property/Signal/State
 尚不存在,这份文件作为"目标快照"指导 Phase 1 设计。
 
 **范围**:
-- 展示 `sc.StateV2` + `sc.Property` 的 6 方法派生
+- 展示 `sc.State` + `sc.Property` 的 6 方法派生
 - 展示 `sc.v3.Row`/`sc.v3.Text`/`sc.v3.Button` context-manager + 信号
 - 展示 `@state.count.on_change` 注册 handler (最终实现需 `.partial(sc._self)` 注入 owner)
 - 展示 `@btn.on_click` 装饰器
@@ -119,7 +119,7 @@ sc.run(click_counter_demo, port=2201)   # 直接收函数,不通过 streamlit ru
 
 ### Phase 1 — Property/Signal 内核 ✅
 
-**产出**: 纯 Python 的 Property/Signal/StateV2,可在隔离脚本中验证 (不接 Streamlit)。
+**产出**: 纯 Python 的 Property/Signal/State,可在隔离脚本中验证 (不接 Streamlit)。
 已落在 `streamlit_canary/kernel/` (`property.py` / `signal.py` / `special_value.py` / `state.py`)。
 
 **关键设计点**:
@@ -197,7 +197,7 @@ UI 细节对齐** (以 `test/event_driven_system/pyproject_manager_copy/` 对照
 > 本节是 Phase 0 时点的启动计划, 现已全部执行完毕, 保留以说明当初的切入顺序。
 
 **第一阶段实施 (Phase 1)**: 在 `streamlit_canary/` 下新建 `kernel/` 模块,实现纯 Python
-的 `Property`/`Signal`/`StateV2`,并用 `test/on_property_test.py` 验证 6 方法 +
+的 `Property`/`Signal`/`State`,并用 `test/on_property_test.py` 验证 6 方法 +
 `partial` 注入 + version 控制。
 
 **为什么从内核开始**:

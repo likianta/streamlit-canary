@@ -1,6 +1,6 @@
 # Session State
 
-`StateV2` is the base class for application state. It is a
+`State` is the base class for application state. It is a
 `PropertyHost`: a plain object whose fields are reactive `Property` and
 `Signal` handles.
 
@@ -12,7 +12,7 @@ The simplest form declares fields inside `__init__`:
 import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     def __init__(self):
         super().__init__()
         self.count = sc.Property(0)
@@ -26,7 +26,7 @@ A field may also be declared by annotation. `PropertyHost` builds one
 handle per instance:
 
 ```python
-class State(sc.StateV2):
+class State(sc.State):
     count: sc.Property[int] = 0
     name: sc.Property[str]
     reloaded: sc.Signal
@@ -98,10 +98,10 @@ explanation of triggers, multiple sources, and `default=`.
 
 ## Versioning
 
-`StateV2` tracks a schema version:
+`State` tracks a schema version:
 
 ```python
-class State(sc.StateV2):
+class State(sc.State):
     __version__ = 2
     ...
 ```
@@ -130,6 +130,6 @@ state.count.set(0)
 
 ## Relationship to Streamlit's `session_state`
 
-`StateV2` replaces `st.session_state` for V3 apps. The two are not
-synchronized. A V3 app should keep its state in `StateV2` and pass it to
+`State` replaces `st.session_state` for V3 apps. The two are not
+synchronized. A V3 app should keep its state in `State` and pass it to
 handlers by closure, or store it on the app object.

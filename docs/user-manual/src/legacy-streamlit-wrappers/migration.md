@@ -26,7 +26,7 @@ V3:
 import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 
@@ -49,7 +49,7 @@ The differences:
 
 1. **The app function runs once.** There is no `if st.button(...)` branch
    that runs on the next rerun.
-2. **State is explicit.** `StateV2` fields are `Property` objects, not
+2. **State is explicit.** `State` fields are `Property` objects, not
    dictionary entries.
 3. **Widgets expose properties and signals.** You attach a handler with
    `@widget.on_click` or `@widget.value.on_change` instead of reading a
@@ -59,7 +59,7 @@ The differences:
 
 ## A practical checklist
 
-- Replace `st.session_state` with a `StateV2` subclass.
+- Replace `st.session_state` with a `State` subclass.
 - Replace `st.button(...)` plus an `if` branch with `sc.Button(...)` plus
   `@button.on_click`.
 - Replace "read the widget's return value" with `widget.value.get()`.

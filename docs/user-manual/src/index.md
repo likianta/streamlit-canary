@@ -16,7 +16,7 @@ as small patches, and the page updates in place.
 | ----------------- | ------------------------------------------- | -------------------------------------------------- |
 | Execution model   | The script reruns on every interaction      | The app function runs once                         |
 | UI updates        | A new render tree is diffed on every rerun  | A delta patch updates the affected DOM nodes       |
-| State             | `st.session_state` is rebuilt on each rerun | `StateV2` holds `Property` objects for the session |
+| State             | `st.session_state` is rebuilt on each rerun | `State` holds `Property` objects for the session |
 | Widgets           | Return values from the last run             | Expose reactive `Property` fields and `Signal`s    |
 | Cost of one click | Proportional to the whole script            | Proportional to the handlers that listen to it     |
 
@@ -67,7 +67,7 @@ Python 3.11 or newer is required.
 import streamlit_canary as sc
 
 
-class State(sc.StateV2):
+class State(sc.State):
     count = sc.Property(0)
 
 

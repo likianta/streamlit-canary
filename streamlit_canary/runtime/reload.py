@@ -11,7 +11,7 @@ guaranteed-fresh import graph, and it also covers added / deleted /
 renamed files, which no in-place reloader handles.
 
 State is deliberately not preserved: this is the same contract as
-FastAPI's ``--reload`` (``StateV2`` does not survive a rerun).
+FastAPI's ``--reload`` (``State`` does not survive a rerun).
 """
 
 import os

@@ -187,7 +187,7 @@ one, a plain `Button` does not.
 A `Property` declared without a default starts as `sc._undefined`:
 
 ```python
-class State(sc.StateV2):
+class State(sc.State):
     selection: sc.Property[str]
 ```
 

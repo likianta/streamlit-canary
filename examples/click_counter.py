@@ -2,7 +2,7 @@
 Demo: Event-driven click counter (runnable).
 
 This is the reference demo for the event-driven Streamlit framework. The
-kernel (`sc.StateV2`, `sc.Property`, `sc.Signal`), the components
+kernel (`sc.State`, `sc.Property`, `sc.Signal`), the components
 (`sc.Row`, `sc.Text`, `sc.Button`) and the event runtime
 (`sc.run(func, port=...)`) are all implemented, so this file runs end-to-end:
 

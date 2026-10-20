@@ -47,7 +47,7 @@ The kernel is available at the top level:
 ```python
 sc.Property
 sc.Signal
-sc.StateV2
+sc.State
 sc.bind
 sc.bbind
 sc.run

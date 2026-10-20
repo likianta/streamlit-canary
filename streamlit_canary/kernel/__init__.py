@@ -1,5 +1,5 @@
 """
-Event-driven kernel: pure-Python Property / Signal / StateV2.
+Event-driven kernel: pure-Python Property / Signal / State.
 
 This package is the foundation of the event-driven Streamlit framework. It is
 intentionally free of Streamlit and Qt dependencies so it can be developed and

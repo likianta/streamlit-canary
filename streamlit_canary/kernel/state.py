@@ -1,7 +1,7 @@
 """
 PropertyHost — shared base for any object that declares `Property` fields.
 
-Both `StateV2` (application state) and `Component` (UI components) use the
+Both `State` (application state) and `Component` (UI components) use the
 same property model: a `Property` lives on the instance and exposes
 `.get()` / `.set()` / `.on_change`, plus `__getitem__` / `__setitem__` sugar
 (`obj['name']` reads the value, `obj['name'] = value` writes it,
@@ -13,7 +13,7 @@ state and components.
 A field can also be declared by annotation, which makes the host build the
 handle for you -- one per instance, just like a hand-written one:
 
-    class _State(sc.StateV2):
+    class _State(sc.State):
         name: sc.Property[str]
         age: sc.Property[int] = 0
         clicked: sc.Signal[int]
@@ -149,7 +149,7 @@ class State(PropertyHost):
 
     Subclasses declare `Property` fields, typically inside `__init__`:
 
-        class _State(sc.StateV2):
+        class _State(sc.State):
             __version__ = 0
 
             def __init__(self, **kwargs):
@@ -166,7 +166,7 @@ class State(PropertyHost):
     A field may also be declared by annotation, in which case
     `super().__init__()` already builds the handle (see the module docstring):
 
-        class _State(sc.StateV2):
+        class _State(sc.State):
             name: sc.Property[str]
             age: sc.Property[int] = 0
 
