@@ -50,12 +50,13 @@ class _SubState(_AnnotatedState):
 first = _AnnotatedState()
 second = _AnnotatedState()
 assert isinstance(first.name, sc.Property)
-assert first.name.get() is sc._undefined
+assert first.name.get() == ''  # a primitive type starts from its zero value
 assert first.age.default == 0 and first.age.get() == 30
 assert not isinstance(first.scope, sc.Property)
 assert first.scope == 'not a property'
 assert first.name is not second.name  # one handle per instance
 assert isinstance(_SubState().busy, sc.Property)
+assert _SubState().busy.get() is False  # `bool` zero value
 first['name'] = 'abc'
 assert first.name.get() == 'abc'  # ... even through the sugar
 print('annotated state', repr(first))

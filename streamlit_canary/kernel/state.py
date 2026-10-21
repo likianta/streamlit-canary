@@ -19,9 +19,14 @@ handle for you -- one per instance, just like a hand-written one:
         clicked: sc.Signal[int]
 
     state = _State()
-    state.name.get()         # sc._undefined, until something sets it
-    state.age.get()          # 0
+    state.name.get()         # '' (the zero value of `str`)
+    state.age.get()          # 0 (the class-body value wins)
     state.clicked.emit(1)    # a Signal(int)
+
+A `Property[T]` whose `T` is a primitive starts out holding that type's zero
+value, so a transform bound to it can run straight away (see `_zero_of`). A
+non-primitive `T` -- a class of your own, or a union such as `bool | None` --
+has no obvious zero, so it keeps `sc._undefined` until something sets it.
 
 Only `Property` / `Property[T]` and `Signal` / `Signal[T]` annotations are
 picked up (a plain `current_scope: str` is left to the `__init__` body). A
@@ -55,6 +60,43 @@ def _is_field_annotation(annotation: tp.Any) -> bool:
     )
 
 
+# The zero values of the primitive types, as the factories that build them.
+# A factory (rather than the value itself) is what a mutable needs: a `list`
+# default shared between two state objects would leak from one into the other.
+_PRIMITIVE_ZEROS: tp.Dict[type, tp.Callable[[], tp.Any]] = {
+    bool: bool,
+    int: int,
+    float: float,
+    complex: complex,
+    str: str,
+    bytes: bytes,
+    bytearray: bytearray,
+    list: list,
+    tuple: tuple,
+    dict: dict,
+    set: set,
+    frozenset: frozenset,
+}
+
+
+def _zero_of(annotation: tp.Any) -> tp.Callable[[], tp.Any] | None:
+    """The zero-value factory for a `Property[T]` whose `T` is primitive.
+
+    Returns None when there is no obvious zero: a union (`bool | None`),
+    `Any`, a `Literal`, or a class of the caller's own. Those keep
+    `sc._undefined`, because a made-up value would be indistinguishable from
+    a real one, while `_undefined` says "nothing has been set yet".
+    """
+    args = tp.get_args(annotation)
+    if len(args) != 1:
+        return None
+    hint = args[0]
+    if not isinstance(hint, type):
+        # `bool | None`, `tp.Any`, `tp.Literal[...]`, ...
+        return None
+    return _PRIMITIVE_ZEROS.get(hint)
+
+
 def _field_factory(
     annotation: tp.Any, declared: tp.Any
 ) -> tp.Callable[[], tp.Any] | None:
@@ -64,10 +106,19 @@ def _field_factory(
     there is none): it supplies a `Property`'s default, or a `Signal`'s
     declared parameters. A class-level handle is never handed out as is,
     because it would be shared between instances.
+
+    A `Property[T]` with neither a class-body value nor a primitive `T` keeps
+    `sc._undefined` as its default; a primitive one starts from the type's
+    zero value (see `_zero_of`), built fresh for this instance.
     """
     if annotation is Property or tp.get_origin(annotation) is Property:
         if isinstance(declared, Property):
             declared = declared.default
+        if declared is not _undefined:
+            return lambda: Property(declared)
+        zero = _zero_of(annotation)
+        if zero is not None:
+            return lambda: Property(zero())
         return lambda: Property(declared)
     if annotation is Signal or tp.get_origin(annotation) is Signal:
         if isinstance(declared, Signal):

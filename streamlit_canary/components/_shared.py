@@ -91,9 +91,9 @@ def _resolve_visible(
     the content is unset (nothing to draw yet), but shown while a mirrored
     flag is unset (mirroring a flag starts from `True`, the base class' own
     default). Pass `sc.bind(..., default=...)` to pin what "not yet" means.
-    That a caller has to is a stopgap -- see `kernel.property.bind`: the plan
-    is to give `sc.bind` a transform it can run safely on `_undefined` too
-    (a "lean transformer"), after which `default=` should rarely be needed.
+    A primitive-typed state field no longer hits this edge -- it starts from
+    its type's zero value (`PropertyHost`), so `bool` / `str` sources are
+    defined from the start -- but a field of a class type still can.
     """
     if isinstance(visible, str):
         if visible != 'auto':

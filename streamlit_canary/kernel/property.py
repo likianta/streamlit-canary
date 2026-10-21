@@ -36,8 +36,10 @@ class Property(tp.Generic[T.Q]):
         #   when the property may still hold nothing (`sc._undefined`).
 
     Note: `value` itself is kept as `tp.Any` on purpose, because a property
-    starts out as `sc._undefined` until the first `set()`. The declared `T.Q`
-    is what callers see through `get()`.
+    built without a default starts out as `sc._undefined` until the first
+    `set()` (an annotated field with a primitive type starts from that type's
+    zero value instead -- see `PropertyHost`). The declared `T.Q` is what
+    callers see through `get()`.
     """
 
     default: tp.Any
@@ -106,6 +108,26 @@ class Property(tp.Generic[T.Q]):
         finally:
             self._forced_emit = False
 
+    def _evaluate(self, transform: T.Transform, payload: tp.Any) -> tp.Any:
+        """Run a `bind` transform, falling back to `default` if it raises.
+
+        Without a default (`sc._undefined`) there is nothing to fall back to,
+        so the error is raised -- at `bind` time when the transform runs
+        eagerly, which is what turns a broken transform into an immediate
+        failure instead of a value that silently stays unset.
+
+        With a default the caller has said what to show while the current
+        source value cannot be transformed -- `lambda x: x[0]` against an
+        empty list, say -- so that default is used instead, on the first
+        evaluation and on every later one.
+        """
+        try:
+            return transform(payload)
+        except Exception:
+            if self.default is _undefined:
+                raise
+            return self.default
+
     def bind(
         self,
         any_source: T.SourceOrMany,
@@ -117,9 +139,18 @@ class Property(tp.Generic[T.Q]):
         this property. An immediate sync is also performed so that this property
         reflects the current source value right away.
 
+        The immediate sync is not best-effort: if the transform cannot handle
+        the source's current value, the error comes out of `bind` itself, while
+        the app is being built. That is deliberate -- a transform that is wrong
+        for the value it was given is a bug, and finding it at the call site
+        beats a property that silently sits on its default. Pass a `default`
+        (`sc.bind(..., default=...)`) to say what to show instead; then a
+        failing transform yields that default rather than raising.
+
         `transform` defaults to the identity function: `self` simply mirrors
         `source`. When the source still holds no initial value (`_undefined`),
-        the immediate sync is skipped and we wait for the first change.
+        the immediate sync is skipped and we wait for the first change -- there
+        is nothing the transform could be asked to make of "nothing yet".
 
         A source may also be a `Signal` -- a *trigger* rather than a value:
 
@@ -145,15 +176,18 @@ class Property(tp.Generic[T.Q]):
                 if transform is None:
                     value = tp.cast(T.Q, source.get())
                 else:
-                    value = transform(source.get())
+                    value = self._evaluate(transform, source.get())
                 # a forced notification means "re-render, nothing changed", so
                 # pass it on rather than letting the value comparison eat it.
                 self.set(value, notify=True if source._forced_emit else None)
 
-            source.on_change.connect(sync)
             # immediate sync so the bound property starts with the right value.
+            # Done before the listener is connected: a transform that raises
+            # here must not leave a half-wired binding behind, still reacting
+            # to later changes of a property nothing reads any more.
             if source.get() is not _undefined:
                 sync()
+            source.on_change.connect(sync)
 
         else:
             assert transform is not None
@@ -187,6 +221,12 @@ class Property(tp.Generic[T.Q]):
                     self._transform = transform
                     self._forced = False
 
+                def watch(self) -> None:
+                    """Start following the triggers.
+
+                    Called after the first sync, so a transform that raises
+                    there leaves no listener behind.
+                    """
                     for trigger in self._triggers:
                         # a Property is watched through its `on_change`; a
                         # Signal is already the thing to watch.
@@ -235,14 +275,17 @@ class Property(tp.Generic[T.Q]):
                 def sync(self) -> None:
                     forced, self._forced = self._forced, False
                     self._target.set(
-                        self._transform(tp.cast(tp.Sequence[T.P], self)),
+                        self._target._evaluate(
+                            self._transform, tp.cast(tp.Sequence[T.P], self)
+                        ),
                         notify=True if forced else None,
                     )
 
             accessor = SourceAccessor(triggers, values, self, transform)
-            _weakrefs.append(accessor)
             if all(x.get() is not _undefined for x in values):
-                accessor.sync()
+                accessor.sync()  # may raise -- see the single-source case
+            accessor.watch()
+            _weakrefs.append(accessor)
 
     def set_or_bind(self, value: 'T.Q | Property[T.Q]') -> None:
         """
@@ -288,26 +331,26 @@ def bind(
             )
         )
 
-    `default` is the value the derived property holds until the source first
-    has one. A source declared without a default starts out `_undefined`, and
-    `bind` deliberately does not run `transform` on `_undefined` (it would
-    crash a transform like `lambda x: x['name']`), so a downstream target would
-    otherwise keep *its own* default -- which is not always what you want:
+    The transform runs as soon as `bind` is called, on the source's current
+    value. A transform that cannot handle that value raises right here, so a
+    mistake shows up where it was written:
 
-        # without `default` this stays `visible=True` and shows anyway, since
-        # `app_name` is `_undefined` at first and `bool` is never called.
+        sc.bind(state.tags, lambda x: x[0])   # IndexError: no tag yet
+
+    `default` is what to use instead, both as the starting value and whenever
+    the transform fails (at bind time or on a later change):
+
+        sc.bind(state.tags, lambda x: x[0], default='-')
+
+    A source that still holds `sc._undefined` has no value to transform at
+    all, so the immediate run is skipped and the transform first runs when the
+    source gets a value; `default` is what the derived property holds until
+    then (see `PropertyHost`, which gives a primitive-typed `Property` its
+    type's zero value, so most sources never start `_undefined`):
+
+        # `app_name` is `_undefined` at first, so `bool` is never called and
+        # without `default` this stays `visible=True` and shows anyway.
         sc.Expander(..., visible=sc.bind(state.app_name, bool, default=False))
-
-    Pass `default` to pin that "no value yet" state. Once the source holds a
-    value the transform takes over and `default` is forgotten.
-
-    Needing `default=` at all is a stopgap, and the intent is to retire it:
-    a caller binding a source that may start `_undefined` should not have to
-    think about it. The plan is a "lean transformer" -- a transform `bind`
-    can run on `_undefined` too, so the derived value is defined from the
-    start. Until then, reach for `default=` whenever a source can be unset
-    (see `components/_shared._resolve_visible`, where a `visible` flag
-    derived from a text hits this same edge).
     """
     prop = Property[T.Q](default)
     prop.bind(source, transform)

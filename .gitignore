@@ -8,4 +8,5 @@
 /test/minor_fixes/
 /test/pixel_fidelity/sample.pdf
 /test/rewrite_third_party_projects/
+/test/temp_tests/
 __pycache__/

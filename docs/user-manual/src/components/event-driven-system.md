@@ -119,10 +119,28 @@ Those interactions are handled entirely in the browser.
 label = sc.bind(state.count, lambda n: 'Count: {}'.format(n))
 ```
 
-The derived property updates when a source changes. A `Signal` may be
-listed beside the value sources as a trigger: it forces a recomputation
-even when the value comes out the same, which is useful when the rendered
-result depends on more than the value.
+The derived property updates when a source changes. The transform also runs
+as soon as `bind` is called, on the source's current value. If the transform
+cannot handle that value, the error is raised right there, at the line that
+wrote the binding -- a broken transform is a bug, and it should not wait for
+some later click to show itself:
+
+```python
+sc.bind(state.tags, lambda x: x[0])   # IndexError: there is no tag yet
+```
+
+Guard inside the transform, or let `default=` stand in for the failure. The
+default is used whenever the transform fails, at bind time and on later
+changes:
+
+```python
+sc.bind(state.tags, lambda x: x[0] if x else '-')
+sc.bind(state.tags, lambda x: x[0], default='-')
+```
+
+A `Signal` may be listed beside the value sources as a trigger: it forces a
+recomputation even when the value comes out the same, which is useful when
+the rendered result depends on more than the value.
 
 ```python
 label = sc.bind(
@@ -184,28 +202,38 @@ one, a plain `Button` does not.
 
 ### `sc._undefined`
 
-A `Property` declared without a default starts as `sc._undefined`:
+A `Property` whose declared type is primitive starts from that type's zero
+value: `Property[int]` from `0`, `Property[str]` from `''`, `Property[list]`
+from a fresh `[]` (each instance gets its own):
 
 ```python
 class State(sc.State):
-    selection: sc.Property[str]
+    count: sc.Property[int]        # 0
+    selection: sc.Property[str]    # ''
 ```
 
-`sc._undefined` is falsy. Two consequences matter:
-
-- `sc.bind` does not run its transform while the source still holds
-  `sc._undefined`, because the transform may not accept it.
-- A bound target that needs a defined starting value should be given one
-  explicitly:
+Any other type -- a class of your own, or a union such as `bool | None` --
+has no obvious zero, so the property starts as `sc._undefined`:
 
 ```python
-label = sc.bind(state.selection, str.upper, default='')
+class State(sc.State):
+    user: sc.Property[User]            # sc._undefined
+    error: sc.Property[str | None]     # sc._undefined
+```
+
+`sc._undefined` is falsy. A source that still holds it has nothing for
+`sc.bind` to transform -- the transform may not accept "nothing yet" -- so
+the transform is not run at bind time; it first runs when the source gets a
+value. `default=` is what the derived property holds until then:
+
+```python
+label = sc.bind(state.user, lambda u: u.name, default='(anonymous)')
 ```
 
 Test for it with identity:
 
 ```python
-if state.selection.get() is sc._undefined:
+if state.user.get() is sc._undefined:
     ...
 ```
 
