@@ -37,7 +37,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-64814695.js";
+            window.path_to_searchindex_js = "searchindex-27ffd7f6.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-4cae05ca.js"></script>
@@ -477,6 +477,7 @@ sc.Row
 deprecated: it emits a <code>DeprecationWarning</code>.</p>
 <p>The kernel is available at the top level:</p>
 <pre><code class="language-python">sc.Property
+sc.Binding
 sc.Signal
 sc.State
 sc.bind
@@ -539,9 +540,14 @@ widget['on_value']       # same as widget.value.on_change
 </code></pre>
 <h3 id="binding"><a class="header" href="#binding">Binding</a></h3>
 <p><code>sc.bind(source, transform)</code> creates a read-only, derived property.
-<code>sc.bbind(source)</code> creates a two-way binding for widgets that write back.</p>
+<code>sc.bbind(source)</code> creates a two-way binding for widgets that write back.
+The transform runs immediately, and a transform that cannot handle the
+source’s current value raises at the <code>bind</code> call. Both <code>default=</code> (the
+starting value, taken as is) and <code>fallback=</code> (shown while there is nothing
+usable) only shape that first value; the binding keeps following the source.</p>
 <pre><code class="language-python">sc.Text(sc.bind(state.count, lambda n: 'Count: {}'.format(n)))
 sc.NumberInput('Channel', sc.bbind(state.channel))
+sc.Text(sc.bind(state.tags, lambda x: x[0], fallback='(no tags)'))
 </code></pre>
 <h2 id="pages-in-this-section"><a class="header" href="#pages-in-this-section">Pages in this section</a></h2>
 <ul>
@@ -626,10 +632,34 @@ Those interactions are handled entirely in the browser.</p>
 <p><code>sc.bind</code> derives a property from one or more sources:</p>
 <pre><code class="language-python">label = sc.bind(state.count, lambda n: 'Count: {}'.format(n))
 </code></pre>
-<p>The derived property updates when a source changes. A <code>Signal</code> may be
-listed beside the value sources as a trigger: it forces a recomputation
-even when the value comes out the same, which is useful when the rendered
-result depends on more than the value.</p>
+<p>The derived property updates when a source changes. The transform also runs
+as soon as <code>bind</code> is called, on the source’s current value. If the transform
+cannot handle that value, the error is raised right there, at the line that
+wrote the binding – a broken transform is a bug, and it should not wait for
+some later click to show itself:</p>
+<pre><code class="language-python">sc.bind(state.tags, lambda x: x[0])   # IndexError: there is no tag yet
+</code></pre>
+<p>Guard inside the transform, or let <code>fallback=</code> stand in while there is
+nothing usable: an unset source (<code>sc._undefined</code>), or a transform that
+cannot handle the initial value.</p>
+<pre><code class="language-python">sc.bind(state.tags, lambda x: x[0] if x else '-')
+sc.bind(state.tags, lambda x: x[0], fallback='-')
+</code></pre>
+<p><code>fallback</code> only shapes the starting value. Once the binding is live, a
+transform that fails on a later change raises – the fallback is not a
+permanent safety net.</p>
+<p><code>default=</code> settles the starting value and nothing else. It wins even over a
+source that already holds a value (the transform is not run at all), and the
+source takes over from its next change:</p>
+<pre><code class="language-python"># shows '(anonymous)' until `state.name` changes
+sc.bind(state.name, str.upper, default='(anonymous)')
+</code></pre>
+<p><code>sc.bind</code> returns a <code>sc.Binding</code>, which <em>is</em> a <code>Property</code> – it just carries
+the recipe it came from. A component binds to it like any other property and
+keeps following it, so a seeded binding is never frozen at its first value.</p>
+<p>A <code>Signal</code> may be listed beside the value sources as a trigger: it forces a
+recomputation even when the value comes out the same, which is useful when
+the rendered result depends on more than the value.</p>
 <pre><code class="language-python">label = sc.bind(
     (state.items, state.reloaded),
     lambda pair: ', '.join(pair[0]),
@@ -668,21 +698,27 @@ def _(value):
 meaningful only on a signal whose owner holds a value: a <code>Property</code> has
 one, a plain <code>Button</code> does not.</p>
 <h3 id="sc_undefined"><a class="header" href="#sc_undefined"><code>sc._undefined</code></a></h3>
-<p>A <code>Property</code> declared without a default starts as <code>sc._undefined</code>:</p>
+<p>A <code>Property</code> whose declared type is primitive starts from that type’s zero
+value: <code>Property[int]</code> from <code>0</code>, <code>Property[str]</code> from <code>''</code>, <code>Property[list]</code>
+from a fresh <code>[]</code> (each instance gets its own):</p>
 <pre><code class="language-python">class State(sc.State):
-    selection: sc.Property[str]
+    count: sc.Property[int]        # 0
+    selection: sc.Property[str]    # ''
 </code></pre>
-<p><code>sc._undefined</code> is falsy. Two consequences matter:</p>
-<ul>
-<li><code>sc.bind</code> does not run its transform while the source still holds
-<code>sc._undefined</code>, because the transform may not accept it.</li>
-<li>A bound target that needs a defined starting value should be given one
-explicitly:</li>
-</ul>
-<pre><code class="language-python">label = sc.bind(state.selection, str.upper, default='')
+<p>Any other type – a class of your own, or a union such as <code>bool | None</code> –
+has no obvious zero, so the property starts as <code>sc._undefined</code>:</p>
+<pre><code class="language-python">class State(sc.State):
+    user: sc.Property[User]            # sc._undefined
+    error: sc.Property[str | None]     # sc._undefined
+</code></pre>
+<p><code>sc._undefined</code> is falsy. A source that still holds it has nothing for
+<code>sc.bind</code> to transform – the transform may not accept “nothing yet” – so
+the transform is not run at bind time; it first runs when the source gets a
+value. <code>fallback=</code> is what the derived property holds until then:</p>
+<pre><code class="language-python">label = sc.bind(state.user, lambda u: u.name, fallback='(anonymous)')
 </code></pre>
 <p>Test for it with identity:</p>
-<pre><code class="language-python">if state.selection.get() is sc._undefined:
+<pre><code class="language-python">if state.user.get() is sc._undefined:
     ...
 </code></pre>
 <h2 id="what-a-handler-should-do"><a class="header" href="#what-a-handler-should-do">What a handler should do</a></h2>
@@ -765,7 +801,10 @@ handle per instance:</p>
 </code></pre>
 <ul>
 <li><code>Property[int]</code> with a class-body value uses that value as the default.</li>
-<li>Without a class-body value the property starts as <code>sc._undefined</code> (see
+<li>Without a class-body value, a primitive type starts from its zero value
+(<code>int</code> -&gt; <code>0</code>, <code>str</code> -&gt; <code>''</code>, <code>list</code> -&gt; <code>[]</code>, …; each instance gets its
+own), while any other type – a class of your own, a union such as
+<code>bool | None</code> – starts as <code>sc._undefined</code> (see
 <a href="#special-markers">Special markers</a>).</li>
 <li><code>Signal</code> declares no payload; <code>Signal[int]</code> declares one positional
 payload.</li>
@@ -806,7 +845,8 @@ def _(value):
 <pre><code class="language-python">sc.NumberInput('Count', sc.bbind(state.count))
 </code></pre>
 <p>See <a href="#the-event-driven-system">The Event Driven System</a> for the full
-explanation of triggers, multiple sources, and <code>default=</code>.</p>
+explanation of triggers, multiple sources, and the <code>default=</code> / <code>fallback=</code>
+starting values.</p>
 <h2 id="versioning"><a class="header" href="#versioning">Versioning</a></h2>
 <p><code>State</code> tracks a schema version:</p>
 <pre><code class="language-python">class State(sc.State):
@@ -3179,22 +3219,6 @@ the API against real use cases.</li>
         <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
         <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
 
-        <!-- Livereload script (if served using the cli tool) -->
-        <script>
-            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
-            const socket = new WebSocket(wsAddress);
-            socket.onmessage = function (event) {
-                if (event.data === "reload") {
-                    socket.close();
-                    location.reload();
-                }
-            };
-
-            window.onbeforeunload = function() {
-                socket.close();
-            }
-        </script>
 
 
         <script>

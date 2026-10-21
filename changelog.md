@@ -1,8 +1,8 @@
 # CHANGELOG
 
-### 0.5.1 (WIP)
+### 0.5.1 (2026-10-21)
 
-- Minor fix components.
+- Improve binding mechanism.
 
 ### 0.5.0 (2026-10-20)
 
