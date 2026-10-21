@@ -292,11 +292,13 @@
       // holder rather than the root leaves the help glyph beside it alone.
       const holder = el.querySelector(':scope > .st-plain');
       if (holder) holder.textContent = value;
-    } else if (
-      el.classList.contains('st-selectbox') ||
-      el.classList.contains('st-radio')
-    ) {
-      scSetMarkdown(el.querySelector('.st-widget-label'), value);
+    } else if (el.querySelector(':scope > .st-widget-label')) {
+      // Every labeled widget draws its label through the server's
+      // `_widget_label_html`, which keeps the markdown holder in a direct
+      // child `<label>`. A `label` patch goes there -- the fallback below
+      // would replace the whole widget (a `TextArea`'s `<textarea>`, a
+      // selectbox's trigger...) with the rendered label text.
+      scSetMarkdown(el.querySelector(':scope > .st-widget-label'), value);
     } else if (el.classList.contains('st-btn')) {
       scSetMarkdown(el.querySelector('.st-btn-text') || el, value);
     } else if (el.classList.contains('st-spinner')) {

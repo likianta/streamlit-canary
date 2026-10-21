@@ -42,4 +42,4 @@ from .text import orange
 from .text import red
 from .text import yellow
 
-__version__ = '0.5.0'
+__version__ = '0.5.1'
