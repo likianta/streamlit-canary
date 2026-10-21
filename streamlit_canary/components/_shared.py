@@ -90,7 +90,7 @@ def _resolve_visible(
     its own default instead of one computed from the source -- hidden while
     the content is unset (nothing to draw yet), but shown while a mirrored
     flag is unset (mirroring a flag starts from `True`, the base class' own
-    default). Pass `sc.bind(..., default=...)` to pin what "not yet" means.
+    default). Pass `sc.bind(..., fallback=...)` to pin what "not yet" means.
     A primitive-typed state field no longer hits this edge -- it starts from
     its type's zero value (`PropertyHost`), so `bool` / `str` sources are
     defined from the start -- but a field of a class type still can.

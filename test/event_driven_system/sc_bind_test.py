@@ -3,8 +3,8 @@
 Run: python test/event_driven_system/sc_bind_test.py
 
 Read `kernel/state.py` (`PropertyHost` / `_zero_of`) and
-`kernel/property.py` (`Property.bind` / `Property._evaluate`) alongside this:
-every rule below comes straight out of what they do.
+`kernel/property.py` (`Binding` / `Property.bind` / `Property._evaluate`)
+alongside this: every rule below comes straight out of what they do.
 
 Short version:
 
@@ -17,9 +17,12 @@ Short version:
 2. `sc.bind` runs the transform at once. A transform that cannot handle the
    current value raises out of `bind` -- at the line that wrote it -- instead
    of leaving the property on its default and failing later.
-3. `default=` turns that failure into a value: the derived property holds the
-   default, now and whenever the transform fails again. That is the shorthand
-   for a guard written inside the transform.
+3. `default` settles the *starting* value and nothing else: it is taken as is
+   (the transform does not run), and the binding stays live, so the source's
+   next change takes over. A source that already had a value at bind time
+   loses to the default until it changes again.
+4. `fallback` stands in while there is nothing usable: an unset source, or a
+   transform that fails on the initial value. Later failures raise.
 """
 
 import streamlit_canary as sc
@@ -87,8 +90,15 @@ except IndexError as error:
 else:
     raise AssertionError('the broken transform did not raise')
 
+# ... and the failed `bind` left no listener behind: this change is quiet
+state.ccc.set(['alpha'])
+show('the failed bind left no listener', state.ccc.get())
+state.ccc.set([])
+
 show('a working transform is already applied', sc.bind(state.aaa, str).get())
 assert sc.bind(state.aaa, str).get() == '0'
+assert isinstance(sc.bind(state.aaa, str), sc.Binding)
+assert isinstance(sc.bind(state.aaa, str), sc.Property)
 
 # `x or ...` is the guard-inside-the-transform form: the empty string of
 # `bbb` is falsy, so the transform itself picks the fallback
@@ -106,41 +116,107 @@ skipped = sc.bind(unset, lambda x: x['name'])
 show('an unset source skips the first run', skipped.get())
 assert skipped.get() is sc._undefined
 
-# == 3. `default=` stands in for a failing transform =========================
+# == 3. `fallback=` stands in while there is nothing usable ==================
 
 print()
-print('== 3. `default=` is used when the transform fails ==')
+print('== 3. `fallback=` covers the starting value ==')
 
-safe = sc.bind(state.ccc, lambda x: x[0], default='')
-show('empty list -> default', repr(safe.get()))
-assert safe.get() == ''
+safe = sc.bind(state.ccc, lambda x: x[0], fallback='-')
+show('empty list -> fallback', repr(safe.get()))
+assert safe.get() == '-'
 
 state.ccc.set(['alpha', 'beta'])
 show('a filled list -> the transform', repr(safe.get()))
 assert safe.get() == 'alpha'
 
-state.ccc.set([])
-show('empty again -> the default again', repr(safe.get()))
-assert safe.get() == ''
+# the fallback is a starting value, not a permanent net: a failure after
+# that raises, since a value that only turned bad at runtime is a bug
+try:
+    state.ccc.set([])
+except IndexError as error:
+    show('a later failure raises', repr(error))
+else:
+    raise AssertionError('the later failure did not raise')
 
-# the same guard, spelled inside the transform (the long form of `default=`)
-guarded = sc.bind(state.ccc, lambda x: x[0] if x else '')
-show('the guard form agrees', repr(guarded.get()))
-assert guarded.get() == safe.get()
+# without a transform, `fallback` covers "the source has no value yet"
+fresh = sc.Property()
+waiting = sc.bind(fresh, fallback='(anonymous)')
+show('unset source -> fallback (no transform)', repr(waiting.get()))
+assert waiting.get() == '(anonymous)'
+fresh.set('Alice')
+show('... and the source takes over', repr(waiting.get()))
+assert waiting.get() == 'Alice'
 
-# == 4. a widget mirrors the derived property ================================
+# with a transform, the same
+fresh2 = sc.Property()
+waiting2 = sc.bind(fresh2, lambda x: x.upper(), fallback='?')
+assert waiting2.get() == '?'
+fresh2.set('bob')
+show('unset source -> fallback (transform)', repr(waiting2.get()))
+assert waiting2.get() == 'BOB'
+
+# == 4. `default=` seeds the value, and the binding stays live ===============
 
 print()
-print('== 4. a widget handed a bound property ==')
+print('== 4. `default=` is the starting value only ==')
 
-with sc.TextInput('MMM', sc.bind(state.ccc, lambda x: x[0], default='')) as box:
+state.bbb.set('')
+seeded = sc.bind(state.bbb, str.upper, default='(anonymous)')
+show('the default wins at bind time', repr(seeded.get()))
+assert seeded.get() == '(anonymous)'
+
+state.bbb.set('alice')
+show('a source change takes over', repr(seeded.get()))
+assert seeded.get() == 'ALICE'
+
+state.bbb.set('')
+show('... and the transform keeps running', repr(seeded.get()))
+assert seeded.get() == ''
+
+# the default also wins over a source that already holds a value; that
+# source only takes over from its *next* change
+state.bbb.set('bob')
+late = sc.bind(state.bbb, str.upper, default='(anonymous)')
+show('default beats an existing source value', repr(late.get()))
+assert late.get() == '(anonymous)'
+state.bbb.set('carol')
+show('... until the source changes', repr(late.get()))
+assert late.get() == 'CAROL'
+
+# without a transform the binding mirrors the source after the seeded start
+state.bbb.set('dave')
+plain = sc.bind(state.bbb, default='(anonymous)')
+assert plain.get() == '(anonymous)'
+state.bbb.set('erin')
+show('default + identity transform', repr(plain.get()))
+assert plain.get() == 'erin'
+
+# == 5. a widget mirrors the binding ========================================
+
+print()
+print('== 5. a widget handed a binding ==')
+
+with sc.TextInput(
+    'MMM', sc.bind(state.ccc, lambda x: x[0], fallback='')
+) as box:
     pass
-show('the box shows the derived value', repr(box.value.get()))
+show('the box shows the fallback', repr(box.value.get()))
 assert box.value.get() == ''
 
 state.ccc.set(['alpha'])
-show('... and follows a change', repr(box.value.get()))
+show('... and follows the source', repr(box.value.get()))
 assert box.value.get() == 'alpha'
+
+with sc.TextInput(
+    'SEED', sc.bind(state.bbb, str.upper, default='(none)')
+) as seeded_box:
+    pass
+show('the box shows the default', repr(seeded_box.value.get()))
+assert seeded_box.value.get() == '(none)'  # the default is not transformed
+
+state.bbb.set('frank')
+show('... but is not frozen on it', repr(seeded_box.value.get()))
+assert seeded_box.value.get() == 'FRANK'
 
 print()
 print('all assertions passed.')

@@ -46,6 +46,7 @@ The kernel is available at the top level:
 
 ```python
 sc.Property
+sc.Binding
 sc.Signal
 sc.State
 sc.bind
@@ -122,13 +123,14 @@ widget['on_value']       # same as widget.value.on_change
 `sc.bind(source, transform)` creates a read-only, derived property.
 `sc.bbind(source)` creates a two-way binding for widgets that write back.
 The transform runs immediately, and a transform that cannot handle the
-source's current value raises at the `bind` call; pass `default=` to use a
-value instead.
+source's current value raises at the `bind` call. Both `default=` (the
+starting value, taken as is) and `fallback=` (shown while there is nothing
+usable) only shape that first value; the binding keeps following the source.
 
 ```python
 sc.Text(sc.bind(state.count, lambda n: 'Count: {}'.format(n)))
 sc.NumberInput('Channel', sc.bbind(state.channel))
-sc.Text(sc.bind(state.tags, lambda x: x[0], default='(no tags)'))
+sc.Text(sc.bind(state.tags, lambda x: x[0], fallback='(no tags)'))
 ```
 
 ## Pages in this section

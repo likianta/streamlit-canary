@@ -15,6 +15,7 @@ from . import components
 from . import legacy_streamlit_wrappers as legacy
 from . import opener
 from .components import *
+from .kernel import Binding
 from .kernel import Property
 from .kernel import Signal
 from .kernel import State

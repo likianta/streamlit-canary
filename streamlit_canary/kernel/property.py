@@ -53,6 +53,9 @@ class Property(tp.Generic[T.Q]):
         # True while a notification that carries no change is being delivered
         # (see `set` / `_emit`), which is what a bound target re-renders on.
         self._forced_emit = False
+        # What a failing transform may fall back to while `bind` settles the
+        # starting value (see `_evaluate`); `_undefined` means "raise instead".
+        self._fallback: tp.Any = _undefined
 
     def __bool__(self) -> bool:
         return bool(self.value)
@@ -108,30 +111,36 @@ class Property(tp.Generic[T.Q]):
         finally:
             self._forced_emit = False
 
-    def _evaluate(self, transform: T.Transform, payload: tp.Any) -> tp.Any:
-        """Run a `bind` transform, falling back to `default` if it raises.
+    def _evaluate(
+        self, transform: T.Transform, payload: tp.Any, initial: bool = False
+    ) -> tp.Any:
+        """Run a `bind` transform on a source value.
 
-        Without a default (`sc._undefined`) there is nothing to fall back to,
-        so the error is raised -- at `bind` time when the transform runs
-        eagerly, which is what turns a broken transform into an immediate
-        failure instead of a value that silently stays unset.
+        `initial` marks the eager evaluation `bind` does, so the property
+        starts with a value instead of waiting for the first change. That one
+        may fall back to `fallback`: a transform that cannot handle what the
+        source already holds is often just "nothing to work with yet"
+        (`lambda x: x[0]` against an empty list), and `fallback` is what the
+        caller asked to show instead.
 
-        With a default the caller has said what to show while the current
-        source value cannot be transformed -- `lambda x: x[0]` against an
-        empty list, say -- so that default is used instead, on the first
-        evaluation and on every later one.
+        Every later evaluation raises on failure. A value that only turned bad
+        at runtime is a bug to surface, not to paper over -- the fallback was
+        a starting value, not a permanent safety net.
         """
         try:
             return transform(payload)
         except Exception:
-            if self.default is _undefined:
-                raise
-            return self.default
+            if initial and self._fallback is not _undefined:
+                return self._fallback
+            raise
 
     def bind(
         self,
         any_source: T.SourceOrMany,
         transform: tp.Optional[T.Transform] = None,
+        *,
+        fallback: T.Q | _Undefined = _undefined,
+        seed: bool = False,
     ) -> None:
         """
         Bind this property to source property(s).
@@ -143,14 +152,20 @@ class Property(tp.Generic[T.Q]):
         the source's current value, the error comes out of `bind` itself, while
         the app is being built. That is deliberate -- a transform that is wrong
         for the value it was given is a bug, and finding it at the call site
-        beats a property that silently sits on its default. Pass a `default`
-        (`sc.bind(..., default=...)`) to say what to show instead; then a
-        failing transform yields that default rather than raising.
+        beats a property that silently sits on its default. Pass a `fallback`
+        (`sc.bind(..., fallback=...)`) to say what to show instead; then a
+        transform that fails on the *initial* value yields the fallback rather
+        than raising. Later failures still raise.
 
         `transform` defaults to the identity function: `self` simply mirrors
         `source`. When the source still holds no initial value (`_undefined`),
         the immediate sync is skipped and we wait for the first change -- there
         is nothing the transform could be asked to make of "nothing yet".
+
+        `seed` says the caller has already settled the starting value (a
+        `Binding` with a `default`): the immediate sync is skipped even when
+        the source holds one, and the source only takes over from its next
+        change.
 
         A source may also be a `Signal` -- a *trigger* rather than a value:
 
@@ -169,14 +184,15 @@ class Property(tp.Generic[T.Q]):
         Signal slot does not shift the indices.
         """
 
+        self._fallback = fallback
         if isinstance(any_source, Property):
             source: Property = any_source
 
-            def sync() -> None:
+            def sync(initial: bool = False) -> None:
                 if transform is None:
                     value = tp.cast(T.Q, source.get())
                 else:
-                    value = self._evaluate(transform, source.get())
+                    value = self._evaluate(transform, source.get(), initial)
                 # a forced notification means "re-render, nothing changed", so
                 # pass it on rather than letting the value comparison eat it.
                 self.set(value, notify=True if source._forced_emit else None)
@@ -185,8 +201,8 @@ class Property(tp.Generic[T.Q]):
             # Done before the listener is connected: a transform that raises
             # here must not leave a half-wired binding behind, still reacting
             # to later changes of a property nothing reads any more.
-            if source.get() is not _undefined:
-                sync()
+            if not seed and source.get() is not _undefined:
+                sync(initial=True)
             source.on_change.connect(sync)
 
         else:
@@ -272,18 +288,20 @@ class Property(tp.Generic[T.Q]):
                                 return
                     self.sync()
 
-                def sync(self) -> None:
+                def sync(self, initial: bool = False) -> None:
                     forced, self._forced = self._forced, False
                     self._target.set(
                         self._target._evaluate(
-                            self._transform, tp.cast(tp.Sequence[T.P], self)
+                            self._transform,
+                            tp.cast(tp.Sequence[T.P], self),
+                            initial,
                         ),
                         notify=True if forced else None,
                     )
 
             accessor = SourceAccessor(triggers, values, self, transform)
-            if all(x.get() is not _undefined for x in values):
-                accessor.sync()  # may raise -- see the single-source case
+            if not seed and all(x.get() is not _undefined for x in values):
+                accessor.sync(initial=True)  # may raise -- see single-source
             accessor.watch()
             _weakrefs.append(accessor)
 
@@ -307,14 +325,63 @@ class Property(tp.Generic[T.Q]):
             self.set(value)
 
 
+class Binding(Property[T.Q]):
+    """The `Property` `sc.bind` hands back, still carrying its recipe.
+
+    A receiver (a component, through `set_or_bind`) treats it as an ordinary
+    `Property` and starts following it -- which is the point: the link must
+    stay live, or the binding would freeze at whatever it held at init. What
+    `Binding` adds is how the *starting* value is settled:
+
+    * a `default` is taken verbatim, and the transform is not run at all --
+      writing `default=` is the caller saying "start here", so even a source
+      that already holds a value only takes over from its next change;
+    * without one, an unset source (`sc._undefined`) shows the `fallback`
+      instead of leaving the property on its own default;
+    * a transform that cannot handle the source's current value falls back
+      to `fallback` as well, or raises when there is none.
+
+    A source change afterwards is an ordinary sync: `transform(value)`
+    (identity when there is no transform). A failure there raises -- the
+    `fallback` was a starting value, not a permanent safety net.
+    """
+
+    def __init__(
+        self,
+        source: T.SourceOrMany,
+        transform: tp.Optional[T.Transform] = None,
+        *,
+        default: T.Q | _Undefined = _undefined,
+        fallback: T.Q | _Undefined = _undefined,
+    ) -> None:
+        seeded = default is not _undefined
+        super().__init__(default if seeded else fallback)
+        self._source = source
+        self._transform = transform
+        self.bind(source, transform, fallback=fallback, seed=seeded)
+
+    @property
+    def fallback(self) -> tp.Any:
+        return self._fallback
+
+    @property
+    def source(self) -> T.SourceOrMany:
+        return self._source
+
+    @property
+    def transform(self) -> tp.Optional[T.Transform]:
+        return self._transform
+
+
 def bind(
     source: T.SourceOrMany,
     transform: tp.Optional[T.Transform] = None,
     *,
     default: T.Q | _Undefined = _undefined,
-) -> Property[T.Q]:
+    fallback: T.Q | _Undefined = _undefined,
+) -> Binding[T.Q]:
     """
-    Create an anonymous `Property` bound to `source`.
+    Create a `Binding`: a `Property` that follows `source`.
 
     Usage:
         sc.Radio(sc.bind(state.project, lambda x: x['name']))
@@ -337,24 +404,34 @@ def bind(
 
         sc.bind(state.tags, lambda x: x[0])   # IndexError: no tag yet
 
-    `default` is what to use instead, both as the starting value and whenever
-    the transform fails (at bind time or on a later change):
+    `fallback` is what to show instead while there is nothing to derive from:
+    the `fallback` value itself when the source still holds `sc._undefined`,
+    or when the transform fails on the initial value:
 
-        sc.bind(state.tags, lambda x: x[0], default='-')
+        sc.bind(state.tags, lambda x: x[0], fallback='-')
+
+    Both `default` and `fallback` shape the *starting* value only; the binding
+    stays live, so later changes of the source are transformed as usual (and a
+    failure there raises -- the fallback does not mask runtime bugs).
+
+    `default` wins over everything at the start, transform included -- writing
+    it is how a caller says "start here":
+
+        # shows '(anonymous)' even if `state.name` already holds a value;
+        # the next change of `state.name` takes over.
+        sc.bind(state.name, default='(anonymous)')
 
     A source that still holds `sc._undefined` has no value to transform at
     all, so the immediate run is skipped and the transform first runs when the
-    source gets a value; `default` is what the derived property holds until
-    then (see `PropertyHost`, which gives a primitive-typed `Property` its
-    type's zero value, so most sources never start `_undefined`):
+    source gets a value (see `PropertyHost`, which gives a primitive-typed
+    `Property` its type's zero value, so most sources never start
+    `_undefined`):
 
-        # `app_name` is `_undefined` at first, so `bool` is never called and
-        # without `default` this stays `visible=True` and shows anyway.
-        sc.Expander(..., visible=sc.bind(state.app_name, bool, default=False))
+        # `app_name` is `_undefined` at first, and without a fallback the
+        # derived flag keeps the expander's own default.
+        sc.Expander(..., visible=sc.bind(state.app_name, bool, fallback=False))
     """
-    prop = Property[T.Q](default)
-    prop.bind(source, transform)
-    return prop
+    return Binding[T.Q](source, transform, default=default, fallback=fallback)
 
 
 class _BidiProperty(Property[T.Q]):

@@ -129,14 +129,31 @@ some later click to show itself:
 sc.bind(state.tags, lambda x: x[0])   # IndexError: there is no tag yet
 ```
 
-Guard inside the transform, or let `default=` stand in for the failure. The
-default is used whenever the transform fails, at bind time and on later
-changes:
+Guard inside the transform, or let `fallback=` stand in while there is
+nothing usable: an unset source (`sc._undefined`), or a transform that
+cannot handle the initial value.
 
 ```python
 sc.bind(state.tags, lambda x: x[0] if x else '-')
-sc.bind(state.tags, lambda x: x[0], default='-')
+sc.bind(state.tags, lambda x: x[0], fallback='-')
 ```
+
+`fallback` only shapes the starting value. Once the binding is live, a
+transform that fails on a later change raises -- the fallback is not a
+permanent safety net.
+
+`default=` settles the starting value and nothing else. It wins even over a
+source that already holds a value (the transform is not run at all), and the
+source takes over from its next change:
+
+```python
+# shows '(anonymous)' until `state.name` changes
+sc.bind(state.name, str.upper, default='(anonymous)')
+```
+
+`sc.bind` returns a `sc.Binding`, which *is* a `Property` -- it just carries
+the recipe it came from. A component binds to it like any other property and
+keeps following it, so a seeded binding is never frozen at its first value.
 
 A `Signal` may be listed beside the value sources as a trigger: it forces a
 recomputation even when the value comes out the same, which is useful when
@@ -224,10 +241,10 @@ class State(sc.State):
 `sc._undefined` is falsy. A source that still holds it has nothing for
 `sc.bind` to transform -- the transform may not accept "nothing yet" -- so
 the transform is not run at bind time; it first runs when the source gets a
-value. `default=` is what the derived property holds until then:
+value. `fallback=` is what the derived property holds until then:
 
 ```python
-label = sc.bind(state.user, lambda u: u.name, default='(anonymous)')
+label = sc.bind(state.user, lambda u: u.name, fallback='(anonymous)')
 ```
 
 Test for it with identity:

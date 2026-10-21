@@ -7,6 +7,7 @@ tested in isolation.
 """
 
 from .pending_updates import pending_updates
+from .property import Binding
 from .property import Property
 from .property import bbind
 from .property import bind

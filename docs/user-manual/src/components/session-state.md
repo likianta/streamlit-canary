@@ -97,7 +97,8 @@ sc.NumberInput('Count', sc.bbind(state.count))
 ```
 
 See [The Event Driven System](./event-driven-system.md) for the full
-explanation of triggers, multiple sources, and `default=`.
+explanation of triggers, multiple sources, and the `default=` / `fallback=`
+starting values.
 
 ## Versioning
 
